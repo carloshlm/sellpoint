@@ -1,3 +1,4 @@
+import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -8,10 +9,23 @@ import { z } from "zod";
  * `usuario.asignado → turno → venta → ledger`. Un cajero que siempre vende en
  * la misma sucursal no debería tener que elegirla cada mañana; uno que rota
  * entre dos manda el que corresponda, dentro de su alcance.
+ *
+ * F10-MANFIX-10 — el FONDO INICIAL, también opcional: sin él, el turno abre
+ * con $0 y el arqueo espera lo de siempre. Es un importe como los demás (dos
+ * decimales, el tope de la columna) y nunca negativo. Un número y no texto:
+ * `z.coerce` convertiría un campo vacío en un fondo de $0 que nadie escribió.
  */
+const FONDO_INVALIDO = { message: "pos.opening_cash_invalid" } as const;
+
 export const openSessionSchema = z
   .object({
     warehouseId: z.string().uuid({ message: "pos.warehouse_invalid" }).optional(),
+    openingCash: z
+      .number(FONDO_INVALIDO)
+      .min(0, FONDO_INVALIDO)
+      .max(MONEY_MAX, FONDO_INVALIDO)
+      .refine(hasValidMoneyScale, FONDO_INVALIDO)
+      .optional(),
   })
   .strict();
 

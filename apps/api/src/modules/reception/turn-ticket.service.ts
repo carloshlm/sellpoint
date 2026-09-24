@@ -41,15 +41,17 @@ export class TurnTicketService {
       if (turno === null) {
         throw new NotFoundException({ message: "reception.turn_not_found" });
       }
+      // F10-MANFIX-14: el nombre del negocio, no el legal — el papel del
+      // turno no tiene renglón del RFC donde el legal pueda ir.
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
-        select: { name: true, legalName: true, timezone: true },
+        select: { name: true, timezone: true },
       });
       const { settings, logo } = await this.ticketSettings.leer(tx, user.tenantId);
       return {
         logo,
         showBusinessName: settings.showBusinessName,
-        tenant: { name: tenant.name, legalName: tenant.legalName },
+        tenant: { name: tenant.name },
         number: turno.number,
         customerName: turno.customerName,
         createdAt: turno.createdAt,

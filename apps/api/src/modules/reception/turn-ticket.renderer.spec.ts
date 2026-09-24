@@ -12,7 +12,7 @@ describe("buildTurnTicketDefinition", () => {
   const base: TurnTicketInput = {
     logo: null,
     showBusinessName: true,
-    tenant: { name: "Mi Negocio", legalName: "CLÍNICA DEL NORTE S.A. DE C.V." },
+    tenant: { name: "Clínica San Rafael" },
     number: 5,
     customerName: "Rosa Luna Ríos",
     createdAt: new Date("2026-09-03T04:30:00.000Z"), // 2-sep 22:30 en CDMX
@@ -48,7 +48,7 @@ describe("buildTurnTicketDefinition", () => {
     expect(numero?.bold).toBe(true);
     expect(numero?.fontSize).toBeGreaterThanOrEqual(40);
     const json = textos(def);
-    expect(json).toContain("CLÍNICA DEL NORTE S.A. DE C.V.");
+    expect(json).toContain("Clínica San Rafael");
     expect(json).toContain("ticket.turn");
     expect(json).toContain("Rosa Luna Ríos");
     expect(json).toContain("ticket.turnFooter");
@@ -83,7 +83,6 @@ describe("buildTurnTicketDefinition", () => {
         alignment: "center",
       });
       const json = JSON.stringify(def);
-      expect(json).not.toContain(base.tenant.legalName as string);
       expect(json).not.toContain(base.tenant.name);
       // El número sigue siendo lo más grande del papel.
       expect(json).toContain('"fontSize":56');
@@ -97,9 +96,12 @@ describe("buildTurnTicketDefinition", () => {
       expect((conSvg.content as Record<string, unknown>[])[0]).toMatchObject({
         svg: TICKET_LOGO_SVG.clinic,
       });
+      // F10-MANFIX-14: el nombre del NEGOCIO, el que la gente conoce. El
+      // turno no lleva renglón del RFC, así que el legal no tiene dónde ir.
       const sinLogo = buildTurnTicketDefinition(base, t);
       expect((sinLogo.content as Record<string, unknown>[])[0]).toMatchObject({
-        text: base.tenant.legalName ?? base.tenant.name,
+        text: base.tenant.name,
+        bold: true,
       });
     });
   });

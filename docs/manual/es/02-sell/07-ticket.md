@@ -21,15 +21,19 @@ imprime. Arriba queda el aviso verde **Venta VTA-000483 cobrada.** con el botón
 
 ![El ticket de la venta VTA-000482, en papel de 58 mm](screen:ticket)
 
-1. El logotipo y los datos del negocio que eligió quien lo administra: el
-   nombre, el RFC, la dirección y el teléfono (capítulo 12).
+1. El logotipo y los datos del negocio que eligió quien lo administra
+   (capítulo 12): arriba, el nombre del negocio; debajo, el nombre legal junto
+   al RFC, la dirección y el teléfono. En la tienda de ejemplo, **Abarrotes La
+   Esquina** y, debajo, **Ana Pérez · RFC: PEAA850315AB3**.
 2. El **folio** de la venta (VTA-000482), la fecha y la hora, la sucursal y
    quién **Atendió**.
 3. Lo que se llevó el cliente: cada producto con su cantidad, su precio y su
    importe. La presentación va con su nombre («1 Caja con 12 (12 piezas)»), y
    si el producto se controla por lotes, sale el **Lote** que se vendió.
 4. Los totales: el subtotal, el descuento si lo hubo, el impuesto y el
-   **Total**, y cómo pagó el cliente.
+   **Total**, y cómo pagó el cliente. Si pagó en efectivo, también con cuánto
+   (**Recibido**) y su **Cambio**: en la venta VTA-000482 el total fue $243.50,
+   el cliente pagó con $300.00 y se llevó $56.50 de cambio.
 5. El mensaje del pie y un **código de barras** con su número: al escanearlo en
    el historial aparece la venta (capítulo 8).
 
@@ -53,6 +57,7 @@ Si el cliente perdió su ticket o se atascó el papel:
 
 ![La venta encontrada con el código de su ticket](screen:ticket-reprint)
 
-El ticket reimpreso es el mismo papel de la venta. También se reimprime el de
-una venta cancelada, por si el cliente llega a reclamar con él en la mano. El
-papel de una cotización se reimprime desde **Cotización** (capítulo 9).
+El ticket reimpreso es el mismo papel de la venta, con lo recibido y el cambio
+si se pagó en efectivo. También se reimprime el de una venta cancelada, por si
+el cliente llega a reclamar con él en la mano. El papel de una cotización se
+reimprime desde **Cotización** (capítulo 9).

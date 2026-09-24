@@ -58,6 +58,17 @@ Aplica al ticket de venta y a la cotización.
    compra! Vuelve pronto.». Si la dejas vacía, sale el mensaje de fábrica.
 4. Presiona **Guardar**.
 
+**El nombre en el papel.** Arriba y en negritas va el **nombre del negocio**, el
+que tus clientes conocen. El **nombre legal** va en el renglón del RFC, por
+ejemplo **Ana Pérez · RFC: PEAA850315AB3** debajo de **Abarrotes La Esquina**, y
+solo si es distinto del nombre del negocio: si es el mismo, el ticket lo dice
+una vez. El nombre legal viaja con el RFC: si apagas el RFC, tampoco sale. El
+papel del turno de Recepción lleva solo el nombre del negocio.
+
+Lo demás del ticket no se configura y sale siempre: lo que se vendió, los
+totales, cómo pagó el cliente y, si pagó en efectivo, con cuánto (**Recibido**)
+y su **Cambio** (capítulo 7).
+
 El **ancho del papel** (58 u 80 mm) no se elige aquí: es un ajuste de la
 computadora donde se imprime, no del negocio —la impresora está conectada a
 ella, no a tu cuenta—, y lo elige quien cobra, no solo quien administra. Cada

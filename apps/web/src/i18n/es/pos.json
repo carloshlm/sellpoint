@@ -26,7 +26,10 @@
     "cashExpenses": "Gastos en efectivo",
     "expenseCount": "{{count}} gastos",
     "expenseCount_one": "1 gasto",
-    "expectedCash": "Efectivo esperado"
+    "expectedCash": "Efectivo esperado",
+    "openingCash": "Fondo inicial",
+    "openingCashLabel": "Fondo inicial (opcional)",
+    "openingCashHint": "El efectivo con que empiezas para dar cambio. Se suma al efectivo esperado al cerrar."
   },
   "nav": {
     "close": "Cierre de turno",

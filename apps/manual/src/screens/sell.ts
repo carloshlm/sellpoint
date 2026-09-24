@@ -95,6 +95,11 @@ export const SELL: Screen[] = [
     as: "cashier",
     path: "/pos",
     apiOverrides: NO_SHIFT,
+    // Los $500 de cambio con que Luis abre cada día. «Abrir turno» NO se presiona.
+    prepare: async (page) => {
+      await page.getByLabel("Fondo inicial (opcional)").fill("500");
+      await blur(page);
+    },
     target: (page) => [page.getByTestId("open-session")],
   },
   {
@@ -103,8 +108,10 @@ export const SELL: Screen[] = [
     as: "cashier",
     path: "/pos/close",
     // Lo que Luis contó: $20 menos de lo esperado, con su nota. NO se cierra.
+    // Esperaba $840.50: $500.00 de fondo + $430.50 en efectivo − $90.00 del
+    // gasto del cajón (seed.ts).
     prepare: async (page) => {
-      await page.getByLabel("Efectivo contado en caja").fill("320.50");
+      await page.getByLabel("Efectivo contado en caja").fill("820.50");
       await page.getByLabel("Nota (opcional)").fill("Faltaron $20 del cambio.");
       await blur(page);
     },

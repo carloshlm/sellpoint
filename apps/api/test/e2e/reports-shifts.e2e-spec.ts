@@ -108,14 +108,18 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       note: "Faltó un billete de 10",
     }).expect(200);
 
-    // Turno 2 (cajero, Norte): una venta en efectivo de 50; cierra cuadrado.
-    const t2 = await post(cajeroToken, "/pos/session", { warehouseId: norteId }).expect(201);
+    // Turno 2 (cajero, Norte): abre con $200 de fondo (F10-MANFIX-10) y vende
+    // 50 en efectivo; cierra cuadrado contando 250.
+    const t2 = await post(cajeroToken, "/pos/session", {
+      warehouseId: norteId,
+      openingCash: 200,
+    }).expect(201);
     turnoNorteId = (t2.body as { id: string }).id;
     await post(cajeroToken, "/pos/sales", {
       paymentMethod: "cash",
       lines: [{ productId: producto.id, quantity: 1 }],
     }).expect(201);
-    await post(cajeroToken, "/pos/session/close", { declaredCash: 50 }).expect(200);
+    await post(cajeroToken, "/pos/session/close", { declaredCash: 250 }).expect(200);
   });
 
   afterAll(async () => {
@@ -133,6 +137,8 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       openedBy: { name: "Ana Pérez" },
       closedBy: { name: "Ana Pérez" },
       salesCount: 2,
+      // F10-MANFIX-10: abrió sin fondo, así que su esperado es el de siempre.
+      openingCash: "0",
       calculatedCash: "100",
       declaredCash: "90",
       cashDifference: "-10",
@@ -146,8 +152,12 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       { method: "transfer", total: "0", count: 0 },
     ]);
     const norte = body.rows.find((r) => r.id === turnoNorteId);
+    // El fondo va en la fila, y lo calculado ya lo trae sumado: 200 + 50.
     expect(norte).toMatchObject({
       closedBy: { id: cajeroId, name: "Beto Caja" },
+      openingCash: "200",
+      calculatedCash: "250",
+      declaredCash: "250",
       cashDifference: "0",
       closingNote: null,
     });
@@ -234,8 +244,10 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       .trim()
       .split("\n");
     expect(lineas[0]).toBe(
-      // F9-EXP-10: «Gastos en efectivo» antes de «Calculado» (el calculado ya los resta).
-      "Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
+      // F9-EXP-10: «Gastos en efectivo» antes de «Calculado» (el calculado ya
+      // los resta). F10-MANFIX-10: «Fondo inicial» antes de los gastos (el
+      // calculado ya lo suma).
+      "Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
     );
     // Central tiene DOS cierres: el del arqueo y el que abrió y cerró el caso de `status=open`.
     expect(lineas).toHaveLength(3);
@@ -244,10 +256,19 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
     expect(lineas[1]).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2},\d{4}-\d{2}-\d{2} \d{2}:\d{2},/);
     expect(
       lineas.some((l) =>
-        // …,Ventas,Gastos en efectivo,Calculado,…: el turno no tuvo gastos del cajón (0).
-        l.includes(",Ana Pérez,Ana Pérez,100,50,0,2,0,100,90,-10,Faltó un billete de 10"),
+        // …,Ventas,Fondo inicial,Gastos en efectivo,Calculado,…: el turno abrió
+        // sin fondo (0) y no tuvo gastos del cajón (0).
+        l.includes(",Ana Pérez,Ana Pérez,100,50,0,2,0,0,100,90,-10,Faltó un billete de 10"),
       ),
     ).toBe(true);
+    // El turno de Norte, con su fondo: 200 de fondo + 50 vendidos = 250.
+    const norte = await descargar(
+      negocio.token,
+      `/reports/shifts/export?format=csv&warehouseId=${norteId}`,
+    ).expect(200);
+    expect((norte.body as Buffer).toString("utf8")).toContain(
+      ",Beto Caja,Beto Caja,50,0,0,1,200,0,250,250,0,",
+    );
 
     // En inglés: el JWT del usuario manda el idioma.
     await request(app.getHttpServer())
@@ -268,7 +289,7 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
         .replace(/^\uFEFF/, "")
         .split("\n")[0],
     ).toBe(
-      "Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Cash expenses,Expected,Counted,Difference,Note",
+      "Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Opening cash,Cash expenses,Expected,Counted,Difference,Note",
     );
     await request(app.getHttpServer())
       .patch("/me")

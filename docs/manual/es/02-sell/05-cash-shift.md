@@ -19,9 +19,15 @@ cada uno abre el suyo y cuadra su propio cajón.
    cobras en otra, elígela en la lista; solo aparecen las sucursales donde
    puedes trabajar. Si no te aparece ninguna, pide a quien administra el
    negocio que te dé acceso a una: sin sucursal no se abre el turno.
-3. Presiona **Abrir turno**.
+3. Si tu cajón arranca con dinero para dar cambio, escribe cuánto en **Fondo
+   inicial (opcional)**, por ejemplo **500**. Si no usas fondo, déjalo vacío:
+   tu turno abre en $0.00.
+4. Presiona **Abrir turno**.
 
-![Abrir el turno: la sucursal asignada ya viene elegida](screen:open-shift)
+![Abrir el turno con la sucursal asignada ya elegida y $500 de fondo](screen:open-shift)
+
+El fondo se escribe una sola vez, al abrir: después ya no se puede cambiar. Si
+te equivocaste, cuéntalo igual al cerrar y explica la diferencia en la **Nota**.
 
 Aparece la pantalla de venta (capítulo 6). Arriba, una barra te recuerda desde
 qué sucursal cobras y desde qué hora, por ejemplo **Punto de venta · Sucursal
@@ -41,8 +47,9 @@ inventario de esa sucursal.
 1. En el menú, entra a **Cierre de turno**. También puedes presionar **Cerrar
    turno**, abajo de la pantalla de venta.
 2. Revisa las cuentas de tu turno (las explica la tabla de abajo).
-3. Cuenta el efectivo de tu cajón y escríbelo en **Efectivo contado en caja**.
-   Mientras escribes, SellPointy muestra la **Diferencia** contra lo esperado.
+3. Cuenta todo el efectivo de tu cajón, con el fondo incluido, y escríbelo en
+   **Efectivo contado en caja**. Mientras escribes, SellPointy muestra la
+   **Diferencia** contra lo esperado.
 4. Si no cuadra, explica por qué en **Nota (opcional)**, por ejemplo «Faltaron
    $20 del cambio.».
 5. Presiona **Cerrar turno**.
@@ -51,9 +58,14 @@ inventario de esa sucursal.
 
 | Renglón | Qué es |
 |---|---|
+| **Fondo inicial** | El dinero con que abriste tu turno para dar cambio. Si no escribiste ninguno, dice $0.00. |
 | **Efectivo**, **Tarjeta**, **Transferencia** | Lo que cobraste con cada forma de pago, y en cuántas ventas. |
 | **Gastos en efectivo** | Lo que se pagó con dinero de tu cajón. Solo aparece si hubo alguno (capítulo 10). |
-| **Efectivo esperado** | Lo que debe haber en tu cajón: el efectivo de tus ventas menos esos gastos. |
+| **Efectivo esperado** | Lo que debe haber en tu cajón: el fondo inicial, más el efectivo de tus ventas, menos esos gastos. |
+
+En la tienda de ejemplo, Luis abrió con $500.00 de fondo, cobró $430.50 en
+efectivo y del cajón salieron $90.00: el efectivo esperado es $840.50. Contó
+$820.50, así que la diferencia es -$20.00.
 
 Solo se cuenta el efectivo: lo que se cobra con tarjeta o transferencia no pasa
 por tu cajón. Las ventas que se cancelaron mientras tu turno estaba abierto no
@@ -67,8 +79,3 @@ en el reporte de cierres de turno (capítulo 31). Escribe lo que de verdad
 contaste: una diferencia a la vista se aclara; una escondida se repite.
 
 Al cerrar, la pantalla vuelve a **Abrir turno**, lista para tu siguiente turno.
-
-> **El fondo de caja no cuenta.** SellPointy no lleva registro del dinero con
-> que empiezas para dar cambio: el **Efectivo esperado** es solo lo que entró
-> por ventas, menos los gastos del cajón. Si tu cajón arranca con fondo,
-> sepáralo antes de contar o réstalo de lo que cuentes.

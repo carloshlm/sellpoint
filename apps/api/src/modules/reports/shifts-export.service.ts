@@ -18,6 +18,7 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Tarjeta",
     "Transferencia",
     "Ventas",
+    "Fondo inicial",
     "Gastos en efectivo",
     "Calculado",
     "Contado",
@@ -34,6 +35,7 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Card",
     "Transfer",
     "Sales",
+    "Opening cash",
     "Cash expenses",
     "Expected",
     "Counted",
@@ -47,6 +49,10 @@ const HOJA: Record<Locale, string> = { es: "Cierres de turno", en: "Shift closes
  * F5-SHIFT-03 — los cierres en Excel/CSV. La misma lectura que la pantalla,
  * fila por fila y con la diferencia CON SIGNO: un faltante se ve negativo,
  * que es como se lee en cualquier arqueo.
+ *
+ * F10-MANFIX-10: «Fondo inicial» va justo antes de «Gastos en efectivo» y de
+ * «Calculado», como en la pantalla: el calculado suma el fondo y resta los
+ * gastos, y las tres columnas juntas se leen como la cuenta que son.
  */
 @Injectable()
 export class ShiftsExportService {
@@ -101,6 +107,7 @@ function fila(turno: ShiftRow, timeZone: string): string[] {
     porMetodo("card"),
     porMetodo("transfer"),
     String(turno.salesCount),
+    turno.openingCash,
     turno.cashExpenses.total,
     turno.calculatedCash ?? "",
     turno.declaredCash ?? "",

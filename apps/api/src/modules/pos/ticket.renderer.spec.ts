@@ -70,11 +70,11 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       expect(ancho.pageSize.height).toBe("auto");
     });
 
-    it("encabeza con la razón social y el RFC", () => {
+    it("encabeza con el nombre del negocio, y la razón social va junto al RFC", () => {
       const json = textos(buildTicketDefinition(base, t));
 
-      expect(json).toContain("DISTRIBUIDORA DEL NORTE");
-      expect(json).toContain("DNO010203AB4");
+      expect(json).toContain("Mi Negocio");
+      expect(json).toContain("DISTRIBUIDORA DEL NORTE S.A. DE C.V. · RFC: DNO010203AB4");
     });
 
     /**
@@ -784,5 +784,121 @@ describe("la etiqueta del registro fiscal por país (F4-TAXMARK-04)", () => {
       t,
     );
     expect(JSON.stringify(def)).not.toContain("RFC");
+  });
+});
+
+/**
+ * F10-MANFIX-14 — el nombre que el cliente conoce va ARRIBA. El encabezado
+ * usaba `legalName ?? name`, y el ticket de «Abarrotes La Esquina» decía «Ana
+ * Pérez»: para una persona física, el nombre legal deja fuera el que el
+ * cliente buscaría. Decisión de Carlos (2026-09-24): el nombre del negocio
+ * arriba y el legal junto al RFC; si falta o es el mismo, sale una vez.
+ */
+describe("el nombre en el ticket (F10-MANFIX-14)", () => {
+  const t = (key: string) => key;
+  const esquina = (): TicketInput => ({
+    tenant: {
+      name: "Abarrotes La Esquina",
+      legalName: "Ana Pérez",
+      taxId: "PEAA850315AB3",
+      country: "MX",
+    },
+    header: { address: "Av. Juárez 123", phone: "+525555012345" },
+    kind: "sale",
+    folio: "VTA-000482",
+    createdAt: new Date("2026-09-24T16:40:00Z"),
+    timeZone: "America/Mexico_City",
+    sellerName: "Luis Ramírez",
+    warehouseName: "Sucursal Centro",
+    rows: [],
+    subtotal: "258.50",
+    discount: "15.00",
+    total: "243.50",
+    taxMode: "included",
+    taxBase: "243.50",
+    taxes: [],
+    taxMarks: [],
+    paymentMethod: "cash",
+    received: null,
+    change: null,
+    note: null,
+    currency: "MXN",
+    locale: "es",
+    width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
+  });
+  /** Los renglones de texto del papel, en orden. */
+  const renglones = (input: TicketInput): { text: string; bold?: boolean }[] =>
+    (buildTicketDefinition(input, t).content as { text?: unknown; bold?: boolean }[]).filter(
+      (nodo): nodo is { text: string; bold?: boolean } => typeof nodo.text === "string",
+    );
+  const cuantasVeces = (input: TicketInput, texto: string) =>
+    JSON.stringify(buildTicketDefinition(input, t)).split(texto).length - 1;
+
+  it("arriba y en negritas va el nombre del negocio, no el legal", () => {
+    const [primero] = renglones(esquina());
+    expect(primero).toMatchObject({ text: "Abarrotes La Esquina", bold: true });
+  });
+
+  it("el nombre legal va en el renglón del RFC, y una sola vez", () => {
+    const textos = renglones(esquina()).map((r) => r.text);
+    expect(textos[1]).toBe("Ana Pérez · RFC: PEAA850315AB3");
+    expect(cuantasVeces(esquina(), "Ana Pérez")).toBe(1);
+  });
+
+  it("sin nombre legal, o si es el mismo nombre, el negocio se nombra una sola vez", () => {
+    const sinLegal = esquina();
+    sinLegal.tenant = { ...sinLegal.tenant, legalName: null };
+    expect(
+      renglones(sinLegal)
+        .map((r) => r.text)
+        .slice(0, 2),
+    ).toEqual(["Abarrotes La Esquina", "RFC: PEAA850315AB3"]);
+
+    const mismo = esquina();
+    mismo.tenant = { ...mismo.tenant, legalName: "ABARROTES LA ESQUINA" };
+    expect(renglones(mismo)[1]?.text).toBe("RFC: PEAA850315AB3");
+    expect(cuantasVeces(mismo, "ABARROTES LA ESQUINA")).toBe(0);
+  });
+
+  /**
+   * El nombre legal VIAJA con el RFC: la casilla del registro fiscal decide
+   * los dos. Quien apaga el RFC no quiere su identidad fiscal en el papel, y
+   * para una persona física el nombre legal es su nombre propio.
+   */
+  it("con el RFC apagado, el nombre legal tampoco sale", () => {
+    const apagado = { ...esquina(), settings: { ...DEFAULT_TICKET_SETTINGS, showTaxId: false } };
+    expect(cuantasVeces(apagado, "Ana Pérez")).toBe(0);
+    expect(cuantasVeces(apagado, "PEAA850315AB3")).toBe(0);
+    expect(renglones(apagado)[0]?.text).toBe("Abarrotes La Esquina");
+  });
+
+  it("con el nombre del negocio apagado, el renglón del RFC sigue con el nombre legal", () => {
+    const sinNombre = {
+      ...esquina(),
+      settings: { ...DEFAULT_TICKET_SETTINGS, showBusinessName: false },
+    };
+    expect(cuantasVeces(sinNombre, "Abarrotes La Esquina")).toBe(0);
+    expect(renglones(sinNombre)[0]?.text).toBe("Ana Pérez · RFC: PEAA850315AB3");
+  });
+
+  it("un nombre legal sin RFC capturado sale solo, en ese mismo renglón", () => {
+    const sinRfc = esquina();
+    sinRfc.tenant = { ...sinRfc.tenant, taxId: null };
+    expect(
+      renglones(sinRfc)
+        .map((r) => r.text)
+        .slice(0, 2),
+    ).toEqual(["Abarrotes La Esquina", "Ana Pérez"]);
+  });
+
+  it("la cotización lleva el mismo encabezado", () => {
+    const cotizacion: TicketInput = { ...esquina(), kind: "quote", folio: "COT-000002" };
+    expect(
+      renglones(cotizacion)
+        .map((r) => r.text)
+        .slice(0, 2),
+    ).toEqual(["Abarrotes La Esquina", "Ana Pérez · RFC: PEAA850315AB3"]);
   });
 });

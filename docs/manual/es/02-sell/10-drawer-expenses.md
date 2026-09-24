@@ -39,9 +39,9 @@ con signo de menos, y ya está restado del **Efectivo esperado**:
 
 ![El gasto del cajón en el cierre de turno de Luis](screen:drawer-expense-close)
 
-En la tienda de ejemplo, Luis cobró $430.50 en efectivo y del cajón salieron
-$90.00 para los rollos: el efectivo esperado es $340.50. Cuenta solo el dinero:
-el comprobante del gasto no se suma.
+En la tienda de ejemplo, Luis abrió con $500.00 de fondo, cobró $430.50 en
+efectivo y del cajón salieron $90.00 para los rollos: el efectivo esperado es
+$840.50. Cuenta solo el dinero: el comprobante del gasto no se suma.
 
 ## Si algo no cuadra
 

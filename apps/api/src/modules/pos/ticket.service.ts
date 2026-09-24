@@ -166,11 +166,15 @@ export class TicketService {
         })),
         taxMarks: await this.marcasDe(tx, user.tenantId, venta.items, venta.taxes),
         paymentMethod: venta.paymentMethod,
-        // El recibido y el vuelto los sabe la PANTALLA, no la base: el sistema
-        // registra qué se cobró, no con qué billete se pagó. Se dejan en null
-        // y el ticket omite las dos líneas.
-        received: null,
-        change: null,
+        // F10-MANFIX-15: la venta en efectivo GUARDA con cuánto pagó el
+        // cliente, así que el papel imprime Recibido y Cambio también al
+        // reimprimirse desde el historial. Antes solo lo sabía la pantalla del
+        // cobro y se dejaban en null. Sin dato —tarjeta, transferencia o una
+        // venta anterior a la columna— siguen en null y el ticket omite las
+        // dos líneas. El cambio no se guarda: se deriva, y el CHECK de la base
+        // garantiza que no sale negativo.
+        received: venta.cashReceived?.toString() ?? null,
+        change: venta.cashReceived?.minus(venta.total).toString() ?? null,
         note: null,
         currency: tenant.currency as Currency,
         locale: user.locale,

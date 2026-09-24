@@ -91,6 +91,7 @@ const sesion = (): posApi.CashboxSession => ({
   status: "open",
   openedAt: "2026-08-21T15:00:00.000Z",
   closedAt: null,
+  openingCash: "0",
   declaredCash: null,
   calculatedCash: null,
   cashDifference: null,
@@ -306,6 +307,7 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "0",
     });
     mocked.listQuotes.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });

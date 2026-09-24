@@ -293,6 +293,16 @@ export class SalesService {
         );
         const { subtotal, discount: descuento } = totales;
 
+        // F10-MANFIX-15: lo recibido en efectivo, si vino, tiene que cubrir el
+        // total que calculó el SERVIDOR (el cliente no lo decide). Menos no es
+        // un pago: el cajón quedaría debiendo el cambio. Va antes del folio,
+        // como toda regla que rechaza: una venta rechazada no gasta numeración.
+        const recibido =
+          dto.cashReceived === undefined ? null : new Prisma.Decimal(dto.cashReceived);
+        if (recibido?.lessThan(totales.total)) {
+          throw new UnprocessableEntityException({ message: "pos.cash_received_below_total" });
+        }
+
         // ── F4-QUOTE-02: la cotización se marca CARGADA ────────────────────
         //
         // **Va ANTES del `create`, y eso importa.** `sales.quote_id` es UNIQUE,
@@ -360,6 +370,7 @@ export class SalesService {
             ...(dto.quoteId !== undefined && { quoteId: dto.quoteId }),
             ...(idempotencyKey !== undefined && { idempotencyKey }),
             paymentMethod: dto.paymentMethod,
+            ...(recibido !== null && { cashReceived: recibido }),
             subtotal,
             discount: descuento,
             ...(descuentoTicket?.reason != null && { discountReason: descuentoTicket.reason }),

@@ -161,6 +161,8 @@ export interface ShiftRow {
   closedAt: string | null;
   salesCount: number;
   totals: ShiftTotal[];
+  /** F10-MANFIX-10: el fondo con que abrió el turno («0» sin fondo); el calculado ya lo suma. */
+  openingCash: string;
   /** F9-EXP-09: los gastos en efectivo que salieron del cajón; el calculado ya los resta. */
   cashExpenses: { total: string; count: number };
   calculatedCash: string | null;

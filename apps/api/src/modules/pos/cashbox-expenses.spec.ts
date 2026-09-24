@@ -2,7 +2,8 @@ import { efectivoEsperado, gastosEnEfectivoPorSesion, sinGastos } from "./cashbo
 
 /**
  * F9-EXP-09 — los gastos en efectivo del cajón: una consulta para varios
- * turnos, solo activos + pagados + cash, y en cero los turnos sin gastos.
+ * turnos, solo activos + pagados + cash, y en cero los turnos sin gastos. Y el
+ * efectivo esperado del arqueo, que desde F10-MANFIX-10 suma el fondo inicial.
  */
 describe("gastosEnEfectivoPorSesion (F9-EXP-09)", () => {
   const groupBy = jest.fn();
@@ -41,9 +42,20 @@ describe("gastosEnEfectivoPorSesion (F9-EXP-09)", () => {
     expect(groupBy).not.toHaveBeenCalled();
   });
 
-  it("el efectivo esperado es ventas cash menos gastos cash, en decimal", () => {
-    expect(efectivoEsperado("500", "200")).toBe("300");
-    expect(efectivoEsperado("10.10", "0.20")).toBe("9.9");
-    expect(efectivoEsperado("0", "0")).toBe("0");
+  it("sin fondo, el efectivo esperado es ventas cash menos gastos cash, en decimal", () => {
+    expect(efectivoEsperado({ fondo: "0", ventas: "500", gastos: "200" })).toBe("300");
+    expect(efectivoEsperado({ fondo: "0", ventas: "10.10", gastos: "0.20" })).toBe("9.9");
+    expect(efectivoEsperado({ fondo: "0", ventas: "0", gastos: "0" })).toBe("0");
+  });
+
+  /**
+   * F10-MANFIX-10 — el cajón que arranca con cambio: el fondo se SUMA. Sin
+   * él, un turno que abre con $500 salía sobrando $500 cada día.
+   */
+  it("el fondo inicial se suma: fondo + ventas cash − gastos cash, en decimal", () => {
+    expect(efectivoEsperado({ fondo: "500", ventas: "150", gastos: "0" })).toBe("650");
+    expect(efectivoEsperado({ fondo: "500", ventas: "430.50", gastos: "90" })).toBe("840.5");
+    // Un fondo sin ventas: lo que hay que contar es el fondo mismo.
+    expect(efectivoEsperado({ fondo: "200.25", ventas: "0", gastos: "0" })).toBe("200.25");
   });
 });

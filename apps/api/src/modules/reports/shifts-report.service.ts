@@ -28,6 +28,8 @@ export interface ShiftRow {
   closedAt: string | null;
   salesCount: number;
   totals: SessionTotal[];
+  /** F10-MANFIX-10: el fondo con que abrió el turno («0» sin fondo); el calculado ya lo suma. */
+  openingCash: string;
   /** F9-EXP-09: los gastos en efectivo que salieron del cajón; el calculado ya los resta. */
   cashExpenses: SessionCashExpenses;
   calculatedCash: string | null;
@@ -199,6 +201,7 @@ export class ShiftsReportService {
       status: string;
       openedAt: Date;
       closedAt: Date | null;
+      openingCash: Prisma.Decimal;
       declaredCash: Prisma.Decimal | null;
       calculatedCash: Prisma.Decimal | null;
       cashDifference: Prisma.Decimal | null;
@@ -221,6 +224,7 @@ export class ShiftsReportService {
       closedAt: f.closedAt?.toISOString() ?? null,
       salesCount: f._count.sales,
       totals,
+      openingCash: f.openingCash.toString(),
       cashExpenses,
       calculatedCash: f.calculatedCash?.toString() ?? null,
       declaredCash: f.declaredCash?.toString() ?? null,

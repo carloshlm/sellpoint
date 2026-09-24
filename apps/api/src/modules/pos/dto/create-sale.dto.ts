@@ -44,9 +44,27 @@ const saleLineSchema = z
     message: "pos.presentation_only_for_products",
   });
 
+/**
+ * F10-MANFIX-15 — con cuánto pagó el cliente. Un importe como los demás: dos
+ * decimales, el tope de la columna, un número y no texto.
+ */
+const RECIBIDO_INVALIDO = { message: "pos.cash_received_invalid" } as const;
+
 export const createSaleSchema = z
   .object({
     paymentMethod: z.enum(PAYMENT_METHODS, { message: "pos.payment_method_invalid" }),
+    /**
+     * F10-MANFIX-15 — lo recibido en EFECTIVO, para que el ticket imprima
+     * Recibido y Cambio también al reimprimirse. Opcional: una venta sin él
+     * se cobra como siempre y su papel omite esas dos líneas. Que alcance
+     * para el total lo decide el servicio, que es quien conoce el total.
+     */
+    cashReceived: z
+      .number(RECIBIDO_INVALIDO)
+      .min(0, RECIBIDO_INVALIDO)
+      .max(MONEY_MAX, RECIBIDO_INVALIDO)
+      .refine(hasValidMoneyScale, RECIBIDO_INVALIDO)
+      .optional(),
     lines: z.array(saleLineSchema).min(1, { message: "pos.sale_needs_lines" }),
     /** La cotización que se cargó, si el carrito vino de una (F4-QUOTE-02). */
     quoteId: z.string().uuid().optional(),
@@ -69,7 +87,14 @@ export const createSaleSchema = z
       .strict()
       .optional(),
   })
-  .strict();
+  .strict()
+  // Tarjeta y transferencia se cobran por el monto exacto fuera del sistema:
+  // un «recibido» ahí sería un dato inventado, y se denuncia en vez de
+  // guardarse en silencio (el CHECK de la base tampoco lo aceptaría).
+  .refine((venta) => venta.cashReceived === undefined || venta.paymentMethod === "cash", {
+    message: "pos.cash_received_only_cash",
+    path: ["cashReceived"],
+  });
 
 export type CreateSaleDto = z.infer<typeof createSaleSchema>;
 export type SaleLineDto = z.infer<typeof saleLineSchema>;

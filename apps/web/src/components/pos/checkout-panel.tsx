@@ -145,6 +145,12 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
       {
         input: {
           paymentMethod: method,
+          // F10-MANFIX-15: en efectivo viaja con cuánto pagó el cliente, para
+          // que el ticket imprima Recibido y Cambio también al reimprimirse.
+          // Lo escrito antes de cambiar a tarjeta no viaja: ahí no se recibe
+          // nada que contar. El cambio no se manda: lo deriva el API.
+          ...(method === "cash" &&
+            parseMoneyInput(recibido) !== null && { cashReceived: recibidoNum }),
           lines: aLineasDeVenta(lines),
           ...(quoteId !== null && { quoteId }),
           ...(descuentoAplicado > 0 && {

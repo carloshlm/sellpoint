@@ -4,10 +4,15 @@ import { ticketLogoNodes } from "../pos/ticket-logo";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 
 export interface TurnTicketInput {
-  /** F4-TICKETCFG-06 — el logotipo ya resuelto y si la razón social se imprime. */
+  /** F4-TICKETCFG-06 — el logotipo ya resuelto y si el nombre del negocio se imprime. */
   logo: TicketLogoRender;
   showBusinessName: boolean;
-  tenant: { name: string; legalName: string | null };
+  /**
+   * F10-MANFIX-14 — solo el nombre del NEGOCIO, como arriba del ticket de
+   * venta. El legal va junto al RFC, y este papel no lleva renglón del RFC:
+   * no tiene dónde ir.
+   */
+  tenant: { name: string };
   number: number;
   customerName: string | null;
   createdAt: Date;
@@ -37,9 +42,7 @@ export function buildTurnTicketDefinition(input: TurnTicketInput, t: Translate) 
     defaultStyle: { font: "Helvetica", fontSize: 8, lineHeight: 1.1 },
     content: [
       ...ticketLogoNodes(input.logo, anchoPt - margen * 2),
-      ...(input.showBusinessName
-        ? [{ text: input.tenant.legalName ?? input.tenant.name, bold: true, ...centrado }]
-        : []),
+      ...(input.showBusinessName ? [{ text: input.tenant.name, bold: true, ...centrado }] : []),
       linea(anchoPt - margen * 2),
       { text: t("ticket.turn"), fontSize: 10, ...centrado, margin: [0, 6, 0, 0] },
       // El número: el cliente lo lee desde la fila. Cabe en 48 mm hasta con

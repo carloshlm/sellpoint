@@ -1469,9 +1469,15 @@ model CashboxSession {
   openedAt       DateTime             @default(now()) @map("opened_at") @db.Timestamptz(6)
   closedBy       String?              @map("closed_by") @db.Uuid
   closedAt       DateTime?            @map("closed_at") @db.Timestamptz(6)
+  /// F10-MANFIX-10 — el FONDO INICIAL: el efectivo con que el cajón arranca
+  /// para dar cambio. Se escribe al abrir y el arqueo lo suma al esperado.
+  /// Sin fondo, $0: el esperado es el de siempre. El CHECK `>= 0` vive en la
+  /// migración.
+  openingCash    Decimal              @default(0) @map("opening_cash") @db.Decimal(14, 2)
   /// Lo que la persona contó en la caja al cerrar.
   declaredCash   Decimal?             @map("declared_cash") @db.Decimal(14, 2)
-  /// Lo que el sistema sumó de las ventas en efectivo del turno.
+  /// El efectivo ESPERADO al cerrar: fondo inicial + ventas en efectivo −
+  /// gastos pagados del cajón (F9-EXP-09, F10-MANFIX-10).
   calculatedCash Decimal?             @map("calculated_cash") @db.Decimal(14, 2)
   /// `declared − calculated`. Derivable, pero se persiste: el cálculo de hoy
   /// no debe poder cambiar lo que se auditó ayer.
@@ -1533,6 +1539,11 @@ model Sale {
    */
   idempotencyKey     String?       @map("idempotency_key") @db.VarChar(120)
   paymentMethod      PaymentMethod @map("payment_method")
+  /// F10-MANFIX-15 — con cuánto pagó el cliente, solo en EFECTIVO: el ticket
+  /// imprime Recibido y Cambio con esto, también al reimprimir. NULL en
+  /// tarjeta, transferencia y las ventas anteriores a la columna. El CHECK
+  /// `sales_cash_received_coherent` (efectivo y `>= total`) vive en la migración.
+  cashReceived       Decimal?      @map("cash_received") @db.Decimal(14, 2)
   subtotal           Decimal       @db.Decimal(14, 2)
   discount           Decimal       @default(0) @db.Decimal(14, 2)
   /// F4-DISC: por qué se descontó, en palabras del cajero (opcional).

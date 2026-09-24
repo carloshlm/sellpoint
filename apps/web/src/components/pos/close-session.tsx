@@ -5,8 +5,10 @@ import { MoneyInput } from "@/components/form/money-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useScopedCurrency } from "@/lib/admin/scope";
 import type { CashboxSession } from "@/lib/pos/api";
 import { useCloseSession, useSessionTotals } from "@/lib/pos/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 import { SessionBar } from "./session-bar";
 
 /**
@@ -17,20 +19,31 @@ import { SessionBar } from "./session-bar";
  * tarea humana, y bloquear un turno descuadrado obligaría al cajero a
  * "encontrar" el número que el sistema quiere, escribiendo el calculado en vez
  * de lo que contó. El descuadre escondido se repite; el visible se investiga.
+ *
+ * F10-MANFIX-10: el primer renglón es el FONDO INICIAL, lo que el cajón tenía
+ * al abrir. Va siempre, también en $0.00: quien olvidó escribirlo al abrir ve
+ * aquí por qué le sobra dinero. El esperado ya lo trae sumado del API.
+ *
+ * Los importes van en la moneda del negocio, como el campo de lo contado: un
+ * negocio en euros no lee «$» en su propio arqueo.
  */
 export function CloseSession({ session }: { session: CashboxSession }) {
   const { t } = useTranslation();
   const { data } = useSessionTotals(true);
   const cerrar = useCloseSession();
+  const currency = useScopedCurrency();
+  const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const [contado, setContado] = useState("");
   const [nota, setNota] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const dinero = (importe: number) => formatMoney(importe, currency, locale);
   const totales = data?.totals ?? [];
-  // F9-EXP-10: se cuenta contra el efectivo ESPERADO (ventas − gastos del
-  // cajón), no contra las ventas en efectivo: un gasto pagado del cajón no es
-  // un faltante del cajero.
+  // F9-EXP-10: se cuenta contra el efectivo ESPERADO (fondo + ventas − gastos
+  // del cajón), no contra las ventas en efectivo: un gasto pagado del cajón no
+  // es un faltante del cajero, y el fondo no es un sobrante.
   const gastos = data?.cashExpenses ?? { total: "0", count: 0 };
+  const fondo = Number(data?.openingCash ?? session.openingCash);
   const esperado = Number(data?.expectedCash ?? 0);
   const declarado = contado.trim() === "" ? null : Number(contado);
   const diferencia = declarado === null ? null : declarado - esperado;
@@ -43,6 +56,12 @@ export function CloseSession({ session }: { session: CashboxSession }) {
       <h1 className="font-semibold text-xl">{t("pos.session.closeTitle")}</h1>
 
       <div className="flex flex-col gap-1 rounded-md border border-input p-3 text-sm">
+        <div className="flex justify-between text-muted-foreground">
+          <span>{t("pos.session.openingCash")}</span>
+          <span data-testid="opening-cash" className="font-medium">
+            {dinero(fondo)}
+          </span>
+        </div>
         {totales.map((linea) => (
           <div key={linea.method} className="flex justify-between">
             <span>
@@ -52,7 +71,7 @@ export function CloseSession({ session }: { session: CashboxSession }) {
               </span>
             </span>
             <span data-testid={`total-${linea.method}`} className="font-medium">
-              {formatMoney(Number(linea.total))}
+              {dinero(Number(linea.total))}
             </span>
           </div>
         ))}
@@ -68,14 +87,14 @@ export function CloseSession({ session }: { session: CashboxSession }) {
               </span>
             </span>
             <span data-testid="total-cash-expenses" className="font-medium">
-              −{formatMoney(Number(gastos.total))}
+              −{dinero(Number(gastos.total))}
             </span>
           </div>
         )}
         <div className="flex justify-between border-t pt-1">
           <span>{t("pos.session.expectedCash")}</span>
           <span data-testid="expected-cash" className="font-semibold">
-            {formatMoney(esperado)}
+            {dinero(esperado)}
           </span>
         </div>
       </div>
@@ -94,7 +113,7 @@ export function CloseSession({ session }: { session: CashboxSession }) {
         <p data-testid="cash-difference" className="text-sm">
           {t("pos.session.difference")}:{" "}
           <span className={diferencia === 0 ? "font-medium" : "font-medium text-destructive"}>
-            {formatMoney(diferencia)}
+            {dinero(diferencia)}
           </span>
         </p>
       )}

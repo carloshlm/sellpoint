@@ -227,6 +227,7 @@ describe("Gastos — listado (F9-EXP-13)", () => {
         status: "open",
         openedAt: "2026-09-10T15:00:00.000Z",
         closedAt: null,
+        openingCash: "0",
         declaredCash: null,
         calculatedCash: null,
         cashDifference: null,

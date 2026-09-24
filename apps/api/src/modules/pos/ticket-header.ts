@@ -34,6 +34,29 @@ export interface TicketHeaderContact {
   phone: string | null;
 }
 
+/**
+ * F10-MANFIX-14 — el nombre legal que va junto al RFC, o `null` si no hay
+ * nada que agregar (decisión de Carlos, 2026-09-24).
+ *
+ * El ticket encabeza con el nombre del NEGOCIO, el que el cliente conoce
+ * («Abarrotes La Esquina»), y el legal («Ana Pérez») baja al renglón del RFC.
+ * Si el legal falta, o es el mismo nombre escrito de otra forma
+ * («ABARROTES LA ESQUINA»), el papel nombra al negocio UNA vez: repetirlo
+ * gastaría un renglón de 48 mm en decir lo mismo. Se comparan sin mayúsculas,
+ * acentos ni espacios de más: es lo que el onboarding produce cuando el nombre
+ * legal se copia al del negocio y alguien retoca uno de los dos.
+ */
+export function nombreLegalAparte(name: string, legalName: string | null): string | null {
+  const legal = legalName?.trim() ?? "";
+  if (legal === "") {
+    return null;
+  }
+  const normalizar = (texto: string) => texto.trim().replace(/\s+/g, " ");
+  const mismo =
+    normalizar(legal).localeCompare(normalizar(name), "es", { sensitivity: "base" }) === 0;
+  return mismo ? null : legal;
+}
+
 export function ticketHeaderContact(
   tenant: TicketHeaderSource,
   warehouse: TicketHeaderSource,

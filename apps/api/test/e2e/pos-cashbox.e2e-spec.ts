@@ -213,6 +213,39 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
       await abrir(token, { warehouseId: otro }).expect(422);
     });
+
+    /**
+     * F10-MANFIX-10 — el fondo inicial: el efectivo con que el cajón arranca
+     * para dar cambio. Se escribe al abrir y se guarda EN el turno: es un dato
+     * de ese cajón, y el arqueo lo necesita al cerrar.
+     */
+    it("abre con el fondo inicial que escribió el cajero y lo guarda en el turno", async () => {
+      const { token } = await escenario();
+
+      const res = await abrir(token, { openingCash: 500 }).expect(201);
+      expect((res.body as { openingCash: string }).openingCash).toBe("500");
+
+      const vivo = await consultar(token).expect(200);
+      expect((vivo.body as { session: { openingCash: string } }).session.openingCash).toBe("500");
+    });
+
+    it("sin fondo, el turno abre en $0: quien no lo usa no escribe nada", async () => {
+      const { token } = await escenario();
+
+      const res = await abrir(token).expect(201);
+
+      expect((res.body as { openingCash: string }).openingCash).toBe("0");
+    });
+
+    it("un fondo negativo o con tres decimales no abre turno: 400 con su mensaje", async () => {
+      const { token } = await escenario();
+
+      const negativo = await abrir(token, { openingCash: -1 }).expect(400);
+      expect((negativo.body as { message: string }).message).toContain("fondo inicial");
+      await abrir(token, { openingCash: 10.005 }).expect(400);
+      // Nada quedó abierto por el intento.
+      expect((await consultar(token).expect(200)).body).toEqual({ session: null });
+    });
   });
 
   describe("permisos", () => {
@@ -236,6 +269,29 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
       await consultar(tokenSinPermiso).expect(403);
       await abrir(tokenSinPermiso).expect(403);
+    });
+
+    /**
+     * F10-MANFIX-10 — el fondo no es un permiso nuevo: con `pos:sell` y nada
+     * más, el cajero abre su turno con su fondo, como siempre lo abrió.
+     */
+    it("con solo `pos:sell` se abre el turno con fondo inicial", async () => {
+      const { tenantId, propio } = await escenario();
+      const tokenService = app.get(TokenService);
+      const userId = await prisma.withTenantContext(tenantId, async (tx) => {
+        const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+        return owner.id;
+      });
+      const soloVende = await tokenService.signAccessToken({
+        sub: userId,
+        tenantId,
+        permissions: ["pos:sell"],
+        locale: "es",
+      });
+
+      const res = await abrir(soloVende, { warehouseId: propio, openingCash: 300 }).expect(201);
+
+      expect((res.body as { openingCash: string }).openingCash).toBe("300");
     });
   });
 
@@ -775,6 +831,107 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
      * El COBRAR tarda: bloquea saldos, reparte FEFO y asienta movimientos. En
      * una tablet lenta, medio segundo sin respuesta invita a volver a tocar.
      */
+    /**
+     * F10-MANFIX-15 — con cuánto pagó el cliente. La venta en EFECTIVO guarda
+     * lo recibido para que el ticket imprima Recibido y Cambio, también al
+     * reimprimirlo; tarjeta y transferencia no lo tienen. Opcional: una venta
+     * sin él se cobra como siempre.
+     */
+    describe("Lo recibido en efectivo (F10-MANFIX-15)", () => {
+      it("la venta en efectivo guarda con cuánto pagó el cliente", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId);
+        await abrir(token).expect(201);
+
+        const res = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 3 }],
+          cashReceived: 50,
+        }).expect(201);
+
+        expect(res.body).toMatchObject({ total: "45", cashReceived: "50" });
+      });
+
+      it("sin lo recibido se cobra igual, y queda vacío; con tarjeta también", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId);
+        await abrir(token).expect(201);
+
+        const efectivo = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+        const tarjeta = await vender(token, {
+          paymentMethod: "card",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        expect((efectivo.body as { cashReceived: string | null }).cashReceived).toBeNull();
+        expect((tarjeta.body as { cashReceived: string | null }).cashReceived).toBeNull();
+      });
+
+      /**
+       * Menos que el total no es un pago: el cajón quedaría debiendo el
+       * cambio. 422 ANTES del folio: una venta rechazada no gasta numeración.
+       */
+      it("lo recibido menor que el total se rechaza, sin gastar folio", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId);
+        await abrir(token).expect(201);
+
+        const res = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 3 }],
+          cashReceived: 40,
+        }).expect(422);
+        expect((res.body as { message: string }).message).toContain("no alcanza");
+
+        const siguiente = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 3 }],
+          cashReceived: 45,
+        }).expect(201);
+        expect((siguiente.body as { folio: string }).folio).toBe("VTA-000001");
+      });
+
+      it("con tarjeta o transferencia, mandar lo recibido es un 400", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId);
+        await abrir(token).expect(201);
+
+        const res = await vender(token, {
+          paymentMethod: "card",
+          lines: [{ productId: productoId, quantity: 1 }],
+          cashReceived: 20,
+        }).expect(400);
+        expect((res.body as { message: string }).message).toContain("efectivo");
+      });
+
+      /** La idempotencia no cambia: el reintento devuelve la venta de la primera vez. */
+      it("el reintento con la misma clave devuelve la venta con lo recibido la primera vez", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId);
+        await abrir(token).expect(201);
+        const clave = randomUUID();
+        const cobrar = (cashReceived: number) =>
+          request(app.getHttpServer())
+            .post("/pos/sales")
+            .set("Authorization", bearer(token))
+            .set("Idempotency-Key", clave)
+            .send({
+              paymentMethod: "cash",
+              lines: [{ productId: productoId, quantity: 1 }],
+              cashReceived,
+            });
+
+        const primera = await cobrar(20).expect(201);
+        const segunda = await cobrar(50).expect(201);
+
+        expect((segunda.body as { id: string }).id).toBe((primera.body as { id: string }).id);
+        expect((segunda.body as { cashReceived: string }).cashReceived).toBe("20");
+      });
+    });
+
     describe("Idempotencia (F4-SALE-02)", () => {
       const venderCon = (token: string, clave: string, body: Record<string, unknown>) =>
         request(app.getHttpServer())
@@ -1283,6 +1440,63 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         expect(session.calculatedCash).toBe("150");
         expect(session.declaredCash).toBe("130");
         expect(session.cashDifference).toBe("-20");
+      });
+
+      /**
+       * F10-MANFIX-10 — el cajón que arranca con cambio. Antes el esperado
+       * era solo ventas − gastos, y un turno que abría con $500 salía
+       * sobrando $500 cada día si el cajero no los restaba a mano. El fondo
+       * se SUMA al esperado, en el API (una sola fuente): la pantalla del
+       * cierre, lo que se guarda y el reporte dicen lo mismo.
+       */
+      it("el esperado SUMA el fondo inicial: $500 + $150 vendidos = $650, y contarlo cuadra", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token, { openingCash: 500 }).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 10 }],
+        }).expect(201);
+
+        const antes = await request(app.getHttpServer())
+          .get("/pos/session/totals")
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect(antes.body).toMatchObject({ openingCash: "500", expectedCash: "650" });
+        // La columna «Efectivo» sigue siendo ventas: el fondo es un renglón aparte.
+        expect(
+          (antes.body as { totals: { method: string; total: string }[] }).totals.find(
+            (t) => t.method === "cash",
+          )?.total,
+        ).toBe("150");
+
+        const res = await cerrar(token, { declaredCash: 650 }).expect(200);
+        expect(res.body).toMatchObject({
+          session: {
+            openingCash: "500",
+            calculatedCash: "650",
+            declaredCash: "650",
+            cashDifference: "0",
+          },
+          openingCash: "500",
+          expectedCash: "650",
+        });
+      });
+
+      it("sin turno, los totales dicen fondo $0 y nada que esperar", async () => {
+        const { token } = await escenario();
+
+        const res = await request(app.getHttpServer())
+          .get("/pos/session/totals")
+          .set("Authorization", bearer(token))
+          .expect(200);
+
+        expect(res.body).toEqual({
+          totals: [],
+          cashExpenses: { total: "0", count: 0 },
+          openingCash: "0",
+          expectedCash: "0",
+        });
       });
 
       it("con SOBRANTE también, y la diferencia sale positiva", async () => {

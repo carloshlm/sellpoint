@@ -14,7 +14,7 @@ import {
   setTenantMarket,
   type TenantFixture,
 } from "./support/billing-scenario";
-import { tieneImagen } from "./support/pdf-text";
+import { textoDelPdf, tieneImagen } from "./support/pdf-text";
 import { startTestApp } from "./support/start-test-app";
 
 /**
@@ -204,6 +204,29 @@ describe("Recepción — turnos (F9-RECEP-15)", () => {
       .set("Authorization", bearer(negocio.token))
       .send({ showBusinessName: true, logo: { kind: "none" } })
       .expect(200);
+  });
+
+  /**
+   * F10-MANFIX-14 — los papeles del mostrador dicen lo mismo que el ticket de
+   * venta: arriba, el nombre del NEGOCIO. El turno imprimía `legalName ??
+   * name`, y el de «Abarrotes La Esquina» decía «Ana Pérez». Como el turno no
+   * lleva renglón del RFC, el nombre legal no sale.
+   */
+  it("el papel del turno dice el nombre del negocio, no el legal (F10-MANFIX-14)", async () => {
+    await prisma.tenant.update({
+      where: { id: negocio.tenantId },
+      data: { name: "Abarrotes La Esquina", legalName: "Ana Pérez" },
+    });
+    const turno = await generar(negocio.token, {}).expect(201);
+    const papel = await request(app.getHttpServer())
+      .get(`/reception/turns/${(turno.body as { id: string }).id}/ticket`)
+      .query({ width: "80mm" })
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+
+    const texto = textoDelPdf(papel.body as Buffer);
+    expect(texto).toContain("Abarrotes La Esquina");
+    expect(texto).not.toContain("Ana Pérez");
   });
 
   it("el filtro de fecha separa los días: otro día no trae los de hoy", async () => {

@@ -106,6 +106,7 @@ const sesion = (): posApi.CashboxSession => ({
   status: "open",
   openedAt: "2026-08-21T15:00:00.000Z",
   closedAt: null,
+  openingCash: "0",
   declaredCash: null,
   calculatedCash: null,
   cashDifference: null,
@@ -138,6 +139,7 @@ describe("El carrito del POS (F4-CART)", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "0",
     });
   });
@@ -490,6 +492,7 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "0",
     });
   });
@@ -501,6 +504,7 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     warehouseId: "w1",
     status: "completed",
     paymentMethod: "cash",
+    cashReceived: null,
     subtotal: "25.00",
     discount: "0.00",
     total: "25.00",
@@ -596,6 +600,38 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
   });
 
   describe("el cobro", () => {
+    /**
+     * F10-MANFIX-15 — la venta en efectivo GUARDA con cuánto pagó el cliente:
+     * así el ticket imprime Recibido y Cambio, también al reimprimirse. El
+     * cambio no viaja: lo deriva el API del total que él mismo calcula.
+     */
+    it("en efectivo manda con cuánto pagó el cliente", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalledTimes(1));
+      expect(mocked.createSale.mock.calls[0]?.[0]).toEqual({
+        paymentMethod: "cash",
+        lines: [{ productId: "prod-agua", presentationId: PIEZA.id, quantity: 2 }],
+        cashReceived: 50,
+      });
+    });
+
+    it("lo escrito en efectivo no viaja si al final se cobra con tarjeta", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+      await userEvent.click(screen.getByRole("button", { name: "Tarjeta" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalledTimes(1));
+      expect(mocked.createSale.mock.calls[0]?.[0]).not.toHaveProperty("cashReceived");
+    });
+
     it("manda ids y cantidades con el método elegido, y avisa el folio", async () => {
       mocked.createSale.mockResolvedValue(venta());
       await conCarrito();
@@ -948,6 +984,7 @@ describe("el impuesto en el carrito y en el cobro (F4-TAX-17)", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "0",
     });
   });

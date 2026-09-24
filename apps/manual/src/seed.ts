@@ -81,7 +81,19 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   // El abarrotes acomoda por pasillos: con las ubicaciones encendidas, el
   // formulario de producto muestra su campo y la `location` de abajo se ve.
   await api("PATCH", "/tenants/me", { usesLocations: true });
-  const product = async (body: Json) => idOf(await api("POST", "/products", body));
+  /**
+   * El precio de lista de cada cosa que se vende, por su id (el de la
+   * presentación cuando la hay): con él se calcula el total de una venta en
+   * efectivo ANTES de cobrarla, para mandar con cuánto paga el cliente.
+   */
+  const precioDe: Record<string, number> = {};
+  const conPrecio = (id: string, body: Json) => {
+    precioDe[id] = Number(body.price);
+    return id;
+  };
+  const product = async (body: Json) => conPrecio(idOf(await api("POST", "/products", body)), body);
+  const presentation = async (productId: string, body: Json) =>
+    conPrecio(idOf(await api("POST", `/products/${productId}/presentations`, body)), body);
   const agua = await product({
     sku: "AGUA-1L",
     name: "Agua natural 1 L",
@@ -91,14 +103,12 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     stockMin: 24,
     location: "Pasillo 1",
   });
-  const cajaAgua = idOf(
-    await api("POST", `/products/${agua}/presentations`, {
-      name: "Caja con 12",
-      factor: 12,
-      price: 150,
-      cost: 102,
-    }),
-  );
+  const cajaAgua = await presentation(agua, {
+    name: "Caja con 12",
+    factor: 12,
+    price: 150,
+    cost: 102,
+  });
   const queso = await product({
     sku: "QUESO-MOZ",
     name: "Queso mozzarella",
@@ -108,13 +118,11 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     stockMin: 2,
     location: "Refrigerador",
   });
-  const porcionQueso = idOf(
-    await api("POST", `/products/${queso}/presentations`, {
-      name: "Porción 250 g",
-      factor: 0.25,
-      price: 52.5,
-    }),
-  );
+  const porcionQueso = await presentation(queso, {
+    name: "Porción 250 g",
+    factor: 0.25,
+    price: 52.5,
+  });
   const aceite = await product({
     sku: "ACEITE-500",
     name: "Aceite de oliva 500 ml",
@@ -207,24 +215,21 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   console.log("  · 11 productos, con caja de 12, venta por peso, lotes y un kit");
 
   // ── Servicios ──────────────────────────────────────────────────────────
-  const envio = idOf(
-    await api("POST", "/services", {
-      code: "ENVIO",
-      name: "Envío a domicilio",
-      description: "Entrega en un radio de 2 km.",
-      price: 35,
-      warehouseIds: [centro, norte],
-    }),
-  );
-  const garrafon = idOf(
-    await api("POST", "/services", {
-      code: "GARRAFON",
-      name: "Recarga de garrafón 20 L",
-      price: 32,
-      cost: 18,
-      warehouseIds: [centro, norte],
-    }),
-  );
+  const service = async (body: Json) => conPrecio(idOf(await api("POST", "/services", body)), body);
+  const envio = await service({
+    code: "ENVIO",
+    name: "Envío a domicilio",
+    description: "Entrega en un radio de 2 km.",
+    price: 35,
+    warehouseIds: [centro, norte],
+  });
+  const garrafon = await service({
+    code: "GARRAFON",
+    name: "Recarga de garrafón 20 L",
+    price: 32,
+    cost: 18,
+    warehouseIds: [centro, norte],
+  });
   console.log("  · 2 servicios");
 
   // ── Catálogos propios (Plus) ───────────────────────────────────────────
@@ -388,8 +393,54 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   console.log("  · el surtido inicial de las dos sucursales");
 
   // 2. Veinte días de ventas, un turno del cajero por día.
+  //
+  // En efectivo, el cliente paga con billetes y la venta guarda con cuánto
+  // (F10-MANFIX-15): el ticket imprime Recibido y Cambio. El total se calcula
+  // aquí como lo cobra el API en un negocio con el impuesto incluido —cada
+  // renglón al centavo, menos el descuento— y se compara con el que responde:
+  // si un precio cambia arriba y aquí no, el manual no se arma con un cambio
+  // inventado.
+  const totalDe = (lines: Json[], descuento = 0) => {
+    const centavos = lines.reduce<number>((acc, line) => {
+      const id = String(line.presentationId ?? line.productId ?? line.serviceId);
+      const precio = precioDe[id];
+      if (precio === undefined) throw new Error(`No sé el precio de ${id} para cobrarlo.`);
+      return acc + Math.round(precio * Number(line.quantity) * 100);
+    }, 0);
+    return (centavos - Math.round(descuento * 100)) / 100;
+  };
+  /** Con qué paga alguien en el mostrador: un billete de $20, $50 o $100, o las centenas que alcancen. */
+  const conBilletes = (total: number) =>
+    total <= 20 ? 20 : total <= 50 ? 50 : total <= 100 ? 100 : Math.ceil(total / 100) * 100;
+  const cobrarVenta = async (
+    token: string,
+    paymentMethod: string,
+    lines: Json[],
+    extra: Json = {},
+  ) => {
+    const descuento = Number((extra.discount as { amount?: number } | undefined)?.amount ?? 0);
+    const total = paymentMethod === "cash" ? totalDe(lines, descuento) : null;
+    const venta = await http<{ id: string; total: string }>(
+      "POST",
+      "/pos/sales",
+      {
+        paymentMethod,
+        lines,
+        ...extra,
+        ...(total !== null && { cashReceived: conBilletes(total) }),
+      },
+      token,
+      idempotency(),
+    );
+    if (total !== null && Number(venta.total) !== total) {
+      throw new Error(
+        `El seed calculó ${total} y el API cobró ${venta.total}: revisa los precios.`,
+      );
+    }
+    return venta;
+  };
   const vender = (token: string, paymentMethod: string, lines: Json[]) =>
-    http("POST", "/pos/sales", { paymentMethod, lines }, token, idempotency());
+    cobrarVenta(token, paymentMethod, lines);
   /**
    * Una venta de mostrador: de una a tres cosas, con lo que más se vende
    * saliendo más seguido. Cada venta deja una reserva de 60 en la sucursal
@@ -443,8 +494,18 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   // privacidad al registrarse, como Ana: los acepta la primera vez que entra.
   // Sin esto, cada captura del cajero saldría con ese aviso encima.
   await http("POST", "/auth/accept-terms", undefined, cajero);
+  // Luis abre cada turno con $500 de cambio en el cajón (el fondo inicial): el
+  // arqueo los espera de vuelta al cerrar, junto con lo vendido en efectivo.
+  const FONDO_DE_LUIS = 500;
   for (let dias = 20; dias >= 1; dias -= 1) {
-    const turno = idOf(await http("POST", "/pos/session", { warehouseId: centro }, cajero));
+    const turno = idOf(
+      await http(
+        "POST",
+        "/pos/session",
+        { warehouseId: centro, openingCash: FONDO_DE_LUIS },
+        cajero,
+      ),
+    );
     const cuantas = entre(18, 30);
     for (let v = 0; v < cuantas; v += 1) await vender(cajero, metodo(), ticket());
     if (dias % 7 === 3) {
@@ -644,14 +705,10 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   // pieza vendida de esas tres se le volvería diferencia. Alcanza de sobra:
   // lo que él vende cerró el mes con 60 o más (la reserva de `ticket()`), y
   // lo que más se lleva son 27 aguas.
+  // En efectivo paga con billetes, como las demás (`cobrarVenta`): la última,
+  // la del ticket del capítulo 7, suma $243.50 y el cliente paga con $300.
   const cobrar = (paymentMethod: string, lines: Json[], extra: Json = {}) =>
-    http<{ id: string }>(
-      "POST",
-      "/pos/sales",
-      { paymentMethod, lines, ...extra },
-      cajero,
-      idempotency(),
-    );
+    cobrarVenta(cajero, paymentMethod, lines, extra);
   const cotizar = (lines: Json[], note: string) =>
     http<{ id: string; folio: string }>("POST", "/pos/quotes", { lines, note }, cajero);
 
@@ -664,7 +721,9 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     ],
     "Para una comida familiar; se entrega a domicilio.",
   );
-  const turnoLuis = idOf(await http("POST", "/pos/session", { warehouseId: centro }, cajero));
+  const turnoLuis = idOf(
+    await http("POST", "/pos/session", { warehouseId: centro, openingCash: FONDO_DE_LUIS }, cajero),
+  );
   await cobrar("cash", [
     { productId: agua, quantity: 3 },
     { serviceId: garrafon, quantity: 1 },

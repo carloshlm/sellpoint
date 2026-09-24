@@ -55,6 +55,7 @@ const TURNO: posApi.CashboxSession = {
   status: "open",
   openedAt: "2026-09-12T15:30:00.000Z",
   closedAt: null,
+  openingCash: "0",
   declaredCash: null,
   calculatedCash: null,
   cashDifference: null,
@@ -89,6 +90,7 @@ beforeEach(() => {
       { method: "card", total: "800.00", count: 2 },
     ],
     cashExpenses: { total: "0", count: 0 },
+    openingCash: "0",
     expectedCash: "1200.50",
   });
 });

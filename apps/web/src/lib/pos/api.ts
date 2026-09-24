@@ -9,6 +9,8 @@ export interface CashboxSession {
   status: "open" | "closed";
   openedAt: string;
   closedAt: string | null;
+  /** F10-MANFIX-10: el fondo con que abrió el cajón («0» sin fondo). */
+  openingCash: string;
   declaredCash: string | null;
   calculatedCash: string | null;
   cashDifference: string | null;
@@ -28,11 +30,18 @@ export async function getSession(): Promise<{ session: CashboxSession | null }> 
   return data;
 }
 
-export async function openSession(warehouseId?: string): Promise<CashboxSession> {
-  const { data } = await api.post<CashboxSession>(
-    "/pos/session",
-    warehouseId === undefined ? {} : { warehouseId },
-  );
+/**
+ * Abrir turno. Los dos datos son opcionales: sin sucursal, el API usa la
+ * asignada; sin fondo (F10-MANFIX-10), el turno abre en $0. Lo que no se
+ * escribió no viaja.
+ */
+export interface OpenSessionInput {
+  warehouseId?: string;
+  openingCash?: number;
+}
+
+export async function openSession(input: OpenSessionInput = {}): Promise<CashboxSession> {
+  const { data } = await api.post<CashboxSession>("/pos/session", input);
   return data;
 }
 
@@ -67,12 +76,16 @@ export async function listQuoteWarehouses(): Promise<PosWarehouse[]> {
 
 /**
  * F9-EXP-09 — el arqueo del turno: lo vendido por método, los gastos en
- * EFECTIVO que salieron del cajón y el efectivo ESPERADO (ventas cash −
- * gastos cash). `totals` sigue siendo ventas: la resta es un renglón aparte.
+ * EFECTIVO que salieron del cajón y el efectivo ESPERADO. `totals` sigue
+ * siendo ventas: la cuenta es un renglón aparte.
+ *
+ * F10-MANFIX-10: el esperado es fondo inicial + ventas cash − gastos cash, y
+ * lo calcula el API; la pantalla solo lo pinta, junto al renglón del fondo.
  */
 export interface SessionArqueo {
   totals: SessionTotal[];
   cashExpenses: { total: string; count: number };
+  openingCash: string;
   expectedCash: string;
 }
 
@@ -234,6 +247,11 @@ export interface Sale {
   warehouseId: string;
   status: "completed" | "canceled";
   paymentMethod: PaymentMethod;
+  /**
+   * F10-MANFIX-15 — con cuánto pagó el cliente en efectivo. `null` en tarjeta,
+   * transferencia y las ventas anteriores al cambio (2026-09-24).
+   */
+  cashReceived: string | null;
   subtotal: string;
   discount: string;
   total: string;
@@ -243,6 +261,11 @@ export interface Sale {
 
 export interface CreateSaleInput {
   paymentMethod: PaymentMethod;
+  /**
+   * F10-MANFIX-15 — solo en efectivo: con cuánto pagó el cliente. El API
+   * rechaza que sea menos que el total y deriva el cambio para el ticket.
+   */
+  cashReceived?: number;
   lines: {
     productId?: string;
     serviceId?: string;

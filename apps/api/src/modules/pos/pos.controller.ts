@@ -147,9 +147,15 @@ export class PosController {
     const sesion = await this.cashbox.current(user);
     // F9-EXP-09: además de lo vendido por método, los gastos en efectivo del
     // cajón y el efectivo ESPERADO (aditivo: `totals` sigue siendo ventas).
+    // F10-MANFIX-10: y el fondo inicial, que el esperado ya trae sumado.
     return sesion === null
-      ? { totals: [], cashExpenses: { total: "0", count: 0 }, expectedCash: "0" }
-      : this.cashbox.totals(user, sesion.id);
+      ? {
+          totals: [],
+          cashExpenses: { total: "0", count: 0 },
+          openingCash: "0",
+          expectedCash: "0",
+        }
+      : this.cashbox.totals(user, sesion);
   }
 
   /** Cierra el turno con su arqueo. La diferencia se registra, no bloquea. */

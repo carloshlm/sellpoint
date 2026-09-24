@@ -77,7 +77,9 @@ venta**: la regla para cobrar es la misma.
 3. En **Cómo paga**, elige **Efectivo**, **Tarjeta** o **Transferencia**.
 4. Con **Efectivo**, escribe en **Con cuánto paga** el dinero que te dio el
    cliente y SellPointy calcula el **Cambio**; mientras no alcance, dice cuánto
-   falta y no deja cobrar. Con **Tarjeta** o **Transferencia** no pide nada
+   falta y no deja cobrar. Lo que escribas se guarda con la venta: el ticket
+   lo imprime como **Recibido**, junto con el **Cambio**, también cuando lo
+   reimprimes (capítulo 7). Con **Tarjeta** o **Transferencia** no pide nada
    más: se cobra el total exacto.
 5. Presiona **Cobrar**.
 

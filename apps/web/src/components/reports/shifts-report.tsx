@@ -89,6 +89,7 @@ export function ShiftsReport() {
     { key: "warehouseName", header: t("reports.shifts.warehouse") },
     { key: "closedBy", header: t("reports.shifts.closedBy") },
     { key: "salesCount", header: t("reports.shifts.sales"), numeric: true },
+    { key: "openingCash", header: t("reports.shifts.openingCash"), numeric: true },
     { key: "cashExpenses", header: t("reports.shifts.cashExpenses"), numeric: true },
     { key: "calculated", header: t("reports.shifts.calculated"), numeric: true },
     { key: "declared", header: t("reports.shifts.declared"), numeric: true },
@@ -102,6 +103,9 @@ export function ShiftsReport() {
     warehouseName: turno.warehouse.name,
     closedBy: (turno.closedBy ?? turno.openedBy).name,
     salesCount: turno.salesCount,
+    // F10-MANFIX-10: el fondo con que abrió el cajón, que lo calculado ya
+    // suma; «—» si abrió sin fondo, como los gastos.
+    openingCash: Number(turno.openingCash) === 0 ? "—" : dinero(turno.openingCash),
     // F9-EXP-10: con signo, como se lee en un arqueo; «—» si no salió nada.
     cashExpenses: turno.cashExpenses.count === 0 ? "—" : `−${dinero(turno.cashExpenses.total)}`,
     calculated: dinero(turno.calculatedCash),

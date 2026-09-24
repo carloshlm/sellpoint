@@ -1,4 +1,4 @@
-import { ticketHeaderContact } from "./ticket-header";
+import { nombreLegalAparte, ticketHeaderContact } from "./ticket-header";
 
 const SIN_DIRECCION = {
   address: null,
@@ -92,5 +92,34 @@ describe("ticketHeaderContact", () => {
         "MX",
       ),
     ).toEqual({ address: null, phone: null });
+  });
+});
+
+/**
+ * F10-MANFIX-14 — el nombre legal va junto al RFC solo cuando dice algo que
+ * el nombre del negocio no dijo ya: «Abarrotes La Esquina» arriba y «Ana
+ * Pérez» abajo. Si falta, o es el mismo nombre escrito de otra forma, el
+ * ticket lo dice UNA vez.
+ */
+describe("nombreLegalAparte (F10-MANFIX-14)", () => {
+  it("un nombre legal distinto del negocio se imprime junto al RFC", () => {
+    expect(nombreLegalAparte("Abarrotes La Esquina", "Ana Pérez")).toBe("Ana Pérez");
+  });
+
+  it("sin nombre legal, o en blanco, no hay nada que agregar", () => {
+    expect(nombreLegalAparte("Abarrotes La Esquina", null)).toBeNull();
+    expect(nombreLegalAparte("Abarrotes La Esquina", "   ")).toBeNull();
+  });
+
+  it("el mismo nombre con otras mayúsculas, acentos o espacios sale una sola vez", () => {
+    expect(nombreLegalAparte("Abarrotes La Esquina", "Abarrotes La Esquina")).toBeNull();
+    expect(nombreLegalAparte("Abarrotes La Esquina", "ABARROTES  LA ESQUINA ")).toBeNull();
+    expect(nombreLegalAparte("Farmacia Pérez", "FARMACIA PEREZ")).toBeNull();
+  });
+
+  it("se imprime tal como se capturó, sin los espacios de las orillas", () => {
+    expect(nombreLegalAparte("Mi Negocio", "  DISTRIBUIDORA DEL NORTE S.A. DE C.V. ")).toBe(
+      "DISTRIBUIDORA DEL NORTE S.A. DE C.V.",
+    );
   });
 });

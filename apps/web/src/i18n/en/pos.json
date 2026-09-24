@@ -26,7 +26,10 @@
     "cashExpenses": "Cash expenses",
     "expenseCount": "{{count}} expenses",
     "expenseCount_one": "1 expense",
-    "expectedCash": "Expected cash"
+    "expectedCash": "Expected cash",
+    "openingCash": "Opening cash",
+    "openingCashLabel": "Opening cash (optional)",
+    "openingCashHint": "The cash you start with to give change. It's added to the expected cash when you close."
   },
   "nav": {
     "close": "Shift close",

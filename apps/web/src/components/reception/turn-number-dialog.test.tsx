@@ -1,9 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { I18nextProvider } from "react-i18next";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createI18n } from "@/i18n";
 import type { Turn } from "@/lib/reception/api";
+import { useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { TurnNumberDialog } from "./turn-number-dialog";
 
 vi.mock("@/lib/reception/api", () => ({
@@ -42,5 +45,31 @@ describe("TurnNumberDialog", () => {
     expect(await screen.findByTestId("turn-number")).toHaveTextContent("9");
     await waitFor(() => expect(api.printTurnTicket).toHaveBeenCalledWith("t9", 9));
     expect(api.printTurnTicket).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * F10-MANFIX-14 — el diálogo es el papel en pantalla, y el papel encabeza
+   * con el nombre del NEGOCIO: «Abarrotes La Esquina», no «Ana Pérez».
+   */
+  describe("el nombre del negocio (F10-MANFIX-14)", () => {
+    afterEach(() => useAuthStore.getState().clearAuth());
+
+    it("dice el nombre del negocio, no el legal", async () => {
+      useAuthStore.getState().setAuth(
+        "jwt",
+        buildAuthUser({
+          tenant: buildTenantBlock({ name: "Abarrotes La Esquina", legalName: "Ana Pérez" }),
+        }),
+      );
+      render(
+        <I18nextProvider i18n={createI18n()}>
+          <TurnNumberDialog turn={turn} onClose={vi.fn()} />
+        </I18nextProvider>,
+      );
+
+      const papel = await screen.findByTestId("turn-ticket");
+      expect(papel).toHaveTextContent("Abarrotes La Esquina");
+      expect(papel).not.toHaveTextContent("Ana Pérez");
+    });
   });
 });

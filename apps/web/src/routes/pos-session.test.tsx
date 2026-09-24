@@ -52,6 +52,7 @@ const sesion = (overrides: Partial<posApi.CashboxSession> = {}): posApi.CashboxS
   status: "open",
   openedAt: "2026-08-21T15:00:00.000Z",
   closedAt: null,
+  openingCash: "0",
   declaredCash: null,
   calculatedCash: null,
   cashDifference: null,
@@ -87,6 +88,7 @@ beforeEach(() => {
   mocked.getSessionTotals.mockResolvedValue({
     totals: [],
     cashExpenses: { total: "0", count: 0 },
+    openingCash: "0",
     expectedCash: "0",
   });
 });
@@ -192,7 +194,58 @@ describe("/pos — la puerta del punto de venta", () => {
     expect(mockedWarehouses.listWarehouses).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: /abrir turno/i }));
-    await waitFor(() => expect(mocked.openSession).toHaveBeenCalledWith("w2"));
+    // Sin fondo escrito, no viaja: el turno abre en $0, como siempre.
+    await waitFor(() => expect(mocked.openSession).toHaveBeenCalledWith({ warehouseId: "w2" }));
+  });
+
+  /**
+   * F10-MANFIX-10 — el fondo inicial se escribe AL ABRIR: el efectivo con que
+   * el cajón arranca para dar cambio. Es opcional (vacío = $0), se captura
+   * como los demás importes y viaja con la apertura.
+   */
+  it("abrir con fondo inicial manda el importe junto con la sucursal", async () => {
+    mocked.getSession.mockResolvedValue({ session: null });
+    mocked.openSession.mockResolvedValue(sesion({ openingCash: "500" }));
+
+    const user = await renderRuta("/pos");
+    const selector = await screen.findByLabelText("Sucursal");
+    await waitFor(() => expect(selector).toHaveValue("w1"));
+    await user.type(screen.getByLabelText("Fondo inicial (opcional)"), "500");
+    await user.click(screen.getByRole("button", { name: /abrir turno/i }));
+
+    await waitFor(() =>
+      expect(mocked.openSession).toHaveBeenCalledWith({ warehouseId: "w1", openingCash: 500 }),
+    );
+  });
+
+  it("el fondo va con la moneda del negocio y dice para qué sirve", async () => {
+    mocked.getSession.mockResolvedValue({ session: null });
+
+    const user = await renderRuta("/pos");
+    const fondo = await screen.findByLabelText("Fondo inicial (opcional)");
+    const caja = fondo.parentElement as HTMLElement;
+    expect(within(caja).getByText("$")).toBeInTheDocument();
+    expect(within(caja).getByText("MXN")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "El efectivo con que empiezas para dar cambio. Se suma al efectivo esperado al cerrar.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.type(fondo, "500");
+    await user.tab();
+    expect(fondo).toHaveValue("500.00");
+  });
+
+  it("un fondo mal escrito se marca y no deja abrir el turno", async () => {
+    mocked.getSession.mockResolvedValue({ session: null });
+
+    const user = await renderRuta("/pos");
+    await user.type(await screen.findByLabelText("Fondo inicial (opcional)"), "50,5");
+
+    expect(screen.getByRole("alert")).toHaveTextContent("solo con números y punto decimal");
+    expect(screen.getByRole("button", { name: /abrir turno/i })).toBeDisabled();
+    expect(mocked.openSession).not.toHaveBeenCalled();
   });
 
   /**
@@ -232,6 +285,7 @@ describe("/pos/close — el arqueo", () => {
         { method: "transfer", total: "0", count: 0 },
       ],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "150.00",
     });
 
@@ -252,6 +306,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "150.00",
     });
 
@@ -273,6 +328,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "500.00", count: 2 }],
       cashExpenses: { total: "200.00", count: 1 },
+      openingCash: "0",
       expectedCash: "300.00",
     });
 
@@ -288,6 +344,49 @@ describe("/pos/close — el arqueo", () => {
   });
 
   /**
+   * F10-MANFIX-10 — el cajón que arrancó con cambio: el fondo tiene su
+   * renglón, y la diferencia se calcula contra el esperado que manda el API
+   * (fondo + ventas − gastos). Sin el fondo, un turno que abrió con $500
+   * salía sobrando $500.
+   */
+  it("con fondo inicial, se ve su renglón y contar fondo + ventas cuadra", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion({ openingCash: "500" }) });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [{ method: "cash", total: "150.00", count: 3 }],
+      cashExpenses: { total: "0", count: 0 },
+      openingCash: "500",
+      expectedCash: "650",
+    });
+
+    const user = await renderRuta("/pos/close");
+    // Las ventas en efectivo siguen diciendo 150: el fondo es un renglón aparte.
+    expect(await screen.findByTestId("total-cash")).toHaveTextContent("150");
+    const fondo = screen.getByTestId("opening-cash");
+    expect(fondo).toHaveTextContent("$500.00");
+    expect(fondo.parentElement).toHaveTextContent("Fondo inicial");
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$650.00");
+
+    await user.type(screen.getByLabelText(/efectivo contado/i), "650");
+    expect(screen.getByTestId("cash-difference")).toHaveTextContent("$0.00");
+  });
+
+  it("sin fondo, el renglón dice $0.00 y el esperado es el de siempre", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [{ method: "cash", total: "150.00", count: 3 }],
+      cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
+      expectedCash: "150.00",
+    });
+
+    await renderRuta("/pos/close");
+
+    await screen.findByTestId("total-cash");
+    expect(screen.getByTestId("opening-cash")).toHaveTextContent("$0.00");
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$150.00");
+  });
+
+  /**
    * Carlos, 2026-09-08: el efectivo contado es un importe y se captura como
    * los demás — con la moneda a la vista y a dos decimales al salir. La
    * diferencia se sigue calculando en vivo mientras se teclea.
@@ -297,6 +396,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
       cashExpenses: { total: "0", count: 0 },
+      openingCash: "0",
       expectedCash: "150.00",
     });
 

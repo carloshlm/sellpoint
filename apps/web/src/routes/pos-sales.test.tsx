@@ -49,6 +49,7 @@ const venta = (overrides: Partial<posApi.SaleRow> = {}): posApi.SaleRow => ({
   warehouseId: "w1",
   status: "completed",
   paymentMethod: "cash",
+  cashReceived: null,
   subtotal: "100.00",
   discount: "0.00",
   total: "100.00",

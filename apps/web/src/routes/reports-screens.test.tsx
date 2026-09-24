@@ -100,6 +100,7 @@ const turno = (overrides: Partial<reportsApi.ShiftRow> = {}): reportsApi.ShiftRo
     { method: "card", total: "50.00", count: 1 },
     { method: "transfer", total: "0.00", count: 0 },
   ],
+  openingCash: "0",
   cashExpenses: { total: "0", count: 0 },
   calculatedCash: "100.00",
   declaredCash: "90.00",
@@ -441,6 +442,36 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       ).toBeInTheDocument();
       expect(screen.getByText("−$20.00")).toBeInTheDocument();
       expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    });
+
+    /**
+     * F10-MANFIX-10 — el fondo con que abrió cada turno, antes de los gastos
+     * y de lo calculado, que ya lo suma. Sin fondo, «—», como los gastos.
+     */
+    it("muestra el fondo inicial de cada turno antes de los gastos, y «—» sin fondo", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [
+          turno({ openingCash: "500.00", calculatedCash: "600.00", cashDifference: "-510.00" }),
+          turno({ id: "cs2" }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/shifts");
+
+      const encabezado = await screen.findByRole("columnheader", { name: "Fondo inicial" });
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      expect(encabezados.indexOf("Fondo inicial")).toBe(
+        encabezados.indexOf("Gastos en efectivo") - 1,
+      );
+      expect(encabezado).toBeInTheDocument();
+      const filas = screen.getAllByRole("row").slice(1);
+      const columna = encabezados.indexOf("Fondo inicial");
+      expect(within(filas[0] as HTMLElement).getAllByRole("cell")[columna]).toHaveTextContent(
+        "$500.00",
+      );
+      expect(within(filas[1] as HTMLElement).getAllByRole("cell")[columna]).toHaveTextContent("—");
     });
 
     it("abre con el día actual del negocio y solo los cerrados", async () => {

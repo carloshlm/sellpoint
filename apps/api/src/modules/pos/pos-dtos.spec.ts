@@ -1,4 +1,6 @@
+import { MONEY_MAX } from "@sellpoint/shared";
 import { createSaleSchema } from "./dto/create-sale.dto";
+import { openSessionSchema } from "./dto/open-session.dto";
 import { createQuoteSchema } from "./dto/quote.dto";
 
 /**
@@ -131,5 +133,70 @@ describe("createSaleSchema con descuento del ticket (F4-DISC)", () => {
       createSaleSchema.safeParse({ ...base, discount: { amount: 10, code: "1234", percent: 5 } })
         .success,
     ).toBe(false);
+  });
+});
+
+/**
+ * F10-MANFIX-10 — el fondo inicial del turno: opcional (sin él, $0), un
+ * importe como los demás (dos decimales, el tope de la columna) y nunca
+ * negativo: un cajón no empieza debiendo.
+ */
+describe("openSessionSchema con fondo inicial (F10-MANFIX-10)", () => {
+  const abrir = (body: Record<string, unknown>) => openSessionSchema.safeParse(body);
+
+  it("el fondo es opcional: sin él, el turno abre como siempre", () => {
+    const r = abrir({});
+    expect(r.success).toBe(true);
+    expect(r.data).toEqual({});
+  });
+
+  it("acepta cero, pesos con centavos y el tope de la columna", () => {
+    expect(abrir({ openingCash: 0 }).data).toEqual({ openingCash: 0 });
+    expect(abrir({ openingCash: 500.5 }).data).toEqual({ openingCash: 500.5 });
+    expect(abrir({ openingCash: MONEY_MAX }).success).toBe(true);
+  });
+
+  it("rechaza negativos, tres decimales, más que el tope y texto, con su clave", () => {
+    for (const openingCash of [-1, 1.005, MONEY_MAX + 1, "500"]) {
+      const r = abrir({ openingCash });
+      expect(r.success).toBe(false);
+      expect(JSON.stringify(r.error?.issues)).toContain("pos.opening_cash_invalid");
+    }
+  });
+});
+
+/**
+ * F10-MANFIX-15 — con cuánto pagó el cliente. Solo existe en el EFECTIVO:
+ * tarjeta y transferencia se cobran por el monto exacto fuera del sistema, y
+ * un «recibido» ahí sería un dato inventado. Es opcional (una venta sin él se
+ * cobra igual) y es un importe como los demás.
+ */
+describe("createSaleSchema con lo recibido (F10-MANFIX-15)", () => {
+  const linea = { productId: "11111111-1111-4111-8111-111111111111", quantity: 1 };
+  const cobrar = (body: Record<string, unknown>) =>
+    createSaleSchema.safeParse({ lines: [linea], ...body });
+
+  it("en efectivo acepta lo recibido, y también su ausencia", () => {
+    expect(cobrar({ paymentMethod: "cash", cashReceived: 300 }).data).toMatchObject({
+      cashReceived: 300,
+    });
+    expect(cobrar({ paymentMethod: "cash", cashReceived: 243.5 }).success).toBe(true);
+    expect(cobrar({ paymentMethod: "cash" }).success).toBe(true);
+  });
+
+  it("con tarjeta o transferencia rebota: ahí no se recibe nada que contar", () => {
+    for (const paymentMethod of ["card", "transfer"]) {
+      const r = cobrar({ paymentMethod, cashReceived: 100 });
+      expect(r.success).toBe(false);
+      expect(JSON.stringify(r.error?.issues)).toContain("pos.cash_received_only_cash");
+    }
+  });
+
+  it("rechaza negativos, tres decimales, más que el tope y texto, con su clave", () => {
+    for (const cashReceived of [-1, 50.005, MONEY_MAX + 1, "300"]) {
+      const r = cobrar({ paymentMethod: "cash", cashReceived });
+      expect(r.success).toBe(false);
+      expect(JSON.stringify(r.error?.issues)).toContain("pos.cash_received_invalid");
+    }
   });
 });

@@ -1,5 +1,4 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { PAYMENT_METHODS } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -32,13 +31,25 @@ import type { CloseSessionDto, OpenSessionDto } from "./dto/open-session.dto";
  * que hace que un arqueo signifique algo. Ventas sueltas sin turno serían
  * dinero que nadie cuadra al final del día.
  */
-/** Lo que el cierre muestra y persiste: ventas por método, gastos del cajón y el esperado. */
+/**
+ * Lo que el cierre muestra y persiste: ventas por método, gastos del cajón, el
+ * fondo con que abrió y el esperado.
+ */
 export interface SessionArqueo {
   totals: SessionTotal[];
   cashExpenses: SessionCashExpenses;
-  /** Ventas en efectivo − gastos en efectivo: contra esto se cuenta el cajón. */
+  /** F10-MANFIX-10: el fondo inicial del turno, como texto decimal («0» sin fondo). */
+  openingCash: string;
+  /** Fondo + ventas en efectivo − gastos en efectivo: contra esto se cuenta el cajón. */
   expectedCash: string;
 }
+
+/**
+ * Lo que el arqueo necesita del turno: cuál es y con cuánto abrió. Exportado
+ * porque viaja en la firma de un método público (`nest build` emite
+ * declaraciones y no acepta un nombre que no se pueda importar).
+ */
+export type TurnoDelArqueo = { id: string; openingCash: Prisma.Decimal };
 
 @Injectable()
 export class CashboxService {
@@ -73,6 +84,11 @@ export class CashboxService {
    * El `try/catch` traduce ese choque (P2002) al 409 con mensaje, en vez de
    * dejar salir un 500 que nadie entiende. Es el mismo patrón que
    * `markConfirmed` en F3.
+   *
+   * F10-MANFIX-10: el fondo inicial se guarda EN el turno, tal como lo
+   * escribió quien abre. Sin él, la columna queda en su default ($0). Se fija
+   * una vez: el turno no tiene cómo editarlo después, y el arqueo lo lee de
+   * aquí.
    */
   async open(user: AuthUser, scope: UserScope, dto: OpenSessionDto) {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
@@ -83,7 +99,14 @@ export class CashboxService {
 
       try {
         return await tx.cashboxSession.create({
-          data: { tenantId: user.tenantId, warehouseId, openedBy: user.userId },
+          data: {
+            tenantId: user.tenantId,
+            warehouseId,
+            openedBy: user.userId,
+            ...(dto.openingCash !== undefined && {
+              openingCash: new Prisma.Decimal(dto.openingCash),
+            }),
+          },
           include: { warehouse: { select: { id: true, name: true } } },
         });
       } catch (error) {
@@ -107,32 +130,46 @@ export class CashboxService {
    * alguien puede preguntarse por qué el turno cerró con menos de lo que
    * recordaba.
    */
-  async totals(user: AuthUser, sessionId: string): Promise<SessionArqueo> {
+  async totals(user: AuthUser, session: TurnoDelArqueo): Promise<SessionArqueo> {
     // La MISMA función que el reporte de cierres (F5-SHIFT-01): el papel del
     // cierre y el reporte no pueden decir cosas distintas.
     return this.prisma.withTenantContext(user.tenantId, (tx) =>
-      this.arqueo(tx, user.tenantId, sessionId),
+      this.arqueo(tx, user.tenantId, session),
     );
   }
 
   /**
    * F9-EXP-09 — lo vendido por método, los gastos en efectivo que salieron
-   * del cajón y el efectivo ESPERADO (ventas cash − gastos cash). La resta
-   * va aparte de `totals`: la columna «Efectivo» sigue siendo ventas.
+   * del cajón y el efectivo ESPERADO. La cuenta va aparte de `totals`: la
+   * columna «Efectivo» sigue siendo ventas.
+   *
+   * F10-MANFIX-10: el esperado suma el fondo inicial del turno —fondo +
+   * ventas cash − gastos cash— y el fondo viaja en la respuesta, para que la
+   * pantalla lo muestre en su renglón en vez de deducirlo.
    */
   private async arqueo(
     tx: Prisma.TransactionClient,
     tenantId: string,
-    sessionId: string,
+    session: TurnoDelArqueo,
   ): Promise<SessionArqueo> {
     const [porMetodo, gastos] = await Promise.all([
-      totalesPorSesion(tx, tenantId, [sessionId]),
-      gastosEnEfectivoPorSesion(tx, tenantId, [sessionId]),
+      totalesPorSesion(tx, tenantId, [session.id]),
+      gastosEnEfectivoPorSesion(tx, tenantId, [session.id]),
     ]);
-    const totals = porMetodo.get(sessionId) ?? totalesEnCero();
-    const cashExpenses = gastos.get(sessionId) ?? sinGastos();
+    const totals = porMetodo.get(session.id) ?? totalesEnCero();
+    const cashExpenses = gastos.get(session.id) ?? sinGastos();
+    const openingCash = session.openingCash.toString();
     const ventasCash = totals.find((t) => t.method === "cash")?.total ?? "0";
-    return { totals, cashExpenses, expectedCash: efectivoEsperado(ventasCash, cashExpenses.total) };
+    return {
+      totals,
+      cashExpenses,
+      openingCash,
+      expectedCash: efectivoEsperado({
+        fondo: openingCash,
+        ventas: ventasCash,
+        gastos: cashExpenses.total,
+      }),
+    };
   }
 
   /**
@@ -177,7 +214,9 @@ export class CashboxService {
         throw new ConflictException({ message: "pos.session_already_closed" });
       }
 
-      const arqueo = await this.arqueo(tx, user.tenantId, sesion.id);
+      // El fondo se lee del turno que `current` trajo: se fija al abrir y
+      // nada lo cambia después, así que no hay carrera que tomar en cuenta.
+      const arqueo = await this.arqueo(tx, user.tenantId, sesion);
       const calculado = new Prisma.Decimal(arqueo.expectedCash);
       const cerrada = await tx.cashboxSession.update({
         where: { id: sesion.id },

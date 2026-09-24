@@ -21,9 +21,9 @@ import { useAuthStore } from "@/stores/auth.store";
 export function TurnNumberDialog({ turn, onClose }: { turn: Turn; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
-  const nombreNegocio = useAuthStore(
-    (state) => state.user?.tenant?.legalName ?? state.user?.tenant?.name ?? "",
-  );
+  // F10-MANFIX-14: el nombre del NEGOCIO, como el papel. El legal va junto al
+  // RFC en el ticket de venta; el turno no lleva ese renglón.
+  const nombreNegocio = useAuthStore((state) => state.user?.tenant?.name ?? "");
   const locale = i18n.language === "en" ? "en-US" : "es-MX";
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);

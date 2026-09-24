@@ -9,7 +9,7 @@ import {
 } from "@sellpoint/shared";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 import { ticketBarcodeSvg } from "./barcode-svg";
-import type { TicketHeaderContact } from "./ticket-header";
+import { nombreLegalAparte, type TicketHeaderContact } from "./ticket-header";
 import { ticketLogoNodes } from "./ticket-logo";
 import type { TaxMark } from "./ticket-tax-marks";
 
@@ -52,7 +52,9 @@ function noVacio(value: string | null): value is string {
 
 export interface TicketInput {
   tenant: {
+    /** F10-MANFIX-14: el nombre del negocio, el que encabeza el papel. */
     name: string;
+    /** Va en el renglón del RFC, y solo si dice algo distinto de `name`. */
     legalName: string | null;
     taxId: string | null;
     /** F4-TAXMARK-04: decide cómo se llama el registro fiscal («RFC», «GST/HST No.»). */
@@ -162,6 +164,24 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
 
   const esCotizacion = input.kind === "quote";
 
+  // El renglón fiscal: «Ana Pérez · RFC: PEAA850315AB3».
+  //
+  // F4-TAXMARK-04: el número va con su nombre («RFC: …», «GST/HST No.: …»);
+  // sin nombre universal, el genérico traducido. Un número sin nombre no le
+  // sirve a nadie en ningún país.
+  //
+  // F10-MANFIX-14: el nombre legal VIAJA con el RFC, bajo la misma casilla.
+  // Quien apaga el RFC no quiere su identidad fiscal en el papel, y para una
+  // persona física el nombre legal es su nombre propio. Solo va si dice algo
+  // que el nombre del negocio no dijo ya (`nombreLegalAparte`); sin RFC
+  // capturado, sale solo en ese renglón.
+  const registroFiscal = noVacio(input.tenant.taxId)
+    ? `${taxIdLabel(input.tenant.country) ?? t("ticket.taxId")}: ${input.tenant.taxId}`
+    : null;
+  const lineaFiscal = [nombreLegalAparte(input.tenant.name, input.tenant.legalName), registroFiscal]
+    .filter((parte): parte is string => parte !== null)
+    .join(" · ");
+
   // F4-TAXMARK-03: la columna de la letra existe SOLO con marcas. Una columna
   // vacía en cada fila correría el importe en 48 mm de papel.
   const marcaPorGrupo = new Map(input.taxMarks.map((m) => [m.code, m.mark]));
@@ -186,20 +206,15 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
       ...ticketLogoNodes(input.logo, anchoPt - margen * 2),
 
       // ── Quién cobra: cada línea solo con su toggle ────────────────────
+      //
+      // F10-MANFIX-14: arriba, el nombre del NEGOCIO, el que el cliente
+      // conoce. Era `legalName ?? name`, y el ticket de «Abarrotes La
+      // Esquina» decía «Ana Pérez».
       ...(input.settings.showBusinessName
-        ? [{ text: input.tenant.legalName ?? input.tenant.name, bold: true, alignment: "center" }]
+        ? [{ text: input.tenant.name, bold: true, alignment: "center" }]
         : []),
-      ...(input.settings.showTaxId && noVacio(input.tenant.taxId)
-        ? [
-            {
-              // F4-TAXMARK-04: el número con su nombre («RFC: …», «GST/HST
-              // No.: …»); sin nombre universal, el genérico traducido. Un
-              // número sin nombre no le sirve a nadie en ningún país.
-              text: `${taxIdLabel(input.tenant.country) ?? t("ticket.taxId")}: ${input.tenant.taxId}`,
-              alignment: "center",
-              fontSize: 7,
-            },
-          ]
+      ...(input.settings.showTaxId && lineaFiscal !== ""
+        ? [{ text: lineaFiscal, alignment: "center", fontSize: 7 }]
         : []),
       ...(input.settings.showAddress && noVacio(input.header.address)
         ? [{ text: input.header.address, alignment: "center", fontSize: 7 }]

@@ -1,7 +1,10 @@
+import { parseMoneyInput } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MoneyField } from "@/components/form/money-field";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { Button } from "@/components/ui/button";
+import { moneyInputError } from "@/lib/money";
 import { useOpenSession, usePosWarehouses } from "@/lib/pos/hooks";
 
 /**
@@ -15,13 +18,22 @@ import { useOpenSession, usePosWarehouses } from "@/lib/pos/hooks";
  * preselecciona la asignada (o la única), y el API rellena con la ASIGNADA si
  * no se manda ninguna — así que el cajero de siempre abre con un clic y el que
  * rota elige.
+ *
+ * F10-MANFIX-10 — el FONDO INICIAL: el efectivo con que el cajón arranca para
+ * dar cambio. Se escribe aquí, al abrir (decisión de Carlos, 2026-09-24), con
+ * el mismo campo de importe que el resto de la app. Es opcional: vacío es $0
+ * y no viaja, así que quien no usa fondo abre con el mismo clic de siempre. Un
+ * importe mal escrito («50,5») se marca y NO deja abrir: abrir con un fondo
+ * distinto del que se quiso daría un arqueo equivocado todo el día.
  */
 export function OpenSession() {
   const { t } = useTranslation();
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [fondo, setFondo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const abrir = useOpenSession();
   const sucursales = usePosWarehouses();
+  const errorFondo = moneyInputError(fondo);
 
   return (
     <section className="flex max-w-md flex-col gap-4" data-testid="open-session">
@@ -43,6 +55,14 @@ export function OpenSession() {
         />
       </div>
 
+      <MoneyField
+        label={t("pos.session.openingCashLabel")}
+        value={fondo}
+        onChange={setFondo}
+        hint={t("pos.session.openingCashHint")}
+        error={errorFondo === null ? undefined : t(errorFondo)}
+      />
+
       {error !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
@@ -50,15 +70,22 @@ export function OpenSession() {
       )}
 
       <Button
-        disabled={abrir.isPending}
+        disabled={abrir.isPending || errorFondo !== null}
         onClick={() => {
           setError(null);
-          abrir.mutate(warehouseId ?? undefined, {
-            // El error del server NUNCA se traga — lección del confirm mudo de
-            // F3. Un turno ya abierto o un almacén fuera de alcance tienen que
-            // decirse, no dejar el botón muerto.
-            onError: (e) => setError(e.message || t("pos.session.openFailed")),
-          });
+          const openingCash = parseMoneyInput(fondo);
+          abrir.mutate(
+            {
+              ...(warehouseId !== null && { warehouseId }),
+              ...(openingCash !== null && { openingCash }),
+            },
+            {
+              // El error del server NUNCA se traga — lección del confirm mudo
+              // de F3. Un turno ya abierto o un almacén fuera de alcance
+              // tienen que decirse, no dejar el botón muerto.
+              onError: (e) => setError(e.message || t("pos.session.openFailed")),
+            },
+          );
         }}
       >
         {abrir.isPending ? t("common.form.submitting") : t("pos.session.open")}

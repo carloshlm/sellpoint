@@ -20,6 +20,7 @@ import {
   listQuoteWarehouses,
   listSales,
   lookup,
+  type OpenSessionInput,
   openSession,
   type PosWarehouse,
   type Quote,
@@ -85,11 +86,11 @@ export function useQuoteWarehouses() {
 
 export function useOpenSession() {
   const queryClient = useQueryClient();
-  return useMutation<CashboxSession, ApiError, string | undefined>({
+  return useMutation<CashboxSession, ApiError, OpenSessionInput>({
     // Envuelto y no `mutationFn: openSession` a propósito: pasado directo,
     // React Query le manda el CONTEXTO como segundo argumento (gotcha ya
     // documentado en `movements-documents.test.tsx`).
-    mutationFn: (warehouseId) => openSession(warehouseId),
+    mutationFn: (input) => openSession(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY }),
   });
 }
