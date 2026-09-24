@@ -13,6 +13,8 @@ aquí el mensaje que ves, o el problema, y lo que hay que hacer.
 | No puedo entrar | Los mensajes de la pantalla de acceso y cómo recuperar tu contraseña están en el capítulo 2. |
 | Esta cuenta está suspendida | Quien administra tu negocio te suspendió. Pídele que te reactive desde **Usuarios** (capítulo 32). |
 | No me llegó la invitación | Busca en el correo no deseado un correo con el asunto «Te invitaron a SellPointy». Si no está o ya pasaron 7 días, pide que te la reenvíen con **Reenviar invitación**. Solo sirve el último enlace que te mandaron. |
+| No me llegó el correo para verificar mi cuenta | Búscalo en el correo no deseado: su asunto es «Verifica tu cuenta de SellPointy» y su enlace dura 24 horas. Si no está, o ya venció, en la pantalla para entrar presiona **¿Olvidaste tu contraseña?** y elige una contraseña con el enlace que te llega: eso también verifica tu correo (capítulo 2). |
+| Ya existe una cuenta con ese correo electrónico | Cada correo sirve para una sola cuenta de SellPointy, y ese ya tiene una, en tu negocio o en otro. Si la cuenta es tuya, entra con ella (capítulo 2); si no, usa otro correo. |
 | El enlace no es válido, ya fue usado o expiró | El enlace ya se usó o se venció. Pide uno nuevo: una invitación nueva, o el de «¿Olvidaste tu contraseña?». |
 | Tu sesión venció. Vuelve a iniciar sesión. | Entra de nuevo con tu correo y tu contraseña. |
 | No tienes permiso para ver esto. Pídeselo a quien administra el negocio. | Tu rol no incluye esa pantalla. Quien administra el negocio puede darte otro rol (capítulos 32 y 33). |

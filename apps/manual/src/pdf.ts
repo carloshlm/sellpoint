@@ -17,6 +17,11 @@ import { appVersion, DIST_DIR, IMG_DIR, MANUAL_DIR, ROOT } from "./paths.js";
  *   who: todos            (todos · cajero · dueño)
  *   plan: Desde Pro       (opcional; sin él, «Todos los planes»)
  *   ---
+ *
+ * Los PRELIMINARES —`00-read-me.md`, suelto en `es/`— van después del índice
+ * y antes de la Parte 1, sin número ni marcas. Su `title` es el del índice,
+ * que dice qué cubre el archivo («Portada y “Cómo leer este manual”»); el
+ * título que se imprime es el primer `# …` de su texto.
  */
 const CHAPTERS_DIR = join(MANUAL_DIR, "es");
 
@@ -35,13 +40,20 @@ const WHO: Record<string, string> = { todos: "Todos", cajero: "Cajero", dueño: 
 
 interface Chapter {
   id: string;
+  /** Vacío en un preliminar: no lleva número. */
   number: string;
   part: string | null;
   title: string;
   who: string;
   plan: string | null;
+  /** «Cómo leer este manual»: sin número y sin las marcas de quién y plan. */
+  preliminary: boolean;
   html: string;
 }
+
+/** Un preliminar: `00-….md` directo en `es/`, fuera de las carpetas de las partes. */
+const isPreliminary = (path: string) =>
+  dirname(path) === CHAPTERS_DIR && basename(path).startsWith("00-");
 
 function chapterFiles(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -110,17 +122,32 @@ function parseChapter(path: string): Chapter {
     throw new Error(`${where}: el bloque inicial necesita title y who (todos, cajero o dueño).`);
   }
   const folder = basename(dirname(path));
-  const html = (markdown.parse(match[2] as string) as string)
+  const preliminary = isPreliminary(path);
+  let text = match[2] as string;
+  let title = meta.title;
+  if (preliminary) {
+    // El título impreso sale del texto; el `title` del bloque es el del índice.
+    const heading = text.match(/^# (.+)$/m);
+    if (!heading) {
+      throw new Error(`${where}: un preliminar abre su texto con el título que se imprime: «# …».`);
+    }
+    title = (heading[1] as string).trim();
+    text = text.replace(heading[0], "");
+  }
+  const html = (markdown.parse(text) as string)
     // Una figura no va dentro de un párrafo.
     .replace(/<p>(<figure>[\s\S]*?<\/figure>)<\/p>/g, "$1");
   return {
     id: where.replace(/\.md$/, "").replace(/[^\w]+/g, "-"),
     // `30-dashboard.md` → «30»; los apéndices (`a-plans.md`) → «A».
-    number: (basename(path).match(/^(\w+?)-/)?.[1] ?? "").replace(/^0+(?=\d)/, "").toUpperCase(),
+    number: preliminary
+      ? ""
+      : (basename(path).match(/^(\w+?)-/)?.[1] ?? "").replace(/^0+(?=\d)/, "").toUpperCase(),
     part: PARTS[folder] ?? null,
-    title: meta.title,
+    title,
     who: WHO[meta.who] as string,
     plan: meta.plan ?? null,
+    preliminary,
     html,
   };
 }
@@ -172,10 +199,14 @@ function page(chapters: Chapter[], version: string): string {
       c.part && c.part !== lastPart ? `<p class="part-label">${escapeHtml(c.part)}</p>` : "";
     lastPart = c.part ?? lastPart;
     const plan = c.plan ? `<span class="badge plan">${escapeHtml(c.plan)}</span>` : "";
+    const number = c.number ? `<span class="n">${escapeHtml(c.number)}</span>` : "";
+    const meta = c.preliminary
+      ? ""
+      : `<p class="meta"><span class="badge">Quién lo usa: ${escapeHtml(c.who)}</span>${plan}</p>`;
     return `<section class="chapter" id="${c.id}">
       ${partLabel}
-      <h1><span class="n">${escapeHtml(c.number)}</span>${escapeHtml(c.title)}</h1>
-      <p class="meta"><span class="badge">Quién lo usa: ${escapeHtml(c.who)}</span>${plan}</p>
+      <h1>${number}${escapeHtml(c.title)}</h1>
+      ${meta}
       ${c.html}
     </section>`;
   });

@@ -1,8 +1,52 @@
-import { DEMO } from "../demo.js";
+import type { Page } from "playwright";
+import { DEMO, NEWCOMER } from "../demo.js";
 import { authColumn, card, type Screen } from "./kit.js";
+
+/** Quita el foco del último control que se tocó: el anillo azul distrae en el papel. */
+const blur = (page: Page) =>
+  page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
 /** Parte 1 — Primeros pasos. */
 export const START: Screen[] = [
+  // ── Capítulo 1 — Crear tu cuenta y el asistente de alta ────────────────
+  {
+    id: "sign-up",
+    chapter: "01-start/01-create-account.md",
+    as: "visitor",
+    path: "/register",
+    prepare: async (page) => {
+      // Lo que escribiría Sofía Luna, sin presionar «Crear cuenta».
+      await page.getByLabel("Nombre", { exact: true }).fill(NEWCOMER.firstName);
+      await page.getByLabel("Apellido", { exact: true }).fill(NEWCOMER.lastName);
+      await page.getByLabel("Email").fill(NEWCOMER.email);
+      await page.getByLabel("Contraseña", { exact: true }).fill(NEWCOMER.password);
+      await page.getByRole("button", { name: "Mostrar contraseña" }).click();
+      await page.locator("#accept-terms").click();
+      await page.locator("#accept-privacy").click();
+      await blur(page);
+    },
+    target: authColumn,
+  },
+  {
+    id: "wizard-business",
+    chapter: "01-start/01-create-account.md",
+    as: "newcomer",
+    path: "/onboarding?step=1",
+    // El paso 1 no cabe entero en una página: de «Paso 1 de 3» al RFC.
+    target: (page) => [
+      page.getByTestId("wizard-step-label"),
+      page.getByText("Por ejemplo ABC010101AB1", { exact: true }),
+    ],
+  },
+  {
+    // La tarjeta del paso, sin el fondo vacío alrededor.
+    id: "wizard-theme",
+    chapter: "01-start/01-create-account.md",
+    as: "newcomer",
+    path: "/onboarding?step=3",
+    target: (page) => [page.locator("[data-slot='card']")],
+  },
+
   // ── Capítulo 2 — Entrar, salir y tu contraseña ─────────────────────────
   {
     id: "sign-in",
@@ -55,5 +99,51 @@ export const START: Screen[] = [
     as: "owner",
     path: "/profile",
     target: (page) => [card(page, "Sesiones activas")],
+  },
+
+  // ── Capítulo 3 — Conoce la pantalla ────────────────────────────────────
+  {
+    // La ventana entera, un poco más chica que la de siempre: en el papel
+    // sale reducida y así el menú se alcanza a leer.
+    id: "app-screen",
+    chapter: "01-start/03-the-screen.md",
+    as: "owner",
+    path: "/dashboard",
+    viewport: { width: 1024, height: 720 },
+  },
+  {
+    // Un celular chico: el menú del cajero cabe entero y no sobra media pantalla en blanco.
+    id: "menu-phone",
+    chapter: "01-start/03-the-screen.md",
+    as: "cashier",
+    path: "/pos",
+    viewport: { width: 375, height: 667 },
+    prepare: async (page) => {
+      await page.getByRole("button", { name: "Abrir o cerrar el menú" }).click();
+    },
+  },
+  {
+    id: "theme-card",
+    chapter: "01-start/03-the-screen.md",
+    as: "owner",
+    path: "/profile",
+    colorScheme: "dark",
+    target: (page) => [card(page, "Tema")],
+  },
+
+  // ── Capítulo 4 — Mi perfil: tus datos ──────────────────────────────────
+  {
+    id: "profile-details",
+    chapter: "01-start/04-my-profile.md",
+    as: "cashier",
+    path: "/profile",
+    target: (page) => [card(page, "Tus datos")],
+  },
+  {
+    id: "preferences",
+    chapter: "01-start/04-my-profile.md",
+    as: "cashier",
+    path: "/profile",
+    target: (page) => [card(page, "Preferencias")],
   },
 ];

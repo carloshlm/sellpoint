@@ -30,10 +30,11 @@ Al elegirlo o configurarlo, revisa dos cosas:
 - **En las pantallas de inventario y al dar de alta productos**, SellPointy
   reconoce el código por la rapidez con que llega y por el Enter del final. Por
   eso ahí sí es indispensable que el lector mande Enter.
-- **Sin lector**, al vender puedes presionar **Escanear con la cámara** y usar
-  la cámara del teléfono o de la computadora. Coloca el código horizontal,
-  sobre la línea. Si el navegador no puede usar la cámara, verás **No pudimos
-  usar la cámara. Puedes buscar tecleando.**
+- **Sin lector**, en un celular o una tableta puedes presionar **Escanear con
+  la cámara** al vender. Coloca el código horizontal, sobre la línea. Si el
+  navegador no puede usar la cámara, verás **No pudimos usar la cámara. Puedes
+  buscar tecleando.** En una computadora ese botón no aparece: ahí se escanea
+  con un lector o se teclea el código.
 
 Para que un producto se encuentre al escanearlo, su código tiene que estar
 capturado en el campo **Código de barras** del producto (capítulo 16).

@@ -2,6 +2,7 @@ import { INSIGHTS } from "./screens/insights.js";
 import { INVENTORY } from "./screens/inventory.js";
 import type { Screen } from "./screens/kit.js";
 import { PURCHASING } from "./screens/purchasing.js";
+import { SELL } from "./screens/sell.js";
 import { SETUP } from "./screens/setup.js";
 import { START } from "./screens/start.js";
 import { TEAM } from "./screens/team.js";
@@ -15,6 +16,7 @@ export type { Screen } from "./screens/kit.js";
  */
 export const SCREENS: Screen[] = [
   ...START,
+  ...SELL,
   ...SETUP,
   ...INVENTORY,
   ...PURCHASING,
