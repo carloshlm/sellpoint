@@ -3,6 +3,7 @@ import {
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resendVerificationSchema,
   resetPasswordSchema,
 } from "./schemas";
 
@@ -67,6 +68,24 @@ describe("auth schemas", () => {
     it("solo pide un email válido", () => {
       expect(forgotPasswordSchema.safeParse({ email: "ana@acme.mx" }).success).toBe(true);
       expect(forgotPasswordSchema.safeParse({ email: "nope" }).success).toBe(false);
+    });
+  });
+
+  // F10-MANFIX-11: el mismo email normalizado que manda «olvidé mi contraseña».
+  describe("resendVerificationSchema", () => {
+    it("solo pide un email válido, sin espacios y en minúsculas", () => {
+      const result = resendVerificationSchema.safeParse({ email: "  Ana@Acme.MX " });
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ email: "ana@acme.mx" });
+    });
+
+    it("rechaza un email inválido o vacío con su clave i18n", () => {
+      expect(resendVerificationSchema.safeParse({ email: "nope" }).error?.issues[0]?.message).toBe(
+        "validation.email",
+      );
+      expect(resendVerificationSchema.safeParse({ email: "" }).error?.issues[0]?.message).toBe(
+        "validation.required",
+      );
     });
   });
 

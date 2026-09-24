@@ -30,6 +30,10 @@ import { type ChangePasswordDto, changePasswordSchema } from "./dto/change-passw
 import { type ForgotPasswordDto, forgotPasswordSchema } from "./dto/forgot-password.dto";
 import { type LoginDto, loginSchema } from "./dto/login.dto";
 import { type RegisterTenantDto, registerTenantSchema } from "./dto/register-tenant.dto";
+import {
+  type ResendVerificationDto,
+  resendVerificationSchema,
+} from "./dto/resend-verification.dto";
 import { type ResetPasswordDto, resetPasswordSchema } from "./dto/reset-password.dto";
 import { type VerifyEmailDto, verifyEmailSchema } from "./dto/verify-email.dto";
 import { AuthEmailThrottlerGuard } from "./guards/auth-email-throttler.guard";
@@ -38,9 +42,9 @@ import type { AuthUser } from "./types/auth-user";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // f1-auth AUTH-REQ-12/U6-02: guard aplicado a NIVEL DE CONTROLLER — cubre
-// las 8 rutas de /auth/* con el chequeo de IP (design AD-7: "/auth/*"
+// todas las rutas de /auth/* con el chequeo de IP (design AD-7: "/auth/*"
 // entero); el guard mismo restringe internamente el chequeo de email a
-// login/forgot-password (EMAIL_TRACKED_HANDLERS).
+// login/forgot-password/resend-verification (EMAIL_TRACKED_HANDLERS).
 @ApiTags("auth")
 @Controller("auth")
 @UseGuards(AuthEmailThrottlerGuard)
@@ -178,6 +182,27 @@ export class AuthController {
     @Req() request: Request,
   ): Promise<{ accepted: true }> {
     await this.authService.forgotPassword(dto.email, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
+    return { accepted: true };
+  }
+
+  // F10-MANFIX-11: el MISMO contrato que forgot-password — SIEMPRE 202 con el
+  // MISMO body, exista o no la cuenta y esté o no verificada; el trabajo real
+  // vive adentro de authService.resendVerification. El nombre del método es
+  // el contrato del límite por email en `AuthEmailThrottlerGuard`
+  // (`EMAIL_TRACKED_HANDLERS`): renombrarlo le quita ese límite en silencio, y
+  // por eso lo vigila `auth-throttling.e2e-spec.ts` pasando por esta ruta.
+  @Public()
+  @Post("resend-verification")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async resendVerification(
+    @Body(new ZodValidationPipe(resendVerificationSchema, "auth.invalid_body"))
+    dto: ResendVerificationDto,
+    @Req() request: Request,
+  ): Promise<{ accepted: true }> {
+    await this.authService.resendVerification(dto.email, {
       ip: request.ip,
       userAgent: request.headers["user-agent"],
     });

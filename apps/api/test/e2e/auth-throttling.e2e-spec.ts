@@ -138,7 +138,55 @@ describe("Throttling de /auth/* (e2e)", () => {
     expect(blocked.body).toMatchObject({ code: "auth.too_many_attempts" });
   });
 
-  it("register-tenant NO aplica auth-email (scope explícito login+forgot-password) — se bloquea por IP en el 6º intento, nunca antes por email", async () => {
+  // F10-MANFIX-11: pedir otro correo de verificación tiene el MISMO límite que
+  // «olvidé mi contraseña» — no uno parecido: el mismo contador por email. Por
+  // eso se alternan las dos rutas y el 11º intento, sume lo que sume cada una,
+  // es el bloqueado. Esta prueba pasa por el controller de verdad: si alguien
+  // renombra el método, el guard (que lo reconoce por nombre) deja de contar y
+  // esto se pone en rojo.
+  it("resend-verification cuenta contra el MISMO auth-email que forgot-password: juntos, el 11º → 429", async () => {
+    const email = uniqueEmail();
+
+    for (let i = 0; i < 10; i += 1) {
+      const ruta = i % 2 === 0 ? "/auth/forgot-password" : "/auth/resend-verification";
+      await request(app.getHttpServer())
+        .post(ruta)
+        .set("X-Forwarded-For", nextFakeIp())
+        .send({ email })
+        .expect(202);
+    }
+
+    const blocked = await request(app.getHttpServer())
+      .post("/auth/resend-verification")
+      .set("X-Forwarded-For", nextFakeIp())
+      .send({ email });
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toMatchObject({ code: "auth.too_many_attempts" });
+  });
+
+  it("resend-verification también consume el presupuesto por IP de /auth/*: el 6º desde la misma IP → 429", async () => {
+    const ip = nextFakeIp();
+
+    for (let i = 0; i < 5; i += 1) {
+      // Email distinto en cada intento: solo debe contar el límite de IP.
+      await request(app.getHttpServer())
+        .post("/auth/resend-verification")
+        .set("X-Forwarded-For", ip)
+        .send({ email: uniqueEmail() })
+        .expect(202);
+    }
+
+    const blocked = await request(app.getHttpServer())
+      .post("/auth/resend-verification")
+      .set("X-Forwarded-For", ip)
+      .send({ email: uniqueEmail() });
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toMatchObject({ code: "auth.too_many_attempts" });
+  });
+
+  it("register-tenant NO aplica auth-email (scope explícito login+forgot-password+resend-verification) — se bloquea por IP en el 6º intento, nunca antes por email", async () => {
     const ip = nextFakeIp();
     let blockedAtIndex = -1;
 

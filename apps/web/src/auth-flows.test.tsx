@@ -16,6 +16,7 @@ import {
   logout,
   refreshSession,
   registerTenant,
+  resendVerification,
   resetPassword,
   updateMyLocale,
   verifyEmail,
@@ -43,6 +44,7 @@ vi.mock("./lib/auth/api", () => ({
   login: vi.fn(),
   registerTenant: vi.fn(),
   verifyEmail: vi.fn(),
+  resendVerification: vi.fn(),
   forgotPassword: vi.fn(),
   resetPassword: vi.fn(),
   refreshSession: vi.fn(),
@@ -68,6 +70,7 @@ const updateMyLocaleMock = vi.mocked(updateMyLocale);
 const resetPasswordMock = vi.mocked(resetPassword);
 const registerTenantMock = vi.mocked(registerTenant);
 const verifyEmailMock = vi.mocked(verifyEmail);
+const resendVerificationMock = vi.mocked(resendVerification);
 const forgotPasswordMock = vi.mocked(forgotPassword);
 
 // F1-WEB-ONBOARD-01: tenant ya onboarded — estos flujos son de auth/perfil,
@@ -525,7 +528,7 @@ describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
     expect(verifyEmailMock).toHaveBeenCalledWith("tok-verificacion", expect.anything());
   });
 
-  it("token inválido o vencido muestra el message del backend y la salida a registrarse", async () => {
+  it("token inválido o vencido muestra el message del backend y ofrece reenviar el correo, no volver a registrarse", async () => {
     verifyEmailMock.mockRejectedValue({
       statusCode: 400,
       message: "El enlace no es válido o ya venció",
@@ -537,7 +540,16 @@ describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
     expect(await screen.findByTestId("verify-error")).toHaveTextContent(
       "El enlace no es válido o ya venció",
     );
-    expect(screen.getByRole("link", { name: "Volver a registrarme" })).toBeInTheDocument();
+    // F10-MANFIX-11: registrarse otra vez con el mismo correo responde «Ya
+    // existe una cuenta…», así que esa salida era un callejón.
+    expect(screen.queryByRole("link", { name: "Volver a registrarme" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reenviar el correo" })).toBeInTheDocument();
+    // Si el enlace ya se usó, la cuenta ya está verificada: su salida es entrar.
+    expect(screen.getByRole("link", { name: "Ir a iniciar sesión" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
   });
 
   // D3 (#347): el link NUEVO que manda el backend usa `#token=`, no `?token=`.
@@ -555,6 +567,113 @@ describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
 
     await screen.findByTestId("verify-success");
     expect(window.location.hash).toBe("");
+  });
+});
+
+/**
+ * F10-MANFIX-11 — pedir otro correo de verificación. El enlace dura 24 h y,
+ * vencido, la única salida era «¿Olvidaste tu contraseña?». El API responde el
+ * mismo 202 exista o no la cuenta, así que la pantalla dice lo mismo en todos
+ * los casos: no le cuenta a nadie si ese correo tiene cuenta.
+ */
+describe("F10-MANFIX-11 — reenviar el correo de verificación", () => {
+  const ENLACE_VENCIDO = {
+    statusCode: 400,
+    message: "El enlace no es válido, ya fue usado o expiró",
+    error: "Bad Request",
+    code: "auth.token_invalid",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+  });
+
+  it("con el enlace vencido pide el correo y manda otro, con el mensaje neutral de siempre", async () => {
+    verifyEmailMock.mockRejectedValue(ENLACE_VENCIDO);
+    resendVerificationMock.mockResolvedValue(undefined);
+    await renderRoute("/verify-email#token=tok-vencido");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Email"), "Ana@Acme.mx");
+    await user.click(screen.getByRole("button", { name: "Reenviar el correo" }));
+
+    expect(await screen.findByTestId("resend-verification-sent")).toHaveTextContent(
+      "Si hay una cuenta sin verificar con ese correo, te mandamos un enlace nuevo.",
+    );
+    expect(resendVerificationMock).toHaveBeenCalledTimes(1);
+    expect(resendVerificationMock).toHaveBeenCalledWith("ana@acme.mx", expect.anything());
+    // Cada envío gasta el mismo presupuesto de intentos que entrar y
+    // verificar: el botón no se queda a la mano para repetirlo sin querer.
+    expect(screen.queryByRole("button", { name: "Reenviar el correo" })).not.toBeInTheDocument();
+  });
+
+  it("quien llega desde el inicio de sesión con la cuenta sin verificar también puede pedir otro", async () => {
+    resendVerificationMock.mockResolvedValue(undefined);
+    await renderRoute("/verify-email");
+    const user = userEvent.setup();
+
+    expect(await screen.findByTestId("verify-check-email")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Email"), "ana@acme.mx");
+    await user.click(screen.getByRole("button", { name: "Reenviar el correo" }));
+
+    expect(await screen.findByTestId("resend-verification-sent")).toBeInTheDocument();
+    expect(resendVerificationMock).toHaveBeenCalledWith("ana@acme.mx", expect.anything());
+  });
+
+  it("un correo inválido se corta en el cliente: nunca llega al API", async () => {
+    verifyEmailMock.mockRejectedValue(ENLACE_VENCIDO);
+    await renderRoute("/verify-email#token=tok-vencido");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Email"), "esto-no-es-un-email");
+    await user.click(screen.getByRole("button", { name: "Reenviar el correo" }));
+
+    expect(await screen.findByText("Ingresa un correo válido")).toBeInTheDocument();
+    expect(resendVerificationMock).not.toHaveBeenCalled();
+  });
+
+  it("con el límite de intentos agotado muestra el message del backend y deja volver a intentarlo", async () => {
+    verifyEmailMock.mockRejectedValue(ENLACE_VENCIDO);
+    resendVerificationMock.mockRejectedValue({
+      statusCode: 429,
+      message: "Demasiados intentos. Intenta de nuevo más tarde",
+      error: "Too Many Requests",
+      code: "auth.too_many_attempts",
+    });
+    await renderRoute("/verify-email#token=tok-vencido");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Email"), "ana@acme.mx");
+    await user.click(screen.getByRole("button", { name: "Reenviar el correo" }));
+
+    expect(await screen.findByTestId("resend-verification-error")).toHaveTextContent(
+      "Demasiados intentos. Intenta de nuevo más tarde",
+    );
+    expect(screen.queryByTestId("resend-verification-sent")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reenviar el correo" })).toBeEnabled();
+  });
+
+  it("recién registrada, «¿No te llegó el correo?» lo reenvía al correo del registro sin volver a pedirlo", async () => {
+    registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
+    resendVerificationMock.mockResolvedValue(undefined);
+    await renderRoute("/register");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido"), "García");
+    await user.type(screen.getByLabelText("Email"), "ana@acme.mx");
+    await user.type(screen.getByLabelText("Contraseña"), "una-password-de-doce");
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    await screen.findByTestId("register-success");
+    expect(screen.getByText("¿No te llegó el correo?")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reenviar el correo" }));
+
+    expect(await screen.findByTestId("resend-verification-sent")).toBeInTheDocument();
+    expect(resendVerificationMock).toHaveBeenCalledWith("ana@acme.mx", expect.anything());
   });
 });
 

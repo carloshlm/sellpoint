@@ -75,6 +75,7 @@ function buildService(overrides?: {
 
   const authRepository = {
     createEmailVerificationToken: jest.fn().mockResolvedValue({ id: "tok-1" }),
+    invalidatePendingEmailVerificationTokens: jest.fn().mockResolvedValue(undefined),
     findEmailVerificationTokenByHash: jest.fn().mockResolvedValue(overrides?.tokenRow ?? null),
     markEmailVerificationTokenUsed: jest.fn().mockResolvedValue(undefined),
     activateUser: jest.fn().mockResolvedValue(undefined),
@@ -969,6 +970,92 @@ describe("AuthService.forgotPassword (AUTH-REQ-08 — a prueba de enumeración)"
     (mailer.send as jest.Mock).mockRejectedValue(new Error("smtp caído"));
 
     await expect(service.forgotPassword("owner@acme.test", {})).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * F10-MANFIX-11 — pedir otro correo de verificación. El MISMO molde que
+ * forgot-password: resuelve en silencio en todos los casos (el controller
+ * responde el mismo 202 afuera) y el trabajo real solo ocurre con una cuenta
+ * que se registró sola y todavía no verifica su correo.
+ */
+describe("AuthService.resendVerification (F10-MANFIX-11 — a prueba de enumeración)", () => {
+  /** La dueña recién registrada: tiene contraseña, nace `invited` y sin verificar. */
+  function unverifiedOwner(overrides?: Record<string, unknown>) {
+    return activeUser({ status: "invited", emailVerifiedAt: null, ...overrides });
+  }
+
+  function expectNothingSent(built: ReturnType<typeof buildService>) {
+    expect(built.authRepository.invalidatePendingEmailVerificationTokens).not.toHaveBeenCalled();
+    expect(built.authRepository.createEmailVerificationToken).not.toHaveBeenCalled();
+    expect(built.mailer.send).not.toHaveBeenCalled();
+  }
+
+  it("email inexistente → resuelve en silencio, SIN tocar los tokens ni el mailer", async () => {
+    const built = buildService({ resolveTenantByEmailResult: null });
+
+    await expect(built.service.resendVerification("nadie@acme.test", {})).resolves.toBeUndefined();
+    expectNothingSent(built);
+  });
+
+  it("cuenta ya verificada → resuelve en silencio y no manda nada", async () => {
+    const built = buildService({ userRow: activeUser() });
+
+    await expect(built.service.resendVerification("owner@acme.test", {})).resolves.toBeUndefined();
+    expectNothingSent(built);
+  });
+
+  it("invitado sin contraseña → no manda nada: verificarlo lo dejaría activo y SIN contraseña (su camino es la invitación)", async () => {
+    const built = buildService({ userRow: unverifiedOwner({ passwordHash: null }) });
+
+    await expect(built.service.resendVerification("owner@acme.test", {})).resolves.toBeUndefined();
+    expectNothingSent(built);
+  });
+
+  it("usuario suspendido → no manda nada: verificar lo reactivaría, y la suspensión es administrativa", async () => {
+    const built = buildService({ userRow: unverifiedOwner({ status: "suspended" }) });
+
+    await expect(built.service.resendVerification("owner@acme.test", {})).resolves.toBeUndefined();
+    expectNothingSent(built);
+  });
+
+  it("cuenta sin verificar → invalida los enlaces previos, crea uno nuevo (TTL 24h) y manda el mismo correo del registro", async () => {
+    const { service, authRepository, mailer } = buildService({
+      userRow: unverifiedOwner({ locale: "en" }),
+    });
+
+    await service.resendVerification("owner@acme.test", { ip: "1.2.3.4", userAgent: "jest" });
+
+    expect(authRepository.invalidatePendingEmailVerificationTokens).toHaveBeenCalledWith(
+      "user-1",
+      NOW,
+    );
+    expect(authRepository.createEmailVerificationToken).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      tokenHash: "hash-token",
+      expiresAt: new Date(NOW.getTime() + 24 * 60 * 60 * 1000),
+    });
+    // Invalidar DESPUÉS de crear mataría también el enlace recién emitido.
+    const invalidateOrder = (authRepository.invalidatePendingEmailVerificationTokens as jest.Mock)
+      .mock.invocationCallOrder[0] as number;
+    const createOrder = (authRepository.createEmailVerificationToken as jest.Mock).mock
+      .invocationCallOrder[0] as number;
+    expect(invalidateOrder).toBeLessThan(createOrder);
+    // El idioma es el de la cuenta: quien pide el reenvío no elige en qué idioma le llega.
+    expect(mailer.send).toHaveBeenCalledWith({
+      to: "owner@acme.test",
+      template: "verify-email",
+      vars: { firstName: "Ana", link: "https://app.example.com/verify-email#token=raw-token" },
+      locale: "en",
+    });
+  });
+
+  it("un fallo del mailer NUNCA rompe la respuesta (best-effort, AD-9)", async () => {
+    const { service, mailer } = buildService({ userRow: unverifiedOwner() });
+    (mailer.send as jest.Mock).mockRejectedValue(new Error("smtp caído"));
+
+    await expect(service.resendVerification("owner@acme.test", {})).resolves.toBeUndefined();
   });
 });
 

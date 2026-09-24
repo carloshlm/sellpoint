@@ -30,7 +30,7 @@ presionarlo para ocultarla.
 | Si ves este mensaje | Qué hacer |
 |---|---|
 | Correo electrónico o contraseña incorrectos | Revisa que el correo esté bien escrito y usa el ojo para revisar la contraseña. Si no la recuerdas, restablécela (lo ves en la siguiente sección). |
-| Verifica tu correo electrónico antes de iniciar sesión | Abre el correo que te mandamos al crear tu cuenta y presiona el enlace. Si no lo encuentras, revisa la carpeta de correo no deseado. |
+| Revisa tu correo: «Tu cuenta todavía no está verificada» | Abre el correo que te mandamos al crear tu cuenta y presiona **Verificar correo**. Si no lo encuentras, revisa la carpeta de correo no deseado; si tampoco está, o su enlace ya venció, escribe tu correo en esa misma pantalla y presiona **Reenviar el correo** (capítulo 1). |
 | Este negocio está desactivado | Escríbenos a contact@sellpointy.com. |
 | Demasiados intentos | Espera unos minutos y vuelve a intentarlo. |
 

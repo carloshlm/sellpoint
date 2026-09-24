@@ -147,42 +147,76 @@ export class AuthService implements OnModuleInit {
       throw error;
     }
 
-    const { token, tokenHash } = this.oneTimeTokenService.generate();
-    const expiresAt = new Date(this.clock.now().getTime() + EMAIL_VERIFICATION_TTL_MS);
-
     // Tras el commit de provision() (design §4) — tokens no tienen RLS, el
     // cliente base alcanza.
-    await this.authRepository.createEmailVerificationToken({
+    await this.issueEmailVerification({
       tenantId: result.tenantId,
       userId: result.userId,
-      tokenHash,
-      expiresAt,
+      email: input.email,
+      firstName: input.firstName,
+      locale: input.locale ?? "es",
+      now: this.clock.now(),
     });
 
-    // D3 (#347): el token viaja por fragmento, no por query string, para que
-    // JAMÁS aparezca en un access log de servidor (el fragmento no viaja al
-    // servidor). Ver apps/web/src/lib/auth/token-from-url.ts.
-    const link = `${this.appUrl}/verify-email#token=${token}`;
-
-    // Fire-and-forget: un fallo del proveedor de mail JAMÁS rompe el
-    // request (AD-9) — el dominio de MAIL_FROM todavía no tiene SPF/DKIM
-    // verificados en Resend.
-    this.mailer
-      .send({
-        to: input.email,
-        template: "verify-email",
-        vars: { firstName: input.firstName, link },
-        locale: input.locale ?? "es",
-      })
-      .catch((error: unknown) => {
-        this.logger.error(
-          `Fallo al enviar mail de verificación a ${input.email}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      });
-
     return result;
+  }
+
+  /**
+   * F10-MANFIX-11: pedir otro correo de verificación. El MISMO molde que
+   * `forgotPassword` (AUTH-REQ-08): SIEMPRE resuelve sin error, y el
+   * controller responde el mismo 202 exista o no el email y esté o no
+   * verificado. El trabajo real solo ocurre con una cuenta que:
+   *
+   * - no ha verificado su correo: a una verificada no se le manda nada;
+   * - tiene contraseña: un invitado sin ella entra por su invitación, y
+   *   verificarlo lo dejaría `active` y SIN contraseña (el callejón que ya
+   *   documenta `UserInvitationService`);
+   * - no está suspendida: `verifyEmail` activa la cuenta, y la suspensión es
+   *   una decisión administrativa que un enlace no debe deshacer.
+   *
+   * En la práctica es la dueña que se registró y no abrió su correo a tiempo:
+   * el enlace dura 24 h y registrarse de nuevo con el mismo correo responde
+   * `auth.email_taken`.
+   */
+  // `meta` se recibe por simetría pero NO se usa, igual que en forgotPassword:
+  // lo que se audita es la verificación completada (`auth.email.verified`), y
+  // auditar el pedido arriesgaría enumeración.
+  async resendVerification(email: string, _meta: RequestMeta): Promise<void> {
+    const tenantId = await this.authRepository.resolveTenantByEmail(email);
+
+    if (!tenantId) {
+      return;
+    }
+
+    // AD-1: lectura CORTA dentro de withTenantContext (users tiene RLS);
+    // cierra antes de tocar email_verification_tokens (sin RLS, AD-3).
+    const user = await this.prisma.withTenantContext(tenantId, (tx) =>
+      this.authRepository.findUserByTenantAndEmail(tx, tenantId, email),
+    );
+
+    if (
+      !user ||
+      user.emailVerifiedAt !== null ||
+      user.passwordHash === null ||
+      user.status === "suspended"
+    ) {
+      return;
+    }
+
+    const now = this.clock.now();
+    // Un solo enlace canjeable por vez: los previos mueren ANTES de emitir el
+    // nuevo (al revés, el nuevo moriría con ellos).
+    await this.authRepository.invalidatePendingEmailVerificationTokens(user.id, now);
+
+    await this.issueEmailVerification({
+      tenantId,
+      userId: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      // El idioma de la CUENTA, no el de quien pide el reenvío.
+      locale: user.locale as "es" | "en",
+      now,
+    });
   }
 
   async verifyEmail(token: string, meta: RequestMeta): Promise<void> {
@@ -793,6 +827,53 @@ export class AuthService implements OnModuleInit {
     const currentFamilyId = await this.resolveOwnFamilyId(rawRefreshToken, user.userId);
 
     return groupSessionsByFamily(rows, currentFamilyId);
+  }
+
+  /**
+   * Emite un enlace de verificación de 24 h y manda el correo `verify-email`:
+   * el MISMO para el registro y para el reenvío (F10-MANFIX-11), así que un
+   * cambio en uno no puede dejar al otro atrás. El token se espera (si la base
+   * falla, quien llama tiene que enterarse); el correo no.
+   */
+  private async issueEmailVerification(params: {
+    tenantId: string;
+    userId: string;
+    email: string;
+    firstName: string;
+    locale: "es" | "en";
+    now: Date;
+  }): Promise<void> {
+    const { token, tokenHash } = this.oneTimeTokenService.generate();
+
+    await this.authRepository.createEmailVerificationToken({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      tokenHash,
+      expiresAt: new Date(params.now.getTime() + EMAIL_VERIFICATION_TTL_MS),
+    });
+
+    // D3 (#347): el token viaja por fragmento, no por query string, para que
+    // JAMÁS aparezca en un access log de servidor (el fragmento no viaja al
+    // servidor). Ver apps/web/src/lib/auth/token-from-url.ts.
+    const link = `${this.appUrl}/verify-email#token=${token}`;
+
+    // Fire-and-forget: un fallo del proveedor de mail JAMÁS rompe el
+    // request (AD-9) — el dominio de MAIL_FROM todavía no tiene SPF/DKIM
+    // verificados en Resend.
+    this.mailer
+      .send({
+        to: params.email,
+        template: "verify-email",
+        vars: { firstName: params.firstName, link },
+        locale: params.locale,
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Fallo al enviar mail de verificación a ${params.email}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
   }
 
   /**

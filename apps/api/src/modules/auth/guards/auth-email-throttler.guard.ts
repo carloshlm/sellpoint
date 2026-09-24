@@ -22,7 +22,13 @@ import {
 // email en el body, pero se deja AFUERA a propósito: esa ruta ya tiene su
 // propia mitigación (409 + auth-ip, R4 del design) y no dispara ningún mail
 // "de otro" ni intenta autenticar.
-const EMAIL_TRACKED_HANDLERS = new Set(["login", "forgotPassword"]);
+//
+// `resendVerification` (F10-MANFIX-11) entra por la misma razón que
+// forgot-password: le manda un correo al dueño del email, así que sin este
+// límite serviría para inundar el buzón de alguien que nunca verificó. Usa la
+// MISMA clave (`throttle:auth-email:{email}`): los dos pedidos comparten el
+// presupuesto, no se suman.
+const EMAIL_TRACKED_HANDLERS = new Set(["login", "forgotPassword", "resendVerification"]);
 
 /**
  * F1-WEB-AUTH-10: excepciones al throttle de IP de AD-7. Ese límite (5 cada
@@ -58,14 +64,15 @@ const IP_THROTTLE_EXEMPT_HANDLERS = new Set(["listSessions", "refresh", "acceptT
 
 /**
  * f1-auth AD-7 / U6-02: throttling de `/auth/*` — combina DOS dimensiones
- * independientes (IP siempre, email normalizado solo en login/forgot-password)
+ * independientes (IP siempre, email normalizado solo en login, forgot-password
+ * y resend-verification)
  * en un único guard para poder responder el MISMO 429 `auth.too_many_attempts`
  * sin filtrar cuál de las dos saltó (AUTH-REQ-12 no exige distinguir, y
  * hacerlo regalaría información a quien está probando credenciales).
  *
  * No extiende `ThrottlerGuard` del paquete `@nestjs/throttler`: sus dos
  * throttlers no comparten tracker ni scope de ruta (uno es IP en TODO
- * `/auth/*`, el otro es email SOLO en dos rutas) y el mecanismo de
+ * `/auth/*`, el otro es email SOLO en tres rutas) y el mecanismo de
  * `@SkipThrottle` por controller obligaría a anotar cada controller FUTURO
  * no-auth para excluirlo — un guard local aplicado solo en `AuthController`
  * es más simple y seguro-por-default (design D2: "el guard son ~30 líneas y

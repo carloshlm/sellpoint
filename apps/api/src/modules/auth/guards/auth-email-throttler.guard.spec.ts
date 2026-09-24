@@ -79,7 +79,7 @@ describe("AuthEmailThrottlerGuard", () => {
     );
   });
 
-  it("handler NO es login/forgotPassword → NUNCA chequea auth-email, aunque el body traiga email", async () => {
+  it("handler NO es login/forgotPassword/resendVerification → NUNCA chequea auth-email, aunque el body traiga email", async () => {
     const { guard, storage } = buildGuard();
     const context = buildContext({
       handlerName: "registerTenant",
@@ -124,6 +124,25 @@ describe("AuthEmailThrottlerGuard", () => {
     const { guard, storage } = buildGuard();
     const context = buildContext({
       handlerName: "forgotPassword",
+      body: { email: "alguien@acme.com" },
+    });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(storage.increment).toHaveBeenCalledWith(
+      "throttle:auth-email:alguien@acme.com",
+      3_600_000,
+      10,
+      3_600_000,
+      "auth-email",
+    );
+  });
+
+  // F10-MANFIX-11: pedir otro correo de verificación manda un correo a un
+  // tercero, igual que forgot-password — y comparte su presupuesto por email.
+  it("handler=resendVerification también aplica auth-email, con la MISMA clave que forgot-password", async () => {
+    const { guard, storage } = buildGuard();
+    const context = buildContext({
+      handlerName: "resendVerification",
       body: { email: "alguien@acme.com" },
     });
 

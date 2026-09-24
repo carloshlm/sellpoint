@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
+import { ResendVerification } from "@/components/auth/resend-verification";
 import { PasswordField } from "@/components/form/password-field";
 import { TextField } from "@/components/form/text-field";
 import { LegalConsentFields } from "@/components/legal/legal-links";
@@ -81,6 +82,9 @@ function RegisterPage() {
         {/* El correo que no aparece casi siempre está en spam (Carlos,
             2026-08-25): decirlo acá ahorra el soporte más repetido del mundo. */}
         <p className="text-sm text-muted-foreground">{t("auth.checkSpamHint")}</p>
+        {/* F10-MANFIX-11: y si tampoco está ahí, se pide otro sin volver a
+            escribir el correo — esta tarjeta ya lo conoce. */}
+        <ResendVerification email={submittedEmail} />
         <Button asChild variant="outline">
           <Link to="/login">{t("auth.register.loginCta")}</Link>
         </Button>

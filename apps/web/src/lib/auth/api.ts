@@ -69,6 +69,15 @@ export async function forgotPassword(email: string): Promise<void> {
   await api.post("/auth/forgot-password", { email });
 }
 
+/**
+ * F10-MANFIX-11: otro correo de verificación. 202 SIEMPRE, igual que
+ * forgot-password: el mismo resultado exista o no la cuenta y esté o no
+ * verificada. Comparte con él el límite de intentos del API.
+ */
+export async function resendVerification(email: string): Promise<void> {
+  await api.post("/auth/resend-verification", { email });
+}
+
 export async function resetPassword(token: string, password: string): Promise<void> {
   await api.post("/auth/reset-password", { token, password });
 }

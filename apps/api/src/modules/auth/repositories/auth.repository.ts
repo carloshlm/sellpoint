@@ -59,6 +59,19 @@ export class AuthRepository {
     return tx.emailVerificationToken.update({ where: { id: tokenId }, data: { usedAt } });
   }
 
+  /**
+   * F10-MANFIX-11 (reenviar la verificación): los enlaces previos SIN usar se
+   * marcan usados antes de emitir uno nuevo — el mismo criterio que
+   * `invalidatePendingPasswordResetTokens`: un solo enlace canjeable por vez.
+   * Cliente base: `email_verification_tokens` no tiene RLS (AD-3).
+   */
+  async invalidatePendingEmailVerificationTokens(userId: string, now: Date): Promise<void> {
+    await this.prisma.emailVerificationToken.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: now },
+    });
+  }
+
   activateUser(tx: Prisma.TransactionClient, userId: string, emailVerifiedAt: Date) {
     return tx.user.update({ where: { id: userId }, data: { status: "active", emailVerifiedAt } });
   }

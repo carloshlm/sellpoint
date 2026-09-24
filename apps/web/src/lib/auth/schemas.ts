@@ -76,6 +76,14 @@ export const forgotPasswordSchema = z.object({
   email: emailSchema,
 });
 
+/**
+ * F10-MANFIX-11: pedir otro correo de verificación. El mismo email que
+ * «olvidé mi contraseña»: el API normaliza igual y responde el mismo 202.
+ */
+export const resendVerificationSchema = z.object({
+  email: emailSchema,
+});
+
 export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
@@ -105,5 +113,6 @@ export type LoginFormValues = z.infer<typeof loginSchema>;
 export type RegisterFormValues = z.input<typeof registerSchema>;
 export type RegisterPayloadValues = z.output<typeof registerSchema>;
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
+export type ResendVerificationFormValues = z.infer<typeof resendVerificationSchema>;
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;

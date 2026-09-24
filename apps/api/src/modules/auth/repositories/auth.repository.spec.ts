@@ -8,6 +8,7 @@ describe("AuthRepository (f1-auth U2/U3/U4 — único lugar con queries de auth)
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     };
     const user = { update: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn() };
     const refreshToken = {
@@ -89,6 +90,21 @@ describe("AuthRepository (f1-auth U2/U3/U4 — único lugar con queries de auth)
     expect(update).toHaveBeenNthCalledWith(2, {
       where: { id: "user-1" },
       data: { status: "active", emailVerifiedAt: now },
+    });
+  });
+
+  // F10-MANFIX-11: reenviar el correo de verificación deja vivo SOLO el
+  // enlace nuevo, con el mismo criterio que forgot-password.
+  it("invalidatePendingEmailVerificationTokens marca usedAt en los tokens previos sin usar del usuario (cliente base)", async () => {
+    const { repo, emailVerificationToken } = buildRepo();
+    const now = new Date("2026-09-24T12:00:00Z");
+    emailVerificationToken.updateMany.mockResolvedValue({ count: 1 });
+
+    await repo.invalidatePendingEmailVerificationTokens("user-1", now);
+
+    expect(emailVerificationToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", usedAt: null },
+      data: { usedAt: now },
     });
   });
 

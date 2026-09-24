@@ -16,6 +16,7 @@ import {
   type RegisterTenantInput,
   type RegisterTenantResponse,
   registerTenant,
+  resendVerification,
   resetPassword,
   type TermsAcceptanceResponse,
   type UpdateMyProfileInput,
@@ -50,6 +51,11 @@ export function useLogout() {
 
 export function useForgotPassword() {
   return useMutation<void, ApiError, string>({ mutationFn: forgotPassword });
+}
+
+/** F10-MANFIX-11: pide otro correo de verificación para el email dado. */
+export function useResendVerification() {
+  return useMutation<void, ApiError, string>({ mutationFn: resendVerification });
 }
 
 export function useResetPassword() {

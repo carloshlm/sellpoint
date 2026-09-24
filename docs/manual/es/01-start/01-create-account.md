@@ -27,7 +27,9 @@ vez quien administra el negocio; a las demás personas las invitas después
   revisar lo que escribiste.
 - Tu correo es tu usuario para entrar y **no se puede cambiar después**. Cada
   correo sirve para una sola cuenta de SellPointy: si el tuyo ya está
-  registrado, verás **Ya existe una cuenta con ese correo electrónico**.
+  registrado, verás **Ya existe una cuenta con ese correo electrónico**. Si esa
+  cuenta es tuya y nunca confirmaste tu correo, no te registres de nuevo: pide
+  otro correo de verificación (lo ves en la siguiente sección).
 - El nombre del negocio no se pide aquí: lo escribes en el primer paso del
   asistente.
 
@@ -40,10 +42,28 @@ mandamos un correo con el asunto «Verifica tu cuenta de SellPointy».
 2. SellPointy se abre y te dice **Correo verificado**. Presiona **Ir a iniciar
    sesión** y entra con tu correo y tu contraseña (capítulo 2).
 
-Mientras no confirmes tu correo, al intentar entrar verás **Verifica tu correo
-electrónico antes de iniciar sesión**. Si el correo no te llega, búscalo en el
-correo no deseado; si tampoco está ahí, o el enlace ya venció, lo que hay que
-hacer está en el apéndice D.
+Si el correo no te llega, búscalo en el correo no deseado. Si tampoco está ahí,
+presiona **Reenviar el correo**, junto a «¿No te llegó el correo?» en la misma
+tarjeta: te mandamos otro al correo con el que te registraste.
+
+### Si el enlace ya venció
+
+Si abres el enlace después de 24 horas, SellPointy te dice **No pudimos
+verificar tu correo**. Ahí mismo pide uno nuevo: escribe tu correo en
+**Email** y presiona **Reenviar el correo**. Te llega otro correo con el mismo
+asunto y un enlace nuevo, que también dura 24 horas.
+
+Si intentas entrar sin haber confirmado tu correo, SellPointy te lleva a
+**Revisa tu correo** («Tu cuenta todavía no está verificada»), donde también
+puedes pedir otro enlace de la misma forma.
+
+- Solo sirve el último enlace que te mandamos: al pedir uno nuevo, los
+  anteriores dejan de funcionar.
+- Por seguridad, la pantalla responde lo mismo aunque el correo no tenga una
+  cuenta sin verificar: «Si hay una cuenta sin verificar con ese correo, te
+  mandamos un enlace nuevo».
+- Si lo pides muchas veces seguidas, verás **Demasiados intentos. Intenta de
+  nuevo más tarde**. Espera un rato y vuelve a pedirlo.
 
 ## El asistente de alta
 

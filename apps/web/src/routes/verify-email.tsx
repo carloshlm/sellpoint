@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
+import { ResendVerification } from "@/components/auth/resend-verification";
 import { Button } from "@/components/ui/button";
 import { useVerifyEmail } from "@/lib/auth/hooks";
 import { readTokenFromUrl } from "@/lib/auth/token-from-url";
@@ -40,12 +41,16 @@ function VerifyEmailPage() {
     }
   }, [token, verifyMutation]);
 
-  const goToLogin = (
-    <Button asChild size="lg">
+  // Donde la acción principal es pedir otro enlace (el formulario de
+  // reenviar), entrar queda como la salida secundaria.
+  const goToLogin = (variant: "default" | "outline") => (
+    <Button asChild size="lg" variant={variant}>
       <Link to="/login">{t("auth.verify.goToLogin")}</Link>
     </Button>
   );
 
+  // Sin token se llega desde el inicio de sesión con la cuenta sin verificar
+  // (login.tsx): si el correo no llegó o su enlace ya venció, aquí se pide otro.
   if (!token) {
     return (
       <AuthCard title={t("auth.verify.checkEmailTitle")}>
@@ -53,7 +58,8 @@ function VerifyEmailPage() {
           {t("auth.verify.checkEmailBody")}
         </p>
         <p className="text-sm text-muted-foreground">{t("auth.checkSpamHint")}</p>
-        {goToLogin}
+        <ResendVerification />
+        {goToLogin("outline")}
       </AuthCard>
     );
   }
@@ -64,11 +70,15 @@ function VerifyEmailPage() {
         <p className="text-sm text-muted-foreground" data-testid="verify-success">
           {t("auth.verify.successBody")}
         </p>
-        {goToLogin}
+        {goToLogin("default")}
       </AuthCard>
     );
   }
 
+  // F10-MANFIX-11: el enlace vencido ofrecía «Volver a registrarme», un
+  // callejón: el correo ya tiene cuenta y el registro responde «Ya existe una
+  // cuenta…». Ahora se pide otro enlace; y si este ya se usó, la cuenta ya
+  // está verificada y la salida es entrar.
   if (verifyMutation.isError) {
     return (
       <AuthCard title={t("auth.verify.errorTitle")}>
@@ -77,9 +87,8 @@ function VerifyEmailPage() {
             ? t("common.errors.network")
             : verifyMutation.error.message}
         </p>
-        <Button asChild variant="outline" size="lg">
-          <Link to="/register">{t("auth.verify.goToRegister")}</Link>
-        </Button>
+        <ResendVerification />
+        {goToLogin("outline")}
       </AuthCard>
     );
   }

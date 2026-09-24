@@ -232,6 +232,24 @@ describe("AuthController.forgotPassword/resetPassword — U5 (AUTH-REQ-08/09)", 
   });
 });
 
+describe("AuthController.resendVerification — F10-MANFIX-11", () => {
+  it("delega en authService.resendVerification y responde el MISMO body que forgot-password, sin filtrar nada", async () => {
+    const authService = {
+      resendVerification: jest.fn().mockResolvedValue(undefined),
+    } as unknown as AuthService;
+    const controller = new AuthController(authService, buildConfigService(), buildTermsService());
+    const request = { ip: "1.2.3.4", headers: { "user-agent": "jest" } } as never;
+
+    const body = await controller.resendVerification({ email: "owner@acme.test" }, request);
+
+    expect(authService.resendVerification).toHaveBeenCalledWith("owner@acme.test", {
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+    expect(body).toEqual({ accepted: true });
+  });
+});
+
 describe("AuthController.changePassword/listSessions — F1-WEB-AUTH-10 (W1 f1-auth)", () => {
   const authUser = {
     userId: "user-1",
