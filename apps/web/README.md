@@ -39,7 +39,7 @@ src/
 
 - **Ningún string de UI hardcodeado**: todo texto pasa por `t('dominio.clave')` (claves idénticas a las del api). Cambiar un label = editar un JSON.
 - **Estilos por tokens**: theme vars de Tailwind/shadcn en `index.css` — el look se cambia ahí, no componente por componente.
-- **La home tiene 4 canarios** (`data-testid`): shared-import, tailwind-check, shadcn-check, i18n-check — son smoke tests vivos del wiring, no demos. Los cubren los tests; no los borres.
+- **`/` no es una pantalla**: redirige a `/dashboard`, que manda a `/login` sin sesión (F10-MANFIX-09). La página de prueba de la Fase 0 y sus 4 canarios (`shared-import`, `tailwind-check`, `shadcn-check`, `i18n-check`) se retiraron: el cableado que vigilaban lo prueban las pantallas reales (shared, shadcn), `i18n/i18n.test.tsx` (i18n) y `lib/theme/themes.test.ts` (los tokens de Tailwind).
 - **Tests herméticos**: los tests de router inyectan `createI18n()` propio (no el singleton con detector) — el patrón está en `router.test.tsx`.
 - Paths: `@/*` → `src/`, `@sellpoint/*` → paquetes del monorepo **resolviendo a src** (vite-tsconfig-paths — HMR cross-package, sin rebuilds de shared).
 

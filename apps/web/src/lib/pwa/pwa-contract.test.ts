@@ -30,6 +30,17 @@ describe("El manifest hace la app INSTALABLE (F4-PWA-01)", () => {
   });
 
   /**
+   * F10-MANFIX-09 — el nombre con el que la app queda instalada (el ícono
+   * del escritorio o del teléfono) es la MARCA. Decía «SellPoint».
+   */
+  it("se instala con el nombre de la marca: SellPointy", () => {
+    const m = manifest();
+
+    expect(m.name).toBe("SellPointy");
+    expect(m.short_name).toBe("SellPointy");
+  });
+
+  /**
    * ⚠ Android RECORTA el icono con la forma que el fabricante elija. Sin un
    * icono `maskable`, el sistema recorta el normal y se lleva las puntas del
    * logo — o peor, deja esquinas transparentes.

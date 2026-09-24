@@ -142,6 +142,32 @@ describe("Flujos de auth", () => {
     expect(router.state.location.pathname).toBe("/dashboard");
   });
 
+  /**
+   * F10-MANFIX-09 — `/` era la página de prueba de la Fase 0 («Total demo»,
+   * «Tailwind activo», «Probar»), pública y sin enlace a nada. En producción
+   * `app.sellpointy.com/` caía ahí, y la app instalada también (el
+   * `start_url` del manifiesto es `/`): sin barra de direcciones, el usuario
+   * quedaba atrapado. Ahora `/` no pinta nada: lleva al panel, y el panel
+   * decide si hace falta iniciar sesión.
+   */
+  it("F10-MANFIX-09: / sin sesión termina en /login, sin pintar la página de prueba", async () => {
+    const router = await renderRoute("/");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    expect(await screen.findByRole("button", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.queryByText(/total demo|tailwind activo/i)).not.toBeInTheDocument();
+  });
+
+  it("F10-MANFIX-09: / con sesión termina en el panel", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    const router = await renderRoute("/");
+
+    expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dashboard");
+  });
+
   it("F1-WEB-AUTH-03: login exitoso guarda sesión y navega a /dashboard", async () => {
     loginMock.mockResolvedValue({ accessToken: "jwt-nuevo", expiresIn: 900, user: demoUser });
     const router = await renderRoute("/login");

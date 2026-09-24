@@ -1,6 +1,6 @@
 {
-  "name": "SellPoint",
-  "short_name": "SellPoint",
+  "name": "SellPointy",
+  "short_name": "SellPointy",
   "description": "Control de inventario y punto de venta para comercios",
   "start_url": "/",
   "display": "standalone",

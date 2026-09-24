@@ -1,43 +1,20 @@
-import { formatMoney } from "@sellpoint/shared";
-import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { Button } from "@/components/ui/button";
-import "@/i18n";
-
-export const Route = createFileRoute("/")({
-  component: HomePage,
-});
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 /**
- * Home provisional de Fase 0. Los data-testid son canarios de integración:
- * shared (formatMoney), Tailwind (clases), shadcn (Button) e i18n (react-i18next)
- * — los cubren los tests.
+ * F10-MANFIX-09 — `/` no es una pantalla: lleva al panel, sin pintar nada.
  *
- * S1 del verify de f1-web-auth: esta ruta es PÚBLICA (200 en producción) y
- * tenía el único color crudo de la paleta de Tailwind en todo `apps/web/src`,
- * más 3 strings clavados en español. El color pasa a tokens semánticos, que
- * es lo que el theming por tenant repinta; "SellPointy" se queda literal por
- * ser nombre propio. El barrido que lo impide vive en `lib/theme/themes.test.ts`.
+ * Era la página de prueba de la Fase 0 («Total demo», «Tailwind activo»,
+ * «Probar»), pública y sin enlace a nada. En producción `app.sellpointy.com/`
+ * caía ahí (nginx sirve el SPA con `try_files`) y la app instalada también,
+ * porque el `start_url` del manifiesto es `/`: sin barra de direcciones, el
+ * usuario quedaba atrapado.
+ *
+ * `/dashboard` decide lo demás: con sesión, el panel; sin ella,
+ * `ProtectedRoute` manda a `/login`. `replace` para que «atrás» no vuelva a
+ * caer aquí.
  */
-function HomePage() {
-  const { t } = useTranslation();
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6">
-      <h1 className="text-3xl font-semibold">SellPointy</h1>
-      <p className="text-muted-foreground" data-testid="shared-import">
-        {t("common.home.demoTotal", { amount: formatMoney(1234.56, "MXN", "es") })}
-      </p>
-      <div
-        className="rounded-lg bg-primary p-4 text-primary-foreground"
-        data-testid="tailwind-check"
-      >
-        {t("common.home.tailwindCheck")}
-      </div>
-      <Button data-testid="shadcn-check">{t("common.home.demoAction")}</Button>
-      <p className="text-muted-foreground" data-testid="i18n-check">
-        {t("common.welcome")}
-      </p>
-    </main>
-  );
-}
+export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    throw redirect({ to: "/dashboard", replace: true });
+  },
+});

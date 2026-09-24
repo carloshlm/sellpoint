@@ -39,11 +39,6 @@
     "secondLastName": "Apellido materno (opcional)"
   },
   "hello": "Hola",
-  "home": {
-    "demoTotal": "Total demo: {{amount}}",
-    "tailwindCheck": "Tailwind activo",
-    "demoAction": "Probar"
-  },
   "languageSwitcher": {
     "label": "Idioma"
   },

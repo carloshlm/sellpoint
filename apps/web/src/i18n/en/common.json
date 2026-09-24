@@ -39,11 +39,6 @@
     "secondLastName": "Maternal surname (optional)"
   },
   "hello": "Hello",
-  "home": {
-    "demoTotal": "Demo total: {{amount}}",
-    "tailwindCheck": "Tailwind is live",
-    "demoAction": "Try it"
-  },
   "languageSwitcher": {
     "label": "Language"
   },

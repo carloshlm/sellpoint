@@ -5,7 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "./i18n";
 import { routeTree } from "./routeTree.gen";
 
-async function renderRoute(path: string, lng?: "es" | "en") {
+async function renderRoute(path: string) {
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -13,12 +13,8 @@ async function renderRoute(path: string, lng?: "es" | "en") {
   await router.load();
   // Instancia hermética de i18n (sin detector → DEFAULT_LOCALE=es): el test
   // no depende del navigator.language de jsdom ni de localStorage.
-  const i18n = createI18n();
-  if (lng) {
-    await i18n.changeLanguage(lng);
-  }
   render(
-    <I18nextProvider i18n={i18n}>
+    <I18nextProvider i18n={createI18n()}>
       <QueryClientProvider client={new QueryClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>
@@ -27,31 +23,14 @@ async function renderRoute(path: string, lng?: "es" | "en") {
   return router;
 }
 
+/**
+ * La home de la Fase 0 y sus cuatro canarios (shared, Tailwind, shadcn e
+ * i18n) se retiraron con F10-MANFIX-09: `/` redirige al panel (lo prueba
+ * `auth-flows.test.tsx`). El cableado que vigilaban lo prueban las pantallas
+ * reales (shared y shadcn), `i18n/i18n.test.tsx` (i18n) y
+ * `lib/theme/themes.test.ts` (los tokens de Tailwind; jsdom no calcula CSS).
+ */
 describe("Router", () => {
-  it("la ruta / renderiza la home con los canarios de integración", async () => {
-    await renderRoute("/");
-
-    expect(await screen.findByTestId("shared-import")).toHaveTextContent("$1,234.56");
-    expect(screen.getByTestId("tailwind-check")).toHaveTextContent("Tailwind activo");
-    expect(screen.getByTestId("shadcn-check")).toHaveTextContent("Probar");
-    expect(screen.getByTestId("i18n-check")).toHaveTextContent("Bienvenido a SellPointy");
-  });
-
-  /**
-   * S1 del verify: la home es ruta PÚBLICA (200 en producción) y tenía 3
-   * strings clavados en español. Renderizarla en inglés es la única forma de
-   * probar que salen de `t()`: en español el texto traducido y el hardcodeado
-   * se ven idénticos, así que un test en español solo pasa por casualidad.
-   */
-  it("la home no tiene copy hardcodeado: en inglés se traduce entera", async () => {
-    await renderRoute("/", "en");
-
-    expect(await screen.findByTestId("shared-import")).toHaveTextContent("Demo total:");
-    expect(screen.getByTestId("tailwind-check")).toHaveTextContent("Tailwind is live");
-    expect(screen.getByTestId("shadcn-check")).toHaveTextContent("Try it");
-    expect(screen.getByTestId("i18n-check")).toHaveTextContent("Welcome to SellPointy");
-  });
-
   it("la ruta /login renderiza el form real de inicio de sesión", async () => {
     await renderRoute("/login");
 
