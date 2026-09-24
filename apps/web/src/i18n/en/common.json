@@ -166,6 +166,12 @@
       "languages": {
         "es": "Spanish",
         "en": "English"
+      },
+      "ticketWidthLabel": "Paper width on this computer",
+      "ticketWidthHelp": "Saved in this browser: the printer is connected to this computer, not to your account.",
+      "ticketWidths": {
+        "58mm": "58 mm",
+        "80mm": "80 mm"
       }
     },
     "ticket": {

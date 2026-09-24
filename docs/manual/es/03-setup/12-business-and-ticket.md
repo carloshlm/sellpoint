@@ -57,3 +57,10 @@ Aplica al ticket de venta y a la cotización.
 3. **Mensaje del pie.** Una línea de hasta 160 caracteres, como «¡Gracias por tu
    compra! Vuelve pronto.». Si la dejas vacía, sale el mensaje de fábrica.
 4. Presiona **Guardar**.
+
+El **ancho del papel** (58 u 80 mm) no se elige aquí: es un ajuste de la
+computadora donde se imprime, no del negocio —la impresora está conectada a
+ella, no a tu cuenta—, y lo elige quien cobra, no solo quien administra. Cada
+persona lo elige en **Mi perfil** › **Preferencias** › **Ancho del papel de
+esta computadora**, en la computadora donde imprime. El valor de entrada es
+**58 mm**.

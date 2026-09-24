@@ -4,9 +4,16 @@ import { useTranslation } from "react-i18next";
 import { SelectField } from "@/components/form/select-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUpdateLocale } from "@/lib/auth/hooks";
+import {
+  getTicketWidthPreference,
+  setTicketWidthPreference,
+  type TicketWidth,
+} from "@/lib/ticket-width";
 import { useAuthStore } from "@/stores/auth.store";
 
 type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+const TICKET_WIDTHS: readonly TicketWidth[] = ["58mm", "80mm"];
 
 /**
  * F1-LOCALE-08 (container): selector de idioma en Preferencias.
@@ -27,6 +34,15 @@ type Locale = (typeof SUPPORTED_LOCALES)[number];
  * DB al bootear la sesión, así que en un dispositivo nuevo se ve el idioma
  * del navegador hasta que se cambie acá. Cerrarlo es cablear
  * `changeLanguage(user.locale)` en el bootstrap de sesión.
+ *
+ * ── F10-MANFIX-03: el ancho del papel, en la MISMA tarjeta ──────────────
+ *
+ * Es la otra preferencia de "esta sesión en este navegador", pero con una
+ * diferencia clave con el idioma: NO es de la cuenta, es de la COMPUTADORA
+ * —la impresora está conectada a ella, no a quien inició sesión—, así que no
+ * hay `PATCH` ni optimismo que revertir: `localStorage` es la única fuente
+ * de verdad y el cambio es síncrono. `lib/pos/api.ts` y `lib/reception/api.ts`
+ * leen esta misma preferencia como valor por defecto al imprimir.
  */
 function LanguagePreference() {
   const { t, i18n } = useTranslation();
@@ -34,11 +50,22 @@ function LanguagePreference() {
   const setUser = useAuthStore((state) => state.setUser);
   const updateLocale = useUpdateLocale();
   const [failed, setFailed] = useState(false);
+  const [ticketWidth, setTicketWidth] = useState<TicketWidth>(() => getTicketWidthPreference());
 
   const options = SUPPORTED_LOCALES.map((locale) => ({
     value: locale,
     label: t(`common.profile.preferences.languages.${locale}`),
   }));
+
+  const ticketWidthOptions = TICKET_WIDTHS.map((width) => ({
+    value: width,
+    label: t(`common.profile.preferences.ticketWidths.${width}`),
+  }));
+
+  const handleTicketWidthChange = (next: TicketWidth) => {
+    setTicketWidth(next);
+    setTicketWidthPreference(next);
+  };
 
   const handleChange = (next: Locale) => {
     const previous = i18n.language;
@@ -63,7 +90,7 @@ function LanguagePreference() {
       <CardHeader>
         <CardTitle>{t("common.profile.preferences.title")}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
         <SelectField
           label={t("common.profile.preferences.languageLabel")}
           hint={t("common.profile.preferences.languageHelp")}
@@ -72,6 +99,13 @@ function LanguagePreference() {
           disabled={updateLocale.isPending}
           error={failed ? t("common.profile.preferences.languageError") : undefined}
           onChange={(event) => handleChange(event.target.value as Locale)}
+        />
+        <SelectField
+          label={t("common.profile.preferences.ticketWidthLabel")}
+          hint={t("common.profile.preferences.ticketWidthHelp")}
+          options={ticketWidthOptions}
+          value={ticketWidth}
+          onChange={(event) => handleTicketWidthChange(event.target.value as TicketWidth)}
         />
       </CardContent>
     </Card>

@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { imprimirPdf } from "@/lib/download";
+import { getTicketWidthPreference, type TicketWidth } from "@/lib/ticket-width";
 
 /** Espejo del `CustomerSummary` del API (F9-RECEP-06). La edad viene CALCULADA. */
 export interface Customer {
@@ -126,14 +127,18 @@ export async function waitTurn(id: string): Promise<Turn> {
 }
 
 /**
- * El papel del turno: PDF térmico del servidor (58 mm por defecto) que va
- * directo al cuadro de impresión, sin pestaña nueva. Fallar no pierde nada:
- * el turno ya existe y se vuelve a pedir con un clic.
+ * El papel del turno: PDF térmico del servidor que va directo al cuadro de
+ * impresión, sin pestaña nueva. Fallar no pierde nada: el turno ya existe y
+ * se vuelve a pedir con un clic.
+ *
+ * F10-MANFIX-03: sin `width` explícito, el ancho es el de ESTA computadora
+ * (`lib/ticket-width.ts`) — se relee en cada llamada por si cambió desde la
+ * última impresión. Sin ajuste guardado cae a 58 mm.
  */
 export async function printTurnTicket(
   id: string,
   number: number,
-  width: "58mm" | "80mm" = "58mm",
+  width: TicketWidth = getTicketWidthPreference(),
 ): Promise<void> {
   const { data } = await api.get<Blob>(`/reception/turns/${id}/ticket`, {
     responseType: "blob",

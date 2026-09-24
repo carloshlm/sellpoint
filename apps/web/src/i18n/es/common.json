@@ -166,6 +166,12 @@
       "languages": {
         "es": "Español",
         "en": "Inglés"
+      },
+      "ticketWidthLabel": "Ancho del papel de esta computadora",
+      "ticketWidthHelp": "Se guarda en este navegador: la impresora está conectada a esta computadora, no a tu cuenta.",
+      "ticketWidths": {
+        "58mm": "58 mm",
+        "80mm": "80 mm"
       }
     },
     "ticket": {

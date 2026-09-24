@@ -22,6 +22,7 @@ describe("printTicket", () => {
   const blob = new Blob(["%PDF"]);
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     vi.mocked(api.get).mockResolvedValue({ data: blob });
   });
 
@@ -43,5 +44,22 @@ describe("printTicket", () => {
     });
     expect(download.imprimirPdf).toHaveBeenCalledWith(blob, "COT-000001.pdf");
     expect(download.abrirPdfParaImprimir).not.toHaveBeenCalled();
+  });
+
+  /**
+   * F10-MANFIX-03 — sin `width` explícito, el default deja de ser el literal
+   * "58mm" y pasa a leer la preferencia de ESTA computadora
+   * (`sellpoint.ticketWidth`, `lib/ticket-width.ts`). Sin ajuste guardado
+   * sigue mandando 58 — el test de arriba ya lo cubre.
+   */
+  it("sin `width` explícito, manda el ancho elegido en esta computadora", async () => {
+    localStorage.setItem("sellpoint.ticketWidth", "80mm");
+
+    await printTicket("sale", "sale-1", "VTA-000001");
+
+    expect(api.get).toHaveBeenCalledWith("/pos/sales/sale-1/ticket", {
+      responseType: "blob",
+      params: { width: "80mm" },
+    });
   });
 });

@@ -40,24 +40,28 @@ capturado en el campo **Código de barras** del producto (capítulo 16).
 
 ## La impresora de tickets
 
-SellPointy arma cada ticket como un **archivo PDF del ancho de un rollo de 58
-mm** y lo abre en el **cuadro de impresión del navegador**, el mismo que usas
-para imprimir cualquier página. Así que sirve cualquier impresora que tu
-computadora ya sepa usar: normalmente, una **impresora térmica de tickets**
-instalada con el controlador de su fabricante.
+SellPointy arma cada ticket como un **archivo PDF del ancho de tu rollo de
+papel** —58 u 80 mm— y lo abre en el **cuadro de impresión del navegador**, el
+mismo que usas para imprimir cualquier página. Así que sirve cualquier
+impresora que tu computadora ya sepa usar: normalmente, una **impresora
+térmica de tickets** instalada con el controlador de su fabricante.
 
 - El ticket mide lo que mide la venta: un ticket de tres productos no deja
   papel en blanco al final.
+- El ancho es de la **computadora**, no del negocio: la impresora está
+  conectada a ella. Elige el de la tuya en **Mi perfil** › **Preferencias** ›
+  **Ancho del papel de esta computadora**. El valor de entrada es 58 mm, así
+  que si tu impresora es de 80 mm, elígelo una vez ahí, en esa computadora; si
+  el negocio tiene varias cajas con impresoras distintas, cada una elige el
+  suyo.
 - Al cobrar, el cuadro de impresión se abre solo. Elige tu impresora de tickets
   y presiona Imprimir. Para no tener que elegirla cada vez, déjala como
   impresora predeterminada de tu computadora.
 - Lo que sale en el papel (logotipo, datos del negocio, mensaje del pie) se
   configura en **Mi perfil** (capítulo 12).
-- Las cotizaciones se imprimen por el mismo camino.
+- Las cotizaciones, la reimpresión desde el historial y el turno de Recepción
+  se imprimen por el mismo camino, con el mismo ancho elegido.
 
 Si el ticket no sale, la venta ya quedó cobrada: SellPointy avisa **No pudimos
 abrir el ticket. Puedes reimprimirlo desde el historial.** y lo reimprimes
 desde **Historial** (capítulo 7).
-
-Si tu impresora es de **80 mm**, haz una prueba antes de abrir la tienda: el
-ticket de SellPointy tiene el ancho de un rollo de 58 mm.

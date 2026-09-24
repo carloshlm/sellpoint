@@ -13,7 +13,7 @@ Pro* o *En Plus*.
 | Sucursales | 1 | 4 | 10 |
 | Punto de venta y tickets | ✓ | ✓ | ✓ |
 | Turno de caja con arqueo | ✓ | ✓ | ✓ |
-| Ticket con tu logo | ✓ | ✓ | ✓ |
+| Ticket con tu logo, en 58 u 80 mm | ✓ | ✓ | ✓ |
 | Reportes y exportarlos a Excel | ✓ | ✓ | ✓ |
 | Gastos | ✓ | ✓ | ✓ |
 | Control de inventario | — | ✓ | ✓ |

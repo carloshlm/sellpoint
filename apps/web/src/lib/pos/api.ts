@@ -1,6 +1,7 @@
 import type { PaymentMethod } from "@sellpoint/shared";
 import { api } from "@/lib/api";
 import { imprimirPdf } from "@/lib/download";
+import { getTicketWidthPreference, type TicketWidth } from "@/lib/ticket-width";
 
 export interface CashboxSession {
   id: string;
@@ -416,8 +417,13 @@ export async function getQuoteForSale(folio: string): Promise<QuoteForSale> {
 // F4-TICKET-02 — el papel
 // ─────────────────────────────────────────────────────────────────────────
 
-/** Los dos anchos de papel térmico del mercado. */
-export type TicketWidth = "58mm" | "80mm";
+/**
+ * Los dos anchos de papel térmico del mercado. El tipo vive en
+ * `lib/ticket-width.ts` —junto con la preferencia por computadora,
+ * F10-MANFIX-03— y se re-exporta acá para no romper a quien ya lo importaba
+ * de `lib/pos/api`.
+ */
+export type { TicketWidth };
 
 /**
  * Baja el ticket y lo abre para imprimir.
@@ -446,7 +452,10 @@ export async function printTicket(
   kind: "sale" | "quote",
   id: string,
   folio: string,
-  width: TicketWidth = "58mm",
+  // F10-MANFIX-03: sin ancho explícito, el de ESTA computadora — se relee en
+  // cada llamada (default de parámetro, no una constante) por si cambió
+  // desde la última impresión.
+  width: TicketWidth = getTicketWidthPreference(),
 ): Promise<void> {
   const { data } = await api.get<Blob>(
     `/pos/${kind === "sale" ? "sales" : "quotes"}/${id}/ticket`,
