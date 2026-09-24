@@ -1,9 +1,10 @@
 import { relative } from "node:path";
 import { captureAll } from "./capture.js";
-import { createDemo } from "./demo.js";
+import { createDemo, DEMO, payPlusPlan } from "./demo.js";
 import { ROOT } from "./paths.js";
 import { buildPdf } from "./pdf.js";
-import { type Stack, up } from "./stack.js";
+import { seedBusiness } from "./seed.js";
+import { type Stack, up, WEB_URL } from "./stack.js";
 
 /**
  * `pnpm --filter manual manual`
@@ -14,20 +15,35 @@ import { type Stack, up } from "./stack.js";
  * `pnpm --filter manual manual:pdf`
  *   Solo el PDF, con las capturas que ya existen: para corregir un texto sin
  *   volver a levantar nada.
+ *
+ * `pnpm --filter manual manual --serve`
+ *   Levanta y siembra, y lo deja ENCENDIDO para recorrerlo a mano (en
+ *   http://localhost:5199) mientras se escribe un capítulo. Ctrl+C lo apaga.
  */
 const pdfOnly = process.argv.includes("--pdf-only");
+const serve = process.argv.includes("--serve");
 let stack: Stack | null = null;
 
-process.on("SIGINT", async () => {
-  await stack?.down();
-  process.exit(130);
-});
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, async () => {
+    await stack?.down();
+    process.exit(130);
+  });
+}
 
 async function main(): Promise<void> {
   if (!pdfOnly) {
     stack = await up();
     try {
-      await createDemo(stack);
+      const demo = await createDemo(stack);
+      await payPlusPlan(stack, demo);
+      await seedBusiness(stack, demo);
+      if (serve) {
+        console.log(
+          `Encendido en ${WEB_URL}/login?lang=es — ${DEMO.email} / ${DEMO.password}. Ctrl+C lo apaga.`,
+        );
+        await new Promise(() => {});
+      }
       await captureAll();
     } finally {
       await stack.down();

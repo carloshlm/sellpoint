@@ -55,9 +55,14 @@ function chapterFiles(dir: string): string[] {
 }
 
 /** El ancho de un PNG, leído de su cabecera (bytes 16 a 19). */
-function pngWidth(path: string): number {
-  return readFileSync(path).readUInt32BE(16);
+/** Ancho y alto de un PNG, leídos de su encabezado (IHDR). */
+function pngSize(path: string): { width: number; height: number } {
+  const header = readFileSync(path);
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
 }
+
+/** El alto máximo de una captura en la página (`max-height` de manual.css), en px CSS. */
+const MAX_IMAGE_HEIGHT_PX = (125 / 25.4) * 96;
 
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -78,7 +83,12 @@ const markdown = new Marked({
       }
       // Las capturas se toman al doble de densidad: a la mitad de sus píxeles
       // se ven del tamaño real de la pantalla, y una recortada no se estira.
-      const width = Math.round(pngWidth(file) / 2);
+      // Una captura alta se ANGOSTA en la misma proporción: si solo se
+      // topara el alto con `max-height`, el ancho fijo la deformaría.
+      const png = pngSize(file);
+      const width = Math.round(
+        Math.min(png.width / 2, (MAX_IMAGE_HEIGHT_PX * png.width) / png.height),
+      );
       return `<figure><img src="img/${id}.png" style="width:${width}px" alt="${escapeHtml(text)}"><figcaption>${escapeHtml(text)}</figcaption></figure>`;
     },
   },
@@ -105,7 +115,8 @@ function parseChapter(path: string): Chapter {
     .replace(/<p>(<figure>[\s\S]*?<\/figure>)<\/p>/g, "$1");
   return {
     id: where.replace(/\.md$/, "").replace(/[^\w]+/g, "-"),
-    number: (basename(path).match(/^(\w+?)-/)?.[1] ?? "").replace(/^0+(?=\d)/, ""),
+    // `30-dashboard.md` → «30»; los apéndices (`a-plans.md`) → «A».
+    number: (basename(path).match(/^(\w+?)-/)?.[1] ?? "").replace(/^0+(?=\d)/, "").toUpperCase(),
     part: PARTS[folder] ?? null,
     title: meta.title,
     who: WHO[meta.who] as string,

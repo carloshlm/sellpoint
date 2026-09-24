@@ -6,8 +6,8 @@ semana y un PDF con capturas pegadas a mano envejece en días.
 
 | Pieza | Dónde vive | Estado |
 |---|---|---|
-| Textos, un archivo por capítulo | `docs/manual/es/` | 1 de 38 (el capítulo 2) |
-| El registro de pantallas: qué captura cita cada capítulo y cómo se toma | `apps/manual/src/screens.ts` | Listo |
+| Textos, un archivo por capítulo | `docs/manual/es/` | 28 de 38: el capítulo 2, las partes 3 a 7 y los apéndices |
+| El registro de pantallas: qué captura cita cada capítulo y cómo se toma | `apps/manual/src/screens/`, un archivo por parte | Listo |
 | El generador: levanta un SellPointy aparte, crea el negocio de demostración, toma las capturas y arma el PDF | `apps/manual/` | Listo |
 | El PDF y las capturas | `docs/manual/dist/` (no se versiona) | Se genera |
 | La regla que lo mantiene al día: cada cambio de pantalla actualiza su capítulo | una skill + una prueba (fase 4) | Por construir |
@@ -19,6 +19,13 @@ Con Colima encendido (Postgres y Redis), desde la raíz:
 ```bash
 pnpm manual       # todo: capturas nuevas y PDF (unos 2 minutos)
 pnpm manual:pdf   # solo el PDF, con las capturas que ya hay: para corregir un texto
+```
+
+Para escribir un capítulo con el sistema a la mano:
+
+```bash
+pnpm --filter manual manual --serve               # levanta y siembra, y lo deja encendido en :5199
+pnpm --filter manual exec tsx src/shoot.ts 04-inventory   # retoma solo esas capturas
 ```
 
 El resultado queda en `docs/manual/dist/SellPointy-Manual-de-usuario-v<versión>.pdf`.
@@ -55,7 +62,7 @@ existe, el PDF no se arma y dice cuál falta.
 
 1. ✅ **El índice** — este documento.
 2. ✅ Las capturas automáticas y el PDF, probados con el capítulo 2.
-3. Los capítulos, uno a la vez, empezando por la Parte 1 y la Parte 2.
+3. Los capítulos. Hechas las partes 3 a 7 y los apéndices (2026-09-24); faltan la Parte 1 (salvo el capítulo 2), la Parte 2 y la portada.
 4. La regla para mantenerlo al día.
 
 ## Reglas del contenido
@@ -103,7 +110,7 @@ La **Parte 2 se puede imprimir sola** como guía corta del cajero.
 | 16 | Productos | `03-setup/16-products.md` | dueño | — |
 | 17 | Productos compuestos: recetas y kits | `03-setup/17-composite-products.md` | dueño | Desde Pro |
 | 18 | Servicios | `03-setup/18-services.md` | dueño | — |
-| 19 | Proveedores | `03-setup/19-suppliers.md` | dueño | — |
+| 19 | Proveedores | `03-setup/19-suppliers.md` | dueño | Desde Basic |
 | 20 | Importar y exportar con Excel | `03-setup/20-spreadsheets.md` | dueño | — |
 | 21 | Campos y subcatálogos propios | `03-setup/21-custom-catalogs.md` | dueño | En Plus |
 | | **Parte 4 — Inventario** | | | Desde Pro |

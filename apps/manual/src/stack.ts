@@ -20,9 +20,14 @@ export const WEB_URL = "http://localhost:5199";
 const DATABASE = "sellpoint_manual";
 const WEB_BUILD = join(CACHE_DIR, "web");
 
+/** Quién entra al backoffice del SellPointy del manual (el que registra el pago del plan). */
+export const PLATFORM_ADMIN_EMAIL = "backoffice@example.com";
+
 export interface Stack {
   /** Todo lo que el API escribió en su consola: ahí llegan los correos (`MAIL_DRIVER=console`). */
   apiLog(): string;
+  /** Una sentencia contra la base del manual, como administrador. */
+  sql(statement: string): void;
   down(): Promise<void>;
 }
 
@@ -194,6 +199,7 @@ export async function up(): Promise<Stack> {
     MAIL_DRIVER: "console",
     THROTTLE_ENABLED: "false",
     BILLING_CRON_ENABLED: "false",
+    BILLING_ADMIN_EMAILS: PLATFORM_ADMIN_EMAIL,
     JWT_PRIVATE_KEY_BASE64: Buffer.from(
       privateKey.export({ type: "pkcs8", format: "pem" }),
     ).toString("base64"),
@@ -225,6 +231,10 @@ export async function up(): Promise<Stack> {
 
   return {
     apiLog: api.log,
+    sql: (statement) => {
+      const r = prisma(["db", "execute", "--stdin"], urls.admin, `${statement}\n`);
+      if (r.status !== 0) throw new Error(`Falló «${statement}»:\n${r.stdout}\n${r.stderr}`);
+    },
     down: async () => {
       await Promise.all([stop(api.child), stop(web.child)]);
     },
