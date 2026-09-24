@@ -54,7 +54,11 @@ describe("buildTurnTicketDefinition", () => {
     expect(json).toContain("ticket.turnFooter");
     // La fecha en el calendario del NEGOCIO: 2 de septiembre, no 3 (UTC).
     expect(json).toMatch(/2\/9\/2026|02\/09\/26/);
-    expect(json).toMatch(/10:30/);
+    // F10-MANFIX-19: 22:30, sin «a.m.» ni «p.m.» — el mismo formato que el
+    // ticket de venta (`fechaCorta`, ahora compartida entre los dos papeles
+    // del mostrador).
+    expect(json).toMatch(/22:30/);
+    expect(json).not.toMatch(/a\.\s?m\.|p\.\s?m\./i);
   });
 
   it("sin cliente, no inventa una línea vacía", () => {

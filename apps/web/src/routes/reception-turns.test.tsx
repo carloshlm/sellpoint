@@ -91,6 +91,19 @@ describe("Generar turno (F9-RECEP-13)", () => {
     expect(within(filas[0] as HTMLElement).getByText("En espera")).toBeInTheDocument();
   });
 
+  /**
+   * F10-MANFIX-19 — la columna de hora venía de un `locale` calculado a mano
+   * (`es-MX`/`en-US`) y salía «8:45 a.m.»: el mismo formato de 12 horas que
+   * la 16 ya había sacado de la barra del turno y el panel del vendedor.
+   */
+  it("la columna de hora sale sin «a.m.» — 18:05 UTC son las 12:05 en CDMX", async () => {
+    await renderTurns(["reception:read", "reception:manage"]);
+    const fila = await screen.findByTestId("turn-t5");
+
+    expect(within(fila).getByText(/12:05/)).toBeInTheDocument();
+    expect(within(fila).queryByText(/a\.\s?m\.|p\.\s?m\./i)).not.toBeInTheDocument();
+  });
+
   it("«Atender» llama al API y la fila pasa a «Atendido»", async () => {
     await renderTurns(["reception:read", "reception:manage"]);
     const user = userEvent.setup();

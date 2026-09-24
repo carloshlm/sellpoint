@@ -8,9 +8,18 @@ import {
   type InventoryDocumentType,
   type Locale,
   localCalendarDate,
-  localeToBcp47,
 } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
+/**
+ * Un instante del documento, en la zona del negocio y en el idioma de quien
+ * imprime (Carlos, 2026-09-02). Salía en `es-MX` y UTC fijos: un conteo
+ * asentado a las 7 de la noche de CDMX decía «mañana».
+ *
+ * F10-MANFIX-19 — vive en `medical-pdf-blocks.ts` (el común de los PDF de
+ * hoja carta) y ya no tiene su copia local acá: la HORA salía con
+ * «a.m./p.m.» y ahora es la del idioma plano, como el resto de la app.
+ */
+import { fecha } from "../medical-clinic/medical-pdf-blocks";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -64,32 +73,6 @@ export interface PdfDocumentInput {
 }
 
 const GRIS = "#666666";
-
-/**
- * Un instante del documento, en la zona del negocio y en el idioma de quien
- * imprime (Carlos, 2026-09-02). Salía en `es-MX` y UTC fijos: un conteo
- * asentado a las 7 de la noche de CDMX decía «mañana».
- */
-function fecha(value: Date, locale: Locale, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat(localeToBcp47(locale), {
-      dateStyle: "short",
-      timeStyle: "short",
-      timeZone,
-    })
-      .format(value)
-      .replace(",", "");
-  } catch {
-    // Una zona mal cargada no puede dejar sin PDF a nadie: cae a UTC.
-    return new Intl.DateTimeFormat(localeToBcp47(locale), {
-      dateStyle: "short",
-      timeStyle: "short",
-      timeZone: "UTC",
-    })
-      .format(value)
-      .replace(",", "");
-  }
-}
 
 const MESES: Record<Locale, readonly string[]> = {
   es: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],

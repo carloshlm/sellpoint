@@ -777,12 +777,19 @@ describe("Cotización (F4-QUOTE)", () => {
       const e = await escenario();
       const zona = "America/St_Johns";
       await prisma.tenant.update({ where: { id: e.tenantId }, data: { timezone: zona } });
-      const horaDelNegocio = (instante: Date) =>
-        new Intl.DateTimeFormat("es-MX", {
+      // F10-MANFIX-19: la HORA ya no lleva «a.m./p.m.» — sale en el idioma
+      // PLANO («es»), no en «es-MX». La fecha sigue con región (conserva el
+      // cero a la izquierda del mes), como `fechaCorta` en `ticket.renderer.ts`.
+      const horaDelNegocio = (instante: Date) => {
+        const fecha = new Intl.DateTimeFormat("es-MX", {
           dateStyle: "short",
-          timeStyle: "short",
           timeZone: zona,
         }).format(instante);
+        const hora = new Intl.DateTimeFormat("es", { timeStyle: "short", timeZone: zona }).format(
+          instante,
+        );
+        return `${fecha}, ${hora}`;
+      };
 
       await abrirTurno(e.token).expect(201);
       const venta = await request(app.getHttpServer())

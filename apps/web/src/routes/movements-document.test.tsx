@@ -672,6 +672,19 @@ describe("la cabecera dice las fechas del documento", () => {
 
     expect(screen.getByText(/Abierto 18\/08\/26.*Cancelado 21\/08\/26/)).toBeInTheDocument();
   });
+
+  /**
+   * F10-MANFIX-19 — la hora venía de un `localeTag` calculado a mano
+   * (`es-MX`/`en-US`) y salía «8:45 a.m.»: el mismo formato de 12 horas que
+   * la 16 ya había sacado de la barra del turno y el panel del vendedor.
+   */
+  it("la hora sale sin «a.m.» — 19:42 UTC son las 13:42 en CDMX", async () => {
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    expect(screen.getByText(/13:42/)).toBeInTheDocument();
+    expect(screen.queryByText(/a\.\s?m\.|p\.\s?m\./i)).not.toBeInTheDocument();
+  });
 });
 
 /**

@@ -1,5 +1,10 @@
 import type { Locale } from "@sellpoint/shared";
-import { TICKET_WIDTHS, type TicketWidth, type Translate } from "../pos/ticket.renderer";
+import {
+  fechaCorta,
+  TICKET_WIDTHS,
+  type TicketWidth,
+  type Translate,
+} from "../pos/ticket.renderer";
 import { ticketLogoNodes } from "../pos/ticket-logo";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 
@@ -49,7 +54,7 @@ export function buildTurnTicketDefinition(input: TurnTicketInput, t: Translate) 
       // tres dígitos.
       { text: String(input.number), bold: true, fontSize: 56, ...centrado, margin: [0, 2, 0, 6] },
       ...(input.customerName ? [{ text: input.customerName, fontSize: 9, ...centrado }] : []),
-      { text: fechaYHora(input.createdAt, input.locale, input.timeZone), fontSize: 7, ...centrado },
+      { text: fechaCorta(input.createdAt, input.locale, input.timeZone), fontSize: 7, ...centrado },
       linea(anchoPt - margen * 2),
       { text: t("ticket.turnFooter"), fontSize: 7, ...centrado, margin: [0, 4, 0, 0] },
     ],
@@ -63,17 +68,4 @@ function linea(ancho: number) {
     ],
     margin: [0, 2, 0, 2],
   };
-}
-
-/** Fecha y hora en la zona del NEGOCIO: un turno se lee el mismo día, ahí. */
-function fechaYHora(value: Date, locale: Locale, timeZone: string): string {
-  const opciones: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" };
-  try {
-    return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-MX", {
-      ...opciones,
-      timeZone,
-    }).format(value);
-  } catch {
-    return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-MX", opciones).format(value);
-  }
 }

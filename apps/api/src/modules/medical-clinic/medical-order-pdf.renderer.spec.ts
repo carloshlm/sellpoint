@@ -125,4 +125,22 @@ describe("buildMedicalOrderDefinition (F9-CLINIC-24)", () => {
     expect(json).toContain("HCL-000012");
     expect(json).toContain("Ana Pérez Luna");
   });
+
+  /**
+   * F10-MANFIX-19 — la HORA no lleva «a.m./p.m.»: `fecha()` (de
+   * `medical-pdf-blocks.ts`, compartida con el resto de los papeles de
+   * hoja carta) usaba `es-MX`/`en-US` completos y la hora salía en 12
+   * horas — el mismo formato que la 16 ya había sacado de la barra del
+   * turno y el panel del vendedor.
+   */
+  it("la hora sale sin «a.m.» ni «p.m.» — 22:15 UTC son las 16:15 en CDMX", () => {
+    const def = buildMedicalOrderDefinition(
+      { ...base, order: { ...base.order, createdAt: new Date("2026-09-03T22:15:00.000Z") } },
+      t,
+    );
+    const json = textos(def);
+
+    expect(json).toContain("03/09/26 16:15");
+    expect(json).not.toMatch(/a\.\s?m\.|p\.\s?m\./i);
+  });
 });

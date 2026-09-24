@@ -42,29 +42,39 @@ export interface PdfRecord {
 }
 
 /**
- * F9-CLINIC-DOC-05 — los bloques que comparten TODOS los papeles clínicos
- * (la orden médica y las cartas): el encabezado del negocio, el bloque de
+ * F9-CLINIC-DOC-05 — los bloques que comparten TODOS los papeles de hoja
+ * carta (la orden médica y las cartas clínicas, el documento de inventario,
+ * y de aquí también toman prestado `purchase-pdf.renderer.ts` y
+ * `purchase-order-pdf.renderer.ts`): el encabezado del negocio, el bloque de
  * paciente y médico, la firma. Funciones puras que devuelven nodos de
  * pdfmake; cada renderer arma con ellas su `docDefinition` y se prueba
  * leyendo QUÉ dice el papel, no comparando bytes.
+ *
+ * El nombre del archivo quedó corto —nació solo para lo clínico y hoy es el
+ * común de los PDF de hoja carta— pero moverlo es un cambio de alcance propio
+ * (actualizar los imports de cada renderer) sin beneficio funcional; queda
+ * anotado y no se tocó en F10-MANFIX-19.
  */
 export function fecha(value: Date, locale: Locale, timeZone: string): string {
+  const bcp47 = localeToBcp47(locale);
+  // F10-MANFIX-19 — la HORA en el idioma PLANO («es»/«en»): con `es-MX` el
+  // MISMO `Intl.DateTimeFormat` que arma la fecha imprimía «4:15 p.m.», el
+  // formato de 12 horas que la 16 ya había sacado de la barra del turno y el
+  // panel del vendedor. La FECHA sigue con el `locale` convertido a BCP-47
+  // porque ahí sí importa conservar el cero a la izquierda del mes.
   try {
-    return new Intl.DateTimeFormat(localeToBcp47(locale), {
-      dateStyle: "short",
-      timeStyle: "short",
-      timeZone,
-    })
-      .format(value)
-      .replace(",", "");
+    const fecha = new Intl.DateTimeFormat(bcp47, { dateStyle: "short", timeZone }).format(value);
+    const hora = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone }).format(value);
+    return `${fecha} ${hora}`;
   } catch {
-    return new Intl.DateTimeFormat(localeToBcp47(locale), {
+    const fecha = new Intl.DateTimeFormat(bcp47, {
       dateStyle: "short",
-      timeStyle: "short",
       timeZone: "UTC",
-    })
-      .format(value)
-      .replace(",", "");
+    }).format(value);
+    const hora = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(
+      value,
+    );
+    return `${fecha} ${hora}`;
   }
 }
 

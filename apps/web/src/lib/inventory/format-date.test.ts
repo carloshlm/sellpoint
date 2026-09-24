@@ -1,4 +1,4 @@
-import { formatBusinessTime, formatCalendarDate } from "./format-date";
+import { formatBusinessDate, formatBusinessTime, formatCalendarDate } from "./format-date";
 
 /**
  * F3-EXIT-02 — una caducidad es una fecha de CALENDARIO, no un instante.
@@ -77,5 +77,38 @@ describe("formatBusinessTime (F10-MANFIX-16)", () => {
     expect(formatBusinessTime(ISO, "es", "Marte/Olympus")).toBe(
       formatBusinessTime(ISO, "es", undefined),
     );
+  });
+});
+
+/**
+ * F10-MANFIX-19 — `formatBusinessDate` con hora reusa el criterio de
+ * `formatBusinessTime`: la HORA no lleva «a.m./p.m.» aunque el `locale` que
+ * llega traiga región («es-MX»). El detalle de documentos de inventario, los
+ * turnos de Recepción y el diálogo del turno recién generado pasaban
+ * «es-MX»/«en-US» (calculado a mano en cada pantalla) y mostraban
+ * «8:45 a.m.» — el mismo formato de 12 horas que la 16 ya había sacado de la
+ * barra del turno y el panel del vendedor.
+ */
+describe("formatBusinessDate con hora (F10-MANFIX-19)", () => {
+  // 19:42 UTC son las 13:42 en la Ciudad de México.
+  const ISO = "2026-08-18T19:42:00.000Z";
+
+  it("con «es-MX», la fecha conserva el cero a la izquierda del mes y la hora no lleva «a.m.»", () => {
+    expect(formatBusinessDate(ISO, "es-MX", "America/Mexico_City", true)).toBe("18/08/26 13:42");
+  });
+
+  it("con el locale plano («es»), la hora da lo mismo: solo la región cambiaba el «a.m.»", () => {
+    expect(formatBusinessDate(ISO, "es", "America/Mexico_City", true)).toBe("18/8/26 13:42");
+  });
+
+  it("en inglés, «en-US» y «en» dan la hora con AM/PM — igual que formatBusinessTime", () => {
+    expect(formatBusinessDate(ISO, "en-US", "America/Mexico_City", true)).toMatch(
+      /^8\/18\/26 1:42\sPM$/,
+    );
+  });
+
+  /** Sin hora, el comportamiento de siempre: ni rastro de la hora en el texto. */
+  it("sin el cuarto argumento, sigue siendo solo la fecha", () => {
+    expect(formatBusinessDate(ISO, "es-MX", "America/Mexico_City")).toBe("18/08/26");
   });
 });

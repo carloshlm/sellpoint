@@ -286,9 +286,17 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
    * F10-MANFIX-07 — la hora del papel es la del NEGOCIO. El renderer
    * formateaba sin `timeZone`, con la zona del proceso: en producción el API
    * corre en UTC y una venta de las 10:40 en la Ciudad de México salía a las
-   * 4:40 p.m. Mismo molde que el turno de Recepción y los PDF de inventario.
+   * 16:40.
+   *
+   * F10-MANFIX-19 — la HORA ya no lleva «a.m./p.m.»: `fechaCorta` usaba
+   * `es-MX`, el mismo formato de 12 horas que la 16 ya había sacado de la
+   * barra del turno y el panel del vendedor. Ahora es el helper que también
+   * usa el papel del turno de Recepción (antes tenía su propia copia,
+   * `fechaYHora`, en `turn-ticket.renderer.ts`) — los dos papeles del
+   * mostrador dicen la hora igual. Los PDF de inventario quedan fuera de
+   * este arreglo: siguen con `a.m./p.m.`.
    */
-  describe("la fecha y la hora (F10-MANFIX-07)", () => {
+  describe("la fecha y la hora (F10-MANFIX-07 y F10-MANFIX-19)", () => {
     const alas1640Utc: TicketInput = { ...base, createdAt: new Date("2026-09-24T16:40:00Z") };
 
     /** La línea de la fecha: la única del papel con forma de dd/mm/aa. */
@@ -307,11 +315,16 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       // Otra zona, otra hora: la zona sale del negocio y no de la máquina que
       // imprime. Terranova va a media hora del resto, así que ni un servidor
       // en UTC ni una computadora de desarrollo caen en ella por accidente.
-      expect(lineaDeFecha({ ...alas1640Utc, timeZone: "America/St_Johns" })).toMatch(/\b2:10\b/);
+      expect(lineaDeFecha({ ...alas1640Utc, timeZone: "America/St_Johns" })).toMatch(/\b14:10\b/);
     });
 
     it("una zona inválida no deja sin ticket: cae a UTC", () => {
-      expect(lineaDeFecha({ ...alas1640Utc, timeZone: "Zona/Inexistente" })).toMatch(/\b4:40\b/);
+      expect(lineaDeFecha({ ...alas1640Utc, timeZone: "Zona/Inexistente" })).toMatch(/\b16:40\b/);
+    });
+
+    it("la hora no lleva «a.m.» ni «p.m.»", () => {
+      const cdmx = lineaDeFecha({ ...alas1640Utc, timeZone: "America/Mexico_City" });
+      expect(cdmx).not.toMatch(/a\.\s?m\.|p\.\s?m\./i);
     });
   });
   /**

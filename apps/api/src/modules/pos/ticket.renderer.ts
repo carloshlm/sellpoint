@@ -439,18 +439,36 @@ function cantidadLegible(row: TicketRow, locale: Locale): string {
 }
 
 /**
- * Fecha corta en la zona del NEGOCIO: un ticket se lee el mismo día, ahí.
+ * Fecha corta y hora en la zona del NEGOCIO: un ticket se lee el mismo día,
+ * ahí.
+ *
+ * F10-MANFIX-19 — la HORA usa el locale PLANO («es»/«en», sin región): con
+ * `es-MX`/`en-US` completos, `dateStyle` Y `timeStyle` salían en el mismo
+ * locale y la hora se imprimía «8:45 a.m.», el formato de 12 horas que la 16
+ * ya había sacado de la barra del turno y el panel del vendedor. La FECHA
+ * sigue en el locale con región: sin ella, `dateStyle: "short"` pierde el
+ * cero a la izquierda del mes («24/9/26» en vez de «24/09/26»). Exportada
+ * porque `turn-ticket.renderer.ts` la reusa — antes tenía su propia copia
+ * (`fechaYHora`) y los dos papeles del mostrador podían desalinearse.
  *
  * Una zona mal cargada no puede dejar la caja sin ticket: cae a UTC, como los
  * PDF de inventario, y no a la zona del proceso, que cambia de máquina a
  * máquina.
  */
-function fechaCorta(value: Date, locale: Locale, timeZone: string): string {
+export function fechaCorta(value: Date, locale: Locale, timeZone: string): string {
   const bcp47 = locale === "en" ? "en-US" : "es-MX";
-  const opciones: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" };
   try {
-    return new Intl.DateTimeFormat(bcp47, { ...opciones, timeZone }).format(value);
+    const fecha = new Intl.DateTimeFormat(bcp47, { dateStyle: "short", timeZone }).format(value);
+    const hora = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone }).format(value);
+    return `${fecha}, ${hora}`;
   } catch {
-    return new Intl.DateTimeFormat(bcp47, { ...opciones, timeZone: "UTC" }).format(value);
+    const fecha = new Intl.DateTimeFormat(bcp47, {
+      dateStyle: "short",
+      timeZone: "UTC",
+    }).format(value);
+    const hora = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(
+      value,
+    );
+    return `${fecha}, ${hora}`;
   }
 }

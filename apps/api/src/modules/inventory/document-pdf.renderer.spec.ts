@@ -634,4 +634,22 @@ describe("la fecha del papel es la del estado, en la zona del negocio", () => {
 
     expect(json).toMatch(/pdf\.date: ","bold":true\},"05\/09\/26/);
   });
+
+  /**
+   * F10-MANFIX-19 — la HORA no lleva «a.m./p.m.»: `fecha()` usaba
+   * `es-MX`/`en-US` completos, con `dateStyle` y `timeStyle` en el MISMO
+   * locale, y la hora salía en 12 horas — el formato que la 16 ya había
+   * sacado de la barra del turno y el panel del vendedor.
+   */
+  it("la hora sale sin «a.m.» ni «p.m.» — 22:15 UTC son las 16:15 en CDMX", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        { ...base, document: { ...base.document, confirmedAt: new Date("2026-09-03T22:15:00Z") } },
+        t,
+      ),
+    );
+
+    expect(json).toMatch(/pdf\.date: ","bold":true\},"03\/09\/26 16:15/);
+    expect(json).not.toMatch(/a\.\s?m\.|p\.\s?m\./i);
+  });
 });

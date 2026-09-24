@@ -32,6 +32,14 @@ export function formatCalendarDate(iso: string, locale: string): string {
  * incluyera esa fila, la pantalla se contradiría a sí misma. `timeZone`
  * ausente (sesión vieja) cae a la del navegador; una zona inválida también,
  * porque `Intl` lanza y un listado que revienta es peor que uno corrido.
+ *
+ * F10-MANFIX-19 — con `withTime`, la HORA sale por `formatBusinessTime` y no
+ * por `timeStyle` en la misma llamada: varias pantallas le pasaban a este
+ * `locale` un BCP-47 con región («es-MX»/«en-US», calculado a mano) y la
+ * hora se imprimía «8:45 a.m.», el formato de 12 horas que la 16 ya había
+ * sacado de la barra del turno y el panel del vendedor. La FECHA sigue
+ * exactamente igual —con el `locale` que llega, con o sin región— porque ahí
+ * sí importa conservar el cero a la izquierda del mes.
  */
 export function formatBusinessDate(
   iso: string,
@@ -39,18 +47,23 @@ export function formatBusinessDate(
   timeZone: string | undefined,
   withTime = false,
 ): string {
-  const opciones: Intl.DateTimeFormatOptions = {
-    dateStyle: "short",
-    ...(withTime ? { timeStyle: "short" } : {}),
-  };
+  const opciones: Intl.DateTimeFormatOptions = { dateStyle: "short" };
   const instante = new Date(iso);
+  let fecha: string;
   try {
-    return new Intl.DateTimeFormat(locale, { ...opciones, ...(timeZone ? { timeZone } : {}) })
+    fecha = new Intl.DateTimeFormat(locale, { ...opciones, ...(timeZone ? { timeZone } : {}) })
       .format(instante)
       .replace(",", "");
   } catch {
-    return new Intl.DateTimeFormat(locale, opciones).format(instante).replace(",", "");
+    fecha = new Intl.DateTimeFormat(locale, opciones).format(instante).replace(",", "");
   }
+  if (!withTime) {
+    return fecha;
+  }
+  // El idioma PLANO («es»/«en»): la región es lo único que decidía el
+  // «a.m.», y `formatBusinessTime` ya resuelve zona ausente o inválida.
+  const idioma = locale.split("-")[0] ?? locale;
+  return `${fecha} ${formatBusinessTime(iso, idioma, timeZone)}`;
 }
 
 /**

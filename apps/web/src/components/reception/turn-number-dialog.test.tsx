@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { StrictMode } from "react";
 import { I18nextProvider } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,6 +45,28 @@ describe("TurnNumberDialog", () => {
     expect(await screen.findByTestId("turn-number")).toHaveTextContent("9");
     await waitFor(() => expect(api.printTurnTicket).toHaveBeenCalledWith("t9", 9));
     expect(api.printTurnTicket).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * F10-MANFIX-19 — el papel en pantalla venía de un `locale` calculado a
+   * mano (`es-MX`/`en-US`) y salía «8:45 a.m.»: el mismo formato de 12 horas
+   * que la 16 ya había sacado de la barra del turno y el panel del vendedor.
+   */
+  describe("la hora (F10-MANFIX-19)", () => {
+    afterEach(() => useAuthStore.getState().clearAuth());
+
+    it("sale sin «a.m.» — 1:05 UTC son las 19:05 (del día anterior) en CDMX", async () => {
+      useAuthStore.getState().setAuth("jwt", buildAuthUser({ tenant: buildTenantBlock() }));
+      render(
+        <I18nextProvider i18n={createI18n()}>
+          <TurnNumberDialog turn={turn} onClose={vi.fn()} />
+        </I18nextProvider>,
+      );
+
+      const papel = await screen.findByTestId("turn-ticket");
+      expect(within(papel).getByText(/19:05/)).toBeInTheDocument();
+      expect(within(papel).queryByText(/a\.\s?m\.|p\.\s?m\./i)).not.toBeInTheDocument();
+    });
   });
 
   /**
