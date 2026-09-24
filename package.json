@@ -16,6 +16,8 @@
     "format": "biome format --write .",
     "test": "turbo run test --concurrency=1",
     "typecheck:full": "turbo run typecheck:full",
+    "manual": "pnpm --filter manual manual",
+    "manual:pdf": "pnpm --filter manual manual:pdf",
     "release": "commit-and-tag-version",
     "release:first": "commit-and-tag-version --release-as 1.0.0",
     "release:dry": "commit-and-tag-version --dry-run",

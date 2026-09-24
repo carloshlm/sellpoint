@@ -6,15 +6,55 @@ semana y un PDF con capturas pegadas a mano envejece en días.
 
 | Pieza | Dónde vive | Estado |
 |---|---|---|
-| Textos, un archivo por capítulo | `docs/manual/es/` | Por escribir |
-| Capturas de pantalla, tomadas por un script con un negocio de demostración | por definir (fase 2) | Por construir |
-| El PDF: portada, índice, números de página y la versión que describe | por definir (fase 2) | Por construir |
+| Textos, un archivo por capítulo | `docs/manual/es/` | 1 de 38 (el capítulo 2) |
+| El registro de pantallas: qué captura cita cada capítulo y cómo se toma | `apps/manual/src/screens.ts` | Listo |
+| El generador: levanta un SellPointy aparte, crea el negocio de demostración, toma las capturas y arma el PDF | `apps/manual/` | Listo |
+| El PDF y las capturas | `docs/manual/dist/` (no se versiona) | Se genera |
 | La regla que lo mantiene al día: cada cambio de pantalla actualiza su capítulo | una skill + una prueba (fase 4) | Por construir |
+
+## Cómo se genera
+
+Con Colima encendido (Postgres y Redis), desde la raíz:
+
+```bash
+pnpm manual       # todo: capturas nuevas y PDF (unos 2 minutos)
+pnpm manual:pdf   # solo el PDF, con las capturas que ya hay: para corregir un texto
+```
+
+El resultado queda en `docs/manual/dist/SellPointy-Manual-de-usuario-v<versión>.pdf`.
+La versión es la del `package.json` raíz.
+
+Lo que hace `pnpm manual`, para que nada sorprenda:
+
+- **Borra y recrea la base `sellpoint_manual`**, solo esa: nunca toca `sellpoint_dev` ni
+  `sellpoint_test`. Enciende su propio API en `:3100` y su propio web, compilado, en `:5199`,
+  y los apaga al terminar.
+- **Crea el negocio de demostración por el camino de un cliente real**: se registra, verifica
+  el correo con el enlace que el API escribe en su consola y termina el asistente de alta.
+  Es «Abarrotes La Esquina», de Ana Pérez (`ana.perez@example.com`), en México.
+- **Compila el API**, y eso le quita las traducciones a un API de desarrollo encendido: el
+  generador avisa, y basta con reiniciarlo después.
+
+## Cómo se escribe un capítulo
+
+Cada archivo abre con un bloque que dice qué es y para quién:
+
+```markdown
+---
+title: Entrar, salir y tu contraseña
+who: todos          (todos · cajero · dueño)
+plan: Desde Pro     (opcional; sin él, el capítulo es de todos los planes)
+---
+```
+
+Después es Markdown normal. Una captura se cita por su nombre en el registro de pantallas:
+`![Texto que va de pie de foto](screen:sign-in)`. Si el capítulo cita una captura que no
+existe, el PDF no se arma y dice cuál falta.
 
 ## Las fases (aprobadas por Carlos el 2026-09-23)
 
 1. ✅ **El índice** — este documento.
-2. Las capturas automáticas y el PDF, probados con un capítulo corto.
+2. ✅ Las capturas automáticas y el PDF, probados con el capítulo 2.
 3. Los capítulos, uno a la vez, empezando por la Parte 1 y la Parte 2.
 4. La regla para mantenerlo al día.
 

@@ -1,0 +1,20 @@
+{
+  "name": "manual",
+  "private": true,
+  "type": "module",
+  "description": "Genera el manual de usuario de SellPointy: levanta un SellPointy aparte con un negocio de demostración, toma las capturas y arma el PDF.",
+  "scripts": {
+    "manual": "tsx src/main.ts",
+    "manual:pdf": "tsx src/main.ts --pdf-only",
+    "typecheck:full": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@types/node": "^24.13.2",
+    "marked": "^18.0.13",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.8",
+    "typescript": "~6.0.2"
+  }
+}

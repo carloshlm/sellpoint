@@ -1,0 +1,250 @@
+/* El manual impreso, con la marca del sitio: tinta #0d1233, azul #1e3fd8 y el
+   punto amarillo #ffc42e. Las fuentes llegan incrustadas desde pdf.ts. */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url(__FONT_DISPLAY__) format("woff2");
+  font-weight: 200 800;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url(__FONT_BODY__) format("woff2");
+  font-weight: 400 700;
+}
+
+:root {
+  --ink: #0d1233;
+  --muted: #565d80;
+  --line: rgba(13, 18, 51, 0.14);
+  --blue: #1e3fd8;
+  --dot: #ffc42e;
+  --ground: #f4f5fa;
+}
+
+/* Carta: el tamaño de hoja de México, Estados Unidos y Canadá. El pie va en
+   los márgenes de la página (CSS), no en el del generador: ese no se puede
+   quitar de una sola hoja, y salía encima de la portada azul. */
+@page {
+  size: Letter;
+  margin: 20mm 18mm 18mm;
+  @bottom-left {
+    content: "SellPointy · Manual de usuario · v__VERSION__";
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 8pt;
+    color: #565d80;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 8pt;
+    color: #565d80;
+  }
+}
+/* La portada va a sangre y sin pie. */
+@page :first {
+  margin: 0;
+  @bottom-left {
+    content: none;
+  }
+  @bottom-right {
+    content: none;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+body {
+  margin: 0;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.cover {
+  width: 215.9mm;
+  height: 279.4mm;
+  background: var(--blue);
+  color: #fff;
+  padding: 34mm 24mm;
+  display: flex;
+  flex-direction: column;
+  break-after: page;
+}
+.cover-logo svg {
+  width: 24mm;
+  height: auto;
+}
+.cover-kicker {
+  margin: auto 0 0;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dot);
+}
+.cover-title {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 46pt;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 3mm 0 6mm;
+}
+.cover-version {
+  font-size: 12pt;
+  margin: 0;
+}
+.cover-note {
+  margin: 16mm 0 0;
+  font-size: 9pt;
+  opacity: 0.85;
+  max-width: 120mm;
+}
+
+h1 {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 22pt;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0 0 3mm;
+}
+h2 {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 14pt;
+  margin: 8mm 0 2mm;
+  break-after: avoid;
+}
+h3 {
+  font-size: 11pt;
+  margin: 5mm 0 1.5mm;
+  break-after: avoid;
+}
+p,
+li {
+  margin: 0 0 2.2mm;
+}
+ol,
+ul {
+  padding-left: 6mm;
+}
+strong {
+  font-weight: 600;
+}
+
+.toc {
+  break-after: page;
+}
+.toc ol {
+  list-style: none;
+  padding: 0;
+  margin: 6mm 0 0;
+}
+.toc li {
+  padding: 1.6mm 0;
+  border-bottom: 1px solid var(--line);
+  margin: 0;
+}
+.toc li.toc-part {
+  border: 0;
+  padding-top: 6mm;
+  font-weight: 600;
+  font-size: 9pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+.toc a {
+  color: var(--ink);
+  text-decoration: none;
+  display: flex;
+  gap: 4mm;
+}
+.toc-n {
+  color: var(--muted);
+  min-width: 8mm;
+}
+
+.chapter {
+  break-before: page;
+}
+.part-label {
+  font-weight: 600;
+  font-size: 9pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin: 0 0 2mm;
+}
+.chapter h1 .n {
+  color: var(--blue);
+  margin-right: 3mm;
+}
+.meta {
+  margin: 0 0 6mm;
+  display: flex;
+  gap: 2mm;
+}
+.badge {
+  font-size: 8.5pt;
+  font-weight: 600;
+  padding: 0.8mm 2.4mm;
+  border-radius: 99px;
+  background: var(--ground);
+  color: var(--muted);
+}
+.badge.plan {
+  background: #fff4d1;
+  color: #7a5600;
+}
+
+figure {
+  margin: 4mm 0 5mm;
+  break-inside: avoid;
+}
+figure img {
+  display: block;
+  max-width: 100%;
+  max-height: 125mm;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 3mm;
+}
+figcaption {
+  font-size: 8.5pt;
+  color: var(--muted);
+  margin-top: 1.5mm;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 3mm 0 5mm;
+  font-size: 9.5pt;
+  break-inside: avoid;
+}
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 2mm 2.5mm;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  background: var(--ground);
+  font-weight: 600;
+}
+
+blockquote {
+  margin: 4mm 0;
+  padding: 3mm 4mm;
+  background: #fff8e1;
+  border-left: 3px solid var(--dot);
+  border-radius: 0 2mm 2mm 0;
+  break-inside: avoid;
+}
+blockquote p:last-child {
+  margin: 0;
+}
