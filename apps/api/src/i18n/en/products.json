@@ -23,6 +23,7 @@
   "is_component": "Can't delete it: this product is a component of another one.",
   "last_presentation": "This is the product's only presentation: without it there would be no way to sell it. Add another one before deleting this.",
   "lots_in_stock": "Lot tracking cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",
+  "lots_not_in_plan": "Your plan does not include lot and expiry tracking. Leave this column empty or set it to «NO», or upgrade your plan.",
   "not_found": "This product doesn't exist.",
   "presentation_in_use": "This presentation already has recorded movements: it cannot be deleted. Deactivate it so it stops being offered without losing history.",
   "presentation_name_taken": "A presentation with that name already exists for this product.",

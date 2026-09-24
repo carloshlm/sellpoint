@@ -294,6 +294,7 @@
     "registerEntry": "Record entry",
     "registerExit": "Record exit",
     "editLot": "Edit lot",
+    "editLotNotInPlan": "Correcting a lot's code or expiry date comes with a higher plan.",
     "lotCode": "Lot code",
     "expiresAt": "Expiry date",
     "save": "Save",

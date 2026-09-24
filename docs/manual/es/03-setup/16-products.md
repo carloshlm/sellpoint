@@ -47,7 +47,10 @@ Más abajo en el mismo formulario hay otros datos que aparecen solo si los usas:
   ubicaciones de sucursal** en tus datos del negocio (capítulo 12).
 - Los **campos propios** que agregaste al catálogo de productos (capítulo 21).
 - **Este producto se controla por lote y caducidad**, para medicinas y
-  alimentos (capítulo 26, «Lotes y próximos a vencer»).
+  alimentos (capítulo 26, «Lotes y próximos a vencer»). Encenderla es del plan
+  Plus: en Basic y Pro aparece apagada con el aviso «El control por lote y
+  caducidad es de un plan superior». Un producto que ya la tenía encendida la
+  conserva aunque cambies de plan (capítulo 26 explica qué sigue igual).
 - **Se arma a partir de otros productos del catálogo** (capítulo 17).
 
 ## Venta por peso

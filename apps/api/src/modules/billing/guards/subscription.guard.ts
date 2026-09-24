@@ -12,7 +12,7 @@ import {
 import { REQUIRES_FEATURE_KEY } from "../decorators/requires-feature.decorator";
 import { REQUIRES_MODULE_KEY } from "../decorators/requires-module.decorator";
 import { EntitlementsService } from "../entitlements.service";
-import { PlanRequiredException } from "../plan-required.exception";
+import { assertPlanFeature, PlanRequiredException } from "../plan-required.exception";
 
 type AuthenticatedRequest = { method: string; user?: AuthUser };
 
@@ -95,11 +95,8 @@ export class SubscriptionGuard implements CanActivate {
       REQUIRES_FEATURE_KEY,
       targets,
     );
-    if (feature && !entitlements.features[feature]) {
-      throw new PlanRequiredException("billing.feature_not_in_plan", {
-        feature,
-        planCode: entitlements.planCode,
-      });
+    if (feature) {
+      assertPlanFeature(entitlements, feature);
     }
 
     const dimension = this.reflector.getAllAndOverride<PlanLimitDimension | undefined>(

@@ -17,6 +17,11 @@ verdad traen lote; en los demás déjalo apagado.
 Una vez que un producto tiene existencias repartidas en lotes, la casilla ya no
 se puede desmarcar: primero hay que sacar o vender esas existencias.
 
+Encender los lotes es del plan Plus. En Basic y Pro la casilla aparece apagada
+con el aviso «El control por lote y caducidad es de un plan superior». Lo mismo
+pasa al importar productos (capítulo 20): una fila con SI en `controla_lotes` se
+marca con error si el producto es nuevo o todavía no llevaba lote.
+
 ## Qué cambia al encenderlos
 
 - **Al recibir mercancía**, la entrada te pide el **Lote** y su **Caducidad** en
@@ -61,3 +66,23 @@ Arriba eliges el plazo: **7 días**, **30 días** (el que se abre) o **90 días*
 
 Si un lote todavía se puede vender, no hace falta hacer nada: ponlo al frente
 del anaquel o en promoción, y el punto de venta lo irá descontando primero.
+
+## Si pasas de Plus a Pro
+
+Los productos que ya llevan lote lo conservan. Sus entradas siguen pidiendo
+**Lote** y **Caducidad**, las ventas siguen descontando primero el lote que vence
+antes y la pestaña **Stock por sucursal** sigue mostrando sus lotes.
+
+Lo que cambia:
+
+- Ya no puedes encender los lotes en otro producto.
+- En la ficha de un producto con lote, la casilla sigue marcada con el aviso
+  «Este producto conserva su control por lote. Si lo apagas, volver a
+  encenderlo es de un plan superior». Puedes apagarla (si ya no le quedan
+  existencias en lotes), pero volver a encenderla pide Plus.
+- Corregir un lote es de Plus: en **Stock por sucursal**, **Editar lote**
+  aparece apagado y, debajo de la tabla, el aviso «Corregir el código o la
+  caducidad de un lote es de un plan superior».
+- **Próximos a vencer** aparece con candado.
+- Si vuelves a subir tu plantilla de productos, el SI de los que ya llevan lote
+  no marca error.

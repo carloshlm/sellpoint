@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import type { StockLotRow } from "@/lib/inventory/kardex-api";
 import { useInTransit, useStock } from "@/lib/inventory/kardex-hooks";
@@ -39,6 +40,11 @@ export function StockTab({ productId }: { productId: string }) {
   const { data: transito } = useInTransit(productId);
   const [editando, setEditando] = useState<string | null>(null);
   const puedeEditar = has("inventory:movement");
+  // F10-MANFIX-06: corregir un lote es de Plus (el PATCH lleva
+  // `@RequiresFeature("lots")`). Quien bajó de plan sigue VIENDO sus lotes,
+  // pero el botón se ve apagado con su aviso en vez de llevarlo a un 402.
+  const { hasFeature } = usePlan();
+  const lotesEnPlan = hasFeature("lots");
 
   if (isPending || data === undefined) {
     return <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>;
@@ -70,6 +76,7 @@ export function StockTab({ productId }: { productId: string }) {
   }
 
   const enTransito = transito?.rows.find((row) => row.productId === productId);
+  const hayLotes = data.rows.some((row) => (row.lots ?? []).length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -150,8 +157,14 @@ export function StockTab({ productId }: { productId: string }) {
                           {puedeEditar && (
                             <button
                               type="button"
+                              disabled={!lotesEnPlan}
+                              // Sin `pointer-events-none` a propósito: el
+                              // `title` tiene que aparecer al pasar el cursor.
+                              title={
+                                lotesEnPlan ? undefined : t("inventory.kardex.editLotNotInPlan")
+                              }
                               onClick={() => setEditando(editando === clave ? null : clave)}
-                              className="ml-2 underline"
+                              className="ml-2 underline disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {t("inventory.kardex.editLot")}
                             </button>
@@ -213,6 +226,11 @@ export function StockTab({ productId }: { productId: string }) {
           </tfoot>
         </table>
       </ScrollableTable>
+      {/* El porqué de los «Editar lote» apagados, UNA vez bajo la tabla y no
+          en cada renglón. Un botón gris sin explicación se lee como un bug. */}
+      {puedeEditar && !lotesEnPlan && hayLotes && (
+        <p className="text-muted-foreground text-xs">{t("inventory.kardex.editLotNotInPlan")}</p>
+      )}
       {has("inventory:movement") && (
         <div className="flex gap-2">
           <Link

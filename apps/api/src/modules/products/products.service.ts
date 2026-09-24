@@ -11,6 +11,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { EntitlementsService } from "../billing/entitlements.service";
+import { assertPlanFeature } from "../billing/plan-required.exception";
 import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
@@ -54,6 +56,7 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /**
@@ -163,6 +166,11 @@ export class ProductsService {
   }
 
   async create(user: AuthUser, input: CreateProductDto, meta: RequestMeta) {
+    // F10-MANFIX-06: dar de alta con lote ES encenderlo, y eso es de Plus.
+    if (input.tracksLots) {
+      assertPlanFeature(await this.entitlements.resolve(user.tenantId), "lots");
+    }
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.assertAttributesValid(tx, user, input.attributes);
       assertKnownUnit(input.baseUnit);
@@ -222,11 +230,26 @@ export class ProductsService {
   }
 
   async update(user: AuthUser, id: string, input: UpdateProductDto, meta: RequestMeta) {
+    // F10-MANFIX-06 — encender el control por lote es de Plus, y el candado
+    // mira el CAMBIO, no el valor. El formulario manda la casilla en cada
+    // guardado: un producto que ya lleva lote (de cuando el negocio era Plus)
+    // se sigue editando sin un 402, y apagarla siempre se puede. Es la LEY de
+    // F9-PLANLIST: quien baja de plan conserva lo que ya hizo.
+    //
+    // El plan se lee ANTES de abrir la transacción: si el caché no lo tiene,
+    // `resolve` abre la suya, y anidarla aquí retendría dos conexiones del
+    // pool por un solo guardado.
+    const plan = input.tracksLots === true ? await this.entitlements.resolve(user.tenantId) : null;
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const current = await tx.product.findFirst({ where: { id, tenantId: user.tenantId } });
 
       if (!current) {
         throw new NotFoundException({ message: "products.not_found" });
+      }
+
+      if (plan !== null && !current.tracksLots) {
+        assertPlanFeature(plan, "lots");
       }
 
       if (input.attributes !== undefined) {
@@ -241,8 +264,8 @@ export class ProductsService {
         await this.assertBaseUnitChangeable(tx, id);
       }
 
-      // Solo al APAGARLO. Encenderlo siempre se puede: el saldo previo queda
-      // "sin lote" y se asigna después por inventario físico.
+      // Solo al APAGARLO. Encenderlo no depende del saldo —el previo queda
+      // "sin lote" y se asigna después por inventario físico—, solo del plan.
       if (input.tracksLots === false && current.tracksLots) {
         await this.assertLotsCanBeDisabled(tx, id);
       }

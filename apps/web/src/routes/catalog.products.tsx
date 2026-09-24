@@ -554,6 +554,14 @@ function ProductForm({
   const [barcode, setBarcode] = useState(basePresentation?.barcode ?? "");
   const [attributes, setAttributes] = useState<Record<string, unknown>>(product?.attributes ?? {});
   const lotesBloqueados = Boolean(product?.hasLotStock) && (product?.tracksLots ?? false);
+  // F10-MANFIX-06: ENCENDER el control por lote es de Plus, como el API. Lo
+  // que ya lo lleva (de cuando el negocio era Plus) lo conserva y puede
+  // apagarlo; lo que no se puede es encenderlo en otro producto. Se mira la
+  // ficha GUARDADA, no la casilla: desmarcarla y volver a marcarla antes de
+  // guardar no enciende nada.
+  const lotesEnPlan = hasFeature("lots");
+  const yaLlevaLote = product?.tracksLots ?? false;
+  const lotesFueraDePlan = !lotesEnPlan && !yaLlevaLote;
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -925,11 +933,11 @@ function ProductForm({
           id="tracks-lots"
           className="mt-0.5"
           checked={tracksLots}
-          // Solo se bloquea para APAGARLO con saldo asignado a lotes: eso
-          // dejaría las filas de `stock_lots` huérfanas. Encenderlo siempre se
-          // puede — el saldo previo queda "sin lote" y se asigna después por
-          // inventario físico.
-          disabled={!canManage || lotesBloqueados}
+          // Para APAGARLO se bloquea con saldo asignado a lotes: eso dejaría
+          // las filas de `stock_lots` huérfanas. Encenderlo no depende del
+          // saldo —el previo queda "sin lote" y se asigna después por
+          // inventario físico—, solo del plan.
+          disabled={!canManage || lotesBloqueados || lotesFueraDePlan}
           // El `title` no es decoración: es el ÚNICO lugar donde el usuario se
           // entera de por qué no puede. Un checkbox gris sin explicación se lee
           // como un bug de la pantalla.
@@ -941,6 +949,15 @@ function ProductForm({
           {/* Carlos (2026-09-05): un interruptor con consecuencias en todo el
               sistema no puede ser una frase suelta; el texto dice qué pasa. */}
           <p className="text-muted-foreground text-xs">{t("products.form.tracksLotsHint")}</p>
+          {!lotesEnPlan && (
+            <p className="text-muted-foreground text-xs">
+              {t(
+                yaLlevaLote
+                  ? "products.form.tracksLotsKeptWithoutPlan"
+                  : "products.form.tracksLotsNotInPlan",
+              )}
+            </p>
+          )}
         </div>
       </div>
 

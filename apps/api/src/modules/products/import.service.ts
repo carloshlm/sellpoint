@@ -17,6 +17,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { EntitlementsService } from "../billing/entitlements.service";
 import {
   customHeaderLabels,
   loadTaxGroupIndex,
@@ -147,6 +148,7 @@ export class ImportService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly i18n: I18nService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /**
@@ -470,7 +472,7 @@ export class ImportService {
     const existing = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.product.findMany({
         where: { sku: { in: parsed.map((item) => item.sku) } },
-        select: { id: true, sku: true },
+        select: { id: true, sku: true, tracksLots: true },
       }),
     );
     const idBySku = new Map(existing.map((product) => [product.sku, product.id]));
@@ -478,6 +480,24 @@ export class ImportService {
       ...item,
       existingId: idBySku.get(item.sku) ?? null,
     }));
+
+    // F10-MANFIX-06 — encender el control por lote es de Plus, también por
+    // planilla: la importación escribe con `tx.product` DIRECTO y no pasa por
+    // el candado de `ProductsService`. Solo se marca la fila que ENCIENDE (un
+    // producto nuevo con «sí», o uno existente que no lo llevaba): la
+    // plantilla de un negocio que bajó de Plus trae «sí» en los productos que
+    // ya lo llevan, y volver a subirla no enciende nada. El plan se consulta
+    // solo si alguna fila enciende.
+    const yaConLote = new Set(
+      existing.filter((product) => product.tracksLots).map((product) => product.id),
+    );
+    const encienden = conId.filter(
+      (item) =>
+        item.tracksLots === true && (item.existingId === null || !yaConLote.has(item.existingId)),
+    );
+    const lotesFueraDelPlan =
+      encienden.length > 0 && !(await this.entitlements.resolve(user.tenantId)).features.lots;
+    const enciendenSinPlan = new Set(lotesFueraDelPlan ? encienden.map((item) => item.row) : []);
 
     // La importación escribe con `tx.product.update` DIRECTO, así que no pasa
     // por la guarda de `ProductsService.update`. Sin esto, una planilla podría
@@ -506,6 +526,15 @@ export class ImportService {
           row: item.row,
           field: "controla_lotes",
           message: "products.lots_in_stock",
+          itemCode: item.sku,
+        });
+        continue;
+      }
+      if (enciendenSinPlan.has(item.row)) {
+        errors.push({
+          row: item.row,
+          field: "controla_lotes",
+          message: "products.lots_not_in_plan",
           itemCode: item.sku,
         });
         continue;

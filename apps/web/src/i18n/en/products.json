@@ -51,6 +51,8 @@
     "stockMinHint": "When stock drops below this amount, the product shows as «below minimum» so you can restock. Leave 0 to skip the warning.",
     "tracksLots": "This product is tracked by lot and expiry date",
     "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",
+    "tracksLotsNotInPlan": "Lot and expiry tracking comes with a higher plan.",
+    "tracksLotsKeptWithoutPlan": "This product keeps its lot tracking. If you turn it off, turning it back on comes with a higher plan.",
     "location": "Location in the store",
     "locationHint": "Where it usually sits: aisle, shelf or rack. Helps you find it and sorts the stock count sheet by walking route instead of by name. It updates itself with every entry and stock count. It does not track stock per location.",
     "tracksLotsHint": "Turn it on if the product carries a lot number and an expiry date (medicines, food). Entries will ask for lot and expiry, and exits will take what expires first. If it does not apply, leave it off.",

@@ -23,6 +23,7 @@
   "is_component": "No se puede eliminar: este producto es componente de otro.",
   "last_presentation": "Es la única presentación del producto: sin ella no habría forma de venderlo. Agrega otra antes de eliminar esta.",
   "lots_in_stock": "No se puede quitar el control por lote: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
+  "lots_not_in_plan": "Tu plan no incluye el control por lote y caducidad. Deja esta columna vacía o en «NO», o mejora tu plan.",
   "not_found": "El producto no existe.",
   "presentation_in_use": "Esta presentación ya tiene movimientos registrados: no se puede borrar. Desactívala para que deje de ofrecerse sin perder el historial.",
   "presentation_name_taken": "Ya existe una presentación con ese nombre en este producto.",

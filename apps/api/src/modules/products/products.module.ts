@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { BillingModule } from "../billing/billing.module";
 import { CostModule } from "../cost/cost.module";
 import { BarcodeCatalogService } from "./barcode-catalog.service";
 import { BarcodeContributionService } from "./barcode-contribution.service";
@@ -12,8 +13,12 @@ import { QuickAddService } from "./quick-add.service";
 
 // F2-PROD / F2-PRESENT / F2-BOM viven en el MISMO módulo: presentaciones y
 // composición no existen sin un producto y sus rutas cuelgan de él.
+//
+// `BillingModule` desde F10-MANFIX-06: encender el control por lote es de
+// Plus, y ese candado depende del CUERPO (la casilla), no de la ruta, así que
+// lo revisan el alta, la edición y la importación con `EntitlementsService`.
 @Module({
-  imports: [AuditModule, CostModule],
+  imports: [AuditModule, BillingModule, CostModule],
   controllers: [ProductsController],
   providers: [
     ProductsService,

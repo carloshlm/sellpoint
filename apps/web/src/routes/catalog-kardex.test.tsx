@@ -11,6 +11,7 @@ import { I18nextProvider } from "react-i18next";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import type { KardexRow, StockSummary } from "../lib/inventory/kardex-api";
@@ -38,7 +39,18 @@ vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 
 const mocked = vi.mocked(kardexApi);
 
-const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
+/** El trial Plus de siempre; `features` apaga lo que el plan simulado no incluye. */
+const demoUser = (
+  permissions: string[],
+  features: Partial<typeof SUBSCRIPTION_PLUS.features> = {},
+): AuthUser =>
+  buildAuthUser({
+    permissions,
+    subscription: {
+      ...SUBSCRIPTION_PLUS,
+      features: { ...SUBSCRIPTION_PLUS.features, ...features },
+    },
+  });
 
 const movimiento = (overrides: Partial<KardexRow> = {}): KardexRow => ({
   id: "m1",
@@ -80,8 +92,12 @@ const resumen = (overrides: Partial<StockSummary> = {}): StockSummary => ({
  * más honesto que stubbear `Link`, porque así el `href` que se verifica es el
  * que el router genera de verdad.
  */
-function renderTab(node: React.ReactNode, permissions: string[] = ["inventory:read"]) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+function renderTab(
+  node: React.ReactNode,
+  permissions: string[] = ["inventory:read"],
+  features: Partial<typeof SUBSCRIPTION_PLUS.features> = {},
+) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, features));
   const rootRoute = createRootRoute({ component: () => <>{node}</> });
   const router = createRouter({
     routeTree: rootRoute,
@@ -630,6 +646,49 @@ describe("Editar un lote (F3-LOTS-04)", () => {
 
     await screen.findByText("st10");
     expect(screen.queryByRole("button", { name: /editar lote/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * F10-MANFIX-06 — corregir un lote es de Plus (`@RequiresFeature("lots")`).
+   * Un negocio que bajó de Plus sigue VIENDO sus lotes, pero el botón no
+   * puede llevarlo a un 402: se ve apagado y el aviso dice por qué, como el
+   * interruptor de compuestos (F9-PLANLIST-04).
+   */
+  it("sin `lots` en el plan, «Editar lote» se ve apagado y el aviso dice por qué", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    const user = renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"], {
+      lots: false,
+    });
+    await screen.findByText("st10");
+
+    const boton = screen.getByRole("button", { name: /editar lote/i });
+    expect(boton).toBeDisabled();
+    expect(
+      screen.getByText("Corregir el código o la caducidad de un lote es de un plan superior."),
+    ).toBeInTheDocument();
+
+    // Apagado de verdad: el clic no abre el editor, así que no hay 402 posible.
+    await user.click(boton);
+    expect(screen.queryByLabelText(/código de lote/i)).not.toBeInTheDocument();
+    expect(mocked.updateLot).not.toHaveBeenCalled();
+  });
+
+  it("sin `lots` y sin lotes en la tabla, no hay aviso que dar", async () => {
+    renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"], {
+      lots: false,
+    });
+
+    await screen.findByText("Central");
+    expect(screen.queryByText(/de un plan superior/)).not.toBeInTheDocument();
+  });
+
+  it("con `lots` en el plan, «Editar lote» se puede usar y no hay aviso", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+    await screen.findByText("st10");
+
+    expect(screen.getByRole("button", { name: /editar lote/i })).toBeEnabled();
+    expect(screen.queryByText(/de un plan superior/)).not.toBeInTheDocument();
   });
 
   it("cambiar solo el código guarda sin preguntar", async () => {

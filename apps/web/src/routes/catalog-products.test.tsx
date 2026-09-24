@@ -1249,7 +1249,10 @@ describe("el plan decide qué se ofrece del producto", () => {
     mockedCatalogs.listFields.mockResolvedValue([]);
   });
 
-  async function abrirComo(features: Partial<typeof SUBSCRIPTION_PLUS.features>) {
+  async function abrirComo(
+    features: Partial<typeof SUBSCRIPTION_PLUS.features>,
+    ruta = "/catalog/products?open=prod-1",
+  ) {
     useAuthStore.getState().setAuth(
       "jwt",
       buildAuthUser({
@@ -1262,7 +1265,7 @@ describe("el plan decide qué se ofrece del producto", () => {
     );
     const router = createRouter({
       routeTree,
-      history: createMemoryHistory({ initialEntries: ["/catalog/products?open=prod-1"] }),
+      history: createMemoryHistory({ initialEntries: [ruta] }),
     });
     await router.load();
     render(
@@ -1295,6 +1298,74 @@ describe("el plan decide qué se ofrece del producto", () => {
       }),
     ).toBeEnabled();
     expect(screen.queryByText(/de un plan superior/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * F10-MANFIX-06 — la casilla de lotes, como el interruptor de compuestos:
+   * sin el flag se ve apagada y dice por qué. Pero lo que ya lleva lote (de
+   * cuando el negocio era Plus) lo conserva, y apagarlo se permite.
+   */
+  const CASILLA_LOTES = "Este producto se controla por lote y caducidad";
+
+  it("sin `lots`: la casilla de lotes está apagada, deshabilitada y dice que es de otro plan", async () => {
+    await abrirComo({ lots: false });
+
+    const casilla = await screen.findByRole("checkbox", { name: CASILLA_LOTES });
+    expect(casilla).not.toBeChecked();
+    expect(casilla).toBeDisabled();
+    expect(
+      screen.getByText("El control por lote y caducidad es de un plan superior."),
+    ).toBeInTheDocument();
+  });
+
+  it("sin `lots`: en el alta la casilla nace apagada y deshabilitada, con su aviso", async () => {
+    await abrirComo({ lots: false }, "/catalog/products");
+    await userEvent.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+
+    const casilla = await screen.findByRole("checkbox", { name: CASILLA_LOTES });
+    expect(casilla).not.toBeChecked();
+    expect(casilla).toBeDisabled();
+    expect(
+      screen.getByText("El control por lote y caducidad es de un plan superior."),
+    ).toBeInTheDocument();
+  });
+
+  it("sin `lots`: un producto que YA lleva lote la muestra encendida y deja apagarla", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: true,
+      hasLotStock: false,
+    });
+    mockedProducts.updateProduct.mockResolvedValue(PRODUCT);
+    await abrirComo({ lots: false });
+    const user = userEvent.setup();
+
+    const casilla = await screen.findByRole("checkbox", { name: CASILLA_LOTES });
+    expect(casilla).toBeChecked();
+    expect(casilla).toBeEnabled();
+    // El aviso dice lo que cuesta apagarla: volver a encenderla ya es de otro plan.
+    expect(
+      screen.getByText(
+        "Este producto conserva su control por lote. Si lo apagas, volver a encenderlo es de un plan superior.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(casilla);
+    await user.click(screen.getByRole("button", { name: /guardar/i }));
+
+    await waitFor(() => {
+      expect(mockedProducts.updateProduct).toHaveBeenCalledWith(
+        "prod-1",
+        expect.objectContaining({ tracksLots: false }),
+      );
+    });
+  });
+
+  it("con `lots`: la casilla de lotes se puede encender y no hay aviso de plan", async () => {
+    await abrirComo({ lots: true });
+
+    expect(await screen.findByRole("checkbox", { name: CASILLA_LOTES })).toBeEnabled();
+    expect(screen.queryByText(/control por lote.*plan superior/)).not.toBeInTheDocument();
   });
 
   it("sin `movements`: las pestañas de stock y kardex no existen aunque tenga inventory:read", async () => {

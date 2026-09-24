@@ -294,6 +294,7 @@
     "registerEntry": "Registrar entrada",
     "registerExit": "Registrar salida",
     "editLot": "Editar lote",
+    "editLotNotInPlan": "Corregir el código o la caducidad de un lote es de un plan superior.",
     "lotCode": "Código de lote",
     "expiresAt": "Caducidad",
     "save": "Guardar",

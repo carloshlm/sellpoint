@@ -51,6 +51,8 @@
     "stockMinHint": "Cuando las existencias bajen de esta cantidad, el producto aparece marcado como «bajo mínimo» para que lo repongas. Deja 0 si no quieres el aviso.",
     "tracksLots": "Este producto se controla por lote y caducidad",
     "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
+    "tracksLotsNotInPlan": "El control por lote y caducidad es de un plan superior.",
+    "tracksLotsKeptWithoutPlan": "Este producto conserva su control por lote. Si lo apagas, volver a encenderlo es de un plan superior.",
     "location": "Ubicación en la sucursal",
     "locationHint": "Dónde suele estar: pasillo, estante o rack. Sirve para encontrarlo y para que la hoja del inventario físico se ordene por recorrido en vez de por nombre. Se actualiza sola con cada entrada e inventario. No lleva existencias por ubicación.",
     "tracksLotsHint": "Enciéndelo si el producto trae número de lote y fecha de caducidad (medicamentos, alimentos). Las entradas te pedirán lote y caducidad, y las salidas irán primero por lo que caduca antes. Si no aplica, déjalo apagado.",
