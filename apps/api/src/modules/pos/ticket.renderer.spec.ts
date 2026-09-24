@@ -33,6 +33,7 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
     kind: "sale",
     folio: "VTA-000042",
     createdAt: new Date("2026-08-21T19:42:00Z"),
+    timeZone: "America/Mexico_City",
     sellerName: "Ana Ruiz",
     warehouseName: "Central",
     rows: [fila],
@@ -280,6 +281,39 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       expect(json).toContain("2 pieces");
     });
   });
+
+  /**
+   * F10-MANFIX-07 — la hora del papel es la del NEGOCIO. El renderer
+   * formateaba sin `timeZone`, con la zona del proceso: en producción el API
+   * corre en UTC y una venta de las 10:40 en la Ciudad de México salía a las
+   * 4:40 p.m. Mismo molde que el turno de Recepción y los PDF de inventario.
+   */
+  describe("la fecha y la hora (F10-MANFIX-07)", () => {
+    const alas1640Utc: TicketInput = { ...base, createdAt: new Date("2026-09-24T16:40:00Z") };
+
+    /** La línea de la fecha: la única del papel con forma de dd/mm/aa. */
+    const lineaDeFecha = (input: TicketInput): string =>
+      (buildTicketDefinition(input, t).content as { text?: unknown }[])
+        .map((nodo) => nodo.text)
+        .find(
+          (texto): texto is string =>
+            typeof texto === "string" && /\d{1,2}\/\d{1,2}\/\d{2}/.test(texto),
+        ) ?? "";
+
+    it("salen en la zona del negocio, no en la del servidor", () => {
+      const cdmx = lineaDeFecha({ ...alas1640Utc, timeZone: "America/Mexico_City" });
+      expect(cdmx).toContain("24/09/26");
+      expect(cdmx).toMatch(/\b10:40\b/);
+      // Otra zona, otra hora: la zona sale del negocio y no de la máquina que
+      // imprime. Terranova va a media hora del resto, así que ni un servidor
+      // en UTC ni una computadora de desarrollo caen en ella por accidente.
+      expect(lineaDeFecha({ ...alas1640Utc, timeZone: "America/St_Johns" })).toMatch(/\b2:10\b/);
+    });
+
+    it("una zona inválida no deja sin ticket: cae a UTC", () => {
+      expect(lineaDeFecha({ ...alas1640Utc, timeZone: "Zona/Inexistente" })).toMatch(/\b4:40\b/);
+    });
+  });
   /**
    * F4-TICKETCFG-05 — el papel obedece la configuración del negocio: cada
    * línea del encabezado sale solo con su toggle, el pie es el mensaje propio
@@ -403,6 +437,7 @@ describe("el código de barras del folio", () => {
     kind: "sale",
     folio: "VTA-000042",
     createdAt: new Date("2026-08-21T19:42:00Z"),
+    timeZone: "America/Mexico_City",
     sellerName: "Ana",
     warehouseName: "Central",
     rows: [fila],
@@ -502,6 +537,7 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
     kind: "sale",
     folio: "VTA-000001",
     createdAt: new Date("2026-09-06T18:00:00Z"),
+    timeZone: "America/Mexico_City",
     sellerName: "Ana",
     warehouseName: "Central",
     rows: [],
@@ -635,6 +671,7 @@ describe("la marca de impuesto por línea (F4-TAXMARK-03)", () => {
     kind: "sale",
     folio: "VTA-000008",
     createdAt: new Date("2026-09-10T20:40:00Z"),
+    timeZone: "America/Mexico_City",
     sellerName: "Dos Test",
     warehouseName: "Main Warehouse",
     rows: [linea("Service Three", "GST"), linea("Service Four", "HST"), linea("Envío", null)],
@@ -698,6 +735,7 @@ describe("la etiqueta del registro fiscal por país (F4-TAXMARK-04)", () => {
     kind: "sale",
     folio: "VTA-000001",
     createdAt: new Date("2026-09-10T18:00:00Z"),
+    timeZone: "America/Mexico_City",
     sellerName: "Ana",
     warehouseName: "Central",
     rows: [],

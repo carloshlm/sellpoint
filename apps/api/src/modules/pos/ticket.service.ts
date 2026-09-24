@@ -106,6 +106,8 @@ export class TicketService {
           country: true,
           phone: true,
           currency: true,
+          // F10-MANFIX-07: la hora del papel se lee en la zona del negocio.
+          timezone: true,
         },
       });
 
@@ -146,6 +148,7 @@ export class TicketService {
         folio: venta.folio,
         barcode: venta.barcode,
         createdAt: venta.createdAt,
+        timeZone: tenant.timezone,
         sellerName: shortName(venta.seller),
         warehouseName: venta.warehouse.name,
         rows,
@@ -224,6 +227,8 @@ export class TicketService {
           country: true,
           phone: true,
           currency: true,
+          // F10-MANFIX-07: la hora del papel se lee en la zona del negocio.
+          timezone: true,
         },
       });
 
@@ -249,6 +254,7 @@ export class TicketService {
         kind: "quote" as const,
         folio: cotizacion.folio,
         createdAt: cotizacion.createdAt,
+        timeZone: tenant.timezone,
         sellerName: shortName(cotizacion.author),
         warehouseName: cotizacion.warehouse.name,
         rows,

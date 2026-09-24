@@ -71,6 +71,11 @@ export interface TicketInput {
   kind: "sale" | "quote";
   folio: string;
   createdAt: Date;
+  /**
+   * F10-MANFIX-07 — la zona del NEGOCIO (`tenants.timezone`): el papel se lee
+   * ahí, no en la del servidor, que en producción corre en UTC.
+   */
+  timeZone: string;
   sellerName: string;
   warehouseName: string;
   rows: TicketRow[];
@@ -229,8 +234,8 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
       {
         // El almacén va en la línea de la fecha solo si el negocio lo quiere.
         text: input.settings.showWarehouse
-          ? `${fechaCorta(input.createdAt, input.locale)}  ·  ${input.warehouseName}`
-          : fechaCorta(input.createdAt, input.locale),
+          ? `${fechaCorta(input.createdAt, input.locale, input.timeZone)}  ·  ${input.warehouseName}`
+          : fechaCorta(input.createdAt, input.locale, input.timeZone),
         alignment: "center",
         fontSize: 7,
       },
@@ -418,10 +423,19 @@ function cantidadLegible(row: TicketRow, locale: Locale): string {
   return formatSoldQuantity(row.quantity, row.baseUnit, row.presentation ?? null, locale);
 }
 
-/** Fecha corta en la zona del usuario: un ticket se lee el mismo día. */
-function fechaCorta(value: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-MX", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(value);
+/**
+ * Fecha corta en la zona del NEGOCIO: un ticket se lee el mismo día, ahí.
+ *
+ * Una zona mal cargada no puede dejar la caja sin ticket: cae a UTC, como los
+ * PDF de inventario, y no a la zona del proceso, que cambia de máquina a
+ * máquina.
+ */
+function fechaCorta(value: Date, locale: Locale, timeZone: string): string {
+  const bcp47 = locale === "en" ? "en-US" : "es-MX";
+  const opciones: Intl.DateTimeFormatOptions = { dateStyle: "short", timeStyle: "short" };
+  try {
+    return new Intl.DateTimeFormat(bcp47, { ...opciones, timeZone }).format(value);
+  } catch {
+    return new Intl.DateTimeFormat(bcp47, { ...opciones, timeZone: "UTC" }).format(value);
+  }
 }

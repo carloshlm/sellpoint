@@ -765,5 +765,63 @@ describe("Cotización (F4-QUOTE)", () => {
         .set("Authorization", bearer(e.token))
         .expect(404);
     });
+
+    /**
+     * F10-MANFIX-07 — la hora del papel es la del NEGOCIO, en la venta y en la
+     * cotización. El renderer la prueba con fechas fijas; esto prueba que el
+     * servicio le pasa `tenants.timezone` y no deja mandar a la zona del
+     * proceso (en producción, UTC). Terranova va a media hora del resto: ni el
+     * CI ni una computadora de desarrollo caen en ella por accidente.
+     */
+    it("la venta y la cotización imprimen la hora en la zona del negocio (F10-MANFIX-07)", async () => {
+      const e = await escenario();
+      const zona = "America/St_Johns";
+      await prisma.tenant.update({ where: { id: e.tenantId }, data: { timezone: zona } });
+      const horaDelNegocio = (instante: Date) =>
+        new Intl.DateTimeFormat("es-MX", {
+          dateStyle: "short",
+          timeStyle: "short",
+          timeZone: zona,
+        }).format(instante);
+
+      await abrirTurno(e.token).expect(201);
+      const venta = await request(app.getHttpServer())
+        .post("/pos/sales")
+        .set("Authorization", bearer(e.token))
+        .send({ paymentMethod: "cash", lines: [{ productId: e.productoId, quantity: 1 }] })
+        .expect(201);
+      const cotizacion = await cotizar(e.token, {
+        lines: [{ productId: e.productoId, quantity: 1 }],
+      }).expect(201);
+      const ventaId = (venta.body as { id: string }).id;
+      const cotizacionId = (cotizacion.body as { id: string }).id;
+      const creadas = await prisma.withTenantContext(e.tenantId, async (tx) => ({
+        venta: await tx.sale.findUniqueOrThrow({
+          where: { id: ventaId },
+          select: { createdAt: true },
+        }),
+        cotizacion: await tx.quote.findUniqueOrThrow({
+          where: { id: cotizacionId },
+          select: { createdAt: true },
+        }),
+      }));
+
+      // En 80 mm la fecha y la sucursal caben en un renglón: el texto no se parte.
+      const papel = async (ruta: string) => {
+        const res = await request(app.getHttpServer())
+          .get(ruta)
+          .query({ width: "80mm" })
+          .set("Authorization", bearer(e.token))
+          .expect(200);
+        return textoDelPdf(res.body as Buffer);
+      };
+
+      expect(await papel(`/pos/sales/${ventaId}/ticket`)).toContain(
+        horaDelNegocio(creadas.venta.createdAt),
+      );
+      expect(await papel(`/pos/quotes/${cotizacionId}/ticket`)).toContain(
+        horaDelNegocio(creadas.cotizacion.createdAt),
+      );
+    });
   });
 });
