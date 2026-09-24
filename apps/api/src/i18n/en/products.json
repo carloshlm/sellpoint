@@ -19,6 +19,7 @@
   "invalid_attributes": "Check the highlighted fields.",
   "invalid_barcode": "The barcode must be 6 to 14 digits, with no letters or symbols.",
   "invalid_body": "The submitted data isn't valid.",
+  "invalid_list_query": "The list filters aren't valid.",
   "invalid_query": "The barcode we received isn't valid.",
   "is_component": "Can't delete it: this product is a component of another one.",
   "last_presentation": "This is the product's only presentation: without it there would be no way to sell it. Add another one before deleting this.",

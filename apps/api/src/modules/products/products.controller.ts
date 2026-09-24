@@ -39,6 +39,7 @@ import {
 import {
   type CreateProductDto,
   createProductSchema,
+  type ListProductsQuery,
   listProductsQuerySchema,
   type UpdateProductDto,
   updateProductSchema,
@@ -145,13 +146,23 @@ export class ProductsController {
     return this.quickAddService.run(user, dto, metaFrom(request));
   }
 
+  /**
+   * F10-MANFIX-21 — la consulta pasa por el pipe como en todo el API. Antes
+   * era `schema.parse()` a mano y un `?page=abc` salía como `ZodError` crudo:
+   * el filtro lo contestaba 500 y lo mandaba a Sentry, aunque el error es de
+   * quien llama. La consulta cruda se sigue leyendo aparte, solo para los
+   * filtros por campo personalizado (`?attr.laboratorio=<id>`), que no se
+   * fijan en el esquema porque el tenant inventa los campos (LEY de
+   * genericidad): `z.object` los deja pasar sin quejarse.
+   */
   @Get()
   @RequirePermissions("products:read")
-  list(@Query() rawQuery: Record<string, string>, @CurrentUser() user: AuthUser) {
-    const query = listProductsQuerySchema.parse(rawQuery);
-    // Filtros por campo personalizado: `?attr.laboratorio=<id>`. Se leen de la
-    // query cruda para no fijar en el código qué campos existen — el tenant
-    // los inventa (LEY de genericidad).
+  list(
+    @Query(new ZodValidationPipe(listProductsQuerySchema, "products.invalid_list_query"))
+    query: ListProductsQuery,
+    @Query() rawQuery: Record<string, string>,
+    @CurrentUser() user: AuthUser,
+  ) {
     const attributeFilters = Object.fromEntries(
       Object.entries(rawQuery)
         .filter(([key]) => key.startsWith("attr."))

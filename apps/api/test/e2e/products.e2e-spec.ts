@@ -401,6 +401,46 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(page.body).toMatchObject({ total: 3, page: 1, pageSize: 2 });
       expect((page.body as { items: unknown[] }).items).toHaveLength(2);
     });
+
+    /**
+     * F10-MANFIX-21 — la lista leía la consulta a mano (`schema.parse()` fuera
+     * del pipe): una página que no es número o un tamaño fuera de rango
+     * salían como un `ZodError` crudo, que el filtro contestaba 500 y mandaba
+     * a Sentry. Es un error de quien llama: 400 con su clave y el campo.
+     */
+    it.each([
+      ["?page=abc", "page"],
+      ["?pageSize=500", "pageSize"],
+      ["?composite=quizas", "composite"],
+    ])(
+      "una consulta inválida (%s) es 400 con su clave y el campo, no 500",
+      async (query, field) => {
+        const { token } = await registerAndLogin();
+
+        const res = await request(app.getHttpServer())
+          .get(`/products${query}`)
+          .set("Authorization", bearer(token))
+          .expect(400);
+
+        const body = res.body as { code: string; errors: { key: string }[] };
+        expect(body.code).toBe("products.invalid_list_query");
+        expect(body.errors).toEqual([expect.objectContaining({ key: field })]);
+      },
+    );
+
+    it("los filtros por campo personalizado siguen llegando con una consulta válida", async () => {
+      const { token } = await registerAndLogin();
+      await createProduct(token, { sku: "P-ATTR", name: "Con atributo" }).expect(201);
+
+      // `attr.*` no es parte del esquema: el pipe no lo tira, y sin un campo con
+      // esa clave el filtro no deja fuera a nadie.
+      const page = await request(app.getHttpServer())
+        .get("/products?attr.marca=x&page=1&pageSize=5")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect(page.body).toMatchObject({ page: 1, pageSize: 5 });
+    });
   });
 
   describe("F2-PRESENT — presentaciones", () => {
