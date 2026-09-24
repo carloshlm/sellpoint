@@ -84,7 +84,7 @@ export function PaymentHistoryTable({
                 className={`border-b ${TABLE_ROW_HOVER} ${pago.status === "voided" ? "" : "bg-success-soft"}`}
               >
                 <td className={celda(pago)}>{fecha(pago.paidAt)}</td>
-                <td className={celda(pago)}>{pago.planCode}</td>
+                <td className={celda(pago)}>{pago.planName ?? pago.planCode}</td>
                 <td className={celda(pago)}>{t(`common.billing.me.method.${pago.method}`)}</td>
                 <td className={`${celda(pago)} whitespace-nowrap`}>
                   {fecha(pago.periodStart)} — {vence(pago.periodEnd)}
@@ -178,7 +178,7 @@ function PaymentDetail({
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
         {campo(t("common.billing.payment.paidAt"), fecha(pago.paidAt))}
-        {campo(t("common.billing.payment.plan"), pago.planCode)}
+        {campo(t("common.billing.payment.plan"), pago.planName ?? pago.planCode)}
         {campo(
           t("common.billing.payment.cycle"),
           t(`common.billing.payment.cycles.${pago.billingCycle}`, {

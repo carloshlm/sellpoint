@@ -268,13 +268,22 @@ export class AdminBillingService {
       if (!subscription) {
         return null;
       }
-      const payments = await tx.subscriptionPayment.findMany({
+      const filasPagos = await tx.subscriptionPayment.findMany({
         where: { subscriptionId: subscription.id },
         // Por fecha de pago y, a igual fecha, por captura más reciente (Carlos,
         // 2026-09-02): dos pagos del mismo día se leen del último al primero.
         orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
         take: 50,
+        include: { plan: { select: { name: true } } },
       });
+      // F10-MANFIX-05c: `planCode` queda para lo que ya lo usa (filtros,
+      // auditoría); `planName` es SOLO para mostrar. Sale de `planId` —un FK
+      // real y estable del catálogo de planes, nunca borrado— así que es un
+      // JOIN vigente y no un snapshot: si Carlos renombra un plan, los pagos
+      // viejos muestran el nombre de HOY, que es lo correcto para un
+      // catálogo de sistema (a diferencia de un grupo de impuesto, que el
+      // negocio sí puede borrar).
+      const payments = filasPagos.map(({ plan, ...pago }) => ({ ...pago, planName: plan.name }));
       const activeDiscount = await tx.tenantDiscount.findFirst({
         where: { tenantId, isActive: true },
       });

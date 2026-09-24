@@ -119,6 +119,59 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
   });
 
   /**
+   * F10-MANFIX-05c — el pago traía `planCode` en minúscula («plus») tal cual
+   * lo guarda la base; la tabla y el detalle muestran el NOMBRE del plan
+   * (`planName`, que ahora manda el API), no el código.
+   */
+  it("el pago muestra el NOMBRE del plan, no el código en minúscula", async () => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-06T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [
+        {
+          id: "pay-1",
+          paidAt: "2026-08-05T18:00:00.000Z",
+          amount: "499.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          planName: "Plus",
+          status: "recorded",
+          periodStart: "2026-08-05T18:00:00.000Z",
+          periodEnd: "2026-09-06T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
+          notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
+        },
+      ],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+      modules: [],
+    });
+
+    await renderBilling(["tenants:manage"]);
+    const user = userEvent.setup();
+
+    const tabla = await screen.findByRole("table");
+    expect(within(tabla).getByText("Plus")).toBeInTheDocument();
+    expect(within(tabla).queryByText("plus")).not.toBeInTheDocument();
+
+    await user.click(within(tabla).getByRole("button", { name: /^Ver/ }));
+    const detalle = await screen.findByTestId("payment-detail");
+    expect(within(detalle).getByText("Plus")).toBeInTheDocument();
+  });
+
+  /**
    * F9-PLANMOD-06 — la tarjeta «Módulos» dice de dónde viene cada uno: los
    * que el plan contratado incluye y los pactados a la medida. Sin módulos
    * no se pinta.

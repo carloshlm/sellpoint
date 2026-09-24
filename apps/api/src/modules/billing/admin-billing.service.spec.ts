@@ -27,7 +27,7 @@ describe("AdminBillingService", () => {
     withTenantContext: jest.Mock;
     plan: { findMany: jest.Mock; update: jest.Mock; findUniqueOrThrow: jest.Mock };
     planPrice: { upsert: jest.Mock };
-    tenant: { findMany: jest.Mock };
+    tenant: { findMany: jest.Mock; findUniqueOrThrow: jest.Mock };
   };
   let service: AdminBillingService;
 
@@ -56,7 +56,10 @@ describe("AdminBillingService", () => {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ code: "free", name: "Free" }),
       },
       planPrice: { upsert: jest.fn() },
-      tenant: { findMany: jest.fn().mockResolvedValue([]) },
+      tenant: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: "America/Mexico_City" }),
+      },
     };
     // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
     service = new AdminBillingService(prisma as any);
@@ -171,6 +174,31 @@ describe("AdminBillingService", () => {
       expect(tx.tenantModule.findMany).toHaveBeenCalledTimes(1);
       expect(lista.tenants.find((t) => t.tenantId === TENANT_A)?.modules).toEqual(["reception"]);
       expect(lista.tenants.find((t) => t.tenantId === TENANT_B)?.modules).toEqual([]);
+    });
+  });
+
+  /**
+   * F10-MANFIX-05c — «Mi plan» y el backoffice comparten esta MISMA fila de
+   * pago (`getMyBilling` reusa `getTenantDetail`): el código («plus») sigue
+   * viajando para lo que ya lo usa, pero se agrega el NOMBRE para mostrar.
+   */
+  describe("getTenantDetail — el nombre del plan por pago (F10-MANFIX-05c)", () => {
+    it("cada pago trae planName además de planCode, y no filtra la relación cruda", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue({
+        id: "sub-1",
+        tenantId: TENANT_A,
+        plan: { code: "plus", name: "Plus" },
+      });
+      tx.subscriptionPayment.findMany.mockResolvedValue([
+        { id: "pay-1", planCode: "plus", amount: "499.00", plan: { name: "Plus" } },
+      ]);
+
+      const detalle = await service.getTenantDetail(TENANT_A);
+
+      expect(detalle?.payments).toEqual([
+        expect.objectContaining({ id: "pay-1", planCode: "plus", planName: "Plus" }),
+      ]);
+      expect(detalle?.payments[0]).not.toHaveProperty("plan");
     });
   });
 

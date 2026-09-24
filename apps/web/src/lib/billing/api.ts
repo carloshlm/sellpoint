@@ -45,6 +45,13 @@ export interface MyBilling {
     method: string;
     billingCycle: string;
     planCode: string;
+    /**
+     * F10-MANFIX-05c: el NOMBRE del plan con el que se cobró («Plus»), para
+     * mostrar — sale de un JOIN vigente contra el catálogo (`planId`, FK
+     * estable). Opcional por si el API todavía no lo manda (despliegue a
+     * medias): la pantalla cae al código.
+     */
+    planName?: string;
     status: string;
     periodStart: string;
     periodEnd: string;
