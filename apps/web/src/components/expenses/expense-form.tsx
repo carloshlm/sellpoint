@@ -1,14 +1,16 @@
 import { PAYMENT_METHODS, type PaymentMethod, parseMoneyInput } from "@sellpoint/shared";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateField } from "@/components/form/date-field";
 import { MoneyField } from "@/components/form/money-field";
 import { SelectField } from "@/components/form/select-field";
 import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
+import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { CreateExpenseInput, Expense, UpdateExpenseInput } from "@/lib/expenses/api";
@@ -34,12 +36,21 @@ type Pago = PaymentMethod | "";
  * `sellpoint-forms`: tarjeta, rejilla de dos columnas, hints, error del API
  * arriba con el foco).
  *
- * Al crear: fecha, categoría, a quién (proveedor del catálogo O beneficiario
- * libre, excluyentes), monto y descuento, impuesto, cómo se pagó («Pendiente»
- * esconde el método y muestra el vencimiento; «Efectivo» muestra la caja de
- * origen con el turno propio preseleccionado), cuenta, referencia,
+ * Al crear: sucursal, fecha, categoría, a quién (proveedor del catálogo O
+ * beneficiario libre, excluyentes), monto y descuento, impuesto, cómo se pagó
+ * («Pendiente» esconde el método y muestra el vencimiento; «Efectivo» muestra
+ * la caja de origen con el turno propio preseleccionado), cuenta, referencia,
  * descripción y notas. Al editar, el pago no se toca aquí (se paga desde la
  * ficha) y, si ya está pagado, el dinero queda deshabilitado.
+ *
+ * F10-MANFIX-04 — la Sucursal solo se ofrece al CREAR: el API no la deja
+ * cambiar después (`UpdateExpenseInput` no la trae) y editar un desplegable
+ * que no guarda nada sería mentir. Viene con la asignada del usuario (o la
+ * única del negocio, vía `WarehouseSelect`) y se pide solo si nadie la trae
+ * puesta. El gasto en EFECTIVO de un turno abierto es la excepción: ahí la
+ * sucursal la fija el turno, no el selector — el mismo `warehouseId` que
+ * `assertSesionElegible` exige en el API para no rebotar con
+ * `expenses.session_not_open`.
  */
 export function ExpenseForm({
   expense,
@@ -77,6 +88,9 @@ export function ExpenseForm({
   const [notes, setNotes] = useState(expense?.notes ?? "");
   const [errores, setErrores] = useState<Errores>({});
   const [errorApi, setErrorApi] = useState<string | null>(null);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [warehouseError, setWarehouseError] = useState<string | null>(null);
+  const warehouseFieldId = useId();
 
   const pagado = expense?.paymentStatus === "paid";
   const editando = expense !== undefined;
@@ -95,6 +109,21 @@ export function ExpenseForm({
     setCashboxSessionId(propio.id);
     setCajaInicializada(true);
   }
+
+  /**
+   * F10-MANFIX-04 — la sucursal del TURNO manda sobre la elegida a mano. El
+   * turno propio y los ajenos comparten forma (`warehouse.id`), así que se
+   * busca en las dos listas por el id de la sesión ya elegida.
+   */
+  const sesionElegidaWarehouseId = (sessionId: string): string | null => {
+    if (sessionId === propio?.id) {
+      return propio?.warehouse.id ?? null;
+    }
+    return abiertos.data?.rows.find((s) => s.id === sessionId)?.warehouse.id ?? null;
+  };
+  const sucursalDelTurno =
+    mostrarCaja && cashboxSessionId !== "" ? sesionElegidaWarehouseId(cashboxSessionId) : null;
+  const warehouseIdEfectivo = sucursalDelTurno ?? warehouseId;
 
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -128,8 +157,18 @@ export function ExpenseForm({
     if (moneyInputError(discount) !== null || descuento === null) {
       nuevos.discount = t("expenses.form.errors.amount");
     }
+    // Sin sucursal asignada Y sin una elegida a mano, no hay a dónde
+    // registrar el gasto — el mismo 422 que antes no tenía dónde aterrizar.
+    const faltaSucursal = !editando && warehouseIdEfectivo === null;
+    setWarehouseError(faltaSucursal ? t("expenses.form.warehouseRequired") : null);
     setErrores(nuevos);
-    if (!parsed.success || Object.keys(nuevos).length > 0 || monto === null || descuento === null) {
+    if (
+      !parsed.success ||
+      Object.keys(nuevos).length > 0 ||
+      monto === null ||
+      descuento === null ||
+      faltaSucursal
+    ) {
       return;
     }
     const valores = parsed.data;
@@ -137,6 +176,7 @@ export function ExpenseForm({
 
     if (!editando) {
       const input: CreateExpenseInput = {
+        ...(warehouseIdEfectivo !== null ? { warehouseId: warehouseIdEfectivo } : {}),
         expenseDate: valores.expenseDate,
         categoryId: valores.categoryId,
         description: valores.description,
@@ -210,6 +250,39 @@ export function ExpenseForm({
             ...(categorias.data?.rows ?? []).map((c) => ({ value: c.id, label: c.name })),
           ]}
         />
+        {/*
+          F10-MANFIX-04 — solo al CREAR: el API no deja cambiar la sucursal de
+          un gasto ya existente. `WarehouseSelect` trae puesta la asignada del
+          usuario (o la única del negocio); pagado del cajón, la fija el turno
+          y el selector se apaga para no ofrecer un cambio que el API rebotaría.
+        */}
+        {!editando && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={warehouseFieldId}>{t("expenses.form.warehouse")}</Label>
+            <WarehouseSelect
+              id={warehouseFieldId}
+              scoped
+              value={warehouseIdEfectivo}
+              disabled={sucursalDelTurno !== null}
+              emptyMessage={t("expenses.form.warehouseEmpty")}
+              onChange={(id) => {
+                setWarehouseId(id);
+                setWarehouseError(null);
+              }}
+            />
+            {sucursalDelTurno !== null ? (
+              <p className="text-muted-foreground text-xs">
+                {t("expenses.form.warehouseFromShift")}
+              </p>
+            ) : warehouseError !== null ? (
+              <p role="alert" className="text-destructive text-xs">
+                {warehouseError}
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-xs">{t("expenses.form.warehouseHint")}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* A quién se le pagó: UNA respuesta. Elegir un proveedor deshabilita el

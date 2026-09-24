@@ -389,6 +389,23 @@ describe("Gastos (F9-EXP)", () => {
         .post(`/expenses/${(ligado.body as { id: string }).id}/cancel`, { reason: "tarde" })
         .expect(409);
     });
+
+    /**
+     * F10-MANFIX-04 — antes solo el almacén ASIGNADO podía dar de alta un
+     * gasto: quien no lo tenía se topaba con `warehouse_required` sin ninguna
+     * forma de decir "desde acá". El DTO ya aceptaba `warehouseId` explícito
+     * (lo dice el comentario de `almacenAsignado`); lo que faltaba era la
+     * cobertura y el selector del front.
+     */
+    it("sin sucursal asignada, el alta pide warehouseId; con él explícito, se destraba", async () => {
+      const sinAlmacen = await usuarioConRol(app, negocio, "Manager", "exp-sinalmacen");
+      await api(sinAlmacen).post("/expenses", gasto()).expect(422);
+
+      const creado = await api(sinAlmacen)
+        .post("/expenses", gasto({ warehouseId: almacenId }))
+        .expect(201);
+      expect(creado.body).toMatchObject({ warehouseId: almacenId });
+    });
   });
 
   describe("categorías (F9-EXP-03)", () => {

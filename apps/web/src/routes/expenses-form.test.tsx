@@ -12,17 +12,22 @@ import { createQueryClient } from "@/lib/query-client";
 import * as reportsApi from "@/lib/reports/api";
 import * as suppliersApi from "@/lib/suppliers/api";
 import * as taxApi from "@/lib/tenant/tax-api";
+import * as warehousesApi from "@/lib/warehouses/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 
 /**
  * F9-EXP-14 — el formulario de gasto (skill `sellpoint-forms`): en tarjeta;
  * «Pendiente» esconde el método y muestra el vencimiento; «Efectivo» muestra
  * la caja con el turno propio preseleccionado y «No sale de una caja»; un
  * beneficiario deshabilita el picker de proveedor; y lo que viaja al API.
+ *
+ * F10-MANFIX-04: la Sucursal viene con la asignada del usuario (o la única
+ * del negocio) y solo se pide si nadie la trae puesta.
  */
 vi.mock("@/lib/expenses/api", () => ({
   listExpenses: vi.fn(),
@@ -62,16 +67,25 @@ vi.mock("@/lib/tenant/tax-api", async (importOriginal) => ({
   ...(await importOriginal<typeof taxApi>()),
   getTaxSettings: vi.fn(),
 }));
+vi.mock("@/lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 const mocked = vi.mocked(expensesApi);
 const mockedCategorias = vi.mocked(categoriesApi);
 const mockedPos = vi.mocked(posApi);
 const mockedReports = vi.mocked(reportsApi);
+const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 
-const demoUser = (permissions: string[]): AuthUser =>
-  buildAuthUser({ permissions, subscription: { ...SUBSCRIPTION_PLUS, modules: ["expenses"] } });
+const demoUser = (permissions: string[], extra: Partial<AuthUser> = {}): AuthUser =>
+  buildAuthUser({
+    permissions,
+    subscription: { ...SUBSCRIPTION_PLUS, modules: ["expenses"] },
+    ...extra,
+  });
 
-async function renderNuevo(permissions = ["expenses:read", "expenses:manage"]) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+async function renderNuevo(
+  permissions = ["expenses:read", "expenses:manage"],
+  extra: Partial<AuthUser> = {},
+) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, extra));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/expenses/new"] }),
@@ -116,6 +130,9 @@ beforeEach(() => {
     page: 1,
     pageSize: 20,
   });
+  // Una sola sucursal por defecto: el auto-select de «única» de `WarehouseSelect`
+  // la deja puesta sin que cada prueba ajena a F10-MANFIX-04 tenga que elegirla.
+  mockedWarehouses.mockResolvedValue([buildWarehouse()]);
 });
 
 afterEach(() => {
@@ -249,5 +266,108 @@ describe("Gastos — formulario (F9-EXP-14)", () => {
       ),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe("/expenses/g9"));
+  });
+
+  /**
+   * F10-MANFIX-04 — antes no había dónde elegir Sucursal y el API respondía
+   * `expenses.warehouse_required` a una pantalla sin ese campo: quien no
+   * tenía sucursal asignada no podía registrar nada. Mismo patrón que
+   * `purchase-orders.new.tsx` (Carlos, 2026-09-13): preseleccionada con la
+   * asignada, obligatoria solo cuando no hay.
+   */
+  describe("Sucursal (F10-MANFIX-04)", () => {
+    const dosSucursales = () => [
+      buildWarehouse({ id: "w1", name: "Central" }),
+      buildWarehouse({ id: "w2", name: "Norte" }),
+    ];
+
+    const llenarCampos = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.selectOptions(screen.getByLabelText("Categoría"), "c1");
+      await user.type(screen.getByLabelText("Beneficiario"), "Don Pepe");
+      await user.type(screen.getByLabelText("Monto"), "116");
+      await user.type(screen.getByLabelText("Descripción"), "Internet de septiembre");
+    };
+
+    it("con sucursal asignada: el selector la trae puesta y el guardar no se traba", async () => {
+      mockedWarehouses.mockResolvedValue(dosSucursales());
+      await renderNuevo(["expenses:read", "expenses:manage"], { defaultWarehouseId: "w2" });
+      const user = userEvent.setup();
+
+      const sucursal = (await screen.findByLabelText("Sucursal")) as HTMLSelectElement;
+      await waitFor(() => expect(sucursal).toHaveValue("w2"));
+
+      await llenarCampos(user);
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+      await waitFor(() =>
+        expect(mocked.createExpense).toHaveBeenCalledWith(
+          expect.objectContaining({ warehouseId: "w2" }),
+        ),
+      );
+    });
+
+    it("sin sucursal asignada: el guardar se traba hasta elegir una", async () => {
+      mockedWarehouses.mockResolvedValue(dosSucursales());
+      await renderNuevo();
+      const user = userEvent.setup();
+
+      await screen.findByLabelText("Sucursal");
+      await llenarCampos(user);
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+      expect(await screen.findByText("Elige la sucursal del gasto.")).toBeInTheDocument();
+      expect(mocked.createExpense).not.toHaveBeenCalled();
+
+      await user.selectOptions(screen.getByLabelText("Sucursal"), "w1");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+      await waitFor(() =>
+        expect(mocked.createExpense).toHaveBeenCalledWith(
+          expect.objectContaining({ warehouseId: "w1" }),
+        ),
+      );
+    });
+
+    /**
+     * El comentario del propio `expenses.service.ts` lo dice: el gasto en
+     * efectivo sigue la sucursal del TURNO, no la que alguien haya elegido
+     * (o ni siquiera llegado a elegir) en el selector.
+     */
+    it("pagado del cajón: la sucursal es la del turno, no la asignada, y el selector queda fijo", async () => {
+      mockedWarehouses.mockResolvedValue(dosSucursales());
+      mockedPos.getSession.mockResolvedValue({
+        session: {
+          id: "s1",
+          warehouseId: "w2",
+          status: "open",
+          openedAt: "2026-09-10T15:00:00.000Z",
+          closedAt: null,
+          declaredCash: null,
+          calculatedCash: null,
+          cashDifference: null,
+          closingNote: null,
+          warehouse: { id: "w2", name: "Norte" },
+        },
+      });
+      await renderNuevo(["expenses:read", "expenses:manage"], { defaultWarehouseId: "w1" });
+      const user = userEvent.setup();
+
+      await user.selectOptions(await screen.findByLabelText("Pago"), "cash");
+      await waitFor(() => expect(screen.getByLabelText("Caja de origen")).toHaveValue("s1"));
+
+      // Asignada: Central (w1). El turno abierto es de Norte (w2) y manda.
+      const sucursal = screen.getByLabelText("Sucursal") as HTMLSelectElement;
+      await waitFor(() => expect(sucursal).toHaveValue("w2"));
+      expect(sucursal).toBeDisabled();
+
+      await llenarCampos(user);
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+      await waitFor(() =>
+        expect(mocked.createExpense).toHaveBeenCalledWith(
+          expect.objectContaining({ warehouseId: "w2", cashboxSessionId: "s1" }),
+        ),
+      );
+    });
   });
 });

@@ -28,23 +28,29 @@ Puedes **Buscar** por folio, descripción, referencia o proveedor, y filtrar por
 1. Presiona **Registrar gasto**.
 2. Escribe la **Fecha del gasto** (no puede ser posterior a hoy) y elige la
    **Categoría**.
-3. En **A quién se le pagó**, elige un **Proveedor** de tu catálogo o escribe un
+3. En **Sucursal**, confirma a cuál se carga el gasto: viene puesta la que
+   tienes asignada (o la única, si tu negocio tiene una sola sucursal). Si no
+   tienes sucursal asignada, elígela ahí — sin ella no puedes guardar.
+4. En **A quién se le pagó**, elige un **Proveedor** de tu catálogo o escribe un
    **Beneficiario**: la persona o el lugar al que le pagaste. Es uno u otro, no
    los dos.
-4. Escribe el **Monto** tal como dice el comprobante y, si hubo, el
+5. Escribe el **Monto** tal como dice el comprobante y, si hubo, el
    **Descuento**. En **Impuesto** queda el del negocio; cámbialo si el
    comprobante trae otro. En **Referencia** anota el número de la factura, el
    recibo o la nota.
-5. En **Pago**, di cómo se pagó o si está **Pendiente de pago** (lo ves en la
+6. En **Pago**, di cómo se pagó o si está **Pendiente de pago** (lo ves en la
    siguiente sección).
-6. Escribe una **Descripción** («Recibo de luz del bimestre») y, si quieres,
+7. Escribe una **Descripción** («Recibo de luz del bimestre») y, si quieres,
    **Notas**.
-7. Presiona **Guardar**.
+8. Presiona **Guardar**.
 
 ![Registrar un gasto](screen:expense-form)
 
-El gasto toma su folio (`GAS-000001`) y queda en la sucursal que tienes
-asignada.
+El gasto toma su folio (`GAS-000001`) y queda en la sucursal que elegiste.
+
+Si lo pagas en efectivo desde el cajón de un turno abierto (siguiente
+sección), la sucursal es la de ese turno: el selector se apaga porque ahí ya
+no hay nada que elegir.
 
 ## Pagado o por pagar
 
@@ -67,9 +73,10 @@ con fecha de hoy.
 
 ## Corregir o anular
 
-Con **Editar** corriges los datos de un gasto. Una vez pagado, el monto, el
-descuento y el impuesto ya no cambian: si hay un error, **Anúlalo** y regístralo
-de nuevo.
+Con **Editar** corriges los datos de un gasto. La **Sucursal** no se puede
+cambiar después de guardar, y una vez pagado tampoco el monto, el descuento ni
+el impuesto: si hay un error en alguno de esos, **Anúlalo** y regístralo de
+nuevo.
 
 **Anular** pide un motivo, que queda en el historial. El gasto deja de contar en
 los totales, pero no se borra. Un gasto que salió del cajón de un turno que ya se
