@@ -271,7 +271,11 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
               {
                 line: i + 1,
                 field: "quantity",
-                message: t(clave, { presentation: presentacion?.name ?? producto?.baseUnit ?? "" }),
+                message: t(clave, {
+                  presentation:
+                    presentacion?.name ??
+                    (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),
+                }),
               },
             ];
       });
@@ -303,7 +307,9 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
             line,
             field: "quantity",
             message: t(claveCantidad, {
-              presentation: presentacion?.name ?? producto?.baseUnit ?? "",
+              presentation:
+                presentacion?.name ??
+                (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),
             }),
           });
         }
@@ -445,7 +451,9 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                             }
                           }}
                         >
-                          <option value="">{producto?.baseUnit || "—"}</option>
+                          <option value="">
+                            {producto?.baseUnit ? unitName(producto.baseUnit, locale) : "—"}
+                          </option>
                           {(producto?.presentations ?? []).map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.name}

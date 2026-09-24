@@ -171,6 +171,45 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
   });
 
+  /**
+   * F10-MANFIX-05a — mismo bug que en Compras: sin presentación asignada, la
+   * fila caía al CÓDIGO crudo de la unidad base («kg») en vez de su nombre.
+   */
+  it("sin presentación, el selector (borrador) ofrece la unidad base traducida", async () => {
+    const base = buildPurchaseOrder();
+    mocked.getPurchaseOrder.mockResolvedValue({
+      ...base,
+      status: "draft",
+      issuedAt: null,
+      products: [{ ...(base.products[0] as (typeof base.products)[0]), baseUnit: "kg" }],
+    });
+    await renderFicha(GESTOR);
+
+    const selector = within(screen.getByTestId("purchase-order-line-0")).getByLabelText(
+      "Presentación",
+    );
+    // La opción «sin presentación» es la de `value=""`.
+    const opcionVacia = within(selector)
+      .getAllByRole("option")
+      .find((o) => (o as HTMLOptionElement).value === "");
+    expect(opcionVacia).toHaveTextContent("Kilogramo");
+    expect(opcionVacia).not.toHaveTextContent("kg");
+  });
+
+  it("sin presentación, la línea ya EMITIDA (texto, no selector) también traduce la unidad base", async () => {
+    const base = buildPurchaseOrder();
+    mocked.getPurchaseOrder.mockResolvedValue({
+      ...base,
+      lines: [{ ...(base.lines[0] as (typeof base.lines)[0]), presentationId: "" }],
+      products: [{ ...(base.products[0] as (typeof base.products)[0]), baseUnit: "kg" }],
+    });
+    await renderFicha(GESTOR);
+
+    const fila = screen.getByTestId("purchase-order-line-0");
+    expect(within(fila).getByText("Kilogramo")).toBeInTheDocument();
+    expect(within(fila).queryByText("kg")).not.toBeInTheDocument();
+  });
+
   it("dos campos tecleados seguidos viajan JUNTOS en un solo PATCH (el hook extraído)", async () => {
     await renderFicha(GESTOR);
     const user = userEvent.setup();

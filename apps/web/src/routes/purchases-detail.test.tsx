@@ -241,6 +241,46 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     expect(mocked.replacePurchaseLines).not.toHaveBeenCalled();
   });
 
+  /**
+   * F10-MANFIX-05a — sin presentación elegida, la fila caía al CÓDIGO crudo
+   * de la unidad base («unit») en vez de su nombre («Pieza»): se veía en la
+   * opción del selector y, con una cantidad que esa unidad no admite, en el
+   * aviso (inline Y en el resumen de «Confirmar compra», que arma SU PROPIO
+   * mensaje y tenía el mismo bug por separado).
+   */
+  it("sin presentación, la unidad base se ve traducida en el selector y en los avisos", async () => {
+    const base = buildPurchase({ status: "draft", confirmedAt: null });
+    mocked.getPurchase.mockResolvedValue({
+      ...base,
+      lines: [
+        { ...(base.lines[0] as (typeof base.lines)[0]), presentationId: "", quantity: "1.5" },
+      ],
+      products: [{ ...(base.products[0] as (typeof base.products)[0]), baseUnit: "unit" }],
+    });
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const fila = screen.getByTestId("purchase-line-0");
+
+    const selector = within(fila).getByLabelText("Presentación") as HTMLSelectElement;
+    // La opción «sin presentación» es la de `value=""` — el fixture YA tiene
+    // una presentación de verdad llamada «Pieza», así que hay que distinguir
+    // por valor y no por nombre (ambiguo con `getByRole`).
+    const opcionVacia = within(selector)
+      .getAllByRole("option")
+      .find((o) => (o as HTMLOptionElement).value === "");
+    expect(opcionVacia).toHaveTextContent("Pieza");
+
+    expect(screen.getByTestId("quantity-error-0")).toHaveTextContent(
+      "«Pieza» no se parte: usa una cantidad entera.",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Confirmar compra" }));
+    expect(
+      await screen.findByText("Línea 1 · Cantidad: «Pieza» no se parte: usa una cantidad entera."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/«unit»/)).not.toBeInTheDocument();
+  });
+
   it("un producto que NO se controla por lote no ofrece lote ni caducidad", async () => {
     // El fixture nace con `tracksLots: false`. Pedir el lote ahí es pedir
     // algo que la entrada de inventario va a rechazar al confirmar.

@@ -429,7 +429,9 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                               }
                             }}
                           >
-                            <option value="">{producto?.baseUnit || "—"}</option>
+                            <option value="">
+                              {producto?.baseUnit ? unitName(producto.baseUnit, locale) : "—"}
+                            </option>
                             {(producto?.presentations ?? []).map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.name}
@@ -437,7 +439,8 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                             ))}
                           </select>
                         ) : (
-                          (presentacion?.name ?? producto?.baseUnit ?? "—")
+                          (presentacion?.name ??
+                          (producto?.baseUnit ? unitName(producto.baseUnit, locale) : "—"))
                         )}
                         {editable && presentacion !== undefined && !presentacion.isPurchasable && (
                           <span className="block text-muted-foreground text-xs">
