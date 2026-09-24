@@ -9,6 +9,7 @@
     "openTitle": "Open shift",
     "openHint": "Pick the store you'll sell from. If you have one assigned, it's already set.",
     "warehouse": "Store",
+    "warehouseEmpty": "You have no store to sell from. Ask an administrator to give you access to one.",
     "open": "Open shift",
     "openSince": "Shift open since {{time}}",
     "openFailed": "We couldn't open the shift.",
@@ -89,6 +90,7 @@
     },
     "unavailable": "No longer sold from this store",
     "warehouse": "Store",
+    "warehouseEmpty": "You have no store to quote from. Ask an administrator to give you access to one.",
     "warehouseHint": "Prices and availability are calculated from this store. Quoting needs no open shift."
   },
   "checkout": {

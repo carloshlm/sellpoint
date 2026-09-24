@@ -15,10 +15,13 @@ import {
   type ListQuotesQuery,
   type ListSalesQuery,
   type LookupResult,
+  listPosWarehouses,
   listQuotes,
+  listQuoteWarehouses,
   listSales,
   lookup,
   openSession,
+  type PosWarehouse,
   type Quote,
   type QuoteForSale,
   type QuotesPage,
@@ -54,6 +57,29 @@ export function useSessionTotals(enabled: boolean) {
     queryKey: [...POS_SESSION_KEY, "totals"],
     queryFn: getSessionTotals,
     enabled,
+  });
+}
+
+/**
+ * F10-MANFIX-08 — las listas de sucursales del punto de venta, una por
+ * permiso: la de «Abrir turno» (`pos:sell`) y la del armador de cotizaciones
+ * (`pos:quote`). Claves propias, fuera de `POS_SESSION_KEY` y de
+ * `POS_QUOTES_KEY`: abrir un turno o generar una cotización invalida esas, y
+ * eso no tiene por qué volver a pedir la lista.
+ */
+const POS_WAREHOUSES_KEY = ["pos", "warehouses"] as const;
+
+export function usePosWarehouses() {
+  return useQuery<PosWarehouse[], ApiError>({
+    queryKey: [...POS_WAREHOUSES_KEY, "sell"],
+    queryFn: listPosWarehouses,
+  });
+}
+
+export function useQuoteWarehouses() {
+  return useQuery<PosWarehouse[], ApiError>({
+    queryKey: [...POS_WAREHOUSES_KEY, "quote"],
+    queryFn: listQuoteWarehouses,
   });
 }
 

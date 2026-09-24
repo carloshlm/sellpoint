@@ -30,6 +30,8 @@ vi.mock("../lib/pos/api", () => ({
   listSales: vi.fn(),
   cancelSale: vi.fn(),
   printTicket: vi.fn(),
+  // «Abrir turno» pide la lista de sucursales de la caja (F10-MANFIX-08).
+  listPosWarehouses: vi.fn(),
 }));
 
 const mocked = vi.mocked(posApi);
@@ -87,6 +89,7 @@ describe("Historial de ventas (F4-UI-03)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getSession.mockResolvedValue({ session: null });
+    mocked.listPosWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
     mocked.listSales.mockResolvedValue(pagina([venta()]));
   });
 
@@ -366,6 +369,7 @@ describe("Imprimir el ticket (F4-TICKET-02)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getSession.mockResolvedValue({ session: null });
+    mocked.listPosWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
     mocked.listSales.mockResolvedValue(pagina([venta()]));
     mocked.printTicket.mockResolvedValue(undefined);
   });

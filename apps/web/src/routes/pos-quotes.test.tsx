@@ -37,6 +37,9 @@ vi.mock("../lib/pos/api", () => ({
   listQuotes: vi.fn(),
   cancelQuote: vi.fn(),
   getQuoteForSale: vi.fn(),
+  // «Abrir turno» y el armador piden SU lista de sucursales (F10-MANFIX-08).
+  listPosWarehouses: vi.fn(),
+  listQuoteWarehouses: vi.fn(),
 }));
 // `listScopedWarehouses` NO existe: el alcance se pide con
 // `listWarehouses({ scoped: true })`. El mock la declaraba y nadie lo notaba
@@ -73,12 +76,13 @@ const AGUA: posApi.LookupProductItem = {
   matchedPresentationId: null,
 };
 
-const demoUser = (permissions: string[]): AuthUser =>
+const demoUser = (permissions: string[], extra: Partial<AuthUser> = {}): AuthUser =>
   buildAuthUser({
     email: "cajero@demo.test",
     defaultWarehouseId: "w1",
     permissions,
     tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+    ...extra,
   });
 
 const sesion = (): posApi.CashboxSession => ({
@@ -134,8 +138,8 @@ const paraVender = (overrides: Partial<posApi.QuoteForSale> = {}): posApi.QuoteF
   ...overrides,
 });
 
-async function renderRuta(path: string, permissions: string[]) {
-  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
+async function renderRuta(path: string, permissions: string[], extra: Partial<AuthUser> = {}) {
+  useAuthStore.getState().setAuth("jwt", demoUser(permissions, extra));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -221,6 +225,8 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
     // componente encadena un `.catch()` sobre lo que esto devuelva.
     mocked.printTicket.mockResolvedValue(undefined);
     mocked.getSession.mockResolvedValue({ session: null });
+    mocked.listPosWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
+    mocked.listQuoteWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
       cashExpenses: { total: "0", count: 0 },
@@ -263,6 +269,54 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
 
       expect(await screen.findByTestId("quote-builder")).toBeInTheDocument();
       expect(screen.queryByTestId("open-session")).not.toBeInTheDocument();
+    });
+
+    /**
+     * F10-MANFIX-08 — el armador pedía las sucursales a la lista de
+     * inventario, que exige `warehouses:read`: al cajero (Seller) le
+     * respondía 403 y la pantalla decía «No hay sucursales disponibles». La
+     * cotización trae su propia lista (`GET /pos/quotes/warehouses`, con
+     * `pos:quote`).
+     */
+    it("el cajero (Seller) ve su sucursal asignada en el armador, no el aviso de que no hay", async () => {
+      mocked.listQuoteWarehouses.mockResolvedValue([
+        { id: "w1", name: "Almacén Centro" },
+        { id: "w2", name: "Sucursal Norte" },
+      ]);
+      // Lo que el API le contesta a un Seller en la lista de inventario.
+      mockedWarehouses.listWarehouses.mockRejectedValue(
+        Object.assign(new Error("No tienes permiso."), { status: 403 }),
+      );
+
+      await renderRuta(
+        "/pos/quotes/new",
+        ["pos:sell", "pos:quote", "pos:view", "products:read", "services:read"],
+        { defaultWarehouseId: "w2" },
+      );
+
+      const selector = await screen.findByLabelText("Sucursal");
+      await waitFor(() => expect(selector).toHaveValue("w2"));
+      expect(within(selector).getByRole("option", { name: "Sucursal Norte" })).toBeInTheDocument();
+      expect(screen.queryByText(/no hay sucursales disponibles/i)).not.toBeInTheDocument();
+      // Ni siquiera la pide: sería un 403 cada vez que alguien cotiza.
+      expect(mockedWarehouses.listWarehouses).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Sin sucursales, el aviso de inventario le pedía «crear una» a quien no
+     * puede: quien cotiza la PIDE, como en compras y gastos.
+     */
+    it("sin sucursales, el aviso dice a quién pedirla, no que cree una", async () => {
+      mocked.listQuoteWarehouses.mockResolvedValue([]);
+
+      await renderRuta("/pos/quotes/new", ["pos:quote"]);
+
+      expect(
+        await screen.findByText(
+          "No tienes una sucursal donde cotizar. Pídele a un administrador que te dé acceso a una.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/crea una/i)).not.toBeInTheDocument();
     });
 
     it("sin líneas no deja generar", async () => {

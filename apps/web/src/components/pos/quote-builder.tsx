@@ -4,7 +4,7 @@ import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { CartPanel } from "@/components/pos/cart-panel";
 import { CartSearch } from "@/components/pos/cart-search";
 import { Button } from "@/components/ui/button";
-import { useCreateQuote } from "@/lib/pos/hooks";
+import { useCreateQuote, useQuoteWarehouses } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import { aLineasDeVenta, useCartStore } from "@/stores/cart.store";
 
@@ -26,6 +26,11 @@ import { aLineasDeVenta, useCartStore } from "@/stores/cart.store";
  * del cotizador, o se elige dentro de su alcance. Ese mismo almacén es contra
  * el que el buscador resuelve precios y disponibilidad — por eso se elige
  * ARRIBA, antes de buscar, y no al final junto al botón.
+ *
+ * Las sucursales salen de la lista de la COTIZACIÓN (`GET
+ * /pos/quotes/warehouses`, con `pos:quote`) y no de la de inventario, que
+ * exige `warehouses:read`: el cajero (rol Seller) no lo tiene y veía «No hay
+ * sucursales disponibles» (F10-MANFIX-08).
  */
 export function QuoteBuilder({
   onDone,
@@ -42,6 +47,7 @@ export function QuoteBuilder({
   const lines = useCartStore((s) => s.lines);
   const clear = useCartStore((s) => s.clear);
   const generar = useCreateQuote();
+  const sucursales = useQuoteWarehouses();
 
   return (
     <section className="flex flex-col gap-4" data-testid="quote-builder">
@@ -53,7 +59,8 @@ export function QuoteBuilder({
           id="quote-warehouse"
           value={warehouseId}
           onChange={setWarehouseId}
-          scoped
+          source={sucursales}
+          emptyMessage={t("pos.quote.warehouseEmpty")}
         />
         <p className="text-muted-foreground text-xs">{t("pos.quote.warehouseHint")}</p>
       </div>

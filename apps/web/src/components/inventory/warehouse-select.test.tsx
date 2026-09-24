@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { WarehouseSelect } from "./warehouse-select";
 
 /**
@@ -245,5 +247,59 @@ describe("WarehouseSelect con `allowAll` (F10-MANFIX-02)", () => {
     await user.selectOptions(select, "");
 
     expect(onChange).toHaveBeenCalledWith("");
+  });
+});
+
+/**
+ * F10-MANFIX-08 — las opciones de OTRA fuente. «Abrir turno» no puede pedirlas
+ * a `/warehouses`: el cajero (rol Seller) no tiene `warehouses:read` y veía
+ * «No hay sucursales disponibles». La caja trae su propia lista y el selector
+ * solo la pinta: sin consultar nada por su cuenta, pero con la preselección de
+ * la asignada y la auto-selección de la única, como siempre.
+ */
+describe("WarehouseSelect con `source` (F10-MANFIX-08)", () => {
+  const dos = [almacen("a", "Central"), almacen("b", "Norte")];
+
+  afterEach(() => {
+    useAuthStore.getState().clearAuth();
+  });
+
+  it("pinta las opciones que le dan y NO pide /warehouses", async () => {
+    renderSelect({ source: { data: dos, isPending: false } });
+
+    expect(await screen.findByRole("option", { name: "Norte" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Central" })).toBeInTheDocument();
+    expect(mocked).not.toHaveBeenCalled();
+  });
+
+  it("preselecciona la sucursal asignada del usuario entre esas opciones", async () => {
+    useAuthStore.getState().setAuth("jwt", buildAuthUser({ defaultWarehouseId: "b" }));
+    const onChange = vi.fn();
+
+    renderSelect({ onChange, source: { data: dos, isPending: false } });
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith("b");
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("con una sola, la elige sola", async () => {
+    const onChange = vi.fn();
+
+    renderSelect({ onChange, source: { data: [almacen("unico", "Central")], isPending: false } });
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith("unico");
+    });
+  });
+
+  it("mientras la fuente carga: el desplegable deshabilitado con su id, sin consultar nada", () => {
+    renderSelect({ id: "sucursal-de-la-caja", source: { data: undefined, isPending: true } });
+
+    const select = screen.getByRole("combobox");
+    expect(select).toHaveAttribute("id", "sucursal-de-la-caja");
+    expect(select).toBeDisabled();
+    expect(mocked).not.toHaveBeenCalled();
   });
 });

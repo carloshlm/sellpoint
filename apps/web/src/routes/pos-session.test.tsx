@@ -25,6 +25,7 @@ vi.mock("../lib/pos/api", () => ({
   openSession: vi.fn(),
   getSessionTotals: vi.fn(),
   closeSession: vi.fn(),
+  listPosWarehouses: vi.fn(),
 }));
 // `listScopedWarehouses` NO existe: el alcance se pide con
 // `listWarehouses({ scoped: true })`. El mock la declaraba y nadie lo notaba
@@ -37,11 +38,12 @@ vi.mock("../lib/warehouses/api", () => ({
 const mocked = vi.mocked(posApi);
 const mockedWarehouses = vi.mocked(warehousesApi);
 
-const demoUser = (permissions: string[]): AuthUser =>
+const demoUser = (permissions: string[], extra: Partial<AuthUser> = {}): AuthUser =>
   buildAuthUser({
     email: "cajero@demo.test",
     permissions,
     tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+    ...extra,
   });
 
 const sesion = (overrides: Partial<posApi.CashboxSession> = {}): posApi.CashboxSession => ({
@@ -58,8 +60,8 @@ const sesion = (overrides: Partial<posApi.CashboxSession> = {}): posApi.CashboxS
   ...overrides,
 });
 
-async function renderRuta(path: string, permissions = ["pos:sell"]) {
-  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
+async function renderRuta(path: string, permissions = ["pos:sell"], extra: Partial<AuthUser> = {}) {
+  useAuthStore.getState().setAuth("jwt", demoUser(permissions, extra));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -81,6 +83,7 @@ beforeEach(() => {
   mockedWarehouses.listWarehouses.mockResolvedValue([
     { id: "w1", name: "Almacén Centro", isActive: true } as never,
   ]);
+  mocked.listPosWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
   mocked.getSessionTotals.mockResolvedValue({
     totals: [],
     cashExpenses: { total: "0", count: 0 },
@@ -138,6 +141,60 @@ describe("/pos — la puerta del punto de venta", () => {
     await user.click(await screen.findByRole("button", { name: /abrir turno/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/turno abierto/i);
+  });
+
+  /**
+   * F10-MANFIX-08 — la primera pantalla del día del cajero. El rol de fábrica
+   * Seller no tiene `warehouses:read`: la lista de inventario le responde 403
+   * y «Abrir turno» decía «No hay sucursales disponibles», aunque el botón sí
+   * abría. La caja trae su propia lista (`GET /pos/warehouses`, con
+   * `pos:sell`), con su sucursal asignada ya elegida.
+   */
+  it("el cajero (Seller) ve su sucursal asignada ya elegida, no el aviso de que no hay", async () => {
+    mocked.getSession.mockResolvedValue({ session: null });
+    mocked.openSession.mockResolvedValue(sesion({ warehouseId: "w2" }));
+    mocked.listPosWarehouses.mockResolvedValue([
+      { id: "w1", name: "Almacén Centro" },
+      { id: "w2", name: "Sucursal Norte" },
+    ]);
+    // Lo que el API le contesta a un Seller en la lista de inventario.
+    mockedWarehouses.listWarehouses.mockRejectedValue(
+      Object.assign(new Error("No tienes permiso."), { status: 403 }),
+    );
+
+    const user = await renderRuta(
+      "/pos",
+      ["pos:sell", "pos:quote", "pos:view", "products:read", "services:read"],
+      { defaultWarehouseId: "w2" },
+    );
+
+    const selector = await screen.findByLabelText("Sucursal");
+    await waitFor(() => expect(selector).toHaveValue("w2"));
+    expect(within(selector).getByRole("option", { name: "Sucursal Norte" })).toBeInTheDocument();
+    expect(screen.queryByText(/no hay sucursales disponibles/i)).not.toBeInTheDocument();
+    // Ni siquiera la pide: sería un 403 en cada apertura.
+    expect(mockedWarehouses.listWarehouses).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /abrir turno/i }));
+    await waitFor(() => expect(mocked.openSession).toHaveBeenCalledWith("w2"));
+  });
+
+  /**
+   * Sin sucursales, el aviso de inventario le pedía «crear una» a quien no
+   * puede: el cajero la PIDE, como en compras y gastos.
+   */
+  it("sin sucursales, el aviso le dice al cajero a quién pedirla, no que cree una", async () => {
+    mocked.getSession.mockResolvedValue({ session: null });
+    mocked.listPosWarehouses.mockResolvedValue([]);
+
+    await renderRuta("/pos");
+
+    expect(
+      await screen.findByText(
+        "No tienes una sucursal donde vender. Pídele a un administrador que te dé acceso a una.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/crea una/i)).not.toBeInTheDocument();
   });
 
   it("sin `pos:sell` la pantalla no se abre", async () => {

@@ -12,10 +12,16 @@ import {
 
 export const WAREHOUSES_QUERY_KEY = ["warehouses"] as const;
 
-export function useWarehouses() {
+/**
+ * `enabled` para quien trae la lista de otro lado (F10-MANFIX-08): un hook no
+ * puede vivir detrás de un `if`, y `WarehouseSelect` con `source` no debe
+ * pedir `/warehouses` — a quien no tiene `warehouses:read` le responde 403.
+ */
+export function useWarehouses(enabled = true) {
   return useQuery<Warehouse[], ApiError>({
     queryKey: WAREHOUSES_QUERY_KEY,
     queryFn: () => listWarehouses(),
+    enabled,
   });
 }
 
@@ -24,10 +30,11 @@ export function useWarehouses() {
  * caché distinta porque devuelven cosas distintas — compartirla haría que la
  * pantalla de administración pisara la lista de los selectores.
  */
-export function useScopedWarehouses() {
+export function useScopedWarehouses(enabled = true) {
   return useQuery<Warehouse[], ApiError>({
     queryKey: [...WAREHOUSES_QUERY_KEY, "scoped"],
     queryFn: () => listWarehouses({ scoped: true }),
+    enabled,
   });
 }
 

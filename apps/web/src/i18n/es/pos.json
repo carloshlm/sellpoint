@@ -9,6 +9,7 @@
     "openTitle": "Abrir turno",
     "openHint": "Elige desde qué sucursal vas a vender. Si tienes una asignada, ya viene puesta.",
     "warehouse": "Sucursal",
+    "warehouseEmpty": "No tienes una sucursal donde vender. Pídele a un administrador que te dé acceso a una.",
     "open": "Abrir turno",
     "openSince": "Turno abierto desde {{time}}",
     "openFailed": "No pudimos abrir el turno.",
@@ -89,6 +90,7 @@
     },
     "unavailable": "Ya no se vende desde esta sucursal",
     "warehouse": "Sucursal",
+    "warehouseEmpty": "No tienes una sucursal donde cotizar. Pídele a un administrador que te dé acceso a una.",
     "warehouseHint": "Los precios y la disponibilidad se calculan desde esta sucursal. Cotizar no necesita un turno abierto."
   },
   "checkout": {

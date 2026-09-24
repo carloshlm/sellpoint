@@ -37,6 +37,35 @@ export async function openSession(warehouseId?: string): Promise<CashboxSession>
 }
 
 /**
+ * F10-MANFIX-08 — una sucursal donde se puede vender o cotizar. El API
+ * devuelve la sucursal completa (la misma fila que `GET /warehouses?scoped=true`);
+ * el punto de venta solo lee esto.
+ */
+export interface PosWarehouse {
+  id: string;
+  name: string;
+}
+
+/**
+ * Las sucursales de la CAJA: las activas dentro del alcance del usuario, con
+ * `pos:sell`. El cajero (rol Seller) no tiene `warehouses:read`, y la lista de
+ * inventario le respondía 403.
+ */
+export async function listPosWarehouses(): Promise<PosWarehouse[]> {
+  const { data } = await api.get<PosWarehouse[]>("/pos/warehouses");
+  return data;
+}
+
+/**
+ * Las mismas, para el armador de cotizaciones, con `pos:quote`: una recepción
+ * puede cotizar sin cobrar, y la lista de la caja le respondería 403.
+ */
+export async function listQuoteWarehouses(): Promise<PosWarehouse[]> {
+  const { data } = await api.get<PosWarehouse[]>("/pos/quotes/warehouses");
+  return data;
+}
+
+/**
  * F9-EXP-09 — el arqueo del turno: lo vendido por método, los gastos en
  * EFECTIVO que salieron del cajón y el efectivo ESPERADO (ventas cash −
  * gastos cash). `totals` sigue siendo ventas: la resta es un renglón aparte.

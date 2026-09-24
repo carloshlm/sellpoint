@@ -3,6 +3,21 @@ import { useTranslation } from "react-i18next";
 import { useScopedWarehouses, useWarehouses } from "@/lib/warehouses/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
+/** Lo único que el selector lee de una sucursal. */
+export interface WarehouseOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * Una lista que YA trajo quien llama: el `data` y el `isPending` de su
+ * consulta de React Query, que es lo que el selector mira para pintarse.
+ */
+export interface WarehouseSource {
+  data: WarehouseOption[] | undefined;
+  isPending: boolean;
+}
+
 interface WarehouseSelectProps {
   value: string | null;
   onChange: (warehouseId: string) => void;
@@ -34,6 +49,16 @@ interface WarehouseSelectProps {
    * sigue siendo lo correcto.
    */
   allowAll?: boolean;
+  /**
+   * F10-MANFIX-08 — las opciones YA CARGADAS por quien llama, en vez de
+   * pedirlas a `/warehouses`. Lo usa «Abrir turno»: el cajero (rol Seller) no
+   * tiene `warehouses:read`, así que la caja trae su propia lista
+   * (`GET /pos/warehouses`, con `pos:sell`). Con esto puesto el selector no
+   * consulta nada por su cuenta y `scoped` no aplica: la lista ya viene
+   * acotada. La preselección de la asignada y la auto-selección de la única
+   * siguen igual.
+   */
+  source?: WarehouseSource;
 }
 
 /**
@@ -55,11 +80,16 @@ export function WarehouseSelect({
   disabled = false,
   emptyMessage,
   allowAll = false,
+  source,
 }: WarehouseSelectProps) {
   const { t } = useTranslation();
-  const todos = useWarehouses();
-  const delAlcance = useScopedWarehouses();
-  const query = scoped ? delAlcance : todos;
+  // Con `source`, las dos consultas de siempre se quedan apagadas: quien llama
+  // ya trajo la lista, y pedirla aquí sería un 403 seguro para quien no tiene
+  // `warehouses:read`. Sin `source`, todo queda exactamente como estaba.
+  const propia = source === undefined;
+  const todos = useWarehouses(propia);
+  const delAlcance = useScopedWarehouses(propia);
+  const query: WarehouseSource = source ?? (scoped ? delAlcance : todos);
 
   const opciones = useMemo(
     () => (query.data ?? []).filter((w) => !excludeIds.includes(w.id)),

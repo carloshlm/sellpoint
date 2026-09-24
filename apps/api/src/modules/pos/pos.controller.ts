@@ -22,6 +22,7 @@ import { RequirePermissions } from "../auth/decorators/require-permissions.decor
 import type { AuthUser } from "../auth/types/auth-user";
 import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
+import { type WarehouseSummary, WarehousesService } from "../warehouses/warehouses.service";
 import { CashboxService } from "./cashbox.service";
 import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
 import {
@@ -68,6 +69,7 @@ export class PosController {
     private readonly quotes: QuotesService,
     private readonly tickets: TicketService,
     private readonly i18n: I18nService,
+    private readonly warehouses: WarehousesService,
   ) {}
 
   /**
@@ -100,6 +102,24 @@ export class PosController {
     @CurrentUserScope() scope: UserScope,
   ) {
     return this.cashbox.open(user, scope, dto);
+  }
+
+  /**
+   * F10-MANFIX-08 — las sucursales donde se puede abrir turno: las ACTIVAS
+   * dentro del alcance del usuario, lo mismo que `GET /warehouses?scoped=true`.
+   *
+   * Con `pos:sell` y no con `warehouses:read`: el rol de fábrica Seller no
+   * tiene ese permiso —y no debe tenerlo: le abriría la administración de
+   * sucursales en el menú—, así que «Abrir turno» le decía «No hay sucursales
+   * disponibles» cada mañana. La caja trae su propia lista.
+   */
+  @Get("warehouses")
+  @RequirePermissions("pos:sell")
+  listWarehouses(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+  ): Promise<WarehouseSummary[]> {
+    return this.warehouses.listScoped(user, scope);
   }
 
   /**
@@ -261,6 +281,25 @@ export class PosController {
     query: ListQuotesQuery,
   ) {
     return this.quotes.list(user, query);
+  }
+
+  /**
+   * F10-MANFIX-08 — las sucursales donde se puede cotizar: la MISMA lista que
+   * la de la caja (`GET /pos/warehouses`), con `pos:quote`. Es un endpoint
+   * hermano y no un «cualquiera de» en el guard porque una recepción puede
+   * cotizar sin cobrar: con la lista de la caja, su armador seguiría diciendo
+   * que no hay sucursales.
+   *
+   * Va ANTES de `quotes/:id`, por lo mismo que `quotes/folio/...`: `:id`
+   * capturaría el literal `warehouses`.
+   */
+  @Get("quotes/warehouses")
+  @RequirePermissions("pos:quote")
+  listQuoteWarehouses(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+  ): Promise<WarehouseSummary[]> {
+    return this.warehouses.listScoped(user, scope);
   }
 
   /**

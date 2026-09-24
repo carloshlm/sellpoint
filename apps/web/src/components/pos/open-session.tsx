@@ -2,21 +2,26 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { Button } from "@/components/ui/button";
-import { useOpenSession } from "@/lib/pos/hooks";
+import { useOpenSession, usePosWarehouses } from "@/lib/pos/hooks";
 
 /**
  * Abrir turno.
  *
- * El selector va con `scoped` porque acá sí se MUEVE stock: solo los almacenes
- * que el usuario administra. `WarehouseSelect` preselecciona solo cuando hay
- * uno, y el API rellena con el almacén ASIGNADO si no se manda ninguno — así
- * que el cajero de siempre abre con un clic y el que rota elige.
+ * Acá sí se MUEVE stock: solo las sucursales activas dentro del alcance del
+ * usuario. Salen de la lista de la CAJA (`GET /pos/warehouses`, con
+ * `pos:sell`) y no de la de inventario, que exige `warehouses:read`: el rol de
+ * fábrica Seller no lo tiene, y la primera pantalla del día del cajero decía
+ * «No hay sucursales disponibles» (F10-MANFIX-08). `WarehouseSelect`
+ * preselecciona la asignada (o la única), y el API rellena con la ASIGNADA si
+ * no se manda ninguna — así que el cajero de siempre abre con un clic y el que
+ * rota elige.
  */
 export function OpenSession() {
   const { t } = useTranslation();
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abrir = useOpenSession();
+  const sucursales = usePosWarehouses();
 
   return (
     <section className="flex max-w-md flex-col gap-4" data-testid="open-session">
@@ -33,7 +38,8 @@ export function OpenSession() {
           id="session-warehouse"
           value={warehouseId}
           onChange={setWarehouseId}
-          scoped
+          source={sucursales}
+          emptyMessage={t("pos.session.warehouseEmpty")}
         />
       </div>
 
