@@ -2,6 +2,7 @@ import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Badge } from "@/components/ui/badge";
@@ -154,95 +155,120 @@ function QuoteRowView({
 }) {
   const { t } = useTranslation();
   const cancelar = useCancelQuote();
+  const [cancelando, setCancelando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <tr
-      className={`border-b ${TABLE_ROW_HOVER} ${cotizacion.status !== "open" ? "text-muted-foreground" : ""}`}
-    >
-      <td className="p-2 font-medium tabular-nums">
-        {cotizacion.folio}
-        {cotizacion.sourceModule !== null && (
-          // Emitida por un módulo: se dice de dónde vino. La clave se traduce
-          // si existe; si no, se muestra tal cual (el POS no sabe de módulos).
-          <Badge variant="default" className="ml-2 font-normal">
-            {t(`pos.quote.source.${cotizacion.sourceModule}`, {
-              defaultValue: cotizacion.sourceModule,
-            })}
+    <>
+      <tr
+        className={`border-b ${TABLE_ROW_HOVER} ${cotizacion.status !== "open" ? "text-muted-foreground" : ""}`}
+      >
+        <td className="p-2 font-medium tabular-nums">
+          {cotizacion.folio}
+          {cotizacion.sourceModule !== null && (
+            // Emitida por un módulo: se dice de dónde vino. La clave se traduce
+            // si existe; si no, se muestra tal cual (el POS no sabe de módulos).
+            <Badge variant="default" className="ml-2 font-normal">
+              {t(`pos.quote.source.${cotizacion.sourceModule}`, {
+                defaultValue: cotizacion.sourceModule,
+              })}
+            </Badge>
+          )}
+        </td>
+        <td className="p-2 tabular-nums">
+          {new Intl.DateTimeFormat(uiLocale, { dateStyle: "short", timeStyle: "short" }).format(
+            new Date(cotizacion.createdAt),
+          )}
+        </td>
+        <td className="p-2">{cotizacion.author.name}</td>
+        <td className="p-2 text-right tabular-nums">
+          {/* De REFERENCIA, no lo que se va a cobrar: al cargarla en el POS los
+              precios se releen del catálogo vigente. */}
+          {formatMoney(Number(cotizacion.total), currency, locale)}
+        </td>
+        <td className="p-2">
+          {/* El semáforo de estados de todos los listados (Carlos, 2026-08-25):
+              ámbar lo pendiente, verde lo asentado, rojo lo cancelado. */}
+          <Badge
+            variant={
+              cotizacion.status === "open"
+                ? "warning"
+                : cotizacion.status === "loaded"
+                  ? "success"
+                  : "destructive"
+            }
+          >
+            {t(`pos.quote.status.${cotizacion.status}`)}
           </Badge>
-        )}
-      </td>
-      <td className="p-2 tabular-nums">
-        {new Intl.DateTimeFormat(uiLocale, { dateStyle: "short", timeStyle: "short" }).format(
-          new Date(cotizacion.createdAt),
-        )}
-      </td>
-      <td className="p-2">{cotizacion.author.name}</td>
-      <td className="p-2 text-right tabular-nums">
-        {/* De REFERENCIA, no lo que se va a cobrar: al cargarla en el POS los
-            precios se releen del catálogo vigente. */}
-        {formatMoney(Number(cotizacion.total), currency, locale)}
-      </td>
-      <td className="p-2">
-        {/* El semáforo de estados de todos los listados (Carlos, 2026-08-25):
-            ámbar lo pendiente, verde lo asentado, rojo lo cancelado. */}
-        <Badge
-          variant={
-            cotizacion.status === "open"
-              ? "warning"
-              : cotizacion.status === "loaded"
-                ? "success"
-                : "destructive"
-          }
-        >
-          {t(`pos.quote.status.${cotizacion.status}`)}
-        </Badge>
-        {error !== null && (
-          <span role="alert" className="block text-destructive text-xs">
-            {error}
-          </span>
-        )}
-      </td>
-      <td className="p-2">
-        {/* items-center: Reimprimir y Cancelar conviven en la celda y sin el
-            flex quedaban a alturas distintas (captura de Carlos). */}
-        <div className="flex items-center justify-end gap-1">
-          {/* El cliente perdió el papel: se reimprime en cualquier estado. */}
-          <PrintTicketButton
-            kind="quote"
-            id={cotizacion.id}
-            folio={cotizacion.folio}
-            label={t("pos.ticket.reprint")}
-          />
-          {/* Solo una `open` se cancela. Una `loaded` ya se convirtió en venta,
-              y lo que hay que deshacer es esa venta, no el papel que la
-              originó. */}
-          {cotizacion.status === "open" ? (
-            <RowAction
-              intent="delete"
-              disabled={cancelar.isPending}
-              onClick={() => {
+        </td>
+        <td className="p-2">
+          {/* items-center: Reimprimir y Cancelar conviven en la celda y sin el
+              flex quedaban a alturas distintas (captura de Carlos). */}
+          <div className="flex items-center justify-end gap-1">
+            {/* El cliente perdió el papel: se reimprime en cualquier estado. */}
+            <PrintTicketButton
+              kind="quote"
+              id={cotizacion.id}
+              folio={cotizacion.folio}
+              label={t("pos.ticket.reprint")}
+            />
+            {/* Solo una `open` se cancela. Una `loaded` ya se convirtió en venta,
+                y lo que hay que deshacer es esa venta, no el papel que la
+                originó. */}
+            {cotizacion.status === "open" ? (
+              <RowAction
+                intent="delete"
+                onClick={() => {
+                  setError(null);
+                  setCancelando(true);
+                }}
+              >
+                {t("pos.quote.cancel")}
+              </RowAction>
+            ) : (
+              // Hueco del MISMO ancho que «Cancelar»: sin él, Reimprimir
+              // zigzagueaba verticalmente entre filas con y sin la acción
+              // (captura de Carlos, 2026-08-25).
+              <span aria-hidden="true" className="invisible">
+                <RowAction intent="delete" disabled tabIndex={-1}>
+                  {t("pos.quote.cancel")}
+                </RowAction>
+              </span>
+            )}
+          </div>
+        </td>
+      </tr>
+
+      {/* F10-MANFIX-12 — cancelar pregunta, como la venta: actuaba de un clic
+          y no tiene vuelta atrás (el papel que el cliente se llevó deja de
+          cobrarse). Sin motivo, a diferencia de la venta: la cotización no
+          movió dinero ni inventario, no hay nada que auditar. */}
+      {cancelando && (
+        <tr>
+          <td colSpan={6} className="p-2">
+            <ConfirmDialog
+              data-testid={`cancel-${cotizacion.folio}`}
+              title={t("pos.quote.cancelTitle", { folio: cotizacion.folio })}
+              body={t("pos.quote.cancelBody", { folio: cotizacion.folio })}
+              confirmLabel={t("pos.quote.cancelConfirm")}
+              cancelLabel={t("common.form.cancel")}
+              busy={cancelar.isPending}
+              {...(error !== null && { error })}
+              onCancel={() => setCancelando(false)}
+              onConfirm={() => {
                 setError(null);
                 cancelar.mutate(
                   { id: cotizacion.id },
-                  { onError: (e) => setError(e.message || t("pos.quote.cancelFailed")) },
+                  {
+                    onSuccess: () => setCancelando(false),
+                    onError: (e) => setError(e.message || t("pos.quote.cancelFailed")),
+                  },
                 );
               }}
-            >
-              {t("pos.quote.cancel")}
-            </RowAction>
-          ) : (
-            // Hueco del MISMO ancho que «Cancelar»: sin él, Reimprimir
-            // zigzagueaba verticalmente entre filas con y sin la acción
-            // (captura de Carlos, 2026-08-25).
-            <span aria-hidden="true" className="invisible">
-              <RowAction intent="delete" disabled tabIndex={-1}>
-                {t("pos.quote.cancel")}
-              </RowAction>
-            </span>
-          )}
-        </div>
-      </td>
-    </tr>
+            />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

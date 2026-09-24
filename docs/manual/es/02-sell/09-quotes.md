@@ -55,8 +55,11 @@ la más antigua, con quién la hizo (**Cotizó**) y su total cuando se cotizó
 - Para buscar una, escribe su **Folio** o solo una parte, o filtra por
   **Estado** y por fechas (**Desde**, **Hasta**).
 - **Reimprimir** saca otra vez el papel, en cualquier estado.
-- **Cancelar** da de baja una cotización **Vigente**. Cuidado: **no pide
-  confirmación**, se cancela en cuanto lo presionas.
+- **Cancelar** da de baja una cotización **Vigente**, y antes pregunta: debajo
+  del renglón aparece un aviso con el folio, que te recuerda que la cotización
+  deja de valer. Confirma con **Cancelar la cotización**, o presiona
+  **Cancelar** para dejarla como estaba. No se borra: queda en la lista como
+  **Cancelada**, y si el cliente regresa con el papel, ya no se puede cobrar.
 
 ## Cobrar una cotización
 

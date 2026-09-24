@@ -218,6 +218,82 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
     });
   });
 
+  /**
+   * F10-MANFIX-12 — **Cancelar** en la lista actuaba de un clic, mientras que
+   * cancelar una venta pide confirmación. Y no tiene vuelta atrás: el papel
+   * que el cliente se llevó deja de cobrarse. Ahora pregunta con el mismo
+   * aviso que la venta, que nombra el folio para ver que se apuntó a la fila
+   * correcta.
+   */
+  describe("cancelar desde la lista (F10-MANFIX-12)", () => {
+    const AVISO = "Cancelar la cotización COT-000001";
+
+    beforeEach(() => {
+      mocked.listQuotes.mockResolvedValue({
+        rows: [cotizacion()],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
+    });
+
+    async function abrirAviso() {
+      await renderRuta("/pos/quotes", ["pos:quote"]);
+      await screen.findByText("COT-000001");
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+      return screen.findByRole("alertdialog", { name: AVISO });
+    }
+
+    it("el clic abre el aviso, a lo ancho de la tabla, y NO cancela", async () => {
+      const aviso = await abrirAviso();
+
+      expect(aviso).toHaveTextContent(
+        "La cotización COT-000001 deja de valer: si el cliente regresa con el papel, ya no se podrá cobrar. No se borra — queda en la lista como Cancelada.",
+      );
+      // El `colSpan` sigue a la tabla: una columna nueva lo dejaría corto.
+      const celda = aviso.closest("td") as HTMLTableCellElement;
+      const tabla = celda.closest("table") as HTMLElement;
+      expect(celda.colSpan).toBe(within(tabla).getAllByRole("columnheader").length);
+      expect(mocked.cancelQuote).not.toHaveBeenCalled();
+    });
+
+    it("confirmar la cancela y cierra el aviso", async () => {
+      mocked.cancelQuote.mockResolvedValue({ ...cotizacion(), status: "canceled" } as never);
+      const aviso = await abrirAviso();
+
+      await userEvent.click(within(aviso).getByRole("button", { name: "Cancelar la cotización" }));
+
+      await waitFor(() => expect(mocked.cancelQuote).toHaveBeenCalledWith("quote-1", undefined));
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    });
+
+    it("volver sin confirmar cierra el aviso y no cancela nada", async () => {
+      const aviso = await abrirAviso();
+
+      await userEvent.click(within(aviso).getByRole("button", { name: "Cancelar" }));
+
+      expect(screen.queryByRole("alertdialog", { name: AVISO })).not.toBeInTheDocument();
+      expect(mocked.cancelQuote).not.toHaveBeenCalled();
+    });
+
+    /** Lección del confirm mudo de F3: el error del server NUNCA se traga. */
+    it("un rechazo del servidor se pinta DENTRO del aviso", async () => {
+      mocked.cancelQuote.mockRejectedValue({
+        statusCode: 409,
+        message: "Esa cotización ya se usó o se canceló.",
+        error: "Conflict",
+        code: "pos.quote_not_open",
+      });
+      const aviso = await abrirAviso();
+
+      await userEvent.click(within(aviso).getByRole("button", { name: "Cancelar la cotización" }));
+
+      expect(
+        await within(aviso).findByText("Esa cotización ya se usó o se canceló."),
+      ).toBeInTheDocument();
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     useCartStore.getState().clear();
