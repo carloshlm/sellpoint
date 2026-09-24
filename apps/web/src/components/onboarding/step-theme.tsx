@@ -63,9 +63,13 @@ function StepTheme({ isSubmitting, formError, onSubmit }: StepThemeProps) {
 
       <p className="text-muted-foreground text-xs">{t("onboarding.step3.changeLaterHint")}</p>
 
-      <Button type="button" disabled={isSubmitting} onClick={() => onSubmit(selected)}>
-        {isSubmitting ? t("common.form.submitting") : t("onboarding.step3.finish")}
-      </Button>
+      {/* En su propio contenedor, como Continuar en los pasos 1 y 2: suelto en
+          la columna flex se estiraba a todo el ancho (F10-MANFIX-16). */}
+      <div>
+        <Button type="button" disabled={isSubmitting} onClick={() => onSubmit(selected)}>
+          {isSubmitting ? t("common.form.submitting") : t("onboarding.step3.finish")}
+        </Button>
+      </div>
     </div>
   );
 }

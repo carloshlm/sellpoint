@@ -118,6 +118,22 @@ describe("/pos — la puerta del punto de venta", () => {
     expect(await screen.findByTestId("session-warehouse")).toHaveTextContent("Almacén Centro");
   });
 
+  /**
+   * F10-MANFIX-16 — la barra decía «08:45» y el panel del vendedor «08:45
+   * a.m.» para la misma apertura. Las dos usan ahora el formato de hora de la
+   * app, en el reloj del negocio (el mismo del reporte de cierres de turno).
+   */
+  it("la barra dice desde qué hora, con el formato de hora de la app", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+
+    await renderRuta("/pos");
+
+    // 15:00 UTC son las 9:00 en la Ciudad de México, la zona del negocio demo.
+    const barra = await screen.findByTestId("session-bar");
+    expect(barra).toHaveTextContent("Turno abierto desde 9:00");
+    expect(barra).not.toHaveTextContent(/a\.\s?m\.|p\.\s?m\./);
+  });
+
   it("abrir el turno llama al API y deja de ofrecer la apertura", async () => {
     mocked.getSession.mockResolvedValueOnce({ session: null });
     mocked.openSession.mockResolvedValue(sesion());

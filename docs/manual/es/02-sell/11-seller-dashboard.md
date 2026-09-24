@@ -14,7 +14,7 @@ izquierda está el menú con todo lo que puedes hacer.
 La tarjeta **Tu turno** contesta tres preguntas:
 
 - **¿Tengo turno abierto?** Dice desde qué hora y en qué sucursal, por ejemplo
-  **Turno abierto desde 08:45 a.m. · Sucursal Centro**.
+  **Turno abierto desde 8:45 · Sucursal Centro**.
 - **¿Cuánto llevo?** **Cobrado en este turno** es todo lo que has cobrado desde
   que lo abriste: efectivo, tarjeta y transferencia juntos. **Ventas de este
   turno** dice en cuántas ventas.

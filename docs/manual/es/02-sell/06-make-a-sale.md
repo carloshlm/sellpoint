@@ -12,7 +12,8 @@ lados: a la izquierda buscas lo que el cliente se lleva; a la derecha se arma el
 ## Agregar lo que se lleva
 
 Todo entra por un solo campo, el que dice **Escanea, teclea el código, el
-nombre o un folio COT-…**:
+nombre o un folio COT-…** (si no cabe completo, como en un celular, dice
+**Código, nombre o folio COT-…**):
 
 - **Con el lector de código de barras.** Haz clic en el campo y escanea. El
   producto entra solo al carrito y el campo queda limpio para el siguiente.

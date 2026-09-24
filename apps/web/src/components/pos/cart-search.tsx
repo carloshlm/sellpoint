@@ -6,6 +6,7 @@ import { QuoteLoadPanel } from "@/components/pos/quote-load-panel";
 import { Button } from "@/components/ui/button";
 import { type LookupItem, lookup } from "@/lib/pos/api";
 import { useLookup } from "@/lib/pos/hooks";
+import { useFittingText } from "@/lib/ui/use-fitting-text";
 import { useAuthStore } from "@/stores/auth.store";
 import { useCartStore } from "@/stores/cart.store";
 
@@ -46,6 +47,15 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
   const agregar = useCartStore((s) => s.add);
 
   const { data, isFetching } = useLookup(texto, true, warehouseId ?? undefined);
+
+  // F10-MANFIX-16: la ayuda completa no cabe en un celular ni en una tableta
+  // con el menú abierto, y un `placeholder` se corta en vez de partirse
+  // («…el nombre o un»). Ahí va la corta, que se lee entera; en el celular,
+  // «Escanear con la cámara» queda justo debajo y dice lo que la corta calla.
+  const ayuda = useFittingText<HTMLInputElement>(
+    t("pos.cart.searchPlaceholder"),
+    t("pos.cart.searchPlaceholderShort"),
+  );
 
   /**
    * ── Escanear es una ACCIÓN, no una búsqueda (2026-08-23) ───────────────
@@ -147,11 +157,12 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
   return (
     <section className="flex flex-col gap-3" data-testid="cart-search">
       <input
+        ref={ayuda.ref}
         id="pos-cart-search"
         name="q"
         className="h-12 w-full rounded-md border bg-background px-3 text-lg"
         value={texto}
-        placeholder={t("pos.cart.searchPlaceholder")}
+        placeholder={ayuda.text}
         aria-label={t("pos.cart.search")}
         onChange={(e) => setTexto(e.target.value)}
       />

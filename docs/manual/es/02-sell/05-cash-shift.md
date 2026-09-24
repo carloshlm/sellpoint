@@ -25,7 +25,7 @@ cada uno abre el suyo y cuadra su propio cajón.
 
 Aparece la pantalla de venta (capítulo 6). Arriba, una barra te recuerda desde
 qué sucursal cobras y desde qué hora, por ejemplo **Punto de venta · Sucursal
-Centro · Turno abierto desde 08:45**. Revísala: lo que vendes sale del
+Centro · Turno abierto desde 8:45**. Revísala: lo que vendes sale del
 inventario de esa sucursal.
 
 - Solo puedes tener **un turno abierto a la vez**. Si ya tienes uno, **Venta** te

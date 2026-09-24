@@ -118,6 +118,22 @@ describe("el Panel de quien vende (2026-09-12)", () => {
     expect(within(panel).getByRole("link", { name: "Cierre de turno" })).toBeInTheDocument();
   });
 
+  /**
+   * F10-MANFIX-16 — el panel decía «08:45 a.m.» y la barra del punto de venta
+   * «08:45» para la misma apertura. Un solo formato: el de las horas de toda la
+   * app, en el reloj del negocio.
+   */
+  it("la hora del turno sale con el formato de la app, igual que en la barra del punto de venta", async () => {
+    await renderDashboard(SELLER);
+
+    const panel = await screen.findByTestId("seller-panel");
+    // 15:30 UTC son las 9:30 en la Ciudad de México, la zona del negocio demo.
+    expect(within(panel).getByTestId("seller-shift")).toHaveTextContent(
+      "Turno abierto desde 9:30 · Almacén Central",
+    );
+    expect(within(panel).getByTestId("seller-shift")).not.toHaveTextContent(/a\.\s?m\.|p\.\s?m\./);
+  });
+
   it("sin turno abierto invita a abrirlo y no pide los totales", async () => {
     mocked.getSession.mockResolvedValue({ session: null });
     await renderDashboard(SELLER);

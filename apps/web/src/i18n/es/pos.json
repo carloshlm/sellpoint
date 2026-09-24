@@ -54,6 +54,7 @@
     "scanHint": "Coloca el código de barras horizontal, sobre la línea",
     "search": "Buscar",
     "searchPlaceholder": "Escanea, teclea el código, el nombre o un folio COT-…",
+    "searchPlaceholderShort": "Código, nombre o folio COT-…",
     "stopScan": "Dejar de escanear",
     "subtotal": "Subtotal",
     "torch": "Linterna",

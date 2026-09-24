@@ -403,6 +403,22 @@ describe("/onboarding", () => {
       expect(document.documentElement.dataset.theme).toBeUndefined();
     });
 
+    /**
+     * F10-MANFIX-16 — **Terminar** ocupaba todo el ancho de la tarjeta, y
+     * **Continuar**, en los pasos 1 y 2, es un botón de su tamaño. En una
+     * columna flex, un hijo directo se estira a lo ancho (`align-items:
+     * stretch`): Continuar va dentro de su propio contenedor, y Terminar ahora
+     * también. jsdom no calcula anchos; esto fija la estructura y el navegador
+     * confirma el tamaño.
+     */
+    it("Terminar no se estira a lo ancho de la tarjeta: va en su contenedor, como Continuar", async () => {
+      await renderRoute("/onboarding");
+
+      const terminar = await screen.findByRole("button", { name: "Terminar" });
+
+      expect(terminar.parentElement).not.toHaveClass("flex-col");
+    });
+
     it("con lng: 'en', el paso 3 se muestra en inglés", async () => {
       await renderRoute("/onboarding", "en");
 

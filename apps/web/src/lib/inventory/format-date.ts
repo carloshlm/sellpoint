@@ -54,6 +54,33 @@ export function formatBusinessDate(
 }
 
 /**
+ * La HORA de un instante en el reloj del NEGOCIO, con el formato de hora de
+ * toda la app: `timeStyle: "short"` en el idioma de la interfaz, «8:45» en
+ * español y «8:45 AM» en inglés.
+ *
+ * F10-MANFIX-16: la barra del punto de venta decía «08:45» y el panel del
+ * vendedor «08:45 a.m.» para la MISMA apertura de turno —dos formateadores con
+ * opciones y locales distintos—, y el reporte de cierres la muestra con
+ * `timeStyle` en la zona del negocio. La zona se trata como en
+ * `formatBusinessDate`: ausente o inválida, cae a la del navegador.
+ */
+export function formatBusinessTime(
+  iso: string,
+  locale: string,
+  timeZone: string | undefined,
+): string {
+  const instante = new Date(iso);
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      timeStyle: "short",
+      ...(timeZone ? { timeZone } : {}),
+    }).format(instante);
+  } catch {
+    return new Intl.DateTimeFormat(locale, { timeStyle: "short" }).format(instante);
+  }
+}
+
+/**
  * El «hoy» del calendario del NEGOCIO como `YYYY-MM-DD`, para el `max` de una
  * fecha que no puede ser de mañana. Con la zona del navegador, a las 11 de la
  * noche en Ciudad de México un servidor —o un usuario— en UTC ya está en

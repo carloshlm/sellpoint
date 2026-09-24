@@ -2,6 +2,7 @@ import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { usePermissions } from "@/lib/auth/permissions";
+import { formatBusinessTime } from "@/lib/inventory/format-date";
 import { useSession, useSessionTotals } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -27,10 +28,11 @@ import { useAuthStore } from "@/stores/auth.store";
  * tiene sus KPIs arriba y esto sería ruido.
  */
 export function SellerPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { has } = usePermissions();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant?.currency) ?? "MXN") as Currency;
+  const timeZone = useAuthStore((s) => s.user?.tenant?.timezone);
 
   const puedeVender = has("pos:sell");
   const esDelMostrador = puedeVender && !has("reports:read");
@@ -45,13 +47,9 @@ export function SellerPanel() {
 
   const vendido = (arqueo?.totals ?? []).reduce((suma, fila) => suma + Number(fila.total), 0);
   const tickets = (arqueo?.totals ?? []).reduce((suma, fila) => suma + fila.count, 0);
-  const desde =
-    turno === null
-      ? null
-      : new Date(turno.openedAt).toLocaleTimeString(locale === "en" ? "en-US" : "es-MX", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+  // F10-MANFIX-16: la misma hora que la barra del punto de venta, con el
+  // formato de hora de la app. Antes decía «08:45 a.m.» y la barra «08:45».
+  const desde = turno === null ? null : formatBusinessTime(turno.openedAt, i18n.language, timeZone);
 
   return (
     <section

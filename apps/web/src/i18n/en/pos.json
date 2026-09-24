@@ -54,6 +54,7 @@
     "scanHint": "Line the barcode up horizontally, over the line",
     "search": "Search",
     "searchPlaceholder": "Scan, type the code, the name, or a COT- number…",
+    "searchPlaceholderShort": "Code, name, or COT- number…",
     "stopScan": "Stop scanning",
     "subtotal": "Subtotal",
     "torch": "Flashlight",
