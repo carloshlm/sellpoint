@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /** F9-CLINIC-10 — abrir un expediente: el paciente, y el turno si vino de uno. */
 export const createRecordSchema = z
@@ -16,7 +17,7 @@ export const createRecordSchema = z
  */
 export const listRecordsQuerySchema = z
   .object({
-    customerId: z.string().uuid().optional(),
+    customerId: idField().optional(),
     /** Nombre del paciente, como se ve en el expediente (búsqueda parcial). */
     query: z.string().trim().min(1).max(120).optional(),
     /** `YYYY-MM-DD`, fecha de consulta en el calendario del negocio. */

@@ -1,29 +1,17 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { TRANSFER_STATUSES } from "@sellpoint/shared";
 import type { Request } from "express";
 import { z } from "zod";
 import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
-import type { TransferStatus } from "../../generated/prisma/client";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
+import { type ListTransfersQueryDto, listTransfersQuerySchema } from "./dto/transfers-query.dto";
 import { TransfersService } from "./transfers.service";
-
-/** Una fecha de query string, o `undefined` si vino basura. */
-/** Un día del calendario (`YYYY-MM-DD`); cualquier otra cosa se ignora. */
-function dia(raw?: string): string | undefined {
-  return raw !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
-}
-
-function entero(raw?: string): number | undefined {
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined;
-}
 
 /** Una justificación de dos letras no es una justificación. */
 const cancelTransferSchema = z.object({
@@ -42,36 +30,19 @@ export class TransfersController {
    *
    * Los parámetros basura se descartan en vez de reventar: un listado es lo
    * primero que abre alguien, y un 400 por un `page=abc` en un enlace viejo
-   * sería una pared en la puerta.
+   * sería una pared en la puerta. Los ids no: un almacén mal formado es 400
+   * `common.invalid_id` (F10-MANFIX-20). Lo decide el DTO
+   * (`dto/transfers-query.dto.ts`).
    */
   @Get()
   @RequirePermissions("inventory:read")
   list(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Query() query: Record<string, string>,
+    @Query(new ZodValidationPipe(listTransfersQuerySchema, "inventory.invalid_body"))
+    query: ListTransfersQueryDto,
   ) {
-    const status = TRANSFER_STATUSES.includes(query.status as TransferStatus)
-      ? (query.status as TransferStatus)
-      : undefined;
-    const direction =
-      query.direction === "incoming" || query.direction === "outgoing"
-        ? query.direction
-        : undefined;
-
-    return this.transfers.list(user, scope, {
-      status,
-      direction,
-      originWarehouseId: query.originWarehouseId || undefined,
-      destinationWarehouseId: query.destinationWarehouseId || undefined,
-      warehouseId: query.warehouseId || undefined,
-      folio: query.folio?.trim() || undefined,
-      from: dia(query.from),
-      to: dia(query.to),
-      olderThanDays: entero(query.olderThanDays),
-      page: entero(query.page),
-      pageSize: entero(query.pageSize),
-    });
+    return this.transfers.list(user, scope, query);
   }
 
   @Get(":id")

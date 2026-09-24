@@ -6,6 +6,7 @@ import {
   PAYMENT_METHODS,
 } from "@sellpoint/shared";
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /**
  * F9-EXP-07 — los cuerpos de Gastos. Todos `.strict()`: un campo que el API
@@ -110,9 +111,9 @@ const filtrosDeGastos = z.object({
   status: z.enum(EXPENSE_STATUSES).optional(),
   paymentStatus: z.enum(EXPENSE_PAYMENT_STATUSES).optional(),
   paymentMethod: metodo.optional(),
-  categoryId: z.uuid().optional(),
-  supplierId: z.uuid().optional(),
-  warehouseId: z.uuid().optional(),
+  categoryId: idField().optional(),
+  supplierId: idField().optional(),
+  warehouseId: idField().optional(),
   /** Días del calendario del negocio sobre `expense_date` (DATE con DATE). */
   from: fecha.optional(),
   to: fecha.optional(),

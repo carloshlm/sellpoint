@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /**
  * F4-CART-01 — lo que el mostrador teclea o escanea.
@@ -28,7 +29,7 @@ export const lookupQuerySchema = z.object({
    * Se valida contra el ALCANCE del usuario igual que en cualquier otro lado:
    * poder nombrar un almacén no es poder consultarlo.
    */
-  warehouseId: z.string().uuid().optional(),
+  warehouseId: idField().optional(),
 });
 
 export type LookupQuery = z.infer<typeof lookupQuerySchema>;

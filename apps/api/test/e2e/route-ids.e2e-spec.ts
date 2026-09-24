@@ -31,6 +31,10 @@ import { startTestApp } from "./support/start-test-app";
  * cuerpo (ver `common/http/uuid-param.decorator.ts`), así que un PATCH con un
  * id malo y sin cuerpo tiene que contestar por el id, no por el cuerpo que
  * falta. Si la prueba mandara cuerpos válidos no vería esa precedencia.
+ *
+ * Los ids de la CONSULTA (`?warehouseId=`…) tienen su propio recorrido en
+ * `query-ids.e2e-spec.ts` (F10-MANFIX-20), que además vigila que ninguno
+ * llegue crudo al respaldo del filtro de excepciones.
  */
 
 /** Una ruta del router con los nombres de sus parámetros, en orden. */
@@ -216,22 +220,6 @@ describe("El id de cada ruta del API (F10-MANFIX-17)", () => {
 
     expect({ rechazaUnUuidBienFormado: rejected }).toEqual({ rechazaUnUuidBienFormado: [] });
   }, 120_000);
-
-  /**
-   * El respaldo del filtro de excepciones. Un id que llega por la CONSULTA no
-   * pasa por `@UuidParam`, y varios llegan crudos a la base (`?warehouseId=` de
-   * los lotes, del kárdex, de los traspasos). Postgres no lo puede leer como
-   * uuid y eso era un 500 nuestro con aviso a Sentry: es el mismo error de
-   * quien llama que el de la ruta, y se contesta igual.
-   */
-  it("un uuid mal formado en la consulta también es 400 con `common.invalid_id`, no 500", async () => {
-    const res = await send("GET", `/inventory/expiring?warehouseId=${NOT_A_UUID}`);
-
-    expect({ status: res.status, code: (res.body as { code?: string }).code }).toEqual({
-      status: 400,
-      code: "common.invalid_id",
-    });
-  });
 
   /**
    * Un uuid bien formado que no existe sigue siendo el 404 de cada servicio,

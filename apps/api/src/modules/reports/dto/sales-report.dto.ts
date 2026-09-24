@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /**
  * Los filtros del reporte de ventas (F5-SALES). Hereda los del historial del
@@ -6,7 +7,7 @@ import { z } from "zod";
  */
 export const salesReportQuerySchema = z
   .object({
-    warehouseId: z.uuid().optional(),
+    warehouseId: idField().optional(),
     /**
      * Fechas de CALENDARIO (`YYYY-MM-DD`), no instantes: el servidor las
      * traduce con la zona del negocio. Ver la nota de `buildSalesWhere`.
@@ -15,7 +16,7 @@ export const salesReportQuerySchema = z
     to: z.iso.date().optional(),
     /** Parcial: encuentra por folio (`VTA-…`) o por código de barras. */
     folio: z.string().trim().max(32).optional(),
-    sellerId: z.uuid().optional(),
+    sellerId: idField().optional(),
     status: z.enum(["completed", "canceled"]).optional(),
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),

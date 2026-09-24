@@ -5,6 +5,7 @@ import {
   PURCHASE_TAX_MODES,
 } from "@sellpoint/shared";
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /**
  * F9-PO-04 — los cuerpos de Órdenes de compra. Todos `.strict()`, como en
@@ -93,8 +94,8 @@ const filtrosDeOrdenes = z.object({
   folio: z.string().trim().min(1).max(20).optional(),
   /** Estados de VISTA: `invoiced` y sus complementos `received`/`closed` (sin factura). */
   status: z.enum(PURCHASE_ORDER_VIEW_STATUSES).optional(),
-  supplierId: z.uuid().optional(),
-  warehouseId: z.uuid().optional(),
+  supplierId: idField().optional(),
+  warehouseId: idField().optional(),
   /** Días del calendario del negocio sobre `order_date` (DATE con DATE). */
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),

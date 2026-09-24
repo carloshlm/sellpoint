@@ -35,6 +35,14 @@ const STATUS_TEXT: Record<number, string> = Object.fromEntries(
 const I18N_KEY_PATTERN = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 
 /**
+ * El comienzo del aviso que deja el respaldo de los uuid (ver `catch`).
+ * Exportado para `query-ids.e2e-spec.ts`, que lo espía para afirmar que
+ * ningún id llega crudo a la base: con el texto repetido allá, cambiarlo acá
+ * dejaría esa prueba ciega sin que fallara.
+ */
+export const UUID_FALLBACK_WARNING = "Un uuid mal formado llegó a Postgres";
+
+/**
  * AUTH-REQ-14 / decisión de Carlos (`sdd/f1-auth/decisions-carlos`,
  * resolviendo verify #271 C2): el BACKEND traduce los errores. Acá, y no en
  * el front, porque la infra i18n (LocaleResolverMiddleware + JSONs es/en de
@@ -61,14 +69,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request & RequestWithLocale>();
 
-    // F10-MANFIX-17: el respaldo de `@UuidParam`. Un id que llegó crudo a la
-    // base por una entrada sin validar (hoy, algunos `?warehouseId=`) es el
-    // mismo error de quien llama que un id de ruta malo, y se contesta igual:
-    // 400 `common.invalid_id`, no un 500 nuestro con aviso a Sentry. El aviso
-    // en el log es para encontrar esa entrada y validarla donde nace.
+    // F10-MANFIX-17: el respaldo de `@UuidParam` y de los DTO. Un id que llegó
+    // crudo a la base por una entrada sin validar es el mismo error de quien
+    // llama que un id de ruta malo, y se contesta igual: 400
+    // `common.invalid_id`, no un 500 nuestro con aviso a Sentry. Desde la
+    // F10-MANFIX-20 ninguna entrada conocida llega hasta acá (los ids de la
+    // consulta se validan en su DTO): es una red, y el aviso en el log es para
+    // encontrar la entrada que se escapó y validarla donde nace.
     if (isInvalidUuidInput(exception)) {
       this.logger.warn(
-        `Un uuid mal formado llegó a Postgres en ${request.method} ${request.url}: falta validarlo en la entrada`,
+        `${UUID_FALLBACK_WARNING} en ${request.method} ${request.url}: falta validarlo en la entrada`,
       );
       this.catch(new BadRequestException({ message: "common.invalid_id" }), host);
       return;

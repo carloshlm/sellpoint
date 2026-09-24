@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /** F5-SHIFT-01 — los turnos con su arqueo. `from`/`to` son días del calendario del negocio. */
 export const shiftsReportQuerySchema = z
   .object({
-    warehouseId: z.uuid().optional(),
+    warehouseId: idField().optional(),
     /** Quien CERRÓ el turno (quien lo abrió, en los abiertos). */
-    userId: z.uuid().optional(),
+    userId: idField().optional(),
     status: z.enum(["open", "closed"]).default("closed"),
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),

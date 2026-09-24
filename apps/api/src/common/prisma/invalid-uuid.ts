@@ -5,11 +5,14 @@ import { Prisma } from "../../generated/prisma/client";
  *
  * ── Por qué existe esta función (F10-MANFIX-17, 2026-09-24) ─────────────
  *
- * Es el respaldo de `@UuidParam`: los ids de ruta ya se revisan antes de
- * llegar a la base, pero quedan ids que llegan crudos por la CONSULTA
- * (`?warehouseId=` de los lotes, del kárdex, de los traspasos). El filtro de
- * excepciones usa esto para contestarlos como lo que son —un 400 de quien
- * llama— en vez de como un 500 nuestro.
+ * Es el respaldo de `@UuidParam` y de los DTO: los ids de ruta se revisan
+ * antes de llegar a la base, y desde la F10-MANFIX-20 también los de la
+ * CONSULTA (`idField()` en cada DTO; antes, `?warehouseId=` de los lotes, del
+ * kárdex y de los traspasos llegaban crudos). El filtro de excepciones usa
+ * esto para contestar la entrada que se escape como lo que es —un 400 de
+ * quien llama— en vez de como un 500 nuestro. Es una red: en operación normal
+ * no se pisa (`query-ids.e2e-spec.ts`), y su forma real la fija
+ * `invalid-uuid.integration.spec.ts`.
  *
  * Se mira la causa del driver y no el código de Prisma porque el código
  * CAMBIA según la consulta. Medido con una sonda contra Postgres: P2007 en

@@ -5,6 +5,7 @@ import {
   SELECTABLE_EXIT_REASONS,
 } from "@sellpoint/shared";
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 import { moneyAmount } from "../../products/money";
 import { countedAmount, quantityAmount } from "./movement.dto";
 
@@ -60,7 +61,7 @@ export const documentTemplateQuerySchema = z.object({
    * ese almacén (F3-COUNT-01). Los otros dos tipos siguen bajando la plantilla
    * vacía con su fila de ejemplo.
    */
-  warehouseId: z.uuid().optional(),
+  warehouseId: idField().optional(),
 });
 
 export type ImportDocumentLinesDto = z.infer<typeof importDocumentLinesSchema>;
@@ -78,8 +79,8 @@ export type DocumentTemplateQueryDto = z.infer<typeof documentTemplateQuerySchem
 export const listDocumentsQuerySchema = z.object({
   type: z.enum(INVENTORY_DOCUMENT_TYPES),
   status: z.enum(["draft", "confirmed", "canceled"]).optional(),
-  warehouseId: z.uuid().optional(),
-  createdBy: z.uuid().optional(),
+  warehouseId: idField().optional(),
+  createdBy: idField().optional(),
   folio: z.string().trim().min(1).max(20).optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),

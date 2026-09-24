@@ -12,6 +12,14 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
+import {
+  type ExpiringExportQueryDto,
+  type ExpiringQueryDto,
+  expiringExportQuerySchema,
+  expiringQuerySchema,
+  type ProductLotsQueryDto,
+  productLotsQuerySchema,
+} from "./dto/lots-query.dto";
 import { InventoryExportService } from "./inventory-export.service";
 import { LotsService } from "./lots.service";
 
@@ -50,9 +58,6 @@ const updateLotSchema = z.object({
   expiresAt: z.iso.date().nullish(),
 });
 
-/** Un interruptor que viaja por la URL: `?onlyExpired=true` o `=1`. */
-const esVerdadero = (valor?: string): boolean => valor === "true" || valor === "1";
-
 @ApiTags("inventory")
 @Controller()
 export class LotsController {
@@ -67,13 +72,10 @@ export class LotsController {
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
     @UuidParam("id") id: string,
-    @Query("withStock") withStock?: string,
-    @Query("warehouseId") warehouseId?: string,
+    @Query(new ZodValidationPipe(productLotsQuerySchema, "inventory.invalid_body"))
+    query: ProductLotsQueryDto,
   ) {
-    return this.lots.listProductLots(user, scope, id, {
-      withStock: withStock === "true",
-      warehouseId: warehouseId === "" ? undefined : warehouseId,
-    });
+    return this.lots.listProductLots(user, scope, id, query);
   }
 
   /**
@@ -89,25 +91,13 @@ export class LotsController {
   async expiringExport(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(expiringExportQuerySchema, "inventory.invalid_body"))
+    query: ExpiringExportQueryDto,
     @Req() request: RequestWithLocale,
     @Res() response: Response,
-    @Query("days") days?: string,
-    @Query("warehouseId") warehouseId?: string,
-    @Query("format") format?: string,
-    @Query("onlyExpired") onlyExpired?: string,
   ) {
-    const parsed = Number(days);
-    const file = await this.exports.expiring(
-      user,
-      scope,
-      {
-        days: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 30,
-        ...(warehouseId !== undefined && warehouseId !== "" ? { warehouseId } : {}),
-        ...(esVerdadero(onlyExpired) ? { onlyExpired: true } : {}),
-      },
-      format === "csv" ? "csv" : "xlsx",
-      getLocale(request),
-    );
+    const { format, ...filtros } = query;
+    const file = await this.exports.expiring(user, scope, filtros, format, getLocale(request));
     response
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)
@@ -119,19 +109,12 @@ export class LotsController {
   expiring(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Query("days") days?: string,
-    @Query("warehouseId") warehouseId?: string,
-    @Query("onlyExpired") onlyExpired?: string,
+    @Query(new ZodValidationPipe(expiringQuerySchema, "inventory.invalid_body"))
+    query: ExpiringQueryDto,
   ) {
-    const parsed = Number(days);
-    return this.lots.listExpiring(user, scope, {
-      // 30 días es el default del tablero. Un `days` basura cae acá y no en un
-      // 500: pedir "próximos a vencer" sin decir cuántos días es razonable.
-      days: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 30,
-      warehouseId: warehouseId === "" ? undefined : warehouseId,
-      // Solo lo YA vencido: su propio filtro, no un plazo (ver `listExpiring`).
-      ...(esVerdadero(onlyExpired) ? { onlyExpired: true } : {}),
-    });
+    // `days` basura cae en los 30 del tablero y `onlyExpired` es su propio
+    // filtro, no un plazo: lo decide el DTO (`dto/lots-query.dto.ts`).
+    return this.lots.listExpiring(user, scope, query);
   }
 
   @Get("warehouses/:id/locations")

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /** Anular exige explicar por qué: una venta deshecha sin motivo no se audita. */
 export const cancelSaleSchema = z
@@ -32,8 +33,8 @@ export const listSalesQuerySchema = z
      *  por teléfono dice «cero cero uno», no «VTA-000001». Nace junto al
      *  código de barras del ticket (2026-08-24): escanearlo busca por acá. */
     folio: z.string().trim().max(32).optional(),
-    sellerId: z.string().uuid().optional(),
-    sessionId: z.string().uuid().optional(),
+    sellerId: idField().optional(),
+    sessionId: idField().optional(),
     status: z.enum(["completed", "canceled"]).optional(),
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),

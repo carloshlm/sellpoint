@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /**
  * Los filtros del reporte de stock (F5-STK). Los MISMOS para la tabla y para
@@ -7,7 +8,7 @@ import { z } from "zod";
  */
 export const stockReportQuerySchema = z
   .object({
-    warehouseId: z.uuid().optional(),
+    warehouseId: idField().optional(),
     /**
      * Solo los productos cuyo TOTAL está bajo su `stock_min`. Ver la nota del
      * service: el mínimo es un umbral global del producto, no del almacén.

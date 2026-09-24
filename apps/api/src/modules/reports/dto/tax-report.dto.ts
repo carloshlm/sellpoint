@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idField } from "../../../common/http/id-field";
 
 /**
  * F4-TAX-21 — el reporte de impuestos cobrados. `from`/`to` son días del
@@ -7,7 +8,7 @@ import { z } from "zod";
  */
 export const taxReportQuerySchema = z
   .object({
-    warehouseId: z.uuid().optional(),
+    warehouseId: idField().optional(),
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
   })

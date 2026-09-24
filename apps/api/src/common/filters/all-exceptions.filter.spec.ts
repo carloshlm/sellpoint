@@ -3,6 +3,7 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -11,7 +12,7 @@ import {
 import { ThrottlerException } from "@nestjs/throttler";
 import type { I18nService } from "nestjs-i18n";
 import { Prisma } from "../../generated/prisma/client";
-import { AllExceptionsFilter } from "./all-exceptions.filter";
+import { AllExceptionsFilter, UUID_FALLBACK_WARNING } from "./all-exceptions.filter";
 
 // F6-WATCH-02: el filter reporta a Sentry los 5xx (errores nuestros); los
 // 4xx son del cliente y ensuciarían el proyecto.
@@ -280,13 +281,12 @@ describe("AllExceptionsFilter", () => {
   });
 
   /**
-   * F10-MANFIX-17 — el respaldo de `@UuidParam`.
+   * F10-MANFIX-17 — el respaldo de `@UuidParam` y de los DTO.
    *
-   * Las rutas ya revisan su id, pero todavía hay ids que llegan crudos a la
-   * base por la CONSULTA (`?warehouseId=` del kárdex, de los lotes, de los
-   * traspasos). Postgres no puede leerlos como uuid (22P02) y sin esto eran un
-   * 500 nuestro con aviso a Sentry. Es el mismo error de quien llama que el de
-   * la ruta, y se contesta igual.
+   * Las rutas revisan su id y, desde la F10-MANFIX-20, también las consultas.
+   * Si una entrada nueva se escapara, Postgres no podría leer el id como uuid
+   * (22P02) y sin esto sería un 500 nuestro con aviso a Sentry. Es el mismo
+   * error de quien llama que el de la ruta, y se contesta igual.
    */
   describe("un uuid mal formado que llega a Postgres (F10-MANFIX-17)", () => {
     const driverError = (originalMessage: string) =>
@@ -334,6 +334,30 @@ describe("AllExceptionsFilter", () => {
 
       expect(statusMock).toHaveBeenCalledWith(500);
       expect(sentryMock.captureException).toHaveBeenCalledWith(error);
+    });
+
+    /**
+     * F10-MANFIX-20 — el aviso es la señal de que una entrada quedó sin
+     * validar, y `query-ids.e2e-spec.ts` lo espía en el `Logger` de Nest para
+     * afirmar que ningún id de la consulta llega crudo a la base. Si el filtro
+     * avisara por otro lado o con otro texto, esa e2e seguiría en verde sin
+     * ver nada: esta prueba es la que la mantiene con los ojos abiertos.
+     */
+    it("avisa por el `Logger` de Nest con el texto que busca la e2e, y dice qué entrada falta validar", () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      try {
+        filter.catch(
+          driverError('invalid input syntax for type uuid: "x"'),
+          buildHost({ method: "GET", url: "/inventory/expiring?warehouseId=x", locale: "es" }),
+        );
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        const [message] = warn.mock.calls[0] ?? [];
+        expect(String(message).startsWith(UUID_FALLBACK_WARNING)).toBe(true);
+        expect(String(message)).toContain("GET /inventory/expiring?warehouseId=x");
+      } finally {
+        warn.mockRestore();
+      }
     });
   });
 

@@ -1,14 +1,15 @@
 import { BadRequestException, createParamDecorator, type ExecutionContext } from "@nestjs/common";
 import { ApiParam } from "@nestjs/swagger";
 import type { Request } from "express";
-import { z } from "zod";
+import { INVALID_ID, idField } from "./id-field";
 
 /**
  * La misma regla que ya validaba los ids del cuerpo (`productId`, `quoteId`…):
  * un id que el cuerpo acepta, la ruta también. La base los genera con
- * `gen_random_uuid()`, así que todo enlace nuestro trae uno que pasa.
+ * `gen_random_uuid()`, así que todo enlace nuestro trae uno que pasa. Es el
+ * `idField()` de los DTO (F10-MANFIX-20): ruta y consulta, una sola regla.
  */
-const UUID = z.uuid();
+const UUID = idField();
 
 /**
  * Separada del decorador para probarla sin levantar Nest (el mismo patrón que
@@ -18,7 +19,7 @@ export function uuidParamFactory(name: string, ctx: ExecutionContext): string {
   const value = ctx.switchToHttp().getRequest<Request>().params[name];
   const parsed = UUID.safeParse(value);
   if (!parsed.success) {
-    throw new BadRequestException({ message: "common.invalid_id" });
+    throw new BadRequestException({ message: INVALID_ID });
   }
   return parsed.data;
 }

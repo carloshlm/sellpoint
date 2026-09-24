@@ -10,6 +10,7 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "setupFiles": ["<rootDir>/setup-env.js"],
+  "setupFilesAfterEnv": ["<rootDir>/e2e/support/uuid-fallback-guard.ts"],
   "maxWorkers": 1,
   "testTimeout": 30000,
   "workerIdleMemoryLimit": "1GB",
