@@ -6,6 +6,7 @@ import {
   type Locale,
   localeToBcp47,
   taxIdLabel,
+  taxLineLabel,
 } from "@sellpoint/shared";
 import {
   encabezadoNegocio,
@@ -111,7 +112,7 @@ export function buildPurchaseOrderDefinition(input: PdfPurchaseOrderInput, t: Tr
     ...taxes.map(
       (tax) =>
         [
-          `${tax.name} (${tax.rate}%) · ${t("pdf.purchaseOrder.estimated")}`,
+          `${taxLineLabel(tax.name, tax.rate)} · ${t("pdf.purchaseOrder.estimated")}`,
           dinero(tax.amount),
         ] as [string, string],
     ),

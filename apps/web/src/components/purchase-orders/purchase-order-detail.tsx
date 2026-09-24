@@ -1,4 +1,4 @@
-import { type Currency, formatMoney } from "@sellpoint/shared";
+import { type Currency, formatMoney, taxLineLabel } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -368,7 +368,7 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
         {order.taxes.map((tax) => (
           <Total
             key={tax.code}
-            label={`${tax.name} (${tax.rate}%) · ${t("purchaseOrders.totals.estimated")}`}
+            label={`${taxLineLabel(tax.name, tax.rate)} · ${t("purchaseOrders.totals.estimated")}`}
             value={dinero(tax.amount)}
           />
         ))}

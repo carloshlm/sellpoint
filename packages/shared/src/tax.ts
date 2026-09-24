@@ -168,3 +168,25 @@ export function grossUnitCostCents(
   if (mode === "excluded") return amountCents;
   return amountCents + splitLineTax({ amountCents, mode: "excluded", components }).taxCents;
 }
+
+/**
+ * La etiqueta de un impuesto en los totales de una compra o una orden de
+ * compra (pantalla y PDF): el nombre y, entre paréntesis, la tasa, SOLO si el
+ * nombre no la dice ya. Los grupos sembrados se llaman «IVA 16%» o «GST 5%»,
+ * y pegarles «(16%)» repetía el dato; un impuesto que el negocio creó con el
+ * nombre «IVA» sí necesita la tasa al lado.
+ *
+ * `rate` llega como el decimal del API («16.0000»): se compara como número,
+ * así que los ceros de más, un espacio antes del «%» o la coma decimal
+ * («9,975 %») no hacen parecer distinta la misma tasa. La tasa tiene que
+ * aparecer entera: «GST 18%» no dice «8%».
+ */
+export function taxLineLabel(name: string, rate: string): string {
+  const tasa = Number(rate);
+  if (!Number.isFinite(tasa)) return name;
+  const texto = String(tasa);
+  const compacto = name.replace(/\s+/g, "").replace(/(\d),(\d)/g, "$1.$2");
+  const escapado = texto.replace(".", "\\.");
+  const yaLaDice = new RegExp(`(^|[^\\d.])${escapado}%`).test(compacto);
+  return yaLaDice ? name : `${name} (${texto}%)`;
+}

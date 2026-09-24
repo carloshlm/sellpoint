@@ -141,6 +141,17 @@ describe("buildPurchaseDefinition (F9-PURCH-09)", () => {
     expect(texto).toContain("1,000.00");
   });
 
+  it("el impuesto no repite la tasa que su nombre ya dice; sin ella en el nombre, la agrega", () => {
+    expect(papel(base)).toContain("IVA 16%");
+    expect(papel(base)).not.toContain("(16%)");
+
+    const sinTasa = papel({
+      ...base,
+      taxes: [{ code: "LOCAL", name: "IVA", rate: "16", base: "1000", amount: "160" }],
+    });
+    expect(sinTasa).toContain("IVA (16%)");
+  });
+
   it("una compra ANULADA lleva marca de agua, y una confirmada no", () => {
     const anulada = buildPurchaseDefinition(
       { ...base, purchase: { ...base.purchase, status: "canceled" } },

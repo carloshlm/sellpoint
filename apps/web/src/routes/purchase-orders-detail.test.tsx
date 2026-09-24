@@ -210,6 +210,28 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     expect(within(fila).queryByText("kg")).not.toBeInTheDocument();
   });
 
+  /**
+   * El impuesto del total se llama «IVA 16%»: pegarle «(16%)» decía la tasa
+   * dos veces. Solo va entre paréntesis cuando el nombre no la trae.
+   */
+  it("el impuesto del total no repite la tasa que su nombre ya dice", async () => {
+    await renderFicha(GESTOR);
+    const totales = screen.getByTestId("purchase-order-totals");
+    expect(within(totales).getByText("IVA 16% · estimado")).toBeInTheDocument();
+    expect(totales).not.toHaveTextContent("(16%)");
+  });
+
+  it("un impuesto cuyo nombre no dice la tasa la muestra entre paréntesis", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(
+      buildPurchaseOrder({
+        taxes: [{ code: "LOCAL", name: "IVA", rate: "16", base: "12000", amount: "1920" }],
+      }),
+    );
+    await renderFicha(GESTOR);
+    const totales = screen.getByTestId("purchase-order-totals");
+    expect(within(totales).getByText("IVA (16%) · estimado")).toBeInTheDocument();
+  });
+
   it("dos campos tecleados seguidos viajan JUNTOS en un solo PATCH (el hook extraído)", async () => {
     await renderFicha(GESTOR);
     const user = userEvent.setup();

@@ -89,7 +89,9 @@ describe("el papel de la orden de compra (F9-PO-06)", () => {
 
   it("los impuestos van marcados como estimados y el total es el esperado", () => {
     const texto = papel(base);
-    expect(texto).toContain("IVA 16% (16%) · pdf.purchaseOrder.estimated");
+    // «IVA 16%» ya dice su tasa: el papel no la repite entre paréntesis.
+    expect(texto).toContain("IVA 16% · pdf.purchaseOrder.estimated");
+    expect(texto).not.toContain("(16%)");
     // Entre etiqueta y valor se cuela el `alignment` al aplanar: se afirman por separado.
     expect(texto).toContain("pdf.purchaseOrder.total");
     expect(texto).toContain("1,160.00");

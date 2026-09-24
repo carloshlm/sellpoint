@@ -1,4 +1,4 @@
-import { type Currency, formatMoney } from "@sellpoint/shared";
+import { type Currency, formatMoney, taxLineLabel } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -402,7 +402,11 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
           <Total label={t("purchases.totals.discount")} value={`−${dinero(purchase.discount)}`} />
         )}
         {purchase.taxes.map((tax) => (
-          <Total key={tax.code} label={`${tax.name} (${tax.rate}%)`} value={dinero(tax.amount)} />
+          <Total
+            key={tax.code}
+            label={taxLineLabel(tax.name, tax.rate)}
+            value={dinero(tax.amount)}
+          />
         ))}
         {Number(purchase.extraChargesTotal) > 0 && (
           <Total label={t("purchases.totals.charges")} value={dinero(purchase.extraChargesTotal)} />

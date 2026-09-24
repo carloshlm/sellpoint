@@ -131,6 +131,27 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     expect(screen.getByLabelText("Fecha de recepción").getAttribute("max")).toMatch(hoy);
   });
 
+  /** Igual que en la orden: «IVA 16%» ya dice su tasa y no se repite. */
+  it("el impuesto del total no repite la tasa que su nombre ya dice", async () => {
+    await renderFicha(GESTOR);
+    const totales = screen.getByTestId("purchase-totals");
+    expect(within(totales).getByText("IVA 16%")).toBeInTheDocument();
+    expect(totales).not.toHaveTextContent("(16%)");
+  });
+
+  it("un impuesto cuyo nombre no dice la tasa la muestra entre paréntesis", async () => {
+    mocked.getPurchase.mockResolvedValue(
+      buildPurchase({
+        status: "draft",
+        confirmedAt: null,
+        taxes: [{ code: "LOCAL", name: "IVA", rate: "16", base: "1000", amount: "160" }],
+      }),
+    );
+    await renderFicha(GESTOR);
+    const totales = screen.getByTestId("purchase-totals");
+    expect(within(totales).getByText("IVA (16%)")).toBeInTheDocument();
+  });
+
   it("un total declarado distinto avisa y NO deshabilita «Confirmar compra»", async () => {
     mocked.getPurchase.mockResolvedValue(
       buildPurchase({

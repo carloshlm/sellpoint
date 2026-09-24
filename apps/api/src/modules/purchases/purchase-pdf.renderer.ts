@@ -6,6 +6,7 @@ import {
   type Locale,
   localeToBcp47,
   taxIdLabel,
+  taxLineLabel,
   totalMismatch,
 } from "@sellpoint/shared";
 import {
@@ -133,7 +134,9 @@ export function buildPurchaseDefinition(input: PdfPurchaseInput, t: Translate) {
     ...(Number(purchase.discount) > 0
       ? ([[t("pdf.purchase.discount"), `-${dinero(purchase.discount)}`]] as [string, string][])
       : []),
-    ...taxes.map((tax) => [`${tax.name} (${tax.rate}%)`, dinero(tax.amount)] as [string, string]),
+    ...taxes.map(
+      (tax) => [taxLineLabel(tax.name, tax.rate), dinero(tax.amount)] as [string, string],
+    ),
     ...(Number(purchase.extraChargesTotal) > 0
       ? ([[t("pdf.purchase.charges"), dinero(purchase.extraChargesTotal)]] as [string, string][])
       : []),

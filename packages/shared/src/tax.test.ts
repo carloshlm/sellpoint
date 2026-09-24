@@ -8,6 +8,7 @@ import {
   splitLineTax,
   TAX_MODES,
   TAX_RATE_SCALE,
+  taxLineLabel,
   taxModeSchema,
 } from "./tax";
 
@@ -192,5 +193,37 @@ describe("netUnitCostCents / grossUnitCostCents — el costo en la base del nego
         ).toBe(x);
       }
     }
+  });
+});
+
+/**
+ * La etiqueta de un impuesto en los totales de una compra o una orden. Los
+ * grupos sembrados ya dicen su tasa («IVA 16%», «GST 5%»): pegarles «(16%)»
+ * decía lo mismo dos veces. La tasa solo se agrega cuando el nombre no la
+ * trae, que es el caso de un impuesto que el negocio creó y llamó «IVA».
+ */
+describe("taxLineLabel", () => {
+  it.each([
+    ["IVA 16%", "16", "IVA 16%"],
+    ["GST 5%", "5", "GST 5%"],
+    ["GST 12.5%", "12.5", "GST 12.5%"],
+    ["QST 9.975%", "9.975", "QST 9.975%"],
+    // El API manda la tasa como decimal de Postgres; los ceros de más no cuentan.
+    ["IVA 16%", "16.0000", "IVA 16%"],
+    // Con espacio antes del signo, o con coma decimal, sigue siendo la misma tasa.
+    ["TVQ 9,975 %", "9.975", "TVQ 9,975 %"],
+    ["IVA 0%", "0", "IVA 0%"],
+  ])("«%s» con tasa %s ya dice su tasa: se queda «%s»", (name, rate, esperado) => {
+    expect(taxLineLabel(name, rate)).toBe(esperado);
+  });
+
+  it.each([
+    ["IVA", "16", "IVA (16%)"],
+    ["Exento", "0", "Exento (0%)"],
+    ["Impuesto local", "2.5000", "Impuesto local (2.5%)"],
+    // «18%» contiene «8%», pero no es la misma tasa: el dígito de antes lo distingue.
+    ["GST 18%", "8", "GST 18% (8%)"],
+  ])("«%s» con tasa %s no la dice: queda «%s»", (name, rate, esperado) => {
+    expect(taxLineLabel(name, rate)).toBe(esperado);
   });
 });
