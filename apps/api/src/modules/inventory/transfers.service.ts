@@ -425,13 +425,15 @@ export class TransfersService {
     }
 
     // Un faltante sin explicación no se acepta: alguien tiene que hacerse
-    // cargo de la diferencia, y la nota es dónde queda dicho.
+    // cargo de la diferencia, y la nota es dónde queda dicho. Con su PROPIA
+    // clave: `note_required` habla de un motivo que pide nota, y aquí lo que
+    // pide la nota es haber recibido menos de lo enviado (F10-MANFIX).
     if (hayFaltante) {
       const nota = document.reasonNote?.trim() ?? "";
       if (nota === "") {
         throw new BadRequestException({
-          message: "inventory.note_required",
-          errors: [{ key: "reasonNote", message: "inventory.note_required" }],
+          message: "inventory.shortage_note_required",
+          errors: [{ key: "reasonNote", message: "inventory.shortage_note_required" }],
         });
       }
       await tx.transfer.update({

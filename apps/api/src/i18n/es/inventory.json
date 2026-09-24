@@ -31,6 +31,7 @@
   "lot_required": "Este producto se controla por lote: falta indicar cuál.",
   "expiry_required": "Este producto se controla por lote: falta la fecha de caducidad del lote.",
   "note_required": "Falta la explicación: este motivo pide una nota.",
+  "shortage_note_required": "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
   "presentation_invalid": "La presentación elegida no corresponde a este producto o está desactivada.",
   "product_inactive": "Este producto está desactivado.",
   "product_not_found": "Uno de los productos no existe.",

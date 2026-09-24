@@ -831,7 +831,15 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
 
         await editarLinea(token, borrador.id, 1, { quantity: 8 });
 
-        await confirmarDoc(token, borrador.id).expect(400);
+        const res = await confirmarDoc(token, borrador.id).expect(400);
+        // Su propia clave, no la de «este motivo pide una nota»: lo que falta
+        // explicar es la diferencia contra lo enviado, y la pantalla lo pinta
+        // sobre el campo Nota.
+        const body = res.body as { code: string; errors: { key: string; code: string }[] };
+        expect(body.code).toBe("inventory.shortage_note_required");
+        expect(body.errors).toEqual([
+          expect.objectContaining({ key: "reasonNote", code: "inventory.shortage_note_required" }),
+        ]);
       });
 
       it("recibir MÁS de lo enviado se rechaza y no cambia nada", async () => {

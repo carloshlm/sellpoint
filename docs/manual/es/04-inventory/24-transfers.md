@@ -72,8 +72,9 @@ dejaste.
 Baja la cantidad del producto que llegó incompleto. La cabecera de la entrada
 tiene un campo **Nota**: cuéntale ahí qué pasó con la diferencia («llegaron 20
 de 24 aguas», «se rompió una caja en el camino»). En cuanto algún producto
-queda por debajo de lo enviado, **Confirmar** exige esa nota — sin ella, el
-movimiento no se registra.
+queda por debajo de lo enviado, **Confirmar** exige esa nota: sin ella, el
+movimiento no se registra y el aviso «Recibiste menos de lo que se envió»
+aparece debajo del campo.
 
 > La diferencia entre lo enviado y lo recibido **no entra al destino ni genera
 > una merma automática**: ya salió del origen, y qué pasó en el camino lo

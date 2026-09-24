@@ -31,6 +31,7 @@
   "lot_required": "This product is tracked by lot: please indicate which one.",
   "expiry_required": "This product is tracked by lot: the lot's expiry date is missing.",
   "note_required": "An explanation is missing: this reason requires a note.",
+  "shortage_note_required": "You received less than what was sent: use the note to explain what happened to the difference.",
   "presentation_invalid": "The chosen presentation doesn't belong to this product or is inactive.",
   "product_inactive": "This product is inactive.",
   "product_not_found": "One of the products doesn't exist.",

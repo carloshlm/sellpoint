@@ -575,7 +575,9 @@ describe("La nota del faltante en la recepción (F10-MANFIX-01)", () => {
 
     expect(screen.getByLabelText("Nota")).toHaveValue("");
     expect(
-      screen.queryByText("Falta la explicación: este motivo pide una nota."),
+      screen.queryByText(
+        "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
+      ),
     ).not.toBeInTheDocument();
     // El faltante solo lo sabe el servidor al confirmar (compara contra lo
     // enviado): no hay «required» local que trabe el botón de antemano.
@@ -586,10 +588,19 @@ describe("La nota del faltante en la recepción (F10-MANFIX-01)", () => {
     const user = userEvent.setup();
     mocked.getDocument.mockResolvedValue(recepcion());
     mocked.updateDocumentHeader.mockResolvedValue(recepcion());
+    // Lo que manda el API (F10-MANFIX): su propia clave, traducida.
     mocked.confirmDocument.mockRejectedValue({
       statusCode: 400,
-      message: "Revisa el traspaso antes de confirmar.",
-      errors: [{ key: "reasonNote", message: "Falta la explicación: este motivo pide una nota." }],
+      code: "inventory.shortage_note_required",
+      message: "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
+      errors: [
+        {
+          key: "reasonNote",
+          code: "inventory.shortage_note_required",
+          message:
+            "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
+        },
+      ],
     });
     await renderDoc();
     await screen.findByTestId("transfer-reason");
@@ -598,7 +609,9 @@ describe("La nota del faltante en la recepción (F10-MANFIX-01)", () => {
     await user.click(screen.getByRole("button", { name: /^confirmar entrada$/i }));
 
     expect(
-      await screen.findByText("Falta la explicación: este motivo pide una nota."),
+      await screen.findByText(
+        "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
+      ),
     ).toBeInTheDocument();
     // Y NO el mensaje general: el error ya tiene dónde aterrizar.
     expect(screen.queryByText("Revisa el traspaso antes de confirmar.")).not.toBeInTheDocument();
@@ -618,7 +631,9 @@ describe("La nota del faltante en la recepción (F10-MANFIX-01)", () => {
     );
     await waitFor(() => {
       expect(
-        screen.queryByText("Falta la explicación: este motivo pide una nota."),
+        screen.queryByText(
+          "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
+        ),
       ).not.toBeInTheDocument();
     });
   });
