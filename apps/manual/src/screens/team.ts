@@ -98,7 +98,7 @@ export const TEAM: Screen[] = [
     path: "/system/roles",
     prepare: async (page) => {
       await roleList(page).getByText("Seller", { exact: true }).click();
-      await page.getByText("pos:view", { exact: true }).waitFor();
+      await page.getByText("Ver historial de ventas", { exact: true }).waitFor();
       await scrollToTop(roleList(page));
       // El ratón se queda donde hizo clic y, tras desplazar, resalta otro rol.
       await page.mouse.move(0, 0);
@@ -108,7 +108,7 @@ export const TEAM: Screen[] = [
     target: (page) => [
       roleList(page),
       page.getByLabel("Nombre del rol"),
-      page.getByText("pos:view", { exact: true }),
+      page.getByText("Ver historial de ventas", { exact: true }),
     ],
   },
   {
