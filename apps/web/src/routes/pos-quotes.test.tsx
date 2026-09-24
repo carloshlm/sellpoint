@@ -258,6 +258,18 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
       expect(mocked.cancelQuote).not.toHaveBeenCalled();
     });
 
+    /**
+     * F10-MANFIX-18 — en el celular la tabla se desliza y el aviso salía
+     * cortado, con sus botones fuera de la vista. La caja con scroll ancla a
+     * lo visible el panel de una fila de UNA sola celda (`ui/table.tsx`).
+     */
+    it("el aviso va solo en su fila, dentro de la caja con scroll: así se queda a la vista en el celular", async () => {
+      const aviso = await abrirAviso();
+
+      expect(aviso.parentElement?.matches("td[colspan]:only-child")).toBe(true);
+      expect(aviso.closest('[data-testid="scrollable-table"]')).not.toBeNull();
+    });
+
     it("confirmar la cancela y cierra el aviso", async () => {
       mocked.cancelQuote.mockResolvedValue({ ...cotizacion(), status: "canceled" } as never);
       const aviso = await abrirAviso();

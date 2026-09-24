@@ -810,6 +810,24 @@ describe("Editar un lote (F3-LOTS-04)", () => {
     const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
   });
+
+  /**
+   * F10-MANFIX-18 — en un celular de 320 px la tabla se desliza y el editor
+   * salía cortado, con «Guardar» fuera de la vista. La caja con scroll ancla
+   * a lo visible el panel de una fila de UNA sola celda (`ui/table.tsx`).
+   */
+  it("el editor va solo en su fila, dentro de la caja con scroll: así se queda a la vista en el celular", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    const user = renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+    await screen.findByText("st10");
+
+    await user.click(screen.getByRole("button", { name: /editar lote/i }));
+    const celda = (await screen.findByLabelText(/código de lote/i)).closest("td") as HTMLElement;
+
+    expect(celda.matches("td[colspan]:only-child")).toBe(true);
+    expect(celda.children).toHaveLength(1);
+    expect(celda.closest('[data-testid="scrollable-table"]')).not.toBeNull();
+  });
 });
 
 /**

@@ -306,6 +306,23 @@ describe("Historial de ventas (F4-UI-03)", () => {
     });
 
     /**
+     * F10-MANFIX-18 — en el celular la tabla se desliza y el diálogo salía
+     * cortado. La caja con scroll ancla a lo visible el panel de una fila de
+     * UNA sola celda (`ui/table.tsx`): si la fila gana otra celda, el ancla
+     * se apaga sin avisar. Este test es esa alarma.
+     */
+    it("el diálogo va solo en su fila, dentro de la caja con scroll: así se queda a la vista en el celular", async () => {
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+      const dialogo = await screen.findByTestId("cancel-VTA-000001");
+
+      expect(dialogo.parentElement?.matches("td[colspan]:only-child")).toBe(true);
+      expect(dialogo.closest('[data-testid="scrollable-table"]')).not.toBeNull();
+    });
+
+    /**
      * El motivo es obligatorio en el API (mínimo 3 caracteres). Decirlo ANTES
      * del clic es mejor que dejar chocar con el 422.
      */

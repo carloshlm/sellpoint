@@ -46,6 +46,10 @@ interface ConfirmDialogProps {
  *    el usuario tiene que poder ver que apuntó a la correcta.
  * 3. **El `confirmLabel` nombra la acción**, no dice "Aceptar". Quien lee solo
  *    los botones tiene que entender qué va a pasar.
+ * 4. **Dentro de una tabla, va SOLO en una fila a lo ancho** (una única
+ *    `<td colSpan>`): la caja con scroll lo ancla a lo que se ve, y en un
+ *    celular con la tabla deslizada sus botones siguen a la vista
+ *    (`TABLE_PIN_FULL_WIDTH_ROW` en `ui/table.tsx`, F10-MANFIX-18).
  */
 function ConfirmDialog({
   title,

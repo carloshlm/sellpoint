@@ -76,6 +76,12 @@ el espacio a lo que estás haciendo:
 
 ![En el celular, el menú se abre encima de la pantalla](screen:menu-phone)
 
+Las tablas con muchas columnas, como la del **Historial**, no caben a lo ancho
+del celular: deslízalas de lado con el dedo. Mientras falten columnas por ver,
+debajo de la tabla dice **Desliza la tabla para ver más columnas.** Un aviso que
+se abre dentro de una tabla, como el de **Cancelar** una venta, aparece completo
+y con sus botones a la vista, aunque hayas deslizado la tabla.
+
 ## El idioma
 
 SellPointy está en español y en inglés. Cada persona elige el suyo: cambiarlo

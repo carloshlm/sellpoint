@@ -27,7 +27,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
         ref={ref}
         onScroll={medir}
         data-slot="table-container"
-        className={cn("relative w-full overflow-x-auto", SURFACE)}
+        className={cn("relative w-full overflow-x-auto", SURFACE, TABLE_PIN_FULL_WIDTH_ROW)}
       >
         <table
           data-slot="table"
@@ -48,6 +48,41 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
  */
 export const TABLE_HEAD_ROW = "bg-muted/40 text-left text-muted-foreground";
 export const TABLE_ROW_HOVER = "transition-colors hover:bg-muted/50";
+
+/**
+ * F10-MANFIX-18 — el aviso de una fila a lo ancho se queda en lo que SE VE.
+ *
+ * Una fila de UNA sola celda con `colSpan` es un panel: la confirmación de
+ * cancelar una venta o una cotización, el editor de un lote. Esa celda mide
+ * la tabla entera (820 px en el historial de ventas), y en un celular de
+ * 375 px, con la tabla deslizada hasta «Cancelar», el aviso quedaba cortado
+ * y sus botones fuera de la vista hasta deslizarla de regreso.
+ *
+ * La regla vive en las DOS cajas con scroll (`Table` y `ScrollableTable`),
+ * como el aviso de «Desliza»: la hereda cualquier fila a lo ancho de hoy o de
+ * mañana, sin tocar la pantalla. El hijo directo de esa celda:
+ *
+ * - es `sticky` a 8 px del borde izquierdo de lo visible: se desliza con la
+ *   tabla y nunca se va de la vista;
+ * - mide como máximo lo visible menos 1rem (8 px por lado, el margen de la
+ *   celda `p-2`). El ancho lo publica `useOverflowHint` en
+ *   `--table-visible-width`; sin él, no hay tope y el panel se ve como
+ *   siempre.
+ *
+ * En el escritorio, con la tabla entera a la vista, el panel mide lo mismo
+ * que antes (el editor de lote, cuya celda no tiene margen, gana 8 px por
+ * lado), y abrirlo ya no mueve las columnas: sin tope, el ancho natural del
+ * aviso —su texto en una sola línea— entraba al reparto de la tabla y las
+ * corría 2 o 3 px. `:only-child` deja fuera una fila de totales («Total» con
+ * `colSpan` y el importe al lado): ahí no hay panel que anclar.
+ *
+ * Por qué medir y no usar unidades de contenedor (`100cqw`): declarar la caja
+ * como contenedor (`container-type: inline-size`) le quita su ancho
+ * intrínseco, y una tabla dentro de un padre que se ajusta a su contenido se
+ * encogería hasta cero.
+ */
+export const TABLE_PIN_FULL_WIDTH_ROW =
+  "[&_td[colspan]:only-child>*]:sticky [&_td[colspan]:only-child>*]:left-2 [&_td[colspan]:only-child>*]:max-w-[calc(var(--table-visible-width)-1rem)]";
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
