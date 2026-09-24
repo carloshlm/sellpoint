@@ -71,8 +71,11 @@ export function TaxReport() {
             <WarehouseSelect
               id="tax-report-warehouse"
               value={warehouseId}
-              onChange={setWarehouseId}
+              // F10-MANFIX-02: "" es «Todas las sucursales» (allowAll) — se
+              // traduce a `null` para que `filtros` NO mande `warehouseId`.
+              onChange={(valor) => setWarehouseId(valor === "" ? null : valor)}
               scoped
+              allowAll
             />
           </label>
         )}

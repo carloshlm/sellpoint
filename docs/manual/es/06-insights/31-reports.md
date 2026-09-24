@@ -36,8 +36,10 @@ Excel en ese momento o te llevan a la pantalla donde ya vive esa información.
 
 Cada reporte tiene arriba sus filtros, y la tabla cambia en cuanto eliges uno:
 
-- **Sucursal**. Si tienes una sucursal asignada, el reporte abre con ella; para
-  ver otra, elígela en la lista.
+- **Sucursal**. Abre en **Todas las sucursales**, aunque tengas una
+  **Sucursal asignada** (capítulo 32): así puedes ver el negocio completo.
+  Para ver solo una, elígela en la lista; **Todas las sucursales** se queda
+  como opción para volver a ella.
 - **Desde** y **Hasta**, para el rango de fechas. **Limpiar fechas** las borra.
 
 La tabla muestra 20 renglones por página; usa **Anterior** y **Siguiente** para

@@ -29,8 +29,14 @@ const demoUser = (permissions: string[]): AuthUser =>
     tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
   });
 
-async function renderRuta(path: string, permissions: string[] = ["reports:read"]) {
-  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
+async function renderRuta(
+  path: string,
+  permissions: string[] = ["reports:read"],
+  // F10-MANFIX-02: para simular a la dueña con una sucursal ASIGNADA sin
+  // tener que rearmar todo `renderRuta` en cada test.
+  userOverrides: Partial<AuthUser> = {},
+) {
+  useAuthStore.getState().setAuth("jwt", { ...demoUser(permissions), ...userOverrides });
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -560,6 +566,68 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
 
       await waitFor(() => expect(screen.queryByTestId("tax-report")).not.toBeInTheDocument());
     });
+  });
+
+  /**
+   * F10-MANFIX-02 (decidido por Carlos el 2026-09-24) — el bug real: el
+   * `WarehouseSelect` se auto-elegía la sucursal ASIGNADA del usuario
+   * (F3-HOME-04) y el reporte mandaba ese `warehouseId`, así que una dueña
+   * con Centro asignada nunca veía el negocio completo. El API sin
+   * `warehouseId` ya junta el alcance (`scope.warehouseIds`), así que
+   * alcanza con que el WEB deje de mandarlo por default.
+   */
+  describe("F10-MANFIX-02 — los cuatro reportes abren en Todas las sucursales", () => {
+    const casos = [
+      {
+        path: "/reports/stock",
+        mockFn: mocked.getStockReport,
+        esperar: () => screen.findByText("Café"),
+      },
+      {
+        path: "/reports/sales",
+        mockFn: mocked.getSalesReport,
+        esperar: () => screen.findByText("VTA-000001"),
+      },
+      {
+        path: "/reports/shifts",
+        mockFn: mocked.getShiftsReport,
+        esperar: () => screen.findByText("Faltaron diez pesos"),
+      },
+      {
+        path: "/reports/taxes",
+        mockFn: mocked.getTaxReport,
+        esperar: () => screen.findByRole("cell", { name: "GST 5%" }),
+      },
+    ] as const;
+
+    it.each(casos)("$path abre sin mandar warehouseId (dueña, alcance completo)", async (caso) => {
+      await renderRuta(caso.path);
+      await caso.esperar();
+
+      const enviado = caso.mockFn.mock.calls[0]?.[0] ?? {};
+      expect(enviado).not.toHaveProperty("warehouseId");
+      expect(screen.getByLabelText(/sucursal/i)).toHaveValue("");
+    });
+
+    it.each(casos)(
+      "$path: un usuario limitado a UNA sucursal asignada tampoco la auto-selecciona",
+      async (caso) => {
+        // Alcance de una sola sucursal —lo que trae `scoped: true`— Y esa
+        // misma sucursal como asignada (F3-HOME-04): el caso exacto del bug.
+        vi.mocked(warehousesApi.listWarehouses).mockImplementation(async (options = {}) =>
+          options.scoped
+            ? [buildWarehouse()]
+            : [buildWarehouse(), buildWarehouse({ id: "w2", code: "ALM-002", name: "Norte" })],
+        );
+
+        await renderRuta(caso.path, ["reports:read"], { defaultWarehouseId: "w1" });
+        await caso.esperar();
+
+        const enviado = caso.mockFn.mock.calls[0]?.[0] ?? {};
+        expect(enviado).not.toHaveProperty("warehouseId");
+        expect(screen.getByLabelText(/sucursal/i)).toHaveValue("");
+      },
+    );
   });
 
   /**

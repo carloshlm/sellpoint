@@ -22,6 +22,18 @@ interface WarehouseSelectProps {
    * que en una orden de compra o una compra no es lo que la persona intenta.
    */
   emptyMessage?: string;
+  /**
+   * F10-MANFIX-02 — suma la opción «Todas las sucursales» (`value` en cadena
+   * vacía) y APAGA la auto-selección de la asignada o la única. Solo lo
+   * encienden los reportes: ahí «Todas» es un resultado seguro porque el API
+   * sin `warehouseId` ya junta el alcance del usuario, y por eso una dueña
+   * con una sucursal asignada tiene que poder ver el negocio completo sin
+   * que el selector se la gane de entrada.
+   *
+   * Los movimientos NO prenden esto: ahí la auto-selección de F3-HOME-04
+   * sigue siendo lo correcto.
+   */
+  allowAll?: boolean;
 }
 
 /**
@@ -42,6 +54,7 @@ export function WarehouseSelect({
   id,
   disabled = false,
   emptyMessage,
+  allowAll = false,
 }: WarehouseSelectProps) {
   const { t } = useTranslation();
   const todos = useWarehouses();
@@ -77,12 +90,12 @@ export function WarehouseSelect({
   const unico = opciones.length === 1 ? opciones[0] : undefined;
   const inicial = asignadoDisponible ?? unico?.id;
   useEffect(() => {
-    if (inicial === undefined || value !== null || yaAviso.current) {
+    if (allowAll || inicial === undefined || value !== null || yaAviso.current) {
       return;
     }
     yaAviso.current = true;
     onChangeRef.current(inicial);
-  }, [inicial, value]);
+  }, [inicial, value, allowAll]);
 
   // Mientras carga, un desplegable DESHABILITADO con el mismo `id`, no un
   // texto suelto (Carlos, 2026-09-14). Las pantallas lo rotulan con
@@ -120,9 +133,13 @@ export function WarehouseSelect({
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
     >
-      <option value="" disabled>
-        {t("inventory.warehouse.placeholder")}
-      </option>
+      {allowAll ? (
+        <option value="">{t("inventory.warehouse.all")}</option>
+      ) : (
+        <option value="" disabled>
+          {t("inventory.warehouse.placeholder")}
+        </option>
+      )}
       {opciones.map((warehouse) => (
         <option key={warehouse.id} value={warehouse.id}>
           {warehouse.name}

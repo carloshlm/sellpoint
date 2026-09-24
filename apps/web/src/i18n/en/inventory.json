@@ -11,7 +11,8 @@
     "label": "Store",
     "placeholder": "Choose a store",
     "loading": "Loading stores…",
-    "empty": "There are no stores available. Create one before recording movements."
+    "empty": "There are no stores available. Create one before recording movements.",
+    "all": "All stores"
   },
   "direction": {
     "entry": "Entry",

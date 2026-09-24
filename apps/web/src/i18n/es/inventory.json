@@ -11,7 +11,8 @@
     "label": "Sucursal",
     "placeholder": "Elige una sucursal",
     "loading": "Cargando sucursales…",
-    "empty": "No hay sucursales disponibles. Crea una antes de registrar movimientos."
+    "empty": "No hay sucursales disponibles. Crea una antes de registrar movimientos.",
+    "all": "Todas las sucursales"
   },
   "direction": {
     "entry": "Entrada",

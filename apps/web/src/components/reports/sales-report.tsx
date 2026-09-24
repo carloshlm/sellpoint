@@ -92,8 +92,11 @@ export function SalesReport() {
             <WarehouseSelect
               id="sales-report-warehouse"
               value={warehouseId}
-              onChange={(valor) => alFiltrar(() => setWarehouseId(valor))}
+              // F10-MANFIX-02: "" es «Todas las sucursales» (allowAll) — se
+              // traduce a `null` para que `filtros` NO mande `warehouseId`.
+              onChange={(valor) => alFiltrar(() => setWarehouseId(valor === "" ? null : valor))}
               scoped
+              allowAll
             />
           </label>
         )}

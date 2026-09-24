@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { api } from "@/lib/api";
@@ -178,5 +179,71 @@ describe("WarehouseSelect (F3-NAV-01)", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * F10-MANFIX-02 — «Todas las sucursales», SOLO para quien lo encienda.
+ *
+ * Los reportes prenden `allowAll` porque ahí «Todas» es un resultado seguro:
+ * el API sin `warehouseId` ya junta el alcance del usuario. Los movimientos
+ * NO tocan esta opción — de ahí que la auto-selección de F3-HOME-04 (la
+ * asignada o la única) siga intacta en el describe de arriba.
+ */
+describe("WarehouseSelect con `allowAll` (F10-MANFIX-02)", () => {
+  it("ofrece «Todas las sucursales» como opción elegible, no deshabilitada", async () => {
+    mocked.mockResolvedValue({ data: [almacen("a", "Central"), almacen("b", "Norte")] });
+
+    renderSelect({ allowAll: true, scoped: true });
+
+    const todas = await screen.findByRole("option", { name: "Todas las sucursales" });
+    expect(todas).toBeEnabled();
+  });
+
+  it("sin `allowAll` la opción «Todas» no existe: sigue el placeholder de siempre", async () => {
+    mocked.mockResolvedValue({ data: [almacen("a", "Central")] });
+
+    renderSelect();
+
+    await screen.findByRole("option", { name: "Central" });
+    expect(screen.queryByText("Todas las sucursales")).not.toBeInTheDocument();
+  });
+
+  /**
+   * La razón de ser de la tarea: hoy el selector se auto-asigna la sucursal
+   * del usuario (F3-HOME-04) y una dueña con Centro asignada no puede ver el
+   * negocio completo. Con `allowAll`, ni la asignada ni el «hay uno solo»
+   * fuerzan nada — el reporte se queda en «Todas».
+   */
+  it("NO autoselecciona la asignada ni la única, aunque haya: se queda en «Todas»", async () => {
+    mocked.mockResolvedValue({ data: [almacen("unico", "Central")] });
+    const onChange = vi.fn();
+
+    renderSelect({ allowAll: true, scoped: true, onChange });
+
+    await screen.findByRole("option", { name: "Todas las sucursales" });
+    // Un par de renders más para descartar que la auto-selección llegue tarde.
+    await waitFor(() => {
+      expect(onChange).not.toHaveBeenCalled();
+    });
+  });
+
+  it("elegir «Todas» de vuelta llama a `onChange` con cadena vacía", async () => {
+    mocked.mockResolvedValue({ data: [almacen("a", "Central"), almacen("b", "Norte")] });
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+
+    renderSelect({ allowAll: true, scoped: true, onChange, value: "a" });
+
+    const select = await screen.findByRole("combobox");
+    // Verificado (no es un supuesto): `findByRole("combobox")` puede resolver
+    // MIENTRAS el `<select>` sigue deshabilitado —es el mismo nodo del
+    // estado de carga, que React reutiliza y luego habilita—, y
+    // `selectOptions` sobre un combobox deshabilitado no dispara nada, sin
+    // error. Hay que esperar una opción real antes de interactuar.
+    await screen.findByRole("option", { name: "Norte" });
+    await user.selectOptions(select, "");
+
+    expect(onChange).toHaveBeenCalledWith("");
   });
 });
