@@ -33,6 +33,8 @@ export interface Expense {
   amount: string;
   discount: string;
   taxGroupCode: string | null;
+  /** F10-MANFIX-05b: el nombre del grupo («IVA 16 %»), para mostrar. */
+  taxGroupName: string | null;
   taxRates: ExpenseTaxRate[];
   taxAmount: string;
   total: string;

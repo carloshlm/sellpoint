@@ -54,6 +54,14 @@ export interface ExpenseSummary {
   amount: string;
   discount: string;
   taxGroupCode: string | null;
+  /**
+   * F10-MANFIX-05b: el NOMBRE del grupo («IVA 16 %»), para mostrar —
+   * `taxGroupCode` («VAT16») queda para lo que ya lo usa. Se resuelve por
+   * CÓDIGO contra el catálogo VIGENTE del negocio (`nombresPorCodigo`), no
+   * un snapshot: un grupo que el negocio borró (sin artículos que lo usen,
+   * único caso en que se deja borrar) cae al código, igual que antes.
+   */
+  taxGroupName: string | null;
   taxRates: ExpenseTaxRate[];
   taxAmount: string;
   total: string;
@@ -179,14 +187,18 @@ export class ExpensesService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return toSummary(creado);
+      return toSummary(
+        creado,
+        await this.nombresPorCodigo(tx, user.tenantId, [creado.taxGroupCode]),
+      );
     });
   }
 
   async get(user: AuthUser, id: string): Promise<ExpenseSummary> {
-    return this.prisma.withTenantContext(user.tenantId, async (tx) =>
-      toSummary(await this.buscar(tx, user, id)),
-    );
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const fila = await this.buscar(tx, user, id);
+      return toSummary(fila, await this.nombresPorCodigo(tx, user.tenantId, [fila.taxGroupCode]));
+    });
   }
 
   async list(
@@ -207,22 +219,36 @@ export class ExpensesService {
           take: query.pageSize,
         }),
       ]);
-      return { rows: rows.map(toSummary), total, page: query.page, pageSize: query.pageSize };
+      const nombres = await this.nombresPorCodigo(
+        tx,
+        user.tenantId,
+        rows.map((r) => r.taxGroupCode),
+      );
+      return {
+        rows: rows.map((row) => toSummary(row, nombres)),
+        total,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
     });
   }
 
   /** Sin paginar, para el export (pasa antes por `count` y el tope de filas). */
   async all(user: AuthUser, scope: UserScope, query: ListExpensesQuery): Promise<ExpenseSummary[]> {
     const where = this.where(user, scope, query);
-    return this.prisma.withTenantContext(user.tenantId, async (tx) =>
-      (
-        await tx.expense.findMany({
-          where,
-          include: INCLUDE,
-          orderBy: [{ expenseDate: "desc" }, { id: "desc" }],
-        })
-      ).map(toSummary),
-    );
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const filas = await tx.expense.findMany({
+        where,
+        include: INCLUDE,
+        orderBy: [{ expenseDate: "desc" }, { id: "desc" }],
+      });
+      const nombres = await this.nombresPorCodigo(
+        tx,
+        user.tenantId,
+        filas.map((f) => f.taxGroupCode),
+      );
+      return filas.map((row) => toSummary(row, nombres));
+    });
   }
 
   async count(user: AuthUser, scope: UserScope, query: ListExpensesQuery): Promise<number> {
@@ -321,7 +347,8 @@ export class ExpensesService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return toSummary(await this.buscar(tx, user, id));
+      const fila = await this.buscar(tx, user, id);
+      return toSummary(fila, await this.nombresPorCodigo(tx, user.tenantId, [fila.taxGroupCode]));
     });
   }
 
@@ -370,7 +397,8 @@ export class ExpensesService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return toSummary(await this.buscar(tx, user, id));
+      const fila = await this.buscar(tx, user, id);
+      return toSummary(fila, await this.nombresPorCodigo(tx, user.tenantId, [fila.taxGroupCode]));
     });
   }
 
@@ -463,7 +491,10 @@ export class ExpensesService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return toSummary(despues);
+      return toSummary(
+        despues,
+        await this.nombresPorCodigo(tx, user.tenantId, [despues.taxGroupCode]),
+      );
     });
   }
 
@@ -524,6 +555,26 @@ export class ExpensesService {
     if (code === null) return null;
     const grupo = await tx.taxGroup.findFirst({ where: { tenantId, code }, select: { id: true } });
     return grupo?.id ?? null;
+  }
+
+  /**
+   * F10-MANFIX-05b — el NOMBRE de cada grupo, por su CÓDIGO, en UNA sola
+   * query (nunca una por fila: `list`/`all` pueden traer decenas de gastos).
+   * Un código sin grupo vigente (borrado) simplemente no entra al mapa;
+   * `toSummary` cae al código en ese caso.
+   */
+  private async nombresPorCodigo(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    codes: (string | null)[],
+  ): Promise<Map<string, string>> {
+    const unicos = [...new Set(codes.filter((c): c is string => c !== null))];
+    if (unicos.length === 0) return new Map();
+    const grupos = await tx.taxGroup.findMany({
+      where: { tenantId, code: { in: unicos } },
+      select: { code: true, name: true },
+    });
+    return new Map(grupos.map((g) => [g.code, g.name]));
   }
 
   /**
@@ -643,7 +694,7 @@ function snapshotDeTasas(
 const fechaIso = (d: Date | null): string | null =>
   d === null ? null : d.toISOString().slice(0, 10);
 
-export function toSummary(row: ExpenseRow): ExpenseSummary {
+export function toSummary(row: ExpenseRow, taxGroupNames: Map<string, string>): ExpenseSummary {
   return {
     id: row.id,
     folio: row.folio,
@@ -660,6 +711,8 @@ export function toSummary(row: ExpenseRow): ExpenseSummary {
     amount: row.amount.toString(),
     discount: row.discount.toString(),
     taxGroupCode: row.taxGroupCode,
+    taxGroupName:
+      row.taxGroupCode === null ? null : (taxGroupNames.get(row.taxGroupCode) ?? row.taxGroupCode),
     taxRates: row.taxRates as unknown as ExpenseTaxRate[],
     taxAmount: row.taxAmount.toString(),
     total: row.total.toString(),

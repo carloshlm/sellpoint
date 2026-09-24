@@ -64,6 +64,7 @@ const gasto = (over: Partial<expensesApi.Expense> = {}): expensesApi.Expense => 
   amount: "116",
   discount: "0",
   taxGroupCode: "VAT16",
+  taxGroupName: "IVA 16%",
   taxRates: [],
   taxAmount: "16",
   total: "116",
@@ -186,6 +187,18 @@ describe("Gastos — listado (F9-EXP-13)", () => {
         expect.objectContaining({ from: "2026-09-01", page: 1 }),
       ),
     );
+  });
+
+  /**
+   * F10-MANFIX-05b — el detalle mostraba el CÓDIGO del grupo de impuesto
+   * («VAT16», `taxGroupCode`) en vez de su nombre («IVA 16%», `taxGroupName`,
+   * que ahora manda el API).
+   */
+  it("el impuesto se ve con el NOMBRE del grupo, no su código", async () => {
+    await renderEn("/expenses/g1", ["expenses:read"]);
+    const ficha = await screen.findByTestId("expense-detail");
+    expect(within(ficha).getByText(/IVA 16%/)).toBeInTheDocument();
+    expect(within(ficha).queryByText(/VAT16/)).not.toBeInTheDocument();
   });
 
   it("la ficha ofrece «Anular» solo con expenses:cancel, y pide el motivo", async () => {

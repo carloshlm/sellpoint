@@ -98,6 +98,9 @@ describe("ExpensesService (F9-EXP-05/06)", () => {
     expect(gasto.total).toBe("116");
     expect(gasto.taxAmount).toBe("16");
     expect(gasto.taxGroupCode).toBe("VAT16");
+    // F10-MANFIX-05b: el detalle mostraba el CÓDIGO («VAT16») en vez del
+    // nombre del grupo («IVA 16 %») — el código queda para lo que ya lo usa.
+    expect(gasto.taxGroupName).toBe("IVA 16 %");
     expect(gasto.taxMode).toBe("included");
     expect(gasto.taxRates).toEqual([
       { code: "IVA", name: "IVA", rate: "16", base: "100", amount: "16", sortOrder: 0 },
@@ -129,6 +132,7 @@ describe("ExpensesService (F9-EXP-05/06)", () => {
     const sinIva = await service.create(user, SCOPE, { ...base(), taxGroupId: null }, META);
     expect(sinIva.taxAmount).toBe("0");
     expect(sinIva.taxGroupCode).toBeNull();
+    expect(sinIva.taxGroupName).toBeNull();
     await expect(
       service.create(
         user,

@@ -127,7 +127,7 @@ export function ExpenseDetail({ expense, onEdit }: { expense: Expense; onEdit: (
         <Campo label={t("expenses.detail.taxAmount")}>
           {expense.taxGroupCode === null
             ? t("expenses.detail.noTax")
-            : `${dinero(expense.taxAmount)} · ${expense.taxGroupCode} (${t(
+            : `${dinero(expense.taxAmount)} · ${expense.taxGroupName ?? expense.taxGroupCode} (${t(
                 expense.taxMode === "included"
                   ? "expenses.detail.taxIncluded"
                   : "expenses.detail.taxExcluded",
