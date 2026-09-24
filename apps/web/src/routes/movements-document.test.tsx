@@ -546,6 +546,85 @@ describe("Cabecera de una recepción de traspaso", () => {
 });
 
 /**
+ * F10-MANFIX-01 — antes la Nota no se pintaba en la recepción de un traspaso:
+ * el API ya exigía `reasonNote` cuando lo recibido es menos que lo enviado
+ * (`transfers.service.ts`, `receive()`), pero `CabeceraDeTraspaso` no
+ * ofrecía dónde escribirla — mismo patrón que el lote del 2026-08-19. El
+ * faltante solo lo sabe el servidor AL CONFIRMAR (compara contra lo que el
+ * traspaso dice haber enviado, algo que el borrador no trae), así que no hay
+ * un «obligatorio» local: el campo se muestra siempre y, si el confirmar
+ * rebota por la nota, el error aterriza justo ahí.
+ */
+describe("La nota del faltante en la recepción (F10-MANFIX-01)", () => {
+  const recepcion = (overrides: Partial<DocumentDetail> = {}) =>
+    detalle({
+      folio: "ENT-000002",
+      type: "entry",
+      transferId: "tr-1",
+      reasonCode: "transfer",
+      linkedWarehouseId: "w2",
+      warehouse: { id: "w1", name: "Almacén Sur" },
+      reasonNote: null,
+      ...overrides,
+    });
+
+  it("sin faltante: el campo está vacío y no bloquea el confirmar", async () => {
+    mocked.getDocument.mockResolvedValue(recepcion());
+    await renderDoc();
+    await screen.findByTestId("transfer-reason");
+
+    expect(screen.getByLabelText("Nota")).toHaveValue("");
+    expect(
+      screen.queryByText("Falta la explicación: este motivo pide una nota."),
+    ).not.toBeInTheDocument();
+    // El faltante solo lo sabe el servidor al confirmar (compara contra lo
+    // enviado): no hay «required» local que trabe el botón de antemano.
+    expect(screen.getByRole("button", { name: /^confirmar$/i })).toBeEnabled();
+  });
+
+  it("con faltante: el 400 de confirmar apunta a la Nota, y escribirla la destraba", async () => {
+    const user = userEvent.setup();
+    mocked.getDocument.mockResolvedValue(recepcion());
+    mocked.updateDocumentHeader.mockResolvedValue(recepcion());
+    mocked.confirmDocument.mockRejectedValue({
+      statusCode: 400,
+      message: "Revisa el traspaso antes de confirmar.",
+      errors: [{ key: "reasonNote", message: "Falta la explicación: este motivo pide una nota." }],
+    });
+    await renderDoc();
+    await screen.findByTestId("transfer-reason");
+
+    await user.click(screen.getByRole("button", { name: /^confirmar$/i }));
+    await user.click(screen.getByRole("button", { name: /^confirmar entrada$/i }));
+
+    expect(
+      await screen.findByText("Falta la explicación: este motivo pide una nota."),
+    ).toBeInTheDocument();
+    // Y NO el mensaje general: el error ya tiene dónde aterrizar.
+    expect(screen.queryByText("Revisa el traspaso antes de confirmar.")).not.toBeInTheDocument();
+
+    // Escribir la nota la autoguarda; el refetch la trae puesta y el aviso se apaga.
+    mocked.getDocument.mockResolvedValue(recepcion({ reasonNote: "Se rompieron 4 botellas" }));
+    await user.type(screen.getByLabelText("Nota"), "Se rompieron 4 botellas");
+
+    await waitFor(
+      () => {
+        expect(mocked.updateDocumentHeader).toHaveBeenCalledWith(
+          "doc-1",
+          expect.objectContaining({ reasonNote: "Se rompieron 4 botellas" }),
+        );
+      },
+      { timeout: 2000 },
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Falta la explicación: este motivo pide una nota."),
+      ).not.toBeInTheDocument();
+    });
+  });
+});
+
+/**
  * Carlos (2026-09-02): la cabecera del documento dice cuándo se abrió y
  * cuándo se asentó o canceló, con hora, en la zona del negocio. No decía
  * ninguna fecha.

@@ -20,6 +20,7 @@ import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { fieldErrorsOf } from "@/lib/field-errors";
 import { removeDocumentLine, updateDocumentLine } from "@/lib/inventory/api";
 import { headerErrors } from "@/lib/inventory/entry-schema";
 import { formatBusinessDate, formatCalendarDate } from "@/lib/inventory/format-date";
@@ -102,6 +103,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   // se cerraba y el usuario veía "no pasa nada" — indebuggeable hasta para
   // quien lo reporta. El filtro del API ya manda el mensaje traducido.
   const [actionError, setActionError] = useState<string | null>(null);
+  // F10-MANFIX-01: cuando el confirmar falla por CAMPO (hoy, solo la nota del
+  // traspaso con faltante), el error se pinta bajo su input y no como banner
+  // suelto — mismo criterio que `supplier-form.tsx`.
+  const [confirmFieldErrors, setConfirmFieldErrors] = useState<Map<string, string>>(new Map());
   const [drifted, setDrifted] = useState(0);
   const [soloDiscrepancias, setSoloDiscrepancias] = useState(false);
 
@@ -296,7 +301,9 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
 
       {editable && esConteo && <CountPanel document={document} />}
       {esConteo && <CountSummary document={document} />}
-      {editable && !esConteo && <DocumentHeaderForm document={document} />}
+      {editable && !esConteo && (
+        <DocumentHeaderForm document={document} confirmErrors={confirmFieldErrors} />
+      )}
 
       {!editable && document.status !== "draft" && (
         <p className="rounded-md bg-muted px-3 py-2 text-muted-foreground text-sm">
@@ -451,12 +458,21 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           onCancel={() => setDialog(null)}
           onConfirm={() => {
             setActionError(null);
+            setConfirmFieldErrors(new Map());
             confirmDocument.mutate(undefined, {
               onSuccess: (res) => {
                 setConfirmado(true);
                 setDrifted((res as { drifted?: number }).drifted ?? 0);
               },
-              onError: (apiError: ApiError) => setActionError(apiError.message),
+              onError: (apiError: ApiError) => {
+                // Un error POR CAMPO (hoy, la nota del traspaso) se pinta bajo
+                // su input; sin eso, el mensaje general de siempre.
+                const byField = fieldErrorsOf(apiError);
+                setConfirmFieldErrors(byField);
+                if (byField.size === 0) {
+                  setActionError(apiError.message);
+                }
+              },
               onSettled: () => setDialog(null),
             });
           }}

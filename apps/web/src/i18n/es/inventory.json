@@ -118,6 +118,8 @@
     "originWarehouse": "Sucursal origen",
     "receptionHint": "Esta entrada la generó un traspaso: el motivo y la sucursal de origen los define el traspaso y no se editan. Ajusta las cantidades a lo que realmente llegó y confirma.",
     "referenceConsumption": "Área o concepto",
+    "receptionNotePlaceholder": "Qué pasó con la diferencia",
+    "receptionNoteHint": "Obligatoria si recibiste menos de lo que se envió.",
     "referenceConsumptionPlaceholder": "Limpieza, producción, mantenimiento…",
     "availableBase": "Disponible: {{quantity}} {{unit}}",
     "availableWithPresentation": "Disponible: {{base}} {{unit}} = {{quantity}} {{presentation}}",

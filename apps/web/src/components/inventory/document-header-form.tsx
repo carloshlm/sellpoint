@@ -17,6 +17,14 @@ const DEBOUNCE_MS = 400;
 
 interface DocumentHeaderFormProps {
   document: DocumentDetail;
+  /**
+   * F10-MANFIX-01 — los errores POR CAMPO de un intento de CONFIRMAR que ya
+   * falló (`fieldErrorsOf`, ver `document-detail.tsx`). Existen para la nota
+   * del traspaso: si hay faltante lo decide `receive()` en el API, recién al
+   * confirmar —comparando contra lo que el traspaso dice haber enviado—, y
+   * el borrador no tiene ese dato de antemano para exigirla antes.
+   */
+  confirmErrors?: Map<string, string>;
 }
 
 /**
@@ -32,7 +40,7 @@ interface DocumentHeaderFormProps {
  * textos van con debounce, por lo mismo que las cantidades: sin él, escribir
  * "F-8891" haría seis requests.
  */
-export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
+export function DocumentHeaderForm({ document, confirmErrors }: DocumentHeaderFormProps) {
   const { t } = useTranslation();
   const guardar = useUpdateDocumentHeader(document.id);
   const reasons = selectableReasons(document.type);
@@ -41,7 +49,7 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
   // Ver `CabeceraDeTraspaso` para por qué esto no es una comodidad sino un
   // guardarraíl contra la pérdida del vínculo.
   if (document.transferId !== null) {
-    return <CabeceraDeTraspaso document={document} />;
+    return <CabeceraDeTraspaso document={document} confirmErrors={confirmErrors} />;
   }
 
   // F9-PURCH-12 — una entrada que nació de una compra tiene el motivo
@@ -142,7 +150,13 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
  * los dos casos —como se hacía— le decía a quien recibía en Almacén Sur que su
  * destino era Almacén Central.
  */
-function CabeceraDeTraspaso({ document }: { document: DocumentDetail }) {
+function CabeceraDeTraspaso({
+  document,
+  confirmErrors,
+}: {
+  document: DocumentDetail;
+  confirmErrors?: Map<string, string>;
+}) {
   const { t } = useTranslation();
   const almacenes = useWarehouses();
 
@@ -163,6 +177,28 @@ function CabeceraDeTraspaso({ document }: { document: DocumentDetail }) {
       >
         {otro?.name ?? "—"}
       </Dato>
+
+      {/*
+        F10-MANFIX-01 — la nota del faltante. El API la exige recién al
+        CONFIRMAR (`transfers.service.ts`, `receive()`): compara lo que
+        quedó en las líneas contra lo que el traspaso dice haber enviado, y
+        esa cuenta no está disponible en el borrador. Por eso no hay un
+        «obligatoria» local: se muestra siempre, por si hace falta, y si el
+        confirmar rebota por `inventory.note_required` el error aterriza
+        AQUÍ (`confirmErrors`, ver el `onError` del confirmar en
+        `document-detail.tsx`) — antes no había dónde escribirla y quien
+        recibía de menos quedaba en un callejón sin salida.
+      */}
+      {esRecepcion && (
+        <TextoAutoguardado
+          document={document}
+          field="reasonNote"
+          label={t("inventory.document.note")}
+          placeholder={t("inventory.document.receptionNotePlaceholder")}
+          hint={t("inventory.document.receptionNoteHint")}
+          externalError={confirmErrors?.get("reasonNote")}
+        />
+      )}
 
       <p className="w-full text-muted-foreground text-xs">
         {t(esRecepcion ? "inventory.document.receptionHint" : "inventory.document.transferHint")}
@@ -267,11 +303,21 @@ function TextoAutoguardado({
   field,
   label,
   placeholder,
+  hint,
+  externalError,
 }: {
   document: DocumentDetail;
   field: "reference" | "reasonNote";
   label: string;
   placeholder: string;
+  hint?: string;
+  /**
+   * El error de un CONFIRMAR que ya falló (`fieldErrorsOf`, ya traducido por
+   * `AllExceptionsFilter` — a diferencia de `headerErrors`, acá NO se vuelve
+   * a traducir). Se apaga en cuanto hay algo guardado: seguir gritando
+   * «falta la nota» con la nota ya escrita sería mentir.
+   */
+  externalError?: string;
 }) {
   const { t } = useTranslation();
   const guardar = useUpdateDocumentHeader(document.id);
@@ -290,14 +336,17 @@ function TextoAutoguardado({
 
   // El error se calcula sobre lo GUARDADO y no sobre lo tecleado: mientras
   // alguien escribe la nota no hay que gritarle que falta.
-  const error = headerErrors(document.reasonCode, {
+  const localError = headerErrors(document.reasonCode, {
     [field]: guardado,
   } as HeaderValues).get(field);
+
+  const error =
+    localError !== undefined ? t(localError) : guardado.trim() === "" ? externalError : undefined;
 
   const id = `document-${field}`;
 
   return (
-    <Campo htmlFor={id} label={label} error={error === undefined ? undefined : t(error)}>
+    <Campo htmlFor={id} label={label} error={error} hint={hint}>
       <input
         id={id}
         type="text"
@@ -314,11 +363,14 @@ function Campo({
   htmlFor,
   label,
   error,
+  hint,
   children,
 }: {
   htmlFor: string;
   label: string;
   error?: string;
+  /** Se pinta solo mientras NO hay error: la explicación cede el lugar al aviso. */
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -327,7 +379,11 @@ function Campo({
         {label}
       </label>
       {children}
-      {error !== undefined && <p className="text-destructive text-xs">{error}</p>}
+      {error !== undefined ? (
+        <p className="text-destructive text-xs">{error}</p>
+      ) : (
+        hint !== undefined && <p className="text-muted-foreground text-xs">{hint}</p>
+      )}
     </div>
   );
 }
