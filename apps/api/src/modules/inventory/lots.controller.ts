@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { normalizeLotCode } from "@sellpoint/shared";
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -65,7 +66,7 @@ export class LotsController {
   productLots(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Query("withStock") withStock?: string,
     @Query("warehouseId") warehouseId?: string,
   ) {
@@ -138,7 +139,7 @@ export class LotsController {
   warehouseLocations(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
   ) {
     return this.lots.listWarehouseLocations(user, scope, id);
   }
@@ -153,8 +154,8 @@ export class LotsController {
   @RequirePermissions("inventory:movement")
   updateLot(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
-    @Param("lotId") lotId: string,
+    @UuidParam("id") id: string,
+    @UuidParam("lotId") lotId: string,
     @Body(new ZodValidationPipe(updateLotSchema, "inventory.invalid_body"))
     dto: z.infer<typeof updateLotSchema>,
     @Req() request: Request,

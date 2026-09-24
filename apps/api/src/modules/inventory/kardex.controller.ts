@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query, Req, Res } from "@nestjs/common";
+import { Controller, Get, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { MovementDirection, MovementReason } from "@sellpoint/shared";
 import { MOVEMENT_DIRECTIONS, MOVEMENT_REASONS } from "@sellpoint/shared";
 import type { Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -49,7 +50,7 @@ export class KardexController {
   list(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Query() query: Record<string, string>,
   ) {
     // Los parámetros basura se descartan en vez de reventar: un kardex es lo
@@ -78,7 +79,7 @@ export class KardexController {
   stock(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Query("warehouseId") warehouseId?: string,
   ) {
     return this.kardex.stock(user, scope, id, warehouseId || undefined);

@@ -3,6 +3,7 @@ import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
 import { z } from "zod";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -61,20 +62,24 @@ export class MedicalClinicRecordsController {
 
   @Get(":id")
   @RequirePermissions("medical_clinic:attend")
-  detail(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  detail(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.records.detail(user, id);
   }
 
   @Post(":id/close")
   @HttpCode(200)
   @RequirePermissions("medical_clinic:attend")
-  close(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  close(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.records.close(user, id, metaFrom(request));
   }
 
   @Get(":id/sections/:key")
   @RequirePermissions("medical_clinic:attend")
-  getSection(@Param("id") id: string, @Param("key") key: string, @CurrentUser() user: AuthUser) {
+  getSection(
+    @UuidParam("id") id: string,
+    @Param("key") key: string,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.sections.get(user, id, key);
   }
 
@@ -82,7 +87,7 @@ export class MedicalClinicRecordsController {
   @Put(":id/sections/:key")
   @RequirePermissions("medical_clinic:attend")
   saveSection(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Param("key") key: string,
     @Body() body: unknown,
     @CurrentUser() user: AuthUser,
@@ -100,7 +105,7 @@ export class MedicalClinicRecordsController {
   @Get(":id/sections/:key/items/:index/document")
   @RequirePermissions("medical_clinic:attend")
   async letter(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Param("key") key: string,
     @Param(
       "index",

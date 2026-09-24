@@ -15,6 +15,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -83,7 +84,7 @@ export class PurchaseOrdersController {
   @Get(":id/document")
   @RequirePermissions("purchases:read")
   async document(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
     @Res() response: Response,
@@ -100,7 +101,7 @@ export class PurchaseOrdersController {
 
   @Get(":id")
   @RequirePermissions("purchases:read")
-  detail(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  detail(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.orders.detail(user, id);
   }
 
@@ -119,7 +120,7 @@ export class PurchaseOrdersController {
   @Patch(":id")
   @RequirePermissions("purchases:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updatePurchaseOrderSchema, "purchase_orders.invalid_body"))
     dto: UpdatePurchaseOrderDto,
     @CurrentUser() user: AuthUser,
@@ -132,7 +133,7 @@ export class PurchaseOrdersController {
   @Put(":id/lines")
   @RequirePermissions("purchases:manage")
   replaceLines(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(replacePurchaseOrderLinesSchema, "purchase_orders.invalid_body"))
     dto: ReplacePurchaseOrderLinesDto,
     @CurrentUser() user: AuthUser,
@@ -144,14 +145,14 @@ export class PurchaseOrdersController {
   @Post(":id/issue")
   @HttpCode(200)
   @RequirePermissions("purchases:manage")
-  issue(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  issue(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.orders.issue(user, id, metaFrom(request));
   }
 
   @Post(":id/close")
   @HttpCode(200)
   @RequirePermissions("purchases:manage")
-  close(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  close(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.orders.close(user, id, metaFrom(request));
   }
 
@@ -159,7 +160,7 @@ export class PurchaseOrdersController {
   @HttpCode(200)
   @RequirePermissions("purchases:manage")
   closeLineShort(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Param("lineNo", ParseIntPipe) lineNo: number,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -176,7 +177,7 @@ export class PurchaseOrdersController {
   @HttpCode(201)
   @RequirePermissions("purchases:manage")
   createPurchase(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(createPurchaseFromReceiptsSchema, "purchase_orders.invalid_body"))
     dto: CreatePurchaseFromReceiptsDto,
     @CurrentUser() user: AuthUser,
@@ -190,7 +191,7 @@ export class PurchaseOrdersController {
   @HttpCode(200)
   @RequirePermissions("purchases:cancel")
   cancel(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelPurchaseOrderSchema, "purchase_orders.invalid_body"))
     dto: CancelPurchaseOrderDto,
     @CurrentUser() user: AuthUser,

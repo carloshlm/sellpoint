@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { ThrottlerException } from "@nestjs/throttler";
 import type { I18nService } from "nestjs-i18n";
+import { Prisma } from "../../generated/prisma/client";
 import { AllExceptionsFilter } from "./all-exceptions.filter";
 
 // F6-WATCH-02: el filter reporta a Sentry los 5xx (errores nuestros); los
@@ -276,6 +277,64 @@ describe("AllExceptionsFilter", () => {
     expect(body.sku).toBe("AGUA");
     // …y `args` no, que es lo que lo distingue de él.
     expect(body).not.toHaveProperty("args");
+  });
+
+  /**
+   * F10-MANFIX-17 — el respaldo de `@UuidParam`.
+   *
+   * Las rutas ya revisan su id, pero todavía hay ids que llegan crudos a la
+   * base por la CONSULTA (`?warehouseId=` del kárdex, de los lotes, de los
+   * traspasos). Postgres no puede leerlos como uuid (22P02) y sin esto eran un
+   * 500 nuestro con aviso a Sentry. Es el mismo error de quien llama que el de
+   * la ruta, y se contesta igual.
+   */
+  describe("un uuid mal formado que llega a Postgres (F10-MANFIX-17)", () => {
+    const driverError = (originalMessage: string) =>
+      new Prisma.PrismaClientKnownRequestError(`Invalid input value: ${originalMessage}`, {
+        code: "P2007",
+        clientVersion: "7.9.0",
+        meta: {
+          modelName: "Warehouse",
+          driverAdapterError: {
+            name: "DriverAdapterError",
+            cause: {
+              originalCode: "22P02",
+              originalMessage,
+              kind: "InvalidInputValue",
+              message: originalMessage,
+            },
+          },
+        },
+      });
+
+    it("responde 400 con `common.invalid_id`, como un id de ruta, y no va a Sentry", () => {
+      translateMock.mockImplementation((key: string) =>
+        key === "common.invalid_id" ? "Ese identificador no es válido." : key,
+      );
+
+      filter.catch(
+        driverError('invalid input syntax for type uuid: "no-es-un-uuid"'),
+        buildHost({ method: "GET", url: "/inventory/expiring?warehouseId=x", locale: "es" }),
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        statusCode: 400,
+        error: "Bad Request",
+        message: "Ese identificador no es válido.",
+        code: "common.invalid_id",
+      });
+      expect(sentryMock.captureException).not.toHaveBeenCalled();
+    });
+
+    it("otro valor que Postgres no pudo leer sigue siendo un 500 nuestro, con Sentry", () => {
+      const error = driverError('invalid input syntax for type integer: "abc"');
+
+      filter.catch(error, host);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(sentryMock.captureException).toHaveBeenCalledWith(error);
+    });
   });
 
   describe("reporte a Sentry (F6-WATCH-02)", () => {

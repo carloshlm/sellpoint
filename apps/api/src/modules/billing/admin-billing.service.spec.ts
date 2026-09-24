@@ -27,7 +27,7 @@ describe("AdminBillingService", () => {
     withTenantContext: jest.Mock;
     plan: { findMany: jest.Mock; update: jest.Mock; findUniqueOrThrow: jest.Mock };
     planPrice: { upsert: jest.Mock };
-    tenant: { findMany: jest.Mock; findUniqueOrThrow: jest.Mock };
+    tenant: { findMany: jest.Mock; findUnique: jest.Mock };
   };
   let service: AdminBillingService;
 
@@ -58,7 +58,7 @@ describe("AdminBillingService", () => {
       planPrice: { upsert: jest.fn() },
       tenant: {
         findMany: jest.fn().mockResolvedValue([]),
-        findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: "America/Mexico_City" }),
+        findUnique: jest.fn().mockResolvedValue({ timezone: "America/Mexico_City" }),
       },
     };
     // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
@@ -199,6 +199,22 @@ describe("AdminBillingService", () => {
         expect.objectContaining({ id: "pay-1", planCode: "plus", planName: "Plus" }),
       ]);
       expect(detalle?.payments[0]).not.toHaveProperty("plan");
+    });
+
+    /**
+     * F10-MANFIX-17: el backoffice abierto con el id de un negocio que ya no
+     * existe (un enlace viejo, un id copiado de otro ambiente) era un 500 —el
+     * `findUniqueOrThrow` de Prisma sin atrapar— y llegaba a Sentry. Es el
+     * mismo 404 que ya da la ficha del negocio en `admin-tenants`.
+     */
+    it("un negocio que no existe es 404 `billing.tenant_not_found`, no un 500", async () => {
+      prisma.tenant.findUnique.mockResolvedValue(null);
+
+      await expect(service.getTenantDetail(TENANT_A)).rejects.toMatchObject({
+        status: 404,
+        response: { message: "billing.tenant_not_found" },
+      });
+      expect(prisma.withTenantContext).not.toHaveBeenCalled();
     });
   });
 

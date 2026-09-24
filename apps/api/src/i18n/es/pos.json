@@ -9,7 +9,6 @@
   "opening_cash_invalid": "El fondo inicial debe ser un importe de cero o más, con hasta 2 decimales.",
   "integer_only_presentation": "La presentación «{presentationName}» se vende en piezas enteras.",
   "invalid_body": "Revisa los datos del punto de venta.",
-  "invalid_id": "Ese identificador no es válido.",
   "invalid_query": "Revisa los filtros de la búsqueda.",
   "line_kind_invalid": "Una línea es un producto, un servicio o un concepto: exactamente uno.",
   "line_product_xor_service": "Una línea es un producto o un servicio, no las dos cosas.",

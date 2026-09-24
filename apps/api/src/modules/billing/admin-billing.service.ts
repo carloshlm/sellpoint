@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   computeChargeAmount,
   MODULE_KEYS,
@@ -255,10 +255,16 @@ export class AdminBillingService {
 
   async getTenantDetail(tenantId: string) {
     // `tenants` no lleva RLS: la zona se lee con el cliente base.
-    const { timezone } = await this.prisma.tenant.findUniqueOrThrow({
+    const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { timezone: true },
     });
+    // F10-MANFIX-17: un negocio que no existe es un 404, como en la ficha de
+    // `admin-tenants`. El `findUniqueOrThrow` de antes lo volvía un 500.
+    if (!tenant) {
+      throw new NotFoundException({ message: "billing.tenant_not_found" });
+    }
+    const { timezone } = tenant;
 
     const detalle = await this.prisma.withTenantContext(tenantId, async (tx) => {
       const subscription = await tx.tenantSubscription.findUnique({

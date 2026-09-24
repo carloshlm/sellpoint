@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Patch,
   Post,
   Put,
@@ -13,8 +12,9 @@ import {
   Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -130,7 +130,7 @@ export class DocumentsController {
 
   @Get(":id")
   @RequirePermissions("inventory:read")
-  detail(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+  detail(@CurrentUser() user: AuthUser, @UuidParam("id") id: string) {
     return this.documents.detail(user, id);
   }
 
@@ -142,7 +142,7 @@ export class DocumentsController {
   @RequirePermissions("inventory:read")
   async pdf(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
@@ -162,7 +162,7 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   updateHeader(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateDocumentSchema, "inventory.invalid_body"))
     dto: UpdateDocumentDto,
   ) {
@@ -178,7 +178,7 @@ export class DocumentsController {
   confirm(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
   ) {
     return this.confirmService.confirm(user, id, scope);
   }
@@ -188,7 +188,7 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   cancel(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelDocumentSchema, "inventory.invalid_body"))
     dto: CancelDocumentDto,
   ) {
@@ -199,7 +199,7 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   addLine(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(upsertDocumentLineSchema, "inventory.invalid_body"))
     dto: UpsertDocumentLineDto,
   ) {
@@ -210,8 +210,8 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   updateLine(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
-    @Param("lineId") lineId: string,
+    @UuidParam("id") id: string,
+    @UuidParam("lineId") lineId: string,
     @Body(new ZodValidationPipe(upsertDocumentLineSchema.partial(), "inventory.invalid_body"))
     dto: Partial<UpsertDocumentLineDto>,
   ) {
@@ -223,8 +223,8 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   async removeLine(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
-    @Param("lineId") lineId: string,
+    @UuidParam("id") id: string,
+    @UuidParam("lineId") lineId: string,
   ) {
     await this.lines.remove(user, id, lineId);
   }
@@ -239,7 +239,7 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   importLines(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(importDocumentLinesSchema, "inventory.invalid_body"))
     dto: ImportDocumentLinesDto,
   ) {
@@ -252,7 +252,7 @@ export class DocumentsController {
   @RequirePermissions("inventory:movement")
   replaceLines(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(replaceDocumentLinesSchema, "inventory.invalid_body"))
     dto: ReplaceDocumentLinesDto,
   ) {

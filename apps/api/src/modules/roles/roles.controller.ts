@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
@@ -46,7 +47,7 @@ export class RolesController {
   @Patch(":id")
   @RequirePermissions("roles:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateRoleSchema, "roles.invalid_body")) dto: UpdateRoleDto,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -58,7 +59,7 @@ export class RolesController {
   @HttpCode(204)
   @RequirePermissions("roles:manage")
   async remove(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ): Promise<void> {

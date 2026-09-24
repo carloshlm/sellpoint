@@ -1,19 +1,8 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-  Req,
-  Res,
-} from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Patch, Post, Put, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -91,7 +80,7 @@ export class PurchasesController {
   @Get(":id/document")
   @RequirePermissions("purchases:read")
   async document(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
     @Res() response: Response,
@@ -108,7 +97,7 @@ export class PurchasesController {
 
   @Get(":id")
   @RequirePermissions("purchases:read")
-  detail(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  detail(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.purchases.detail(user, id);
   }
 
@@ -128,7 +117,7 @@ export class PurchasesController {
   @Patch(":id")
   @RequirePermissions("purchases:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updatePurchaseSchema, "purchases.invalid_body"))
     dto: UpdatePurchaseDto,
     @CurrentUser() user: AuthUser,
@@ -142,7 +131,7 @@ export class PurchasesController {
   @Patch(":id/reception")
   @RequirePermissions("purchases:manage")
   reception(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateReceptionSchema, "purchases.invalid_body"))
     dto: UpdateReceptionDto,
     @CurrentUser() user: AuthUser,
@@ -155,7 +144,7 @@ export class PurchasesController {
   @Put(":id/lines")
   @RequirePermissions("purchases:manage")
   replaceLines(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(replacePurchaseLinesSchema, "purchases.invalid_body"))
     dto: ReplacePurchaseLinesDto,
     @CurrentUser() user: AuthUser,
@@ -167,7 +156,7 @@ export class PurchasesController {
   @Put(":id/charges")
   @RequirePermissions("purchases:manage")
   replaceCharges(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(replacePurchaseChargesSchema, "purchases.invalid_body"))
     dto: ReplacePurchaseChargesDto,
     @CurrentUser() user: AuthUser,
@@ -179,7 +168,7 @@ export class PurchasesController {
   @Post(":id/confirm")
   @HttpCode(200)
   @RequirePermissions("purchases:manage")
-  confirm(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  confirm(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.purchases.confirm(user, id, metaFrom(request));
   }
 
@@ -187,7 +176,7 @@ export class PurchasesController {
   @HttpCode(200)
   @RequirePermissions("purchases:cancel")
   cancel(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelPurchaseSchema, "purchases.invalid_body"))
     dto: CancelPurchaseDto,
     @CurrentUser() user: AuthUser,
@@ -205,7 +194,7 @@ export class PurchasesController {
   @HttpCode(201)
   @RequirePermissions("purchases:manage", "inventory:movement")
   entryDraft(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
   ) {

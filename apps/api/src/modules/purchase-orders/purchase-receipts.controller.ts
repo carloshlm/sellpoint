@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Patch, Post, Put, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
@@ -38,15 +39,15 @@ export class PurchaseReceiptsController {
 
   @Get()
   @RequirePermissions("purchases:read")
-  list(@Param("orderId") orderId: string, @CurrentUser() user: AuthUser) {
+  list(@UuidParam("orderId") orderId: string, @CurrentUser() user: AuthUser) {
     return this.receipts.list(user, orderId);
   }
 
   @Get(":receiptId")
   @RequirePermissions("purchases:read")
   detail(
-    @Param("orderId") orderId: string,
-    @Param("receiptId") receiptId: string,
+    @UuidParam("orderId") orderId: string,
+    @UuidParam("receiptId") receiptId: string,
     @CurrentUser() user: AuthUser,
   ) {
     return this.receipts.detail(user, orderId, receiptId);
@@ -56,7 +57,7 @@ export class PurchaseReceiptsController {
   @Post()
   @RequirePermissions("purchases:manage")
   create(
-    @Param("orderId") orderId: string,
+    @UuidParam("orderId") orderId: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ) {
@@ -66,8 +67,8 @@ export class PurchaseReceiptsController {
   @Patch(":receiptId")
   @RequirePermissions("purchases:manage")
   update(
-    @Param("orderId") orderId: string,
-    @Param("receiptId") receiptId: string,
+    @UuidParam("orderId") orderId: string,
+    @UuidParam("receiptId") receiptId: string,
     @Body(new ZodValidationPipe(updatePurchaseReceiptSchema, "purchase_orders.invalid_body"))
     dto: UpdatePurchaseReceiptDto,
     @CurrentUser() user: AuthUser,
@@ -79,8 +80,8 @@ export class PurchaseReceiptsController {
   @Put(":receiptId/lines")
   @RequirePermissions("purchases:manage")
   replaceLines(
-    @Param("orderId") orderId: string,
-    @Param("receiptId") receiptId: string,
+    @UuidParam("orderId") orderId: string,
+    @UuidParam("receiptId") receiptId: string,
     @Body(new ZodValidationPipe(replacePurchaseReceiptLinesSchema, "purchase_orders.invalid_body"))
     dto: ReplacePurchaseReceiptLinesDto,
     @CurrentUser() user: AuthUser,
@@ -93,8 +94,8 @@ export class PurchaseReceiptsController {
   @HttpCode(200)
   @RequirePermissions("purchases:manage")
   confirm(
-    @Param("orderId") orderId: string,
-    @Param("receiptId") receiptId: string,
+    @UuidParam("orderId") orderId: string,
+    @UuidParam("receiptId") receiptId: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ) {
@@ -105,8 +106,8 @@ export class PurchaseReceiptsController {
   @HttpCode(200)
   @RequirePermissions("purchases:cancel")
   cancel(
-    @Param("orderId") orderId: string,
-    @Param("receiptId") receiptId: string,
+    @UuidParam("orderId") orderId: string,
+    @UuidParam("receiptId") receiptId: string,
     @Body(new ZodValidationPipe(cancelPurchaseReceiptSchema, "purchase_orders.invalid_body"))
     dto: CancelPurchaseReceiptDto,
     @CurrentUser() user: AuthUser,

@@ -1,5 +1,6 @@
 import {
   ArgumentsHost,
+  BadRequestException,
   Catch,
   ExceptionFilter,
   HttpException,
@@ -11,6 +12,7 @@ import * as Sentry from "@sentry/node";
 import { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
+import { isInvalidUuidInput } from "../prisma/invalid-uuid";
 
 const STATUS_TEXT: Record<number, string> = Object.fromEntries(
   Object.entries(HttpStatus)
@@ -58,6 +60,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request & RequestWithLocale>();
+
+    // F10-MANFIX-17: el respaldo de `@UuidParam`. Un id que llegó crudo a la
+    // base por una entrada sin validar (hoy, algunos `?warehouseId=`) es el
+    // mismo error de quien llama que un id de ruta malo, y se contesta igual:
+    // 400 `common.invalid_id`, no un 500 nuestro con aviso a Sentry. El aviso
+    // en el log es para encontrar esa entrada y validarla donde nace.
+    if (isInvalidUuidInput(exception)) {
+      this.logger.warn(
+        `Un uuid mal formado llegó a Postgres en ${request.method} ${request.url}: falta validarlo en la entrada`,
+      );
+      this.catch(new BadRequestException({ message: "common.invalid_id" }), host);
+      return;
+    }
 
     const statusCode =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;

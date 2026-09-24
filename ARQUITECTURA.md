@@ -620,7 +620,7 @@ sellpoint/
 | Helmet | CSP, HSTS, X-Frame-Options, X-Content-Type-Options |
 | Rate limit global | 100 req/min por IP |
 | Rate limit auth | 10 req/min por IP en `/auth/*` |
-| Input validation | Zod vía `ZodValidationPipe` (DTO) + validador derivado de `catalog_fields` (atributos dinámicos) |
+| Input validation | Zod vía `ZodValidationPipe` (DTO) + validador derivado de `catalog_fields` (atributos dinámicos). Los ids de ruta, con `@UuidParam("id")` (`common/http/uuid-param.decorator.ts`): 400 `common.invalid_id` antes de tocar la base; `route-ids.e2e-spec.ts` recorre el router y falla si una ruta nueva lo olvida |
 | SQL injection | Imposible — Prisma usa queries parametrizadas |
 | CSRF | Cookie `SameSite=Strict`. Double-submit token en endpoints sensibles si se requiere |
 | Logging | Pino con redacción de `password`, `token`, `authorization`, `cookie` |

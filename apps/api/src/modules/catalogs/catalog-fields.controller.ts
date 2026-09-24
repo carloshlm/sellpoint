@@ -4,7 +4,6 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,6 +12,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { z } from "zod";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
@@ -47,14 +47,14 @@ export class CatalogFieldsController {
 
   @Get()
   @RequirePermissions("catalogs:read")
-  list(@Param("catalogId") catalogId: string, @CurrentUser() user: AuthUser) {
+  list(@UuidParam("catalogId") catalogId: string, @CurrentUser() user: AuthUser) {
     return this.fieldsService.list(user, catalogId);
   }
 
   @Post()
   @RequirePermissions("catalogs:manage")
   create(
-    @Param("catalogId") catalogId: string,
+    @UuidParam("catalogId") catalogId: string,
     @Body(new ZodValidationPipe(createFieldSchema, "catalogs.invalid_body")) dto: CreateFieldDto,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -65,8 +65,8 @@ export class CatalogFieldsController {
   @Patch(":fieldId")
   @RequirePermissions("catalogs:manage")
   update(
-    @Param("catalogId") catalogId: string,
-    @Param("fieldId") fieldId: string,
+    @UuidParam("catalogId") catalogId: string,
+    @UuidParam("fieldId") fieldId: string,
     @Body(new ZodValidationPipe(updateFieldSchema, "catalogs.invalid_body")) dto: UpdateFieldDto,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -77,8 +77,8 @@ export class CatalogFieldsController {
   @Delete(":fieldId")
   @RequirePermissions("catalogs:manage")
   async remove(
-    @Param("catalogId") catalogId: string,
-    @Param("fieldId") fieldId: string,
+    @UuidParam("catalogId") catalogId: string,
+    @UuidParam("fieldId") fieldId: string,
     @Query(new ZodValidationPipe(confirmQuerySchema, "catalogs.invalid_query")) confirm: boolean,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,

@@ -1,5 +1,6 @@
 {
   "hello": "Hello",
   "welcome": "Welcome to SellPointy",
-  "too_many_requests": "You're going too fast. Wait a few seconds and try again"
+  "too_many_requests": "You're going too fast. Wait a few seconds and try again",
+  "invalid_id": "That ID is not valid."
 }

@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -59,7 +59,7 @@ export class CatalogRecordsController {
   @Get("import/template")
   @RequirePermissions("catalogs:write")
   async importTemplate(
-    @Param("catalogId") catalogId: string,
+    @UuidParam("catalogId") catalogId: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
     @Res() response: Response,
@@ -79,7 +79,7 @@ export class CatalogRecordsController {
   @HttpCode(200)
   @RequirePermissions("catalogs:write")
   import(
-    @Param("catalogId") catalogId: string,
+    @UuidParam("catalogId") catalogId: string,
     @Body(new ZodValidationPipe(importRecordsSchema, "catalogs.invalid_body"))
     dto: ImportRecordsDto,
     @CurrentUser() user: AuthUser,
@@ -101,7 +101,7 @@ export class CatalogRecordsController {
   @Get()
   @RequirePermissions("catalogs:read")
   list(
-    @Param("catalogId") catalogId: string,
+    @UuidParam("catalogId") catalogId: string,
     @Query("query") query: string | undefined,
     @CurrentUser() user: AuthUser,
     @Query("page") page?: string,
@@ -126,7 +126,7 @@ export class CatalogRecordsController {
   @Get("options")
   @RequirePermissions("catalogs:read")
   options(
-    @Param("catalogId") catalogId: string,
+    @UuidParam("catalogId") catalogId: string,
     @Query("query") query: string | undefined,
     @CurrentUser() user: AuthUser,
   ) {
@@ -136,7 +136,7 @@ export class CatalogRecordsController {
   @Post()
   @RequirePermissions("catalogs:write")
   create(
-    @Param("catalogId") catalogId: string,
+    @UuidParam("catalogId") catalogId: string,
     @Body(new ZodValidationPipe(createRecordSchema, "catalogs.invalid_body")) dto: CreateRecordDto,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -147,8 +147,8 @@ export class CatalogRecordsController {
   @Patch(":recordId")
   @RequirePermissions("catalogs:write")
   update(
-    @Param("catalogId") catalogId: string,
-    @Param("recordId") recordId: string,
+    @UuidParam("catalogId") catalogId: string,
+    @UuidParam("recordId") recordId: string,
     @Body(new ZodValidationPipe(updateRecordSchema, "catalogs.invalid_body")) dto: UpdateRecordDto,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -162,8 +162,8 @@ export class CatalogRecordsController {
   @HttpCode(204)
   @RequirePermissions("catalogs:write")
   remove(
-    @Param("catalogId") catalogId: string,
-    @Param("recordId") recordId: string,
+    @UuidParam("catalogId") catalogId: string,
+    @UuidParam("recordId") recordId: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ) {

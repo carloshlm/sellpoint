@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { type ModuleKey, moduleKeySchema } from "@sellpoint/shared";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -51,14 +52,14 @@ export class AdminBillingController {
   }
 
   @Get("tenants/:tenantId")
-  getTenant(@Param("tenantId") tenantId: string) {
+  getTenant(@UuidParam("tenantId") tenantId: string) {
     return this.adminBilling.getTenantDetail(tenantId);
   }
 
   /** El corazón del cobro manual: registrar la transferencia recibida. */
   @Post("tenants/:tenantId/payments")
   recordPayment(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(recordPaymentSchema, "billing.invalid_body"))
     dto: RecordPaymentDto,
     @CurrentUser() user: AuthUser,
@@ -68,8 +69,8 @@ export class AdminBillingController {
 
   @Post("tenants/:tenantId/payments/:paymentId/void")
   voidPayment(
-    @Param("tenantId") tenantId: string,
-    @Param("paymentId") paymentId: string,
+    @UuidParam("tenantId") tenantId: string,
+    @UuidParam("paymentId") paymentId: string,
     @Body(new ZodValidationPipe(voidPaymentSchema, "billing.invalid_body")) dto: VoidPaymentDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -86,7 +87,7 @@ export class AdminBillingController {
    */
   @Patch("tenants/:tenantId/subscription")
   async patchSubscription(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(patchSubscriptionSchema, "billing.invalid_body"))
     dto: PatchSubscriptionDto,
     @CurrentUser() user: AuthUser,
@@ -106,7 +107,7 @@ export class AdminBillingController {
 
   @Post("tenants/:tenantId/cancel")
   cancel(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(reasonSchema, "billing.invalid_body")) dto: ReasonDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -115,7 +116,7 @@ export class AdminBillingController {
 
   @Post("tenants/:tenantId/reactivate")
   reactivate(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(reasonSchema, "billing.invalid_body")) dto: ReasonDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -124,7 +125,7 @@ export class AdminBillingController {
 
   @Post("tenants/:tenantId/discounts")
   grantDiscount(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(grantDiscountSchema, "billing.invalid_body"))
     dto: GrantDiscountDto,
     @CurrentUser() user: AuthUser,
@@ -134,8 +135,8 @@ export class AdminBillingController {
 
   @Delete("tenants/:tenantId/discounts/:discountId")
   revokeDiscount(
-    @Param("tenantId") tenantId: string,
-    @Param("discountId") discountId: string,
+    @UuidParam("tenantId") tenantId: string,
+    @UuidParam("discountId") discountId: string,
     @Body(new ZodValidationPipe(reasonSchema, "billing.invalid_body")) dto: ReasonDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -157,7 +158,7 @@ export class AdminBillingController {
    */
   @Post("tenants/:tenantId/modules")
   enableModule(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(enableModuleSchema, "billing.invalid_body"))
     dto: EnableModuleDto,
     @CurrentUser() user: AuthUser,
@@ -167,7 +168,7 @@ export class AdminBillingController {
 
   @Delete("tenants/:tenantId/modules/:moduleKey")
   disableModule(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Param("moduleKey", new ZodValidationPipe(moduleKeySchema, "billing.invalid_body"))
     moduleKey: ModuleKey,
     @Body(new ZodValidationPipe(reasonSchema, "billing.invalid_body")) dto: ReasonDto,

@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -123,14 +123,14 @@ export class WarehousesController {
   @Delete(":id")
   @HttpCode(204)
   @RequirePermissions("warehouses:manage")
-  remove(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  remove(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.warehousesService.remove(user, id, metaFrom(request));
   }
 
   @Patch(":id")
   @RequirePermissions("warehouses:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateWarehouseSchema, "warehouses.invalid_body"))
     dto: UpdateWarehouseDto,
     @CurrentUser() user: AuthUser,

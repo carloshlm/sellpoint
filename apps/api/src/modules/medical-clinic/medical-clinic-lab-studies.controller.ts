@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -100,7 +100,7 @@ export class MedicalClinicLabStudiesController {
 
   @Get(":id")
   @RequirePermissions("medical_clinic:read")
-  get(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  get(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.studies.get(user, id);
   }
 
@@ -118,7 +118,7 @@ export class MedicalClinicLabStudiesController {
   @Patch(":id")
   @RequirePermissions("medical_clinic:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateStudySchema, "medical_clinic.invalid_body"))
     dto: UpdateStudyDto,
     @CurrentUser() user: AuthUser,
@@ -130,7 +130,11 @@ export class MedicalClinicLabStudiesController {
   @Delete(":id")
   @HttpCode(204)
   @RequirePermissions("medical_clinic:manage")
-  async remove(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  async remove(
+    @UuidParam("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
     await this.studies.remove(user, id, metaFrom(request));
   }
 }

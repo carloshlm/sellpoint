@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Patch, Post, Put, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
@@ -53,14 +54,14 @@ export class UsersAdminController {
    */
   @Get(":id/warehouse-scope")
   @RequirePermissions("users:manage")
-  getWarehouseScope(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  getWarehouseScope(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.warehouseScopeService.get(user, id);
   }
 
   @Put(":id/warehouse-scope")
   @RequirePermissions("users:manage")
   replaceWarehouseScope(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(replaceWarehouseScopeSchema, "users.invalid_body"))
     dto: ReplaceWarehouseScopeDto,
     @CurrentUser() user: AuthUser,
@@ -71,14 +72,14 @@ export class UsersAdminController {
 
   @Get(":id")
   @RequirePermissions("users:read")
-  findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  findOne(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.usersAdminService.findOne(user, id);
   }
 
   @Patch(":id")
   @RequirePermissions("users:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateUserSchema, "users.invalid_body")) dto: UpdateUserDto,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
@@ -91,7 +92,7 @@ export class UsersAdminController {
   @Post(":id/suspend")
   @HttpCode(200)
   @RequirePermissions("users:manage")
-  suspend(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  suspend(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.usersAdminService.suspend(user, id, metaFrom(request));
   }
 
@@ -102,7 +103,7 @@ export class UsersAdminController {
   @HttpCode(200)
   @RequirePermissions("users:manage")
   resendInvitation(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ) {
@@ -112,7 +113,7 @@ export class UsersAdminController {
   @Post(":id/reactivate")
   @HttpCode(200)
   @RequirePermissions("users:manage")
-  reactivate(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  reactivate(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.usersAdminService.reactivate(user, id, metaFrom(request));
   }
 }

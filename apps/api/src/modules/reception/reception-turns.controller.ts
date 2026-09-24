@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -69,7 +70,7 @@ export class ReceptionTurnsController {
   @Get(":id/ticket")
   @RequirePermissions("reception:read")
   async ticket(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @Query("width") width: string | undefined,
     @Req() request: RequestWithLocale,
@@ -91,14 +92,14 @@ export class ReceptionTurnsController {
   @Post(":id/attend")
   @HttpCode(200)
   @RequirePermissions("reception:manage")
-  attend(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  attend(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.turns.attend(user, id, metaFrom(request));
   }
 
   @Post(":id/wait")
   @HttpCode(200)
   @RequirePermissions("reception:manage")
-  wait(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  wait(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.turns.wait(user, id, metaFrom(request));
   }
 }

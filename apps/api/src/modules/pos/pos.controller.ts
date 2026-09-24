@@ -13,7 +13,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { I18nService } from "nestjs-i18n";
-import { z } from "zod";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -52,20 +52,6 @@ import { QuotesService } from "./quotes.service";
 import { SalesService } from "./sales.service";
 import type { TicketWidth } from "./ticket.renderer";
 import { TicketService } from "./ticket.service";
-
-/**
- * F10-MANFIX-13 — el `:id` de una venta o una cotización es un uuid, y se
- * valida ANTES de llegar a Prisma. Crudo, `GET /pos/quotes/abc` no podía
- * convertirse a la columna `uuid` (P2023) y el filtro de excepciones lo
- * contestaba como un 500 nuestro, que además iba a Sentry. Es un error de
- * quien llama: 400 con su clave.
- *
- * El molde es el de los parámetros que ya se validaban (`ZodValidationPipe`
- * sobre `@Param`), y la regla, la de los ids del cuerpo (`quoteId`,
- * `productId`): un id que el cobro acepta, la ruta también. Un uuid bien
- * formado que no existe sigue siendo el 404 de cada servicio.
- */
-const ID = new ZodValidationPipe(z.uuid(), "pos.invalid_id");
 
 /**
  * F4-CASHBOX-01 — el turno de caja.
@@ -221,7 +207,7 @@ export class PosController {
   @RequirePermissions("pos:view")
   async saleTicket(
     @CurrentUser() user: AuthUser,
-    @Param("id", ID) id: string,
+    @UuidParam("id") id: string,
     @Query("width") width: string | undefined,
     @Req() request: RequestWithLocale,
     @Res() response: Response,
@@ -241,7 +227,7 @@ export class PosController {
   @RequirePermissions("pos:quote")
   async quoteTicket(
     @CurrentUser() user: AuthUser,
-    @Param("id", ID) id: string,
+    @UuidParam("id") id: string,
     @Query("width") width: string | undefined,
     @Req() request: RequestWithLocale,
     @Res() response: Response,
@@ -272,7 +258,7 @@ export class PosController {
 
   @Get("sales/:id")
   @RequirePermissions("pos:view")
-  saleDetail(@Param("id", ID) id: string, @CurrentUser() user: AuthUser) {
+  saleDetail(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.sales.detail(user, id);
   }
 
@@ -341,7 +327,7 @@ export class PosController {
 
   @Get("quotes/:id")
   @RequirePermissions("pos:quote")
-  quoteDetail(@Param("id", ID) id: string, @CurrentUser() user: AuthUser) {
+  quoteDetail(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.quotes.detail(user, id);
   }
 
@@ -350,7 +336,7 @@ export class PosController {
   @HttpCode(200)
   @RequirePermissions("pos:quote")
   cancelQuote(
-    @Param("id", ID) id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelQuoteSchema, "pos.invalid_body"))
     dto: CancelQuoteDto,
     @CurrentUser() user: AuthUser,
@@ -367,7 +353,7 @@ export class PosController {
   @HttpCode(200)
   @RequirePermissions("pos:cancel")
   cancelSale(
-    @Param("id", ID) id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelSaleSchema, "pos.invalid_body"))
     dto: CancelSaleDto,
     @CurrentUser() user: AuthUser,

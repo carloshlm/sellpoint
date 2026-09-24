@@ -1,7 +1,8 @@
-import { Controller, Get, Param, Query, Req, Res } from "@nestjs/common";
+import { Controller, Get, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -207,7 +208,7 @@ export class ReportsController {
   shift(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
   ) {
     return this.shiftsReport.detail(user, scope, id);
   }
@@ -335,7 +336,7 @@ export class ReportsController {
   async kardexExportFile(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("productId") productId: string,
+    @UuidParam("productId") productId: string,
     @Query(new ZodValidationPipe(kardexExportQuerySchema, "reports.invalid_query"))
     query: KardexExportQueryDto,
     @Req() request: RequestWithLocale,

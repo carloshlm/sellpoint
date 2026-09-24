@@ -1,17 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-  Res,
-} from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -114,7 +104,7 @@ export class ExpensesController {
 
   @Get(":id")
   @RequirePermissions("expenses:read")
-  get(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  get(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.expenses.get(user, id);
   }
 
@@ -133,7 +123,7 @@ export class ExpensesController {
   @Patch(":id")
   @RequirePermissions("expenses:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateExpenseSchema, "expenses.invalid_body"))
     dto: UpdateExpenseDto,
     @CurrentUser() user: AuthUser,
@@ -146,7 +136,7 @@ export class ExpensesController {
   @HttpCode(200)
   @RequirePermissions("expenses:manage")
   pay(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(payExpenseSchema, "expenses.invalid_body"))
     dto: PayExpenseDto,
     @CurrentUser() user: AuthUser,
@@ -160,7 +150,7 @@ export class ExpensesController {
   @HttpCode(200)
   @RequirePermissions("expenses:cancel")
   cancel(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelExpenseSchema, "expenses.invalid_body"))
     dto: CancelExpenseDto,
     @CurrentUser() user: AuthUser,

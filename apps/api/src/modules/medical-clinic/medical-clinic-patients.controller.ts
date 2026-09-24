@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -42,7 +43,7 @@ export class MedicalClinicPatientsController {
   // declaración y «search» no es un id de paciente.
   @Get("patients/:customerId")
   @RequirePermissions("medical_clinic:attend")
-  get(@CurrentUser() user: AuthUser, @Param("customerId") customerId: string) {
+  get(@CurrentUser() user: AuthUser, @UuidParam("customerId") customerId: string) {
     return this.patients.get(user, customerId);
   }
 

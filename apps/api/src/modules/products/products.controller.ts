@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -182,7 +182,7 @@ export class ProductsController {
 
   @Get(":id")
   @RequirePermissions("products:read")
-  findOne(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  findOne(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.productsService.findOne(user, id);
   }
 
@@ -200,7 +200,7 @@ export class ProductsController {
   @Patch(":id")
   @RequirePermissions("products:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateProductSchema, "products.invalid_body"))
     dto: UpdateProductDto,
     @CurrentUser() user: AuthUser,
@@ -212,20 +212,24 @@ export class ProductsController {
   @Delete(":id")
   @HttpCode(204)
   @RequirePermissions("products:manage")
-  async remove(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  async remove(
+    @UuidParam("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
     await this.productsService.remove(user, id, metaFrom(request));
   }
 
   @Get(":id/presentations")
   @RequirePermissions("products:read")
-  listPresentations(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  listPresentations(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.presentationsService.list(user, id);
   }
 
   @Post(":id/presentations")
   @RequirePermissions("products:manage")
   createPresentation(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(createPresentationSchema, "products.invalid_body"))
     dto: CreatePresentationDto,
     @CurrentUser() user: AuthUser,
@@ -237,8 +241,8 @@ export class ProductsController {
   @Patch(":id/presentations/:presentationId")
   @RequirePermissions("products:manage")
   updatePresentation(
-    @Param("id") id: string,
-    @Param("presentationId") presentationId: string,
+    @UuidParam("id") id: string,
+    @UuidParam("presentationId") presentationId: string,
     @Body(new ZodValidationPipe(updatePresentationSchema, "products.invalid_body"))
     dto: UpdatePresentationDto,
     @CurrentUser() user: AuthUser,
@@ -256,8 +260,8 @@ export class ProductsController {
   @HttpCode(204)
   @RequirePermissions("products:manage")
   async removePresentation(
-    @Param("id") id: string,
-    @Param("presentationId") presentationId: string,
+    @UuidParam("id") id: string,
+    @UuidParam("presentationId") presentationId: string,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ) {
@@ -266,7 +270,7 @@ export class ProductsController {
 
   @Get(":id/composition")
   @RequirePermissions("products:read")
-  getComposition(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  getComposition(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.compositionService.get(user, id);
   }
 
@@ -278,7 +282,7 @@ export class ProductsController {
   @HttpCode(200)
   @RequirePermissions("products:manage")
   replaceComposition(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(replaceCompositionSchema, "products.invalid_body"))
     dto: ReplaceCompositionDto,
     @CurrentUser() user: AuthUser,
@@ -290,7 +294,7 @@ export class ProductsController {
   @Get(":id/availability")
   @RequirePermissions("products:read")
   availability(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
   ) {
@@ -301,7 +305,7 @@ export class ProductsController {
 
   @Get(":id/cost-estimate")
   @RequirePermissions("products:read")
-  costEstimate(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  costEstimate(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.compositionService.costEstimate(user, id);
   }
 }

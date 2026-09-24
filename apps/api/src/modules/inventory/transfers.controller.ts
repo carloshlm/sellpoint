@@ -1,8 +1,9 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { TRANSFER_STATUSES } from "@sellpoint/shared";
 import type { Request } from "express";
 import { z } from "zod";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { TransferStatus } from "../../generated/prisma/client";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -78,7 +79,7 @@ export class TransfersController {
   detail(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
   ) {
     return this.transfers.detail(user, scope, id);
   }
@@ -93,7 +94,7 @@ export class TransfersController {
   receiptDraft(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
   ) {
     return this.transfers.createReceiptDraft(user, scope, id);
   }
@@ -108,7 +109,7 @@ export class TransfersController {
   @RequirePermissions("inventory:manage")
   cancel(
     @CurrentUser() user: AuthUser,
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(cancelTransferSchema, "inventory.invalid_body"))
     dto: z.infer<typeof cancelTransferSchema>,
     @Req() request: Request,

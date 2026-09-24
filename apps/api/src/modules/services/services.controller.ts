@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Patch,
   Post,
   Query,
@@ -13,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -112,7 +112,7 @@ export class ServicesController {
   @Patch(":id")
   @RequirePermissions("services:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateServiceSchema, "services.invalid_body"))
     dto: UpdateServiceDto,
     @CurrentUser() user: AuthUser,
@@ -124,7 +124,11 @@ export class ServicesController {
   @Delete(":id")
   @HttpCode(204)
   @RequirePermissions("services:manage")
-  async remove(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  async remove(
+    @UuidParam("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
     await this.servicesService.remove(user, id, metaFrom(request));
   }
 }

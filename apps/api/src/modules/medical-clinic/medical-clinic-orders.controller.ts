@@ -1,7 +1,8 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -30,7 +31,7 @@ export class MedicalClinicOrdersController {
   @Post("records/:recordId/orders")
   @RequirePermissions("medical_clinic:attend")
   create(
-    @Param("recordId") recordId: string,
+    @UuidParam("recordId") recordId: string,
     @Body(new ZodValidationPipe(createOrderSchema, "medical_clinic.invalid_body"))
     dto: CreateOrderDto,
     @CurrentUser() user: AuthUser,
@@ -41,14 +42,14 @@ export class MedicalClinicOrdersController {
 
   @Get("records/:recordId/orders")
   @RequirePermissions("medical_clinic:attend")
-  list(@Param("recordId") recordId: string, @CurrentUser() user: AuthUser) {
+  list(@UuidParam("recordId") recordId: string, @CurrentUser() user: AuthUser) {
     return this.orders.list(user, recordId);
   }
 
   @Post("orders/:id/cancel")
   @HttpCode(200)
   @RequirePermissions("medical_clinic:attend")
-  cancel(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  cancel(@UuidParam("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.orders.cancel(user, id, metaFrom(request));
   }
 
@@ -56,7 +57,7 @@ export class MedicalClinicOrdersController {
   @Get("orders/:id/document")
   @RequirePermissions("medical_clinic:attend")
   async document(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @CurrentUser() user: AuthUser,
     @Req() request: RequestWithLocale,
     @Res() response: Response,

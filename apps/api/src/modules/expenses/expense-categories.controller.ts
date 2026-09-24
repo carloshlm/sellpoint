@@ -1,17 +1,7 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-} from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
@@ -54,7 +44,7 @@ export class ExpenseCategoriesController {
 
   @Get(":id")
   @RequirePermissions("expenses:read")
-  get(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+  get(@UuidParam("id") id: string, @CurrentUser() user: AuthUser) {
     return this.categories.get(user, id);
   }
 
@@ -72,7 +62,7 @@ export class ExpenseCategoriesController {
   @Patch(":id")
   @RequirePermissions("expenses:manage")
   update(
-    @Param("id") id: string,
+    @UuidParam("id") id: string,
     @Body(new ZodValidationPipe(updateExpenseCategorySchema, "expenses.invalid_body"))
     dto: UpdateExpenseCategoryDto,
     @CurrentUser() user: AuthUser,
@@ -84,7 +74,11 @@ export class ExpenseCategoriesController {
   @Delete(":id")
   @HttpCode(204)
   @RequirePermissions("expenses:manage")
-  async remove(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+  async remove(
+    @UuidParam("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
     await this.categories.remove(user, id, metaFrom(request));
   }
 }

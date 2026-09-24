@@ -1,5 +1,6 @@
 {
   "hello": "Hola",
   "welcome": "Bienvenido a SellPointy",
-  "too_many_requests": "Vas muy rápido. Espera unos segundos y vuelve a intentarlo"
+  "too_many_requests": "Vas muy rápido. Espera unos segundos y vuelve a intentarlo",
+  "invalid_id": "Ese identificador no es válido."
 }

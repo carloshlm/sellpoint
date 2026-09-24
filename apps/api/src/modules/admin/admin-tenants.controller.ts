@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   HttpCode,
-  Param,
   Post,
   Query,
   Req,
@@ -19,6 +18,7 @@ import {
   suspendTenantSchema,
 } from "@sellpoint/shared";
 import type { Request, Response } from "express";
+import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -107,7 +107,7 @@ export class AdminTenantsController {
   ) {}
 
   @Get(":tenantId/overview")
-  overview(@Param("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
+  overview(@UuidParam("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
     return this.tenants.overview(tenantId, admin);
   }
 
@@ -115,7 +115,7 @@ export class AdminTenantsController {
   @Post(":tenantId/suspend")
   @HttpCode(200)
   suspend(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(suspendTenantSchema, "admin.invalid_body"))
     body: SuspendTenantInput,
     @CurrentUser() admin: AuthUser,
@@ -127,7 +127,7 @@ export class AdminTenantsController {
   @Post(":tenantId/reactivate")
   @HttpCode(200)
   reactivate(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Req() request: Request,
   ) {
@@ -141,7 +141,7 @@ export class AdminTenantsController {
   @Delete(":tenantId")
   @HttpCode(200)
   purge(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @Body(new ZodValidationPipe(deleteTenantSchema, "admin.invalid_body")) body: DeleteTenantInput,
     @CurrentUser() admin: AuthUser,
     @Req() request: Request,
@@ -152,7 +152,7 @@ export class AdminTenantsController {
   // ── Usuarios (F9-ADMIN-03) ──────────────────────────────────────────────
 
   @Get(":tenantId/users")
-  users(@Param("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
+  users(@UuidParam("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
     return this.usersAdmin.list(platformAdminActor(tenantId, admin));
   }
 
@@ -164,8 +164,8 @@ export class AdminTenantsController {
   @Post(":tenantId/users/:userId/suspend")
   @HttpCode(200)
   suspendUser(
-    @Param("tenantId") tenantId: string,
-    @Param("userId") userId: string,
+    @UuidParam("tenantId") tenantId: string,
+    @UuidParam("userId") userId: string,
     @CurrentUser() admin: AuthUser,
     @Req() request: Request,
   ) {
@@ -175,8 +175,8 @@ export class AdminTenantsController {
   @Post(":tenantId/users/:userId/reactivate")
   @HttpCode(200)
   reactivateUser(
-    @Param("tenantId") tenantId: string,
-    @Param("userId") userId: string,
+    @UuidParam("tenantId") tenantId: string,
+    @UuidParam("userId") userId: string,
     @CurrentUser() admin: AuthUser,
     @Req() request: Request,
   ) {
@@ -190,18 +190,18 @@ export class AdminTenantsController {
   // ── Dashboard (F9-ADMIN-04) ─────────────────────────────────────────────
 
   @Get(":tenantId/dashboard/kpis")
-  kpis(@Param("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
+  kpis(@UuidParam("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
     return this.dashboardKpis.kpis(platformAdminActor(tenantId, admin), SCOPE_ALL);
   }
 
   @Get(":tenantId/dashboard/series")
-  series(@Param("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
+  series(@UuidParam("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
     return this.dashboardSeries.series(platformAdminActor(tenantId, admin), SCOPE_ALL);
   }
 
   @Get(":tenantId/dashboard/products")
   products(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query("period", new ZodValidationPipe(dashboardPeriodSchema, "reports.invalid_query"))
     period: DashboardPeriod,
@@ -210,13 +210,13 @@ export class AdminTenantsController {
   }
 
   @Get(":tenantId/dashboard/inventory")
-  inventory(@Param("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
+  inventory(@UuidParam("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
     return this.dashboardInventory.inventory(platformAdminActor(tenantId, admin), SCOPE_ALL);
   }
 
   @Get(":tenantId/dashboard/payment-methods")
   paymentMethods(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query("period", new ZodValidationPipe(dashboardPeriodSchema, "reports.invalid_query"))
     period: DashboardPeriod,
@@ -232,7 +232,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/sales")
   sales(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(salesReportQuerySchema, "reports.invalid_query"))
     query: SalesReportQueryDto,
@@ -242,7 +242,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/stock")
   stock(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(stockReportQuerySchema, "reports.invalid_query"))
     query: StockReportQueryDto,
@@ -258,7 +258,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/shifts")
   shifts(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(shiftsReportQuerySchema, "reports.invalid_query"))
     query: ShiftsReportQueryDto,
@@ -268,7 +268,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/shifts/export")
   async shiftsExportFile(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(shiftsExportQuerySchema, "reports.invalid_query"))
     query: ShiftsExportQueryDto,
@@ -286,8 +286,8 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/shifts/:shiftId")
   shiftDetail(
-    @Param("tenantId") tenantId: string,
-    @Param("shiftId") shiftId: string,
+    @UuidParam("tenantId") tenantId: string,
+    @UuidParam("shiftId") shiftId: string,
     @CurrentUser() admin: AuthUser,
   ) {
     return this.shiftsReport.detail(platformAdminActor(tenantId, admin), SCOPE_ALL, shiftId);
@@ -297,7 +297,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/taxes")
   taxes(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(taxReportQuerySchema, "reports.invalid_query"))
     query: TaxReportQueryDto,
@@ -307,7 +307,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/taxes/export")
   async taxesExportFile(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(taxExportQuerySchema, "reports.invalid_query"))
     query: TaxExportQueryDto,
@@ -327,7 +327,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/sales/export")
   async salesExportFile(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(salesExportQuerySchema, "reports.invalid_query"))
     query: SalesExportQueryDto,
@@ -345,7 +345,7 @@ export class AdminTenantsController {
 
   @Get(":tenantId/reports/stock/export")
   async stockExportFile(
-    @Param("tenantId") tenantId: string,
+    @UuidParam("tenantId") tenantId: string,
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(stockExportQuerySchema, "reports.invalid_query"))
     query: StockExportQueryDto,

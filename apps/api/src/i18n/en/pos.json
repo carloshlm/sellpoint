@@ -9,7 +9,6 @@
   "opening_cash_invalid": "The opening cash must be an amount of zero or more, with up to 2 decimals.",
   "integer_only_presentation": "«{presentationName}» is sold in whole units only.",
   "invalid_body": "Check the point of sale details.",
-  "invalid_id": "That ID is not valid.",
   "invalid_query": "Check the search filters.",
   "line_kind_invalid": "A line is a product, a service or a concept: exactly one.",
   "line_product_xor_service": "A line is either a product or a service, not both.",
