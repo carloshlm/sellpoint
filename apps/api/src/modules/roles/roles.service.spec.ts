@@ -103,11 +103,27 @@ describe("RolesService.create (F1-RBAC-04)", () => {
         { roleId: "role-1", permissionId: "perm-roles-read" },
       ]),
     });
+    // F10-MANFIX-22: un rol que crea el negocio nunca es de fábrica.
     expect(result).toEqual({
       id: "role-1",
       name: "Custom",
+      systemKey: null,
       permissionCodes: expect.arrayContaining(["users:read", "roles:read"]),
       userCount: 0,
+    });
+  });
+
+  it("la clave de fábrica no viaja en el alta: el rol se crea solo con tenant y nombre", async () => {
+    const { service, tx } = buildService();
+
+    await service.create(
+      CURRENT_USER,
+      { name: "Colado", permissionCodes: [], systemKey: "admin" } as never,
+      {},
+    );
+
+    expect(tx.role.create).toHaveBeenCalledWith({
+      data: { tenantId: "tenant-1", name: "Colado" },
     });
   });
 
@@ -231,7 +247,8 @@ describe("RolesService.update (F1-RBAC-04 — criterio clave del batch)", () => 
   function withExistingRole(tx: ReturnType<typeof buildService>["tx"]) {
     tx.role.findFirst.mockResolvedValue({
       id: "role-1",
-      name: "Manager",
+      name: "Encargado",
+      systemKey: "manager",
       permissions: [{ permission: { code: "users:read" } }, { permission: { code: "roles:read" } }],
     });
     tx.role.update.mockResolvedValue({ id: "role-1", name: "Manager" });
@@ -258,6 +275,24 @@ describe("RolesService.update (F1-RBAC-04 — criterio clave del batch)", () => 
 
     expect(tx.rolePermission.deleteMany).not.toHaveBeenCalled();
     expect(permEpochService.bumpTenantEpoch).not.toHaveBeenCalled();
+  });
+
+  /**
+   * F10-MANFIX-22: la clave es la identidad del rol de fábrica. Renombrarlo
+   * cambia lo que ve el equipo, no lo que es: las migraciones de permisos lo
+   * siguen encontrando.
+   */
+  it("renombrar un rol de fábrica conserva su clave, y el UPDATE solo toca el nombre", async () => {
+    const { service, tx } = buildService();
+    withExistingRole(tx);
+
+    const result = await service.update(CURRENT_USER, "role-1", { name: "Gerente" }, {});
+
+    expect(tx.role.update).toHaveBeenCalledWith({
+      where: { id: "role-1" },
+      data: { name: "Gerente" },
+    });
+    expect(result).toMatchObject({ id: "role-1", name: "Gerente", systemKey: "manager" });
   });
 
   it("cambiar permissionCodes reemplaza el set completo y BUMPEA perm-epoch:{tenantId} tras el commit", async () => {
@@ -457,16 +492,32 @@ describe("RolesService.list (F1-RBAC-05 helper reusado por el editor de roles)",
     tx.role.findMany.mockResolvedValue([
       {
         id: "role-1",
-        name: "Admin",
+        name: "Administrador",
+        systemKey: "admin",
         permissions: [{ permission: { code: "users:manage" } }],
         users: [{ userId: "u1" }, { userId: "u2" }],
+      },
+      {
+        id: "role-2",
+        name: "Recepción",
+        systemKey: null,
+        permissions: [],
+        users: [],
       },
     ]);
 
     const result = await service.list(CURRENT_USER);
 
+    // F10-MANFIX-22: `systemKey` dice cuál es de fábrica (NULL = personalizado).
     expect(result).toEqual([
-      { id: "role-1", name: "Admin", permissionCodes: ["users:manage"], userCount: 2 },
+      {
+        id: "role-1",
+        name: "Administrador",
+        systemKey: "admin",
+        permissionCodes: ["users:manage"],
+        userCount: 2,
+      },
+      { id: "role-2", name: "Recepción", systemKey: null, permissionCodes: [], userCount: 0 },
     ]);
   });
 });

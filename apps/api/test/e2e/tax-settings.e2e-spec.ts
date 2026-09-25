@@ -64,7 +64,7 @@ describe("Configuración de impuestos (F4-TAX-09)", () => {
     prisma = app.get(PrismaService);
     negocio = await registerTenant(app, "tax-cfg");
     await setTenantMarket(prisma, negocio.tenantId, "CA");
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "tax-cfg-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "tax-cfg-viewer");
   });
 
   afterAll(async () => {

@@ -38,18 +38,23 @@ describe("Proveedores (F9-SUPPL-05)", () => {
   let viewerToken: string;
   let sellerToken: string;
 
-  /** Un usuario del negocio con UN rol base: invitado, canjea y entra. */
-  async function usuarioConRol(nombre: "Viewer" | "Seller"): Promise<string> {
+  /**
+   * Un usuario del negocio con UN rol de fábrica: invitado, canjea y entra. El
+   * rol se busca por su clave, no por su nombre (F10-MANFIX-22).
+   */
+  async function usuarioConRol(clave: "viewer" | "seller"): Promise<string> {
     const roles = await request(app.getHttpServer())
       .get("/roles")
       .set("Authorization", bearer(negocio.token))
       .expect(200);
-    const rol = (roles.body as { id: string; name: string }[]).find((r) => r.name === nombre);
-    const email = `suppl-${nombre.toLowerCase()}-${randomUUID()}@example.com`;
+    const rol = (roles.body as { id: string; systemKey: string | null }[]).find(
+      (r) => r.systemKey === clave,
+    );
+    const email = `suppl-${clave}-${randomUUID()}@example.com`;
     await request(app.getHttpServer())
       .post("/users")
       .set("Authorization", bearer(negocio.token))
-      .send({ email, firstName: "Vera", lastName: nombre, roleIds: [rol?.id] })
+      .send({ email, firstName: "Vera", lastName: clave, roleIds: [rol?.id] })
       .expect(201);
     const mailer = app.get<NoopMailer>(MAILER);
     const token = extractTokenFromLink(mailer.sent.filter((m) => m.to === email).at(-1)?.vars.link);
@@ -78,8 +83,8 @@ describe("Proveedores (F9-SUPPL-05)", () => {
     negocio = await registerTenant(app, "suppl");
     otro = await registerTenant(app, "suppl-otro");
     await setTenantMarket(prisma, negocio.tenantId, "MX");
-    viewerToken = await usuarioConRol("Viewer");
-    sellerToken = await usuarioConRol("Seller");
+    viewerToken = await usuarioConRol("viewer");
+    sellerToken = await usuarioConRol("seller");
   });
 
   afterAll(async () => {

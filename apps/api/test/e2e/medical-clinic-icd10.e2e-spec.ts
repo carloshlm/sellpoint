@@ -39,7 +39,7 @@ describe("Consultorio Médico — catálogo CIE-10 (F9-CLINIC-HC-22)", () => {
     negocio = await consultorio(app, prisma, "icd10", admin, ["medical_clinic"]);
     otro = await consultorio(app, prisma, "icd10-otro", admin, ["medical_clinic"]);
     sinModulo = await registerTenant(app, "icd10-sin");
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "icd10-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "icd10-viewer");
   });
 
   afterAll(async () => {

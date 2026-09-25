@@ -6,6 +6,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import * as argon2 from "argon2";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { TENANT_ROLES, type TenantRoleKey } from "../src/modules/tenants/role-catalog";
 
 const DEMO_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 const DEMO_ADMIN_EMAIL = "admin@demo.sellpoint.mx";
@@ -54,16 +55,17 @@ type PermissionCode = (typeof PERMISSIONS)[number]["code"];
 const ALL_CODES = PERMISSIONS.map((p) => p.code);
 const READ_CODES = ALL_CODES.filter((c) => c.endsWith(":read"));
 
-// Roles base que se seedean POR tenant
-const ROLES: Record<string, readonly PermissionCode[]> = {
-  Admin: ALL_CODES,
+// Roles de fábrica que se seedean POR tenant, por su CLAVE (F10-MANFIX-22):
+// el nombre sale de TENANT_ROLES, en el idioma del admin demo (es).
+const ROLES: Record<TenantRoleKey, readonly PermissionCode[]> = {
+  admin: ALL_CODES,
   // F1-WEB-ONBOARD-01 (D4 del design): tenants:manage tampoco es tarea de
   // Manager, mismo criterio que users:manage/roles:manage.
-  Manager: ALL_CODES.filter(
+  manager: ALL_CODES.filter(
     (c) => c !== "users:manage" && c !== "roles:manage" && c !== "tenants:manage",
   ),
-  Seller: ["pos:sell", "products:read"],
-  Viewer: READ_CODES,
+  seller: ["pos:sell", "products:read"],
+  viewer: READ_CODES,
 };
 
 const connectionString = process.env.DATABASE_URL_ADMIN ?? process.env.DATABASE_URL;
@@ -101,12 +103,15 @@ async function main() {
   const allPermissions = await prisma.permission.findMany();
   const byCode = new Map(allPermissions.map((p) => [p.code, p.id]));
 
-  for (const [name, codes] of Object.entries(ROLES)) {
-    const role = await prisma.role.upsert({
-      where: { tenantId_name: { tenantId: tenant.id, name } },
-      update: {},
-      create: { tenantId: tenant.id, name },
-    });
+  for (const rol of TENANT_ROLES) {
+    const codes = ROLES[rol.key];
+    const name = rol.name.es;
+    // Se busca por la clave y no por el nombre: el nombre es un dato que el
+    // negocio edita. Sin `upsert` porque el único de (tenant_id, system_key)
+    // es un índice PARCIAL que vive en la migración y Prisma no lo conoce.
+    const role =
+      (await prisma.role.findFirst({ where: { tenantId: tenant.id, systemKey: rol.key } })) ??
+      (await prisma.role.create({ data: { tenantId: tenant.id, systemKey: rol.key, name } }));
     // deleteMany+createMany: el set de permisos del rol queda EXACTO al catálogo
     await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
     await prisma.rolePermission.createMany({
@@ -116,7 +121,7 @@ async function main() {
         return { roleId: role.id, permissionId };
       }),
     });
-    console.log(`✓ rol ${name} (${codes.length} permisos)`);
+    console.log(`✓ rol ${role.name} (${codes.length} permisos)`);
   }
 
   // 4. Admin demo (active, password conocido, es)
@@ -150,15 +155,15 @@ async function main() {
         },
       });
 
-  const adminRole = await prisma.role.findUniqueOrThrow({
-    where: { tenantId_name: { tenantId: tenant.id, name: "Admin" } },
+  const adminRole = await prisma.role.findFirstOrThrow({
+    where: { tenantId: tenant.id, systemKey: "admin" },
   });
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
     update: {},
     create: { userId: admin.id, roleId: adminRole.id },
   });
-  console.log(`✓ admin ${admin.email} con rol Admin`);
+  console.log(`✓ admin ${admin.email} con el rol ${adminRole.name}`);
 
   // F3-HOME-03: el tenant demo estaba `onboarded: true` SIN un solo almacén —
   // un estado que ningún tenant real puede alcanzar desde que `provision()`

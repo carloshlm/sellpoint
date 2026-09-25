@@ -9,6 +9,7 @@ import { AppModule } from "../../src/app.module";
 import { REDIS_CLIENT } from "../../src/infrastructure/redis/redis.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { resolveRolePermissionCodes } from "../../src/modules/tenants/role-catalog";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
 import { startTestApp } from "./support/start-test-app";
 
@@ -58,7 +59,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
     await app.close();
   });
 
-  async function registerActiveOwner(): Promise<{
+  async function registerActiveOwner(locale: "es" | "en" = "es"): Promise<{
     tenantId: string;
     userId: string;
     email: string;
@@ -74,7 +75,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
         password: PASSWORD,
         firstName: "Ana",
         lastName: "Pérez",
-        locale: "es",
+        locale,
       })
       .expect(201);
 
@@ -116,8 +117,10 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .send({ name: "Cajero Senior", permissionCodes: ["users:read"] })
       .expect(201);
 
+    // Un rol que crea el negocio no es de fábrica: no tiene clave.
     expect(created.body).toMatchObject({
       name: "Cajero Senior",
+      systemKey: null,
       permissionCodes: ["users:read"],
       userCount: 0,
     });
@@ -129,7 +132,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
 
     const names = (list.body as Array<{ name: string }>).map((r) => r.name);
     expect(names).toEqual(
-      expect.arrayContaining(["Admin", "Manager", "Seller", "Viewer", "Cajero Senior"]),
+      expect.arrayContaining(["Administrador", "Encargado", "Cajero", "Consulta", "Cajero Senior"]),
     );
   });
 
@@ -139,7 +142,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
     const response = await request(app.getHttpServer())
       .post("/roles")
       .set("Authorization", bearer(owner.accessToken))
-      .send({ name: "Admin", permissionCodes: [] })
+      .send({ name: "Administrador", permissionCodes: [] })
       .expect(409);
     expect(response.body).toMatchObject({ code: "roles.name_taken" });
   });
@@ -205,8 +208,8 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .set("Authorization", bearer(owner.accessToken))
       .expect(200);
     const tenantAdmin = (
-      rolesBefore.body as Array<{ id: string; name: string; permissionCodes: string[] }>
-    ).find((r) => r.name === "Admin");
+      rolesBefore.body as Array<{ id: string; systemKey: string | null; permissionCodes: string[] }>
+    ).find((r) => r.systemKey === "admin");
     if (!tenantAdmin) {
       throw new Error("Admin no encontrado");
     }
@@ -264,8 +267,8 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .get("/roles")
       .set("Authorization", bearer(owner.accessToken))
       .expect(200);
-    const tenantAdmin = (roles.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "Admin",
+    const tenantAdmin = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+      (r) => r.systemKey === "admin",
     );
 
     const response = await request(app.getHttpServer())
@@ -303,5 +306,114 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .set("Authorization", bearer(owner.accessToken))
       .expect(404);
     expect(response.body).toMatchObject({ code: "roles.not_found" });
+  });
+
+  /**
+   * F10-MANFIX-22 (Carlos, 2026-09-24): los cuatro roles con los que nace un
+   * negocio llevan una CLAVE fija y un NOMBRE en el idioma del dueño. La clave
+   * es la identidad (sobrevive a un renombre y el API no deja cambiarla); el
+   * nombre es un dato del negocio.
+   */
+  describe("los roles de fábrica: clave fija y nombre en el idioma del negocio (F10-MANFIX-22)", () => {
+    type RolDeLaLista = {
+      id: string;
+      name: string;
+      systemKey: string | null;
+      permissionCodes: string[];
+    };
+
+    async function rolesYCatalogo(accessToken: string) {
+      const roles = await request(app.getHttpServer())
+        .get("/roles")
+        .set("Authorization", bearer(accessToken))
+        .expect(200);
+      const catalogo = await request(app.getHttpServer())
+        .get("/permissions")
+        .set("Authorization", bearer(accessToken))
+        .expect(200);
+      const codes = (catalogo.body as Array<{ permissions: Array<{ code: string }> }>).flatMap(
+        (grupo) => grupo.permissions.map((p) => p.code),
+      );
+      return { roles: roles.body as RolDeLaLista[], codes };
+    }
+
+    /** Cada rol de fábrica recibe los permisos que le reparte `resolveRolePermissionCodes`. */
+    function esperarPermisosDeFabrica(roles: RolDeLaLista[], codes: string[]) {
+      const esperados = resolveRolePermissionCodes(codes);
+      for (const clave of ["admin", "manager", "seller", "viewer"] as const) {
+        const rol = roles.find((r) => r.systemKey === clave);
+        expect({ clave, codes: [...(rol?.permissionCodes ?? [])].sort() }).toEqual({
+          clave,
+          codes: [...esperados[clave]].sort(),
+        });
+      }
+    }
+
+    it("un negocio en español nace con Administrador, Encargado, Cajero y Consulta, y el dueño es el de clave admin", async () => {
+      const owner = await registerActiveOwner("es");
+      const { roles, codes } = await rolesYCatalogo(owner.accessToken);
+
+      expect(Object.fromEntries(roles.map((r) => [r.systemKey, r.name]))).toEqual({
+        admin: "Administrador",
+        manager: "Encargado",
+        seller: "Cajero",
+        viewer: "Consulta",
+      });
+      esperarPermisosDeFabrica(roles, codes);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/users/${owner.userId}`)
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect(detalle.body.roles).toEqual([
+        {
+          id: roles.find((r) => r.systemKey === "admin")?.id,
+          name: "Administrador",
+          systemKey: "admin",
+        },
+      ]);
+    });
+
+    it("un negocio en inglés nace con Admin, Manager, Cashier y Viewer, con las mismas claves y permisos", async () => {
+      const owner = await registerActiveOwner("en");
+      const { roles, codes } = await rolesYCatalogo(owner.accessToken);
+
+      expect(Object.fromEntries(roles.map((r) => [r.systemKey, r.name]))).toEqual({
+        admin: "Admin",
+        manager: "Manager",
+        seller: "Cashier",
+        viewer: "Viewer",
+      });
+      esperarPermisosDeFabrica(roles, codes);
+    });
+
+    it("renombrar un rol de fábrica conserva su clave, y el cuerpo no puede quitársela ni reclamar una", async () => {
+      const owner = await registerActiveOwner("es");
+      const { roles } = await rolesYCatalogo(owner.accessToken);
+      const cajero = roles.find((r) => r.systemKey === "seller") as RolDeLaLista;
+
+      const renombrado = await request(app.getHttpServer())
+        .patch(`/roles/${cajero.id}`)
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ name: "Mostrador", systemKey: null })
+        .expect(200);
+      expect(renombrado.body).toMatchObject({ name: "Mostrador", systemKey: "seller" });
+
+      const propio = await request(app.getHttpServer())
+        .post("/roles")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ name: "Supervisor", permissionCodes: [], systemKey: "manager" })
+        .expect(201);
+      expect(propio.body).toMatchObject({ name: "Supervisor", systemKey: null });
+
+      const despues = await rolesYCatalogo(owner.accessToken);
+      expect(Object.fromEntries(despues.roles.map((r) => [r.name, r.systemKey]))).toEqual({
+        Administrador: "admin",
+        Encargado: "manager",
+        Mostrador: "seller",
+        Consulta: "viewer",
+        Supervisor: null,
+      });
+    });
   });
 });

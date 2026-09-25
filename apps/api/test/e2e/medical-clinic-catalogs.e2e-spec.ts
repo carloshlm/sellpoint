@@ -39,7 +39,7 @@ describe("Consultorio Médico — catálogos (F9-CLINIC-18)", () => {
     negocio = await consultorio(app, prisma, "clinic", admin, ["medical_clinic"]);
     otro = await consultorio(app, prisma, "clinic-otro", admin, ["medical_clinic"]);
     sinModulo = await registerTenant(app, "clinic-sin");
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "clinic-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "clinic-viewer");
   });
 
   afterAll(async () => {

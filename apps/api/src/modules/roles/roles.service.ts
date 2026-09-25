@@ -20,6 +20,13 @@ import { assertTenantRetainsAdmin } from "./tenant-admin-guard";
 export interface RoleSummary {
   id: string;
   name: string;
+  /**
+   * F10-MANFIX-22: la clave fija de un rol de fábrica (`admin`, `manager`,
+   * `seller`, `viewer`); `null` en uno personalizado. Sobrevive a un renombre:
+   * quien necesite reconocer un rol de fábrica pregunta por ella, nunca por
+   * `name`, que el negocio edita y que nace en su idioma.
+   */
+  systemKey: string | null;
   permissionCodes: string[];
   userCount: number;
 }
@@ -81,6 +88,9 @@ export class RolesService {
       return {
         id: role.id,
         name: role.name,
+        // Un rol que crea el negocio nunca es de fábrica: el DTO no acepta la
+        // clave, así que nadie puede reclamar la de otro rol por esta puerta.
+        systemKey: null,
         permissionCodes: [...input.permissionCodes],
         userCount: 0,
       };
@@ -101,6 +111,7 @@ export class RolesService {
       return roles.map((role) => ({
         id: role.id,
         name: role.name,
+        systemKey: role.systemKey,
         permissionCodes: role.permissions.map((p) => p.permission.code),
         userCount: role.users.length,
       }));
@@ -185,6 +196,9 @@ export class RolesService {
           summary: {
             id: roleId,
             name: input.name ?? before.name,
+            // La clave no se edita: un renombre cambia lo que ve el equipo,
+            // no qué rol es (F10-MANFIX-22).
+            systemKey: before.systemKey,
             permissionCodes: afterCodes,
             userCount,
           },

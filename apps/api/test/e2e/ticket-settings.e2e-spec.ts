@@ -64,7 +64,7 @@ describe("Configuración del ticket (F4-TICKETCFG-04)", () => {
     prisma = app.get(PrismaService);
     negocio = await registerTenant(app, "ticket-cfg");
     await setTenantMarket(prisma, negocio.tenantId, "MX");
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "ticket-cfg-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "ticket-cfg-viewer");
   });
 
   afterAll(async () => {

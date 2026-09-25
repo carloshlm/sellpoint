@@ -45,7 +45,7 @@ describe("Consultorio Médico — la carta de referencia e interconsulta (F9-CLI
     admin = await adminDePlataforma(app, prisma, "letters-admin");
     negocio = await consultorio(app, prisma, "letters", admin);
     sinModulo = await consultorio(app, prisma, "letters-nomod", admin, ["reception"]);
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "letters-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "letters-viewer");
 
     const paciente = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Rosa",

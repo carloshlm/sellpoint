@@ -1,4 +1,25 @@
-import { resolveRolePermissionCodes, TENANT_ROLE_NAMES } from "./role-catalog";
+import { resolveRolePermissionCodes, TENANT_ROLE_KEYS, TENANT_ROLES } from "./role-catalog";
+
+/**
+ * F10-MANFIX-22 — los cuatro roles de fábrica: una CLAVE fija, que es su
+ * identidad (`roles.system_key`), y un NOMBRE en el idioma del negocio, que el
+ * negocio puede cambiar. Los nombres son la decisión de Carlos del 2026-09-24;
+ * este test es el que impide cambiarlos sin decidirlo.
+ */
+describe("TENANT_ROLES (F10-MANFIX-22)", () => {
+  it("cada rol de fábrica tiene su clave y su nombre en español y en inglés", () => {
+    expect(TENANT_ROLES).toEqual([
+      { key: "admin", name: { es: "Administrador", en: "Admin" } },
+      { key: "manager", name: { es: "Encargado", en: "Manager" } },
+      { key: "seller", name: { es: "Cajero", en: "Cashier" } },
+      { key: "viewer", name: { es: "Consulta", en: "Viewer" } },
+    ]);
+  });
+
+  it("las claves, en el orden en que nacen, son las cuatro que admite el CHECK de roles.system_key", () => {
+    expect(TENANT_ROLE_KEYS).toEqual(["admin", "manager", "seller", "viewer"]);
+  });
+});
 
 describe("resolveRolePermissionCodes", () => {
   const catalog = [
@@ -21,36 +42,36 @@ describe("resolveRolePermissionCodes", () => {
 
   it("Admin recibe TODOS los codes del catálogo", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.Admin).toEqual(catalog);
+    expect(result.admin).toEqual(catalog);
   });
 
   it("Manager no administra usuarios, roles, el negocio ni la ESTRUCTURA del catálogo", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.Manager).not.toContain("users:manage");
-    expect(result.Manager).not.toContain("roles:manage");
+    expect(result.manager).not.toContain("users:manage");
+    expect(result.manager).not.toContain("roles:manage");
     // F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio tampoco es
     // tarea de Manager.
-    expect(result.Manager).not.toContain("tenants:manage");
+    expect(result.manager).not.toContain("tenants:manage");
     // F2-DB-10: definir qué campos existen cambia la forma de los datos de
     // todo el negocio — no es operación diaria.
-    expect(result.Manager).not.toContain("catalogs:manage");
+    expect(result.manager).not.toContain("catalogs:manage");
   });
 
   it("Manager SÍ opera el día a día: registros, productos y almacenes", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.Manager).toContain("products:manage");
-    expect(result.Manager).toContain("catalogs:write");
-    expect(result.Manager).toContain("warehouses:manage");
+    expect(result.manager).toContain("products:manage");
+    expect(result.manager).toContain("catalogs:write");
+    expect(result.manager).toContain("warehouses:manage");
   });
 
   it("Seller solo recibe pos:sell y products:read (si existen en el catálogo)", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.Seller.sort()).toEqual(["pos:sell", "products:read"]);
+    expect(result.seller.sort()).toEqual(["pos:sell", "products:read"]);
   });
 
   it("Viewer recibe solo codes que terminan en :read", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.Viewer.sort()).toEqual([
+    expect(result.viewer.sort()).toEqual([
       "catalogs:read",
       "products:read",
       "reports:read",
@@ -75,7 +96,7 @@ describe("resolveRolePermissionCodes", () => {
 
     it("Manager recibe los tres, incluido :attend", () => {
       const result = resolveRolePermissionCodes(clinico);
-      expect(result.Manager).toEqual(
+      expect(result.manager).toEqual(
         expect.arrayContaining([
           "medical_clinic:read",
           "medical_clinic:manage",
@@ -86,14 +107,14 @@ describe("resolveRolePermissionCodes", () => {
 
     it("Viewer recibe :read y NO :attend", () => {
       const result = resolveRolePermissionCodes(clinico);
-      expect(result.Viewer).toContain("medical_clinic:read");
-      expect(result.Viewer).not.toContain("medical_clinic:attend");
-      expect(result.Viewer).not.toContain("medical_clinic:manage");
+      expect(result.viewer).toContain("medical_clinic:read");
+      expect(result.viewer).not.toContain("medical_clinic:attend");
+      expect(result.viewer).not.toContain("medical_clinic:manage");
     });
 
     it("Seller no recibe ninguno", () => {
       const result = resolveRolePermissionCodes(clinico);
-      expect(result.Seller.some((c) => c.startsWith("medical_clinic:"))).toBe(false);
+      expect(result.seller.some((c) => c.startsWith("medical_clinic:"))).toBe(false);
     });
   });
 
@@ -117,7 +138,7 @@ describe("resolveRolePermissionCodes", () => {
 
     it("Manager recibe los ocho, incluidos :manage y :cancel", () => {
       const result = resolveRolePermissionCodes(conEgresos);
-      expect(result.Manager).toEqual(
+      expect(result.manager).toEqual(
         expect.arrayContaining([
           "purchases:manage",
           "purchases:cancel",
@@ -130,13 +151,13 @@ describe("resolveRolePermissionCodes", () => {
 
     it("Viewer recibe solo los tres :read; Seller ninguno", () => {
       const result = resolveRolePermissionCodes(conEgresos);
-      expect(result.Viewer).toEqual(
+      expect(result.viewer).toEqual(
         expect.arrayContaining(["purchases:read", "expenses:read", "suppliers:read"]),
       );
-      expect(result.Viewer).not.toContain("purchases:manage");
-      expect(result.Viewer).not.toContain("expenses:cancel");
+      expect(result.viewer).not.toContain("purchases:manage");
+      expect(result.viewer).not.toContain("expenses:cancel");
       expect(
-        result.Seller.some(
+        result.seller.some(
           (c) =>
             c.startsWith("purchases:") || c.startsWith("expenses:") || c.startsWith("suppliers:"),
         ),
@@ -146,7 +167,7 @@ describe("resolveRolePermissionCodes", () => {
 
   it("catálogo vacío → todos los roles nacen sin permisos (degradación aceptada)", () => {
     const result = resolveRolePermissionCodes([]);
-    for (const role of TENANT_ROLE_NAMES) {
+    for (const role of TENANT_ROLE_KEYS) {
       expect(result[role]).toEqual([]);
     }
   });
@@ -166,28 +187,28 @@ describe("resolveRolePermissionCodes", () => {
 
     it("Admin recibe los tres", () => {
       const result = resolveRolePermissionCodes(CODES);
-      expect(result.Admin).toEqual(expect.arrayContaining(CODES));
+      expect(result.admin).toEqual(expect.arrayContaining(CODES));
     });
 
     it("Manager mueve inventario pero NO aprueba conteos ni cancela traspasos", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.Manager).toEqual(
+      expect(result.manager).toEqual(
         expect.arrayContaining(["inventory:read", "inventory:movement"]),
       );
-      expect(result.Manager).not.toContain("inventory:manage");
+      expect(result.manager).not.toContain("inventory:manage");
     });
 
     it("Viewer solo lee", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.Viewer).toEqual(["inventory:read"]);
+      expect(result.viewer).toEqual(["inventory:read"]);
     });
 
     it("Seller no recibe ninguno: F4 decide qué necesita el POS", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.Seller).toEqual([]);
+      expect(result.seller).toEqual([]);
     });
   });
 
@@ -205,23 +226,23 @@ describe("resolveRolePermissionCodes", () => {
     const CODES = ["services:read", "services:manage"];
 
     it("Admin recibe los dos", () => {
-      expect(resolveRolePermissionCodes(CODES).Admin).toEqual(expect.arrayContaining(CODES));
+      expect(resolveRolePermissionCodes(CODES).admin).toEqual(expect.arrayContaining(CODES));
     });
 
     it("Manager también los dos: gestionar servicios es tarea diaria", () => {
-      expect(resolveRolePermissionCodes(CODES).Manager).toEqual(expect.arrayContaining(CODES));
+      expect(resolveRolePermissionCodes(CODES).manager).toEqual(expect.arrayContaining(CODES));
     });
 
     it("Viewer solo lee", () => {
-      expect(resolveRolePermissionCodes(CODES).Viewer).toEqual(["services:read"]);
+      expect(resolveRolePermissionCodes(CODES).viewer).toEqual(["services:read"]);
     });
 
     it("Seller LEE servicios: en F4 los vende, y sin leerlos no hay qué vender", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.Seller).toEqual(["services:read"]);
+      expect(result.seller).toEqual(["services:read"]);
       // Pero no los administra: cambiar un precio no es tarea de mostrador.
-      expect(result.Seller).not.toContain("services:manage");
+      expect(result.seller).not.toContain("services:manage");
     });
   });
 
@@ -243,10 +264,10 @@ describe("resolveRolePermissionCodes", () => {
 
     it("Admin y Manager reciben los dos; Viewer solo lee; Seller ninguno", () => {
       const result = resolveRolePermissionCodes(CODES);
-      expect(result.Admin.sort()).toEqual(["reception:manage", "reception:read"]);
-      expect(result.Manager.sort()).toEqual(["reception:manage", "reception:read"]);
-      expect(result.Viewer).toEqual(["reception:read"]);
-      expect(result.Seller).toEqual([]);
+      expect(result.admin.sort()).toEqual(["reception:manage", "reception:read"]);
+      expect(result.manager.sort()).toEqual(["reception:manage", "reception:read"]);
+      expect(result.viewer).toEqual(["reception:read"]);
+      expect(result.seller).toEqual([]);
     });
   });
 
@@ -254,7 +275,7 @@ describe("resolveRolePermissionCodes", () => {
     const CODES = ["pos:sell", "pos:quote", "pos:view"];
 
     it("Admin recibe los tres", () => {
-      expect(resolveRolePermissionCodes(CODES).Admin.sort()).toEqual([
+      expect(resolveRolePermissionCodes(CODES).admin.sort()).toEqual([
         "pos:quote",
         "pos:sell",
         "pos:view",
@@ -262,7 +283,7 @@ describe("resolveRolePermissionCodes", () => {
     });
 
     it("Manager también: cotizar y consultar el historial son tarea diaria", () => {
-      expect(resolveRolePermissionCodes(CODES).Manager.sort()).toEqual([
+      expect(resolveRolePermissionCodes(CODES).manager.sort()).toEqual([
         "pos:quote",
         "pos:sell",
         "pos:view",
@@ -270,7 +291,7 @@ describe("resolveRolePermissionCodes", () => {
     });
 
     it("Seller recibe los tres: vende, cotiza y reimprime", () => {
-      expect(resolveRolePermissionCodes(CODES).Seller.sort()).toEqual([
+      expect(resolveRolePermissionCodes(CODES).seller.sort()).toEqual([
         "pos:quote",
         "pos:sell",
         "pos:view",
@@ -287,10 +308,10 @@ describe("resolveRolePermissionCodes", () => {
     it("Viewer VE el historial aunque el code no termine en `:read`", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.Viewer).toEqual(["pos:view"]);
+      expect(result.viewer).toEqual(["pos:view"]);
       // Pero no cotiza: emitir un documento no es leer.
-      expect(result.Viewer).not.toContain("pos:quote");
-      expect(result.Viewer).not.toContain("pos:sell");
+      expect(result.viewer).not.toContain("pos:quote");
+      expect(result.viewer).not.toContain("pos:sell");
     });
 
     /**
@@ -301,9 +322,9 @@ describe("resolveRolePermissionCodes", () => {
     it("`pos:quote` es independiente de `pos:sell`: se puede cotizar sin cobrar", () => {
       const soloCotizar = resolveRolePermissionCodes(["pos:quote"]);
 
-      expect(soloCotizar.Admin).toEqual(["pos:quote"]);
-      expect(soloCotizar.Seller).toEqual(["pos:quote"]);
-      expect(soloCotizar.Seller).not.toContain("pos:sell");
+      expect(soloCotizar.admin).toEqual(["pos:quote"]);
+      expect(soloCotizar.seller).toEqual(["pos:quote"]);
+      expect(soloCotizar.seller).not.toContain("pos:sell");
     });
   });
 });

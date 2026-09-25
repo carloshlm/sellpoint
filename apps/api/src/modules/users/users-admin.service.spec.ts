@@ -33,7 +33,12 @@ function defaultRoleFindMany(args: { where?: Record<string, unknown> }) {
     // default no debe disparar el guard W1b por accidente en los tests que
     // no lo ejercitan a propósito.
     return Promise.resolve([
-      { id: "role-1", name: "Manager", permissions: [{ permission: { code: "users:manage" } }] },
+      {
+        id: "role-1",
+        name: "Encargado",
+        systemKey: "manager",
+        permissions: [{ permission: { code: "users:manage" } }],
+      },
     ]);
   }
   // Default W2: el tenant SIGUE teniendo un admin activo tras la mutación
@@ -137,7 +142,8 @@ describe("UsersAdminService.create (F1-RBAC-03)", () => {
       status: "invited",
       locale: "es",
       defaultWarehouseId: null,
-      roles: [{ id: "role-1", name: "Manager" }],
+      // F10-MANFIX-22: cada rol del usuario dice si es de fábrica, y cuál.
+      roles: [{ id: "role-1", name: "Encargado", systemKey: "manager" }],
     });
   });
 
@@ -238,7 +244,7 @@ describe("UsersAdminService.resendInvitation — gap S1", () => {
       secondLastName: null,
       status,
       locale: "en",
-      roles: [{ role: { id: "role-1", name: "Manager" } }],
+      roles: [{ role: { id: "role-1", name: "Encargado", systemKey: "manager" } }],
     });
   }
 
@@ -289,7 +295,8 @@ describe("UsersAdminService.create — W1b hardening (verify #274 pasada 2): esc
     tx.role.findMany.mockResolvedValueOnce([
       {
         id: "role-admin",
-        name: "Admin",
+        name: "Administrador",
+        systemKey: "admin",
         permissions: [
           { permission: { code: "roles:manage" } },
           { permission: { code: "users:manage" } },
@@ -312,7 +319,12 @@ describe("UsersAdminService.create — W1b hardening (verify #274 pasada 2): esc
   it("ACTOR SÍ puede crear un user con un rol cuyos permisos posee por completo", async () => {
     const { service, tx } = buildService();
     tx.role.findMany.mockResolvedValueOnce([
-      { id: "role-1", name: "Manager", permissions: [{ permission: { code: "users:manage" } }] },
+      {
+        id: "role-1",
+        name: "Encargado",
+        systemKey: "manager",
+        permissions: [{ permission: { code: "users:manage" } }],
+      },
     ]);
 
     await expect(
@@ -341,7 +353,7 @@ describe("UsersAdminService.update (F1-RBAC-03)", () => {
       secondLastName: null,
       status: "active",
       locale: "en",
-      roles: [{ role: { id: "role-2", name: "Viewer" } }],
+      roles: [{ role: { id: "role-2", name: "Consulta", systemKey: "viewer" } }],
     });
   }
 
@@ -359,7 +371,12 @@ describe("UsersAdminService.update (F1-RBAC-03)", () => {
     const { service, tx, permEpochService } = buildService();
     withExistingUser(tx);
     tx.role.findMany.mockResolvedValueOnce([
-      { id: "role-2", name: "Viewer", permissions: [{ permission: { code: "users:read" } }] },
+      {
+        id: "role-2",
+        name: "Consulta",
+        systemKey: "viewer",
+        permissions: [{ permission: { code: "users:read" } }],
+      },
     ]);
 
     await service.update(ACTOR, "user-2", { roleIds: ["role-2"] }, {});
@@ -394,7 +411,12 @@ describe("UsersAdminService.update — W2 hardening (verify #274): protege al ú
     // La segunda llamada (guard W2, where sin `id`) usa el default del
     // mock: NINGÚN rol admin queda con usuario activo tras el swap.
     tx.role.findMany.mockResolvedValueOnce([
-      { id: "role-viewer", name: "Viewer", permissions: [{ permission: { code: "users:read" } }] },
+      {
+        id: "role-viewer",
+        name: "Consulta",
+        systemKey: "viewer",
+        permissions: [{ permission: { code: "users:read" } }],
+      },
     ]);
     tx.role.findMany.mockResolvedValueOnce([]);
 
@@ -417,7 +439,8 @@ describe("UsersAdminService.update — W1b hardening (verify #274 pasada 2): esc
     tx.role.findMany.mockResolvedValueOnce([
       {
         id: "role-admin",
-        name: "Admin",
+        name: "Administrador",
+        systemKey: "admin",
         permissions: [
           { permission: { code: "roles:manage" } },
           { permission: { code: "users:manage" } },
@@ -451,10 +474,15 @@ describe("UsersAdminService.update — W1b hardening (verify #274 pasada 2): esc
       secondLastName: null,
       status: "active",
       locale: "en",
-      roles: [{ role: { id: "role-1", name: "Manager" } }],
+      roles: [{ role: { id: "role-1", name: "Encargado", systemKey: "manager" } }],
     });
     tx.role.findMany.mockResolvedValueOnce([
-      { id: "role-1", name: "Manager", permissions: [{ permission: { code: "users:manage" } }] },
+      {
+        id: "role-1",
+        name: "Encargado",
+        systemKey: "manager",
+        permissions: [{ permission: { code: "users:manage" } }],
+      },
     ]);
 
     // ACTOR no tiene roles:manage, pero acá solo se SACA role-admin (que lo
@@ -569,7 +597,7 @@ describe("UsersAdminService.suspend — W2 hardening (verify #274): protege al �
       secondLastName: null,
       status: "active",
       locale: "es",
-      roles: [{ role: { id: "role-1", name: "Admin" } }],
+      roles: [{ role: { id: "role-1", name: "Administrador", systemKey: "admin" } }],
     });
     // Post-mutación (simulada, actor DISTINTO al target): sin este admin
     // activo, el tenant se queda sin nadie que administre roles/usuarios.
@@ -599,7 +627,7 @@ describe("UsersAdminService.suspend — W2 hardening (verify #274): protege al �
       secondLastName: null,
       status: "active",
       locale: "es",
-      roles: [{ role: { id: "role-1", name: "Admin" } }],
+      roles: [{ role: { id: "role-1", name: "Administrador", systemKey: "admin" } }],
     });
     tx.user.update.mockResolvedValue({
       id: "user-2",
@@ -639,14 +667,30 @@ describe("UsersAdminService.list/findOne (F1-RBAC-03)", () => {
         secondLastName: null,
         status: "active",
         locale: "es",
-        roles: [{ role: { id: "role-1", name: "Manager" } }],
+        roles: [
+          { role: { id: "role-1", name: "Encargado", systemKey: "manager" } },
+          { role: { id: "role-9", name: "Recepción", systemKey: null } },
+        ],
       },
     ]);
 
     const result = await service.list(ACTOR);
 
+    expect(tx.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          roles: { select: { role: { select: { id: true, name: true, systemKey: true } } } },
+        },
+      }),
+    );
     expect(result).toEqual([
-      expect.objectContaining({ id: "user-2", roles: [{ id: "role-1", name: "Manager" }] }),
+      expect.objectContaining({
+        id: "user-2",
+        roles: [
+          { id: "role-1", name: "Encargado", systemKey: "manager" },
+          { id: "role-9", name: "Recepción", systemKey: null },
+        ],
+      }),
     ]);
   });
 

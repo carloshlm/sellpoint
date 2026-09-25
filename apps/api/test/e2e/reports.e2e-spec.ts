@@ -9,8 +9,8 @@ import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import {
   resolveRolePermissionCodes,
-  TENANT_ROLE_NAMES,
-  type TenantRoleName,
+  TENANT_ROLE_KEYS,
+  type TenantRoleKey,
 } from "../../src/modules/tenants/role-catalog";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
 import { startTestApp } from "./support/start-test-app";
@@ -34,8 +34,8 @@ describe("Reportes: la puerta de reports:read (F5-CORE-03)", () => {
   let app: INestApplication<App>;
   let tokenService: TokenService;
   let tenantId: string;
-  let roleTokens: Record<TenantRoleName, string>;
-  let permissionsByRole: Record<TenantRoleName, string[]>;
+  let roleTokens: Record<TenantRoleKey, string>;
+  let permissionsByRole: Record<TenantRoleKey, string[]>;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
@@ -81,30 +81,30 @@ describe("Reportes: la puerta de reports:read (F5-CORE-03)", () => {
 
     permissionsByRole = resolveRolePermissionCodes(catalogCodes);
     roleTokens = Object.fromEntries(
-      TENANT_ROLE_NAMES.map((roleName) => [
-        roleName,
+      TENANT_ROLE_KEYS.map((roleKey) => [
+        roleKey,
         tokenService.signAccessToken({
           sub: randomUUID(),
           tenantId,
-          permissions: permissionsByRole[roleName],
+          permissions: permissionsByRole[roleKey],
           locale: "es",
         }),
       ]),
-    ) as Record<TenantRoleName, string>;
+    ) as Record<TenantRoleKey, string>;
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: GET /reports responde según reports:read", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: GET /reports responde según reports:read", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .get("/reports")
-      .set("Authorization", `Bearer ${roleTokens[roleName]}`);
+      .set("Authorization", `Bearer ${roleTokens[roleKey]}`);
 
-    const deberiaPasar = permissionsByRole[roleName].includes("reports:read");
-    expect({ rol: roleName, status: response.status }).toEqual({
-      rol: roleName,
+    const deberiaPasar = permissionsByRole[roleKey].includes("reports:read");
+    expect({ rol: roleKey, status: response.status }).toEqual({
+      rol: roleKey,
       status: deberiaPasar ? 200 : 403,
     });
   });
@@ -116,10 +116,10 @@ describe("Reportes: la puerta de reports:read (F5-CORE-03)", () => {
    * atomización de F5 decidió.
    */
   it("Seller NO tiene reports:read y los otros tres SÍ", () => {
-    expect(permissionsByRole.Seller).not.toContain("reports:read");
-    expect(permissionsByRole.Admin).toContain("reports:read");
-    expect(permissionsByRole.Manager).toContain("reports:read");
-    expect(permissionsByRole.Viewer).toContain("reports:read");
+    expect(permissionsByRole.seller).not.toContain("reports:read");
+    expect(permissionsByRole.admin).toContain("reports:read");
+    expect(permissionsByRole.manager).toContain("reports:read");
+    expect(permissionsByRole.viewer).toContain("reports:read");
   });
 
   it("sin token no se entra", async () => {
@@ -129,7 +129,7 @@ describe("Reportes: la puerta de reports:read (F5-CORE-03)", () => {
   it("el catálogo nombra los reportes con el permiso que exige cada uno", async () => {
     const response = await request(app.getHttpServer())
       .get("/reports")
-      .set("Authorization", `Bearer ${roleTokens.Viewer}`)
+      .set("Authorization", `Bearer ${roleTokens.viewer}`)
       .expect(200);
 
     const body = response.body as {

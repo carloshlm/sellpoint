@@ -185,7 +185,8 @@ describe("Exports directos (F5-CAT)", () => {
 
       expect(rows[0]).toEqual(["Nombre", "Correo", "Roles", "Sucursales", "Estado"]);
       const ana = rows.find((r) => r[0]?.includes("Ana"));
-      expect(ana?.[2]).toContain("Admin");
+      // El rol de fábrica del dueño, con su nombre en el idioma del negocio.
+      expect(ana?.[2]).toBe("Administrador");
       expect(ana?.[4]).toBe("Activo");
       // Sin alcance asignado NO es «ninguno», es «todos»: una celda vacía se
       // leería al revés y haría pensar que esta persona no puede operar en

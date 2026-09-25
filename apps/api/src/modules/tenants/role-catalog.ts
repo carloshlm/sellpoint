@@ -1,32 +1,55 @@
-// Roles base que TenantsService.provision() siembra para todo tenant
-// nuevo (mismo set que prisma/seed.ts). f1-auth design §4: Admin,
-// Manager, Seller, Viewer.
+// Roles de fábrica que TenantsService.provision() siembra para todo negocio
+// nuevo (f1-auth design §4), en el orden en que nacen.
 //
 // Los CODES de permisos exactos no se duplican acá — viven en el catálogo
-// GLOBAL de la tabla `permissions` (poblado por prisma/seed.ts o, en el
-// futuro, por una migración de f1-rbac). `resolveRolePermissionCodes()`
-// aplica las mismas REGLAS de selección que el seed sobre el catálogo que
-// exista en cada entorno: si el catálogo está vacío (dev/CI/prod sin seed
-// corrido todavía), los roles nacen sin permisos — degradación aceptada,
-// no bloqueante para AUTH-REQ-01 (f1-rbac es quien gestiona permisos).
+// GLOBAL de la tabla `permissions` (poblado por las migraciones de permisos
+// y, en dev, por prisma/seed.ts). `resolveRolePermissionCodes()` aplica las
+// REGLAS de reparto sobre el catálogo que exista en cada entorno: si está
+// vacío, los roles nacen sin permisos — degradación aceptada, no bloqueante
+// para AUTH-REQ-01 (f1-rbac es quien gestiona permisos).
 //
-// CONVENCIÓN DE NOMBRES (decisión de Carlos, 2026-08-16): **PascalCase**.
-// `Seller` es la ÚNICA excepción y tiene motivo: el guion bajo separa un
-// ACRÓNIMO de una palabra, porque `POSSeller` se lee mal. No es un estilo
-// alternativo — un rol nuevo de dos palabras se llama `StockKeeper`, no
-// `Stock_Keeper`. Se evaluó renombrar a `Tenant_Admin` para "seguir a
-// Seller" y se DESCARTÓ: dejaría dos de cuatro roles con guion bajo sin
-// una regla que explique cuál lo lleva.
+// CONVENCIÓN (F10-MANFIX-22, Carlos, 2026-09-24): **clave fija + nombre en el
+// idioma del negocio.** Reemplaza a la del 2026-08-16 (nombres en PascalCase
+// y en inglés, que un negocio en español veía tal cual).
 //
-// Ojo si algún día se renombra igual: estos nombres son la columna
-// `roles.name` en DB, no una etiqueta de UI (el front pinta lo que llega del
-// API, no tiene i18n de roles). Un rename exige migración de datos para los
-// tenants ya provisionados. Lo que NO se rompe es la autorización: por la ley
-// de f1-scope, el bypass de Admin es por catálogo de permisos, nunca
-// por nombre de rol.
-export const TENANT_ROLE_NAMES = ["Admin", "Manager", "Seller", "Viewer"] as const;
+//  - La CLAVE (`key`, columna `roles.system_key`) es la IDENTIDAD del rol de
+//    fábrica: no cambia nunca, sobrevive a un renombre y es lo ÚNICO por lo
+//    que el código, las migraciones y las pruebas buscan un rol de fábrica.
+//    Un rol personalizado la tiene en NULL. La base la cuida: CHECK con las
+//    cuatro claves e índice único parcial (tenant_id, system_key), así que un
+//    negocio tiene a lo sumo un rol de cada clave. Una clave nueva exige una
+//    migración que amplíe el CHECK.
+//  - El NOMBRE es lo que ve el equipo, en el idioma del dueño (el `locale`
+//    del registro, mismo criterio que INITIAL_WAREHOUSE_NAME) y editable: el
+//    negocio lo cambia como cualquier dato, y el front pinta lo que llega del
+//    API (no hay i18n de roles). Por eso NADA decide por nombre.
+//
+// ⚠ UNA MIGRACIÓN DE PERMISOS FUTURA busca el rol por `r.system_key`, NUNCA
+// por `r.name`:
+//
+//     INSERT INTO role_permissions (role_id, permission_id)
+//     SELECT r.id, p.id FROM roles r CROSS JOIN permissions p
+//     WHERE r.system_key IN ('admin', 'manager') AND p.code IN (...)
+//     ON CONFLICT (role_id, permission_id) DO NOTHING;
+//
+// Las 11 migraciones anteriores buscan por nombre ('Viewer', 'TenantAdmin'…)
+// y NO se tocan: ya corrieron en todas las bases que existían, y en una base
+// nueva no insertan nada porque todavía no hay roles. Por nombre, además, un
+// rol que el negocio renombraba se quedaba sin los permisos siguientes.
+//
+// La autorización no depende de nada de esto: por la ley de f1-scope va por
+// catálogo de permisos, nunca por nombre ni por clave de rol.
+export const TENANT_ROLES = [
+  { key: "admin", name: { es: "Administrador", en: "Admin" } },
+  { key: "manager", name: { es: "Encargado", en: "Manager" } },
+  { key: "seller", name: { es: "Cajero", en: "Cashier" } },
+  { key: "viewer", name: { es: "Consulta", en: "Viewer" } },
+] as const satisfies readonly { key: string; name: Record<"es" | "en", string> }[];
 
-export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
+export type TenantRoleKey = (typeof TENANT_ROLES)[number]["key"];
+
+/** Las claves de fábrica, en el orden en que nacen. */
+export const TENANT_ROLE_KEYS: readonly TenantRoleKey[] = TENANT_ROLES.map((rol) => rol.key);
 
 /**
  * F2-CAT-01: identidad del Catálogo de Productos, el catálogo del sistema que
@@ -125,21 +148,21 @@ const VIEWER_EXTRA_CODES = new Set(["pos:view"]);
 
 /**
  * Dado el set de codes que EXISTE hoy en el catálogo global de permisos,
- * devuelve qué codes le corresponden a cada rol base. Función pura —
- * testeable sin DB.
+ * devuelve qué codes le corresponden a cada rol de fábrica, por su CLAVE.
+ * Función pura — testeable sin DB.
  */
 export function resolveRolePermissionCodes(
   allCodes: readonly string[],
-): Record<TenantRoleName, string[]> {
+): Record<TenantRoleKey, string[]> {
   const readCodes = allCodes.filter(
     (code) => code.endsWith(":read") || VIEWER_EXTRA_CODES.has(code),
   );
 
   return {
-    Admin: [...allCodes],
-    Manager: allCodes.filter((code) => !MANAGER_EXCLUDED_CODES.has(code)),
-    Seller: allCodes.filter((code) => POS_SELLER_CODES.has(code)),
-    Viewer: readCodes,
+    admin: [...allCodes],
+    manager: allCodes.filter((code) => !MANAGER_EXCLUDED_CODES.has(code)),
+    seller: allCodes.filter((code) => POS_SELLER_CODES.has(code)),
+    viewer: readCodes,
   };
 }
 

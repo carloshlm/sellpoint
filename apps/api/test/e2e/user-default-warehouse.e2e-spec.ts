@@ -80,7 +80,9 @@ describe("Almacén asignado del usuario (F3-HOME-01)", () => {
       .get("/roles")
       .set("Authorization", bearer(token))
       .expect(200);
-    const viewer = (roles.body as { id: string; name: string }[]).find((r) => r.name === "Viewer");
+    const viewer = (roles.body as { id: string; systemKey: string | null }[]).find(
+      (r) => r.systemKey === "viewer",
+    );
     if (!viewer) throw new Error("Viewer no encontrado");
     return viewer.id;
   }

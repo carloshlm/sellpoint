@@ -68,7 +68,13 @@ const USER: UserDetail = {
   roles: [],
 };
 
-const ROLE: RoleSummary = { id: "r1", name: "Cajero", permissionCodes: [], userCount: 0 };
+const ROLE: RoleSummary = {
+  id: "r1",
+  name: "Cajero",
+  systemKey: null,
+  permissionCodes: [],
+  userCount: 0,
+};
 
 const DEMO_TENANT = buildTenantBlock();
 

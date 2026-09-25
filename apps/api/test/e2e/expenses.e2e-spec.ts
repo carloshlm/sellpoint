@@ -53,7 +53,7 @@ describe("Gastos (F9-EXP)", () => {
     // El trial Plus trae Gastos incluido (F9-PLANMOD): no hay nada que pactar.
     negocio = await registerTenant(app, "exp");
     await setTenantMarket(prisma, negocio.tenantId, "MX");
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "exp-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "exp-viewer");
     // Un Free NO incluye Gastos (`MODULE_MIN_PLAN.expenses = "basic"`). Free
     // no se CONTRATA por el backoffice (es el estado al que cae quien no
     // paga), así que el plan contratado se fija en la fila y se limpia la
@@ -253,7 +253,7 @@ describe("Gastos (F9-EXP)", () => {
      * calculado ya neteado. Anular el gasto antes de cerrar devuelve el esperado.
      */
     it("el cierre resta del efectivo esperado los gastos pagados del cajón", async () => {
-      const cajero = await usuarioConRol(app, negocio, "Manager", "exp-cajero");
+      const cajero = await usuarioConRol(app, negocio, "manager", "exp-cajero");
       const turno = await request(app.getHttpServer())
         .post("/pos/session")
         .set("Authorization", bearer(cajero))
@@ -398,7 +398,7 @@ describe("Gastos (F9-EXP)", () => {
      * cobertura y el selector del front.
      */
     it("sin sucursal asignada, el alta pide warehouseId; con él explícito, se destraba", async () => {
-      const sinAlmacen = await usuarioConRol(app, negocio, "Manager", "exp-sinalmacen");
+      const sinAlmacen = await usuarioConRol(app, negocio, "manager", "exp-sinalmacen");
       await api(sinAlmacen).post("/expenses", gasto()).expect(422);
 
       const creado = await api(sinAlmacen)

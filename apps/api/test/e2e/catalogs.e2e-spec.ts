@@ -465,8 +465,8 @@ describe("Motor de catálogos (F2-CAT)", () => {
       .get("/roles")
       .set("Authorization", bearer(owner.token))
       .expect(200);
-    const viewerRoleId = (roles.body as { id: string; name: string }[]).find(
-      (role) => role.name === "Viewer",
+    const viewerRoleId = (roles.body as { id: string; systemKey: string | null }[]).find(
+      (role) => role.systemKey === "viewer",
     )?.id;
 
     const email = `viewer-${randomUUID()}@example.com`;

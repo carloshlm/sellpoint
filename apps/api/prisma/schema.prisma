@@ -1357,10 +1357,19 @@ model Permission {
 
 // Roles POR TENANT (TenantAdmin/Manager/POS_Seller/Viewer se seedean por
 // tenant; custom roles del tenant llegan después sin cambio de schema).
+// F10-MANFIX-22: los cuatro roles de fábrica llevan una CLAVE fija
+// (`systemKey`: admin, manager, seller, viewer) y un NOMBRE en el idioma del
+// negocio que se puede editar. La clave sobrevive a un renombre y es lo único
+// por lo que el código y las migraciones buscan un rol de fábrica; NULL es un
+// rol personalizado. El CHECK de las cuatro claves y el índice único parcial
+// de (tenant_id, system_key) WHERE system_key IS NOT NULL viven en la
+// migración `20261001120000_f10_manfix_role_system_key`: Prisma no los
+// expresa. Convención completa en `modules/tenants/role-catalog.ts`.
 model Role {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
   name      String
+  systemKey String?  @map("system_key")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

@@ -119,8 +119,8 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       .get("/roles")
       .set("Authorization", bearer(accessToken))
       .expect(200);
-    const tenantAdmin = (roles.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "Admin",
+    const tenantAdmin = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+      (r) => r.systemKey === "admin",
     );
     if (!tenantAdmin) {
       throw new Error("Admin no encontrado");
@@ -258,9 +258,9 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).toEqual(
         expect.arrayContaining([expect.stringContaining("HR Manager")]),
       );
-      expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).not.toContain(
-        "Admin",
-      );
+      expect(
+        (detail.body.roles as Array<{ systemKey: string | null }>).map((r) => r.systemKey),
+      ).not.toContain("admin");
     });
 
     it("POST /users: actor con SOLO users:manage no puede crear un user con un rol que otorga roles:manage -> 403", async () => {
@@ -287,8 +287,8 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .get("/roles")
         .set("Authorization", bearer(owner.accessToken))
         .expect(200);
-      const managerRoleId = (roles.body as Array<{ id: string; name: string }>).find(
-        (r) => r.name === "Manager",
+      const managerRoleId = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+        (r) => r.systemKey === "manager",
       )?.id as string;
       const tenantAdminId = await tenantAdminRoleId(owner.accessToken);
 
@@ -407,8 +407,8 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .get("/roles")
         .set("Authorization", bearer(owner.accessToken))
         .expect(200);
-      const viewerRoleId = (roles.body as Array<{ id: string; name: string }>).find(
-        (r) => r.name === "Viewer",
+      const viewerRoleId = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+        (r) => r.systemKey === "viewer",
       )?.id as string;
 
       const response = await request(app.getHttpServer())
@@ -423,7 +423,9 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .get(`/users/${owner.userId}`)
         .set("Authorization", bearer(owner.accessToken))
         .expect(200);
-      expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).toContain("Admin");
+      expect(
+        (detail.body.roles as Array<{ systemKey: string | null }>).map((r) => r.systemKey),
+      ).toContain("admin");
     });
 
     it("POST /users/:id/suspend: suspender al ÚNICO admin activo (actor distinto, con users:manage) -> 409 roles.last_admin_protected", async () => {

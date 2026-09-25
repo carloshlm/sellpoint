@@ -1,10 +1,9 @@
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuditService } from "../audit/audit.service";
-import { TENANT_ROLE_NAMES } from "./role-catalog";
 import { TenantsService } from "./tenants.service";
 
 function buildTx() {
-  const roleIdByName = new Map<string, string>();
+  const roleIdByKey = new Map<string, string>();
   let roleCounter = 0;
 
   const tenant = {
@@ -23,10 +22,10 @@ function buildTx() {
     ]),
   };
   const role = {
-    create: jest.fn(({ data }: { data: { name: string } }) => {
+    create: jest.fn(({ data }: { data: { name: string; systemKey: string } }) => {
       roleCounter += 1;
       const id = `role-${roleCounter}`;
-      roleIdByName.set(data.name, id);
+      roleIdByKey.set(data.systemKey, id);
       return Promise.resolve({ id, ...data });
     }),
   };
@@ -53,7 +52,7 @@ function buildTx() {
     expenseCategory,
     plan,
     tenantSubscription,
-    roleIdByName,
+    roleIdByKey,
   };
 }
 
@@ -132,26 +131,53 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
     );
   });
 
-  it("crea los 4 roles base y asigna Admin al owner", async () => {
+  /**
+   * F10-MANFIX-22: cada rol de fábrica nace con su CLAVE fija y el nombre en
+   * el idioma del dueño (el `locale` del registro), y el dueño recibe el rol
+   * por su clave, nunca por su nombre.
+   */
+  it("crea los cuatro roles de fábrica con su clave y el nombre en español, y le da al dueño el de clave admin", async () => {
     const { service, tx } = buildService();
 
     const result = await service.provision(baseInput);
 
-    const createdRoleNames = tx.role.create.mock.calls.map((call) => call[0].data.name);
-    expect(createdRoleNames.sort()).toEqual([...TENANT_ROLE_NAMES].sort());
+    const creados = tx.role.create.mock.calls.map((call) => call[0].data);
+    expect(creados).toEqual([
+      { tenantId: "tenant-1", systemKey: "admin", name: "Administrador" },
+      { tenantId: "tenant-1", systemKey: "manager", name: "Encargado" },
+      { tenantId: "tenant-1", systemKey: "seller", name: "Cajero" },
+      { tenantId: "tenant-1", systemKey: "viewer", name: "Consulta" },
+    ]);
 
     expect(tx.userRole.create).toHaveBeenCalledWith({
-      data: { userId: "user-1", roleId: tx.roleIdByName.get("Admin") },
+      data: { userId: "user-1", roleId: tx.roleIdByKey.get("admin") },
     });
     expect(result).toEqual({ tenantId: "tenant-1", userId: "user-1" });
   });
 
-  it("Admin recibe TODOS los permisos del catálogo existente", async () => {
+  it("en inglés los roles de fábrica nacen Admin, Manager, Cashier y Viewer, con las mismas claves", async () => {
+    const { service, tx } = buildService();
+
+    await service.provision({ ...baseInput, locale: "en" });
+
+    const creados = tx.role.create.mock.calls.map((call) => [
+      call[0].data.systemKey,
+      call[0].data.name,
+    ]);
+    expect(creados).toEqual([
+      ["admin", "Admin"],
+      ["manager", "Manager"],
+      ["seller", "Cashier"],
+      ["viewer", "Viewer"],
+    ]);
+  });
+
+  it("el rol de clave admin recibe TODOS los permisos del catálogo existente", async () => {
     const { service, tx } = buildService();
 
     await service.provision(baseInput);
 
-    const adminRoleId = tx.roleIdByName.get("Admin");
+    const adminRoleId = tx.roleIdByKey.get("admin");
     const adminCall = tx.rolePermission.createMany.mock.calls.find((call) =>
       call[0].data.some((d: { roleId: string }) => d.roleId === adminRoleId),
     );

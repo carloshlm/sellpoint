@@ -6,6 +6,7 @@ import type { App } from "supertest/types";
 import type { PrismaService } from "../../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../../src/modules/mail/mailer.port";
 import type { NoopMailer } from "../../../src/modules/mail/noop.mailer";
+import type { TenantRoleKey } from "../../../src/modules/tenants/role-catalog";
 import {
   BILLING_TEST_PASSWORD,
   bearer,
@@ -71,23 +72,33 @@ export async function adminDePlataforma(
   return admin;
 }
 
-/** Un usuario invitado con un rol dado (Viewer, Manager…), ya logueado. */
+/**
+ * Un usuario invitado con un rol dado, ya logueado. Un rol de FÁBRICA se pide
+ * por su clave (`"viewer"`, `"manager"`…) y nunca por su nombre, que nace en
+ * el idioma del negocio y el negocio puede cambiar (F10-MANFIX-22); uno
+ * PERSONALIZADO, que no tiene clave, por su nombre.
+ */
 export async function usuarioConRol(
   app: INestApplication<App>,
   owner: TenantFixture,
-  rol: string,
+  rol: TenantRoleKey | { nombre: string },
   prefix: string,
 ): Promise<string> {
   const roles = await request(app.getHttpServer())
     .get("/roles")
     .set("Authorization", bearer(owner.token))
     .expect(200);
-  const elegido = (roles.body as { id: string; name: string }[]).find((r) => r.name === rol);
+  const elegido = (roles.body as { id: string; name: string; systemKey: string | null }[]).find(
+    (r) => (typeof rol === "string" ? r.systemKey === rol : r.name === rol.nombre),
+  );
+  if (!elegido) {
+    throw new Error(`usuarioConRol: el negocio no tiene el rol ${JSON.stringify(rol)}`);
+  }
   const email = `${prefix}-${randomUUID()}@example.com`;
   await request(app.getHttpServer())
     .post("/users")
     .set("Authorization", bearer(owner.token))
-    .send({ email, firstName: "Vera", lastName: "Vista", roleIds: [elegido?.id] })
+    .send({ email, firstName: "Vera", lastName: "Vista", roleIds: [elegido.id] })
     .expect(201);
   const mailer = app.get<NoopMailer>(MAILER);
   const token = extractTokenFromLink(mailer.sent.filter((m) => m.to === email).at(-1)?.vars.link);

@@ -186,8 +186,8 @@ describe("POST /auth/resend-verification (e2e)", () => {
       .get("/roles")
       .set("Authorization", auth)
       .expect(200);
-    const viewer = (roles.body as Array<{ id: string; name: string }>).find(
-      (role) => role.name === "Viewer",
+    const viewer = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+      (role) => role.systemKey === "viewer",
     );
     const inviteeEmail = `invitado-${randomUUID()}@example.com`;
     const invitee = await request(app.getHttpServer())

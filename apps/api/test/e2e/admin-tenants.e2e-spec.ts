@@ -82,7 +82,9 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       .get("/roles")
       .set("Authorization", bearer(negocioB.token))
       .expect(200);
-    const viewer = (roles.body as { id: string; name: string }[]).find((r) => r.name === "Viewer");
+    const viewer = (roles.body as { id: string; systemKey: string | null }[]).find(
+      (r) => r.systemKey === "viewer",
+    );
     const invitado = await request(app.getHttpServer())
       .post("/users")
       .set("Authorization", bearer(negocioB.token))

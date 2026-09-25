@@ -66,7 +66,7 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
       .set("Authorization", bearer(admin.token))
       .send({ moduleKey: "reception", customPrice: "1250.00", reason: "e2e" })
       .expect(201);
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "recep-settings-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "recep-settings-viewer");
 
     const inicial = await get(negocio.token).expect(200);
     expect(inicial.body).toEqual({ customerLabel: null, showCustomers: true, showTurns: true });

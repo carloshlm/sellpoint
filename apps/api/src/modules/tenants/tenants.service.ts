@@ -19,7 +19,7 @@ import {
   SERVICES_CATALOG_NAME,
   SUPPLIERS_CATALOG_KEY,
   SUPPLIERS_CATALOG_NAME,
-  TENANT_ROLE_NAMES,
+  TENANT_ROLES,
   WAREHOUSES_CATALOG_KEY,
   WAREHOUSES_CATALOG_NAME,
 } from "./role-catalog";
@@ -98,16 +98,24 @@ export class TenantsService {
       const permissionIdByCode = new Map(allPermissions.map((p) => [p.code, p.id]));
       const codesByRole = resolveRolePermissionCodes(allPermissions.map((p) => p.code));
 
+      // El idioma del negocio es el del dueño que lo registra: en él nacen los
+      // nombres de los roles, del almacén y de las categorías de gasto.
+      const idioma = input.locale ?? "es";
       let ownerRoleId: string | undefined;
 
-      for (const roleName of TENANT_ROLE_NAMES) {
-        const role = await tx.role.create({ data: { tenantId: tenant.id, name: roleName } });
+      // F10-MANFIX-22: cada rol nace con su CLAVE fija y el nombre en el idioma
+      // del negocio. El dueño recibe el suyo por la clave: el nombre es un dato
+      // que el negocio puede cambiar.
+      for (const rol of TENANT_ROLES) {
+        const role = await tx.role.create({
+          data: { tenantId: tenant.id, systemKey: rol.key, name: rol.name[idioma] },
+        });
 
-        if (roleName === "Admin") {
+        if (rol.key === "admin") {
           ownerRoleId = role.id;
         }
 
-        const codes = codesByRole[roleName];
+        const codes = codesByRole[rol.key];
         if (codes.length > 0) {
           await tx.rolePermission.createMany({
             data: codes.map((code) => ({
@@ -120,7 +128,7 @@ export class TenantsService {
       }
 
       if (!ownerRoleId) {
-        throw new Error("TENANT_ROLE_NAMES no incluye Admin — invariante rota");
+        throw new Error("TENANT_ROLES no incluye la clave admin — invariante rota");
       }
 
       await tx.userRole.create({ data: { userId: owner.id, roleId: ownerRoleId } });
@@ -168,7 +176,7 @@ export class TenantsService {
           // El primer código de la serie del negocio, el mismo que generaría
           // el service para un alta sin código (Carlos, 2026-09-01).
           code: "ALM-001",
-          name: INITIAL_WAREHOUSE_NAME[input.locale ?? "es"],
+          name: INITIAL_WAREHOUSE_NAME[idioma],
         },
       });
 
@@ -183,7 +191,6 @@ export class TenantsService {
       // negocio y en esta misma transacción. Los negocios que ya existían las
       // recibieron por el backfill de la migración; nunca se siembran en
       // diferido dentro de un GET (una escritura escondida en una lectura).
-      const idioma = input.locale ?? "es";
       await tx.expenseCategory.createMany({
         data: EXPENSE_CATEGORY_SEED.map((categoria, indice) => ({
           tenantId: tenant.id,

@@ -8,6 +8,8 @@ import { api } from "@/lib/api";
 export interface UserRoleRef {
   id: string;
   name: string;
+  /** F10-MANFIX-22: la clave del rol de fábrica; `null` en uno personalizado. */
+  systemKey: string | null;
 }
 
 export interface UserDetail {
@@ -49,7 +51,13 @@ export type UpdateUserInput = Partial<Pick<UserDetail, "firstName" | "lastName">
 
 export interface RoleSummary {
   id: string;
+  /** Nace en el idioma del negocio y el negocio lo puede cambiar: se pinta, no se compara. */
   name: string;
+  /**
+   * F10-MANFIX-22: la clave fija de un rol de fábrica (`admin`, `manager`,
+   * `seller`, `viewer`); `null` en uno personalizado. Sobrevive a un renombre.
+   */
+  systemKey: string | null;
   permissionCodes: string[];
   userCount: number;
 }

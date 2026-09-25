@@ -72,7 +72,9 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
       .get("/roles")
       .set("Authorization", bearer(negocio.token))
       .expect(200);
-    const viewer = (roles.body as { id: string; name: string }[]).find((r) => r.name === "Viewer");
+    const viewer = (roles.body as { id: string; systemKey: string | null }[]).find(
+      (r) => r.systemKey === "viewer",
+    );
     const email = `recep-viewer-${randomUUID()}@example.com`;
     await request(app.getHttpServer())
       .post("/users")

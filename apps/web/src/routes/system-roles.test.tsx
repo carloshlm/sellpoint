@@ -45,8 +45,8 @@ const mockedGetMe = vi.mocked(authApi.getMe);
 const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 const ROLES: rbacApi.RoleSummary[] = [
-  { id: "r1", name: "Cajero", permissionCodes: ["sales:read"], userCount: 2 },
-  { id: "r2", name: "Sin uso", permissionCodes: [], userCount: 0 },
+  { id: "r1", name: "Cajero", systemKey: null, permissionCodes: ["sales:read"], userCount: 2 },
+  { id: "r2", name: "Sin uso", systemKey: null, permissionCodes: [], userCount: 0 },
 ];
 
 const PERMISSION_GROUPS: rbacApi.PermissionGroup[] = [
@@ -243,6 +243,7 @@ describe("/system/roles", () => {
     const newRole: rbacApi.RoleSummary = {
       id: "r3",
       name: "Soporte",
+      systemKey: null,
       permissionCodes: [],
       userCount: 0,
     };
@@ -279,6 +280,7 @@ describe("/system/roles", () => {
     const newRole: rbacApi.RoleSummary = {
       id: "r3",
       name: "Soporte",
+      systemKey: null,
       permissionCodes: [],
       userCount: 0,
     };
@@ -315,6 +317,7 @@ describe("/system/roles", () => {
     const newRole: rbacApi.RoleSummary = {
       id: "r3",
       name: "Soporte",
+      systemKey: null,
       permissionCodes: [],
       userCount: 0,
     };

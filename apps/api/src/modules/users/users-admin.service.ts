@@ -21,7 +21,15 @@ import { UserInvitationService } from "./user-invitation.service";
 export interface UserRoleRef {
   id: string;
   name: string;
+  /** F10-MANFIX-22: la clave del rol de fábrica; `null` en uno personalizado. */
+  systemKey: string | null;
 }
+
+/**
+ * Lo que se lee de cada rol de un usuario para responder: el mismo `select` en
+ * las seis consultas, así que un campo nuevo del rol se agrega en un lugar.
+ */
+const ROLE_REF_SELECT = { id: true, name: true, systemKey: true } as const;
 
 interface ResolvedRole extends UserRoleRef {
   permissionCodes: string[];
@@ -160,7 +168,7 @@ export class UsersAdminService {
     const detail = await this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const user = await tx.user.findFirst({
         where: { id: userId, tenantId: actor.tenantId },
-        include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+        include: { roles: { select: { role: { select: ROLE_REF_SELECT } } } },
       });
 
       if (!user) {
@@ -202,7 +210,7 @@ export class UsersAdminService {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const users = await tx.user.findMany({
         where: { tenantId: actor.tenantId },
-        include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+        include: { roles: { select: { role: { select: ROLE_REF_SELECT } } } },
         orderBy: { createdAt: "asc" },
       });
 
@@ -219,7 +227,7 @@ export class UsersAdminService {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const user = await tx.user.findFirst({
         where: { id: userId, tenantId: actor.tenantId },
-        include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+        include: { roles: { select: { role: { select: ROLE_REF_SELECT } } } },
       });
 
       if (!user) {
@@ -329,7 +337,7 @@ export class UsersAdminService {
 
         const updated = await tx.user.findFirstOrThrow({
           where: { id: userId },
-          include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+          include: { roles: { select: { role: { select: ROLE_REF_SELECT } } } },
         });
 
         return {
@@ -362,7 +370,7 @@ export class UsersAdminService {
     const detail = await this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const user = await tx.user.findFirst({
         where: { id: userId, tenantId: actor.tenantId },
-        include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+        include: { roles: { select: { role: { select: ROLE_REF_SELECT } } } },
       });
 
       if (!user) {
@@ -407,7 +415,7 @@ export class UsersAdminService {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const user = await tx.user.findFirst({
         where: { id: userId, tenantId: actor.tenantId },
-        include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+        include: { roles: { select: { role: { select: ROLE_REF_SELECT } } } },
       });
 
       if (!user) {
@@ -440,7 +448,7 @@ export class UsersAdminService {
   }
 
   /**
-   * Devuelve, ADEMÁS de `{id, name}`, los `permissionCodes` efectivos de
+   * Devuelve, ADEMÁS de `{id, name, systemKey}`, los `permissionCodes` efectivos de
    * cada rol — necesarios para el guard W1b (`assertNoRoleAssignmentEscalation`)
    * sin una query extra. `toDetail()` es responsable de NO filtrar
    * `permissionCodes` al DTO de respuesta.
@@ -454,8 +462,7 @@ export class UsersAdminService {
     const roles = await tx.role.findMany({
       where: { id: { in: uniqueIds }, tenantId },
       select: {
-        id: true,
-        name: true,
+        ...ROLE_REF_SELECT,
         permissions: { select: { permission: { select: { code: true } } } },
       },
     });
@@ -467,6 +474,7 @@ export class UsersAdminService {
     return roles.map((role) => ({
       id: role.id,
       name: role.name,
+      systemKey: role.systemKey,
       permissionCodes: role.permissions.map((p) => p.permission.code),
     }));
   }
@@ -524,7 +532,7 @@ export class UsersAdminService {
       // Reconstruido explícito: `roles` puede venir de `resolveRoles()`
       // (`ResolvedRole`, con `permissionCodes` interno para el guard W1b) —
       // nunca debe filtrarse al DTO de respuesta.
-      roles: roles.map((role) => ({ id: role.id, name: role.name })),
+      roles: roles.map((role) => ({ id: role.id, name: role.name, systemKey: role.systemKey })),
     };
   }
 }

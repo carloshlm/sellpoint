@@ -41,7 +41,7 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     admin = await adminDePlataforma(app, prisma, "orders-admin");
     negocio = await consultorio(app, prisma, "orders", admin);
 
-    viewerToken = await usuarioConRol(app, negocio, "Seller", "orders-seller");
+    viewerToken = await usuarioConRol(app, negocio, "seller", "orders-seller");
 
     const producto = await crearProducto(app, negocio.token, 45);
     productoId = producto.id;

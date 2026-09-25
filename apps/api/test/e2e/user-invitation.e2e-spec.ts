@@ -8,6 +8,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import type { TenantRoleKey } from "../../src/modules/tenants/role-catalog";
 import { INVITATION_TTL_MS } from "../../src/modules/users/user-invitation.service";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
 import { startTestApp } from "./support/start-test-app";
@@ -102,23 +103,26 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
     return { ...body, email, accessToken: login.body.accessToken as string };
   }
 
-  async function roleIdByName(accessToken: string, name: string): Promise<string> {
+  /** Un rol de fábrica por su clave, nunca por su nombre (F10-MANFIX-22). */
+  async function roleIdByKey(accessToken: string, systemKey: TenantRoleKey): Promise<string> {
     const roles = await request(app.getHttpServer())
       .get("/roles")
       .set("Authorization", bearer(accessToken))
       .expect(200);
-    const role = (roles.body as Array<{ id: string; name: string }>).find((r) => r.name === name);
+    const role = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+      (r) => r.systemKey === systemKey,
+    );
     if (!role) {
-      throw new Error(`Rol ${name} no encontrado`);
+      throw new Error(`Rol de clave ${systemKey} no encontrado`);
     }
     return role.id;
   }
 
   async function inviteUser(
     ownerToken: string,
-    overrides?: { locale?: "es" | "en"; roleName?: string },
+    overrides?: { locale?: "es" | "en"; roleKey?: TenantRoleKey },
   ): Promise<{ id: string; email: string }> {
-    const roleId = await roleIdByName(ownerToken, overrides?.roleName ?? "Viewer");
+    const roleId = await roleIdByKey(ownerToken, overrides?.roleKey ?? "viewer");
     const email = `invitado-${randomUUID()}@example.com`;
     const created = await request(app.getHttpServer())
       .post("/users")
@@ -310,7 +314,7 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
 
   it("un invitado ya activo SIN users:manage no puede reenviar invitaciones -> 403", async () => {
     const owner = await registerActiveOwner();
-    const viewer = await inviteUser(owner.accessToken, { roleName: "Viewer" });
+    const viewer = await inviteUser(owner.accessToken, { roleKey: "viewer" });
     const otro = await inviteUser(owner.accessToken);
 
     await request(app.getHttpServer())

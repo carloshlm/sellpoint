@@ -9,8 +9,8 @@ import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import {
   resolveRolePermissionCodes,
-  TENANT_ROLE_NAMES,
-  type TenantRoleName,
+  TENANT_ROLE_KEYS,
+  type TenantRoleKey,
 } from "../../src/modules/tenants/role-catalog";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
 import { startTestApp } from "./support/start-test-app";
@@ -40,8 +40,8 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
 
   let tenantId: string;
   let ownerAccessToken: string;
-  let roleTokens: Record<TenantRoleName, string>;
-  let permissionsByRole: Record<TenantRoleName, string[]>;
+  let roleTokens: Record<TenantRoleKey, string>;
+  let permissionsByRole: Record<TenantRoleKey, string[]>;
   let targetRoleId: string;
   let targetUserId: string;
 
@@ -92,16 +92,16 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
 
     permissionsByRole = resolveRolePermissionCodes(catalogCodes);
     roleTokens = Object.fromEntries(
-      TENANT_ROLE_NAMES.map((roleName) => [
-        roleName,
+      TENANT_ROLE_KEYS.map((roleKey) => [
+        roleKey,
         tokenService.signAccessToken({
           sub: randomUUID(),
           tenantId,
-          permissions: permissionsByRole[roleName],
+          permissions: permissionsByRole[roleKey],
           locale: "es",
         }),
       ]),
-    ) as Record<TenantRoleName, string>;
+    ) as Record<TenantRoleKey, string>;
 
     const roleResponse = await request(app.getHttpServer())
       .post("/roles")
@@ -114,9 +114,9 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
       .get("/roles")
       .set("Authorization", bearer(ownerAccessToken))
       .expect(200);
-    const viewerRoleId = (rolesResponse.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "Viewer",
-    )?.id as string;
+    const viewerRoleId = (
+      rolesResponse.body as Array<{ id: string; systemKey: string | null }>
+    ).find((r) => r.systemKey === "viewer")?.id as string;
 
     const userResponse = await request(app.getHttpServer())
       .post("/users")
@@ -139,114 +139,114 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
     return `Bearer ${token}`;
   }
 
-  it.each(TENANT_ROLE_NAMES)("%s: GET /permissions requiere roles:read", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: GET /permissions requiere roles:read", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .get("/permissions")
-      .set("Authorization", bearer(roleTokens[roleName]));
+      .set("Authorization", bearer(roleTokens[roleKey]));
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("roles:read"));
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("roles:read"));
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: GET /roles requiere roles:read", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: GET /roles requiere roles:read", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .get("/roles")
-      .set("Authorization", bearer(roleTokens[roleName]));
+      .set("Authorization", bearer(roleTokens[roleKey]));
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("roles:read"));
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("roles:read"));
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: GET /users requiere users:read", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: GET /users requiere users:read", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .get("/users")
-      .set("Authorization", bearer(roleTokens[roleName]));
+      .set("Authorization", bearer(roleTokens[roleKey]));
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("users:read"));
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("users:read"));
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: GET /users/:id requiere users:read", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: GET /users/:id requiere users:read", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .get(`/users/${targetUserId}`)
-      .set("Authorization", bearer(roleTokens[roleName]));
+      .set("Authorization", bearer(roleTokens[roleKey]));
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("users:read"));
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("users:read"));
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: PATCH /roles/:id requiere roles:manage", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: PATCH /roles/:id requiere roles:manage", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .patch(`/roles/${targetRoleId}`)
-      .set("Authorization", bearer(roleTokens[roleName]))
+      .set("Authorization", bearer(roleTokens[roleKey]))
       .send({ name: `Matrix Target ${randomUUID()}` });
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("roles:manage"));
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("roles:manage"));
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: POST /roles requiere roles:manage", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: POST /roles requiere roles:manage", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .post("/roles")
-      .set("Authorization", bearer(roleTokens[roleName]))
-      .send({ name: `Matrix ${roleName} ${randomUUID()}`, permissionCodes: [] });
+      .set("Authorization", bearer(roleTokens[roleKey]))
+      .send({ name: `Matrix ${roleKey} ${randomUUID()}`, permissionCodes: [] });
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("roles:manage"), 201);
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("roles:manage"), 201);
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: POST /users requiere users:manage", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: POST /users requiere users:manage", async (roleKey) => {
     const rolesResponse = await request(app.getHttpServer())
       .get("/roles")
       .set("Authorization", bearer(ownerAccessToken))
       .expect(200);
-    const viewerRoleId = (rolesResponse.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "Viewer",
-    )?.id as string;
+    const viewerRoleId = (
+      rolesResponse.body as Array<{ id: string; systemKey: string | null }>
+    ).find((r) => r.systemKey === "viewer")?.id as string;
 
     const response = await request(app.getHttpServer())
       .post("/users")
-      .set("Authorization", bearer(roleTokens[roleName]))
+      .set("Authorization", bearer(roleTokens[roleKey]))
       .send({
-        email: `matrix-${roleName}-${randomUUID()}@example.com`,
+        email: `matrix-${roleKey}-${randomUUID()}@example.com`,
         firstName: "Matrix",
-        lastName: roleName,
+        lastName: roleKey,
         roleIds: [viewerRoleId],
       });
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("users:manage"), 201);
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("users:manage"), 201);
   });
 
-  it.each(TENANT_ROLE_NAMES)("%s: PATCH /users/:id requiere users:manage", async (roleName) => {
+  it.each(TENANT_ROLE_KEYS)("%s: PATCH /users/:id requiere users:manage", async (roleKey) => {
     const response = await request(app.getHttpServer())
       .patch(`/users/${targetUserId}`)
-      .set("Authorization", bearer(roleTokens[roleName]))
+      .set("Authorization", bearer(roleTokens[roleKey]))
       .send({ locale: "en" });
 
-    assertAllowedIff(response.status, permissionsByRole[roleName].includes("users:manage"));
+    assertAllowedIff(response.status, permissionsByRole[roleKey].includes("users:manage"));
   });
 
-  it.each(TENANT_ROLE_NAMES)(
+  it.each(TENANT_ROLE_KEYS)(
     "%s: DELETE /roles/:id requiere roles:manage (rol descartable por intento, sin usuarios)",
-    async (roleName) => {
+    async (roleKey) => {
       const disposable = await request(app.getHttpServer())
         .post("/roles")
         .set("Authorization", bearer(ownerAccessToken))
-        .send({ name: `Descartable ${roleName} ${randomUUID()}`, permissionCodes: [] })
+        .send({ name: `Descartable ${roleKey} ${randomUUID()}`, permissionCodes: [] })
         .expect(201);
 
       const response = await request(app.getHttpServer())
         .delete(`/roles/${disposable.body.id}`)
-        .set("Authorization", bearer(roleTokens[roleName]));
+        .set("Authorization", bearer(roleTokens[roleKey]));
 
-      assertAllowedIff(response.status, permissionsByRole[roleName].includes("roles:manage"), 204);
+      assertAllowedIff(response.status, permissionsByRole[roleKey].includes("roles:manage"), 204);
     },
   );
 
   it("solo Admin (el único con users:manage en el catálogo mínimo) puede suspender/reactivar", async () => {
-    const canManageUsers = permissionsByRole.Admin.includes("users:manage");
+    const canManageUsers = permissionsByRole.admin.includes("users:manage");
     expect(canManageUsers).toBe(true);
 
     const suspend = await request(app.getHttpServer())
       .post(`/users/${targetUserId}/suspend`)
-      .set("Authorization", bearer(roleTokens.Admin));
+      .set("Authorization", bearer(roleTokens.admin));
     expect(suspend.status).toBe(200);
 
-    const forbiddenRole = permissionsByRole.Viewer.includes("users:manage") ? "Manager" : "Viewer";
+    const forbiddenRole = permissionsByRole.viewer.includes("users:manage") ? "manager" : "viewer";
     const reactivateForbidden = await request(app.getHttpServer())
       .post(`/users/${targetUserId}/reactivate`)
       .set("Authorization", bearer(roleTokens[forbiddenRole]));
@@ -254,7 +254,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
 
     const reactivate = await request(app.getHttpServer())
       .post(`/users/${targetUserId}/reactivate`)
-      .set("Authorization", bearer(roleTokens.Admin));
+      .set("Authorization", bearer(roleTokens.admin));
     expect(reactivate.status).toBe(200);
   });
 

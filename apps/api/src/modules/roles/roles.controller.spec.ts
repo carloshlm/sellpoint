@@ -12,6 +12,7 @@ const CURRENT_USER: AuthUser = {
 const ROLE: RoleSummary = {
   id: "role-1",
   name: "Custom",
+  systemKey: null,
   permissionCodes: ["users:read"],
   userCount: 0,
 };

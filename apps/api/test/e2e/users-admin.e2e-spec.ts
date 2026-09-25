@@ -85,8 +85,8 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .get("/roles")
       .set("Authorization", bearer(accessToken))
       .expect(200);
-    const viewer = (roles.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "Viewer",
+    const viewer = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+      (r) => r.systemKey === "viewer",
     );
     if (!viewer) {
       throw new Error("Viewer no encontrado");
@@ -108,7 +108,8 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
     expect(created.body).toMatchObject({
       email,
       status: "invited",
-      roles: [{ id: roleId, name: "Viewer" }],
+      // F10-MANFIX-22: el rol de fábrica nace en el idioma del negocio y dice su clave.
+      roles: [{ id: roleId, name: "Consulta", systemKey: "viewer" }],
     });
 
     const list = await request(app.getHttpServer())
@@ -242,8 +243,8 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .get("/roles")
       .set("Authorization", bearer(owner.accessToken))
       .expect(200);
-    const managerId = (roles.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "Manager",
+    const managerId = (roles.body as Array<{ id: string; systemKey: string | null }>).find(
+      (r) => r.systemKey === "manager",
     )?.id;
 
     const created = await request(app.getHttpServer())

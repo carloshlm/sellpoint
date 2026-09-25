@@ -35,7 +35,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     prisma = app.get(PrismaService);
     admin = await adminDePlataforma(app, prisma, "record-admin");
     negocio = await consultorio(app, prisma, "record", admin);
-    viewerToken = await usuarioConRol(app, negocio, "Viewer", "record-viewer");
+    viewerToken = await usuarioConRol(app, negocio, "viewer", "record-viewer");
   });
 
   afterAll(async () => {

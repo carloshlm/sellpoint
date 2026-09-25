@@ -167,7 +167,7 @@ beforeEach(() => {
       status: "active",
       locale: "es",
       defaultWarehouseId: null,
-      roles: [{ id: "r1", name: "Manager" }],
+      roles: [{ id: "r1", name: "Manager", systemKey: "manager" }],
     },
   ]);
   mockedSuspend.mockResolvedValue({

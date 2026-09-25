@@ -72,7 +72,7 @@ const USERS: rbacApi.UserDetail[] = [
     status: "active",
     locale: "es",
     defaultWarehouseId: null,
-    roles: [{ id: "r1", name: "Cajero" }],
+    roles: [{ id: "r1", name: "Cajero", systemKey: null }],
   },
   {
     id: "u2",
@@ -83,7 +83,7 @@ const USERS: rbacApi.UserDetail[] = [
     status: "invited",
     locale: "es",
     defaultWarehouseId: null,
-    roles: [{ id: "r2", name: "Admin" }],
+    roles: [{ id: "r2", name: "Admin", systemKey: "admin" }],
   },
   {
     id: "u3",
@@ -94,7 +94,7 @@ const USERS: rbacApi.UserDetail[] = [
     status: "active",
     locale: "es",
     defaultWarehouseId: null,
-    roles: [{ id: "r1", name: "Cajero" }],
+    roles: [{ id: "r1", name: "Cajero", systemKey: null }],
   },
   {
     id: "u4",
@@ -105,7 +105,7 @@ const USERS: rbacApi.UserDetail[] = [
     status: "suspended",
     locale: "es",
     defaultWarehouseId: null,
-    roles: [{ id: "r1", name: "Cajero" }],
+    roles: [{ id: "r1", name: "Cajero", systemKey: null }],
   },
 ];
 
@@ -113,8 +113,14 @@ const USERS: rbacApi.UserDetail[] = [
 // exige `roles:manage` a propósito — ningún actor de estos tests lo tiene,
 // así que ejercita el `disabled` de escalada sin inventar un tercer rol.
 const ROLES: rbacApi.RoleSummary[] = [
-  { id: "r1", name: "Cajero", permissionCodes: ["sales:read"], userCount: 2 },
-  { id: "r2", name: "Admin", permissionCodes: ["users:manage", "roles:manage"], userCount: 1 },
+  { id: "r1", name: "Cajero", systemKey: null, permissionCodes: ["sales:read"], userCount: 2 },
+  {
+    id: "r2",
+    name: "Admin",
+    systemKey: "admin",
+    permissionCodes: ["users:manage", "roles:manage"],
+    userCount: 1,
+  },
 ];
 
 // F3-NAV-03: los almacenes del checklist de alcance.
@@ -265,7 +271,7 @@ describe("/system/users", () => {
         status: "invited",
         locale: "es",
         defaultWarehouseId: null,
-        roles: [{ id: "r1", name: "Cajero" }],
+        roles: [{ id: "r1", name: "Cajero", systemKey: null }],
       };
       mockedApi.listUsers.mockResolvedValueOnce(USERS).mockResolvedValueOnce([...USERS, newUser]);
       mockedApi.createUser.mockResolvedValue(newUser);
@@ -477,11 +483,14 @@ describe("/system/users", () => {
       const betoConAmbosRoles: rbacApi.UserDetail = {
         ...beto,
         roles: [
-          { id: "r1", name: "Cajero" },
-          { id: "r2", name: "Admin" },
+          { id: "r1", name: "Cajero", systemKey: null },
+          { id: "r2", name: "Admin", systemKey: "admin" },
         ],
       };
-      const betoSinAdmin: rbacApi.UserDetail = { ...beto, roles: [{ id: "r1", name: "Cajero" }] };
+      const betoSinAdmin: rbacApi.UserDetail = {
+        ...beto,
+        roles: [{ id: "r1", name: "Cajero", systemKey: null }],
+      };
       mockedApi.listUsers.mockResolvedValueOnce([
         USERS[0] as rbacApi.UserDetail,
         betoConAmbosRoles,

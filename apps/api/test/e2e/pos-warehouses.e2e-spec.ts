@@ -63,7 +63,7 @@ describe("Las sucursales del punto de venta (F10-MANFIX-08)", () => {
     const principal = await prisma.withTenantContext(negocio.tenantId, (tx) =>
       tx.warehouse.findFirstOrThrow({ select: { id: true, name: true } }),
     );
-    const cajero = await usuarioConRol(app, negocio, "Seller", `${prefix}-seller`);
+    const cajero = await usuarioConRol(app, negocio, "seller", `${prefix}-seller`);
     return { negocio, principal, cajero };
   }
 
@@ -110,7 +110,7 @@ describe("Las sucursales del punto de venta (F10-MANFIX-08)", () => {
 
     it("sin `pos:sell` no hay lista: un Viewer lee sucursales, pero no vende", async () => {
       const negocio = await registerTenant(app, "pos-wh-viewer");
-      const auditor = await usuarioConRol(app, negocio, "Viewer", "pos-wh-viewer");
+      const auditor = await usuarioConRol(app, negocio, "viewer", "pos-wh-viewer");
 
       await deLaCaja(auditor).expect(403);
     });
@@ -145,7 +145,7 @@ describe("Las sucursales del punto de venta (F10-MANFIX-08)", () => {
 
     it("sin `pos:quote` no hay lista: un Viewer lee sucursales, pero no cotiza", async () => {
       const negocio = await registerTenant(app, "pos-wh-cot-viewer");
-      const auditor = await usuarioConRol(app, negocio, "Viewer", "pos-wh-cot-viewer");
+      const auditor = await usuarioConRol(app, negocio, "viewer", "pos-wh-cot-viewer");
 
       await deLaCotizacion(auditor).expect(403);
     });
@@ -162,7 +162,12 @@ describe("Las sucursales del punto de venta (F10-MANFIX-08)", () => {
         .set("Authorization", bearer(negocio.token))
         .send({ name: "Recepción", permissionCodes: ["pos:quote"] })
         .expect(201);
-      const recepcion = await usuarioConRol(app, negocio, "Recepción", "pos-wh-recepcion");
+      const recepcion = await usuarioConRol(
+        app,
+        negocio,
+        { nombre: "Recepción" },
+        "pos-wh-recepcion",
+      );
 
       expect(nombres((await deLaCotizacion(recepcion).expect(200)).body)).toEqual([
         "Sucursal Principal",
