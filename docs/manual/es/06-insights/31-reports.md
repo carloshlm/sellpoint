@@ -9,8 +9,8 @@ cada día, cómo cerró cada turno, cuánto impuesto cobraste. Todos se pueden
 bajar a Excel para guardarlos, enviarlos a tu contador o trabajarlos a tu modo.
 
 Entra desde el menú de la izquierda, en **Reportes** › **Reportes generales**.
-Los ve quien tiene el permiso de consultar reportes (`reports:read`); con los
-roles de fábrica, **Admin**, **Manager** y **Viewer** (apéndice B).
+Los ve quien tiene el permiso **Ver reportes**; de fábrica, los roles
+**Administrador**, **Encargado** y **Consulta** (apéndice B).
 
 ![Reportes generales](screen:reports-hub)
 

@@ -38,9 +38,9 @@ abajo de la tabla.
 **Tú no puedes cancelar una venta**: deshacer un cobro le toca a quien
 administra el negocio. Por eso en tu historial no aparece el botón **Cancelar**.
 Si una venta se cobró mal, avisa a la dueña o al encargado. Quien tiene el
-permiso **Cancelar ventas** (de fábrica, los roles Admin y Manager) ve
-**Cancelar** junto a **Reimprimir**; escribe el motivo en **Por qué se anula** y
-confirma con **Cancelar la venta**.
+permiso **Cancelar ventas** (de fábrica, los roles **Administrador** y
+**Encargado**) ve **Cancelar** junto a **Reimprimir**; escribe el motivo en
+**Por qué se anula** y confirma con **Cancelar la venta**.
 
 Cuando una venta se cancela:
 

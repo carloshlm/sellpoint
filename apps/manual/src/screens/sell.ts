@@ -305,7 +305,7 @@ export const SELL: Screen[] = [
     chapter: DRAWER,
     as: "owner",
     path: "/expenses/new",
-    // El rol Seller no registra gastos: lo hace la dueña y elige el turno de
+    // El rol Cajero no registra gastos: lo hace la dueña y elige el turno de
     // Luis como caja de origen. Nada se guarda.
     prepare: async (page) => {
       await page.getByLabel("Monto", { exact: true }).fill("90");

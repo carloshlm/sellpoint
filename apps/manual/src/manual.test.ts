@@ -49,9 +49,10 @@ const TEXT_EXCEPTIONS: Record<string, { why: string; source?: string }> = {
   "7509999000204": {
     why: "un código de la serie ficticia 750999… que no existe: la captura lo escanea para mostrar un producto nuevo",
   },
-  // Nombres que pone el API, sin traducción.
-  Seller: {
-    why: "el rol de fábrica del cajero: el API lo crea con ese nombre",
+  // Nombres que pone el API al crear el negocio, en el idioma de la dueña: son
+  // datos del negocio, no traducciones de la pantalla.
+  Cajero: {
+    why: "el rol de fábrica del cajero: el API lo crea con su nombre en español porque la dueña de la demo se registra en español",
     source: "apps/api/src/modules/tenants/role-catalog.ts",
   },
 };

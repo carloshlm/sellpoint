@@ -40,7 +40,7 @@ Lo que hace `pnpm manual`, para que nada sorprenda:
 - **Crea el negocio de demostración por el camino de un cliente real**: se registra, verifica
   el correo con el enlace que el API escribe en su consola y termina el asistente de alta.
   Es «Abarrotes La Esquina», de Ana Pérez (`ana.perez@example.com`), en México, con su cajero
-  Luis Ramírez (`luis.ramirez@example.com`, rol Seller). Crea además una cuenta nueva a medio
+  Luis Ramírez (`luis.ramirez@example.com`, rol Cajero). Crea además una cuenta nueva a medio
   asistente de alta, «Papelería Luna» de Sofía Luna (`sofia.luna@example.com`), para el capítulo 1.
 - **Compila el API**, y eso le quita las traducciones a un API de desarrollo encendido: el
   generador avisa, y basta con reiniciarlo después.

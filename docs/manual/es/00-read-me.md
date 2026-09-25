@@ -35,8 +35,8 @@ quién es:
   cuenta en el negocio.
 - <span class="badge">Quién lo usa: Cajero</span> Quien cobra en la caja.
 - <span class="badge">Quién lo usa: Dueño</span> Quien configura y administra
-  el negocio. Algunas de estas pantallas también las ve un encargado, según su
-  rol (apéndice B).
+  el negocio. Algunas de estas pantallas también las ve quien tiene el rol
+  **Encargado**, u otro con esos permisos (apéndice B).
 
 La segunda, en amarillo, dice desde qué plan está lo que explica el capítulo.
 Si un capítulo no la lleva, es de todos los planes.
@@ -63,10 +63,11 @@ cuenta son de otro negocio inventado, «Papelería Luna», de Sofía Luna. Ning�
 dato es de un cliente real.
 
 La tienda tiene el plan Plus y las pantallas se tomaron con el tema Claro:
-casi todas con la cuenta de Ana, que tiene el rol Admin, y las de la caja con
-la de Luis. **Tus pantallas pueden verse distintas**: según tu plan, algunas
-opciones aparecen con un candado; según tu rol, ves menos opciones del menú; y
-con otro tema, cambian los colores.
+casi todas con la cuenta de Ana, que tiene el rol **Administrador**, y las de
+la caja con la de Luis, que tiene el rol **Cajero**. **Tus pantallas pueden
+verse distintas**: según tu plan, algunas opciones aparecen con un candado;
+según tu rol, ves menos opciones del menú; y con otro tema, cambian los
+colores.
 
 ## Cómo leer las instrucciones
 

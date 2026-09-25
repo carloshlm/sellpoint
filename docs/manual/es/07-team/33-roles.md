@@ -11,14 +11,20 @@ izquierda, en **Sistema** › **Roles**.
 
 ## Los roles de fábrica
 
-Todo negocio nace con cuatro roles. Sus nombres aparecen en inglés:
+Todo negocio nace con cuatro roles, con su nombre en el idioma que eligió
+quien creó la cuenta (capítulo 1). En español son estos:
 
 | Rol | Para quién | Qué puede hacer |
 |---|---|---|
-| **Admin** | El dueño | Todo, incluidos los usuarios, los roles, los datos del negocio y **Mi plan**. |
-| **Manager** | El encargado | La operación diaria completa: vender, anular ventas, productos, inventario, compras y gastos. No administra usuarios ni roles, no cambia los datos del negocio, no diseña los campos propios del catálogo, no cancela traspasos ni aprueba un inventario físico. |
-| **Seller** | El cajero | Vender, cotizar, ver el historial de ventas y reimprimir tickets, y consultar productos y servicios. No ve los reportes ni el dinero del negocio. |
-| **Viewer** | Quien solo consulta | Consultar el catálogo, el inventario, las compras, los gastos, los usuarios, el historial de ventas y los reportes, sin poder cambiar nada. Útil para tu contador. |
+| **Administrador** | El dueño | Todo, incluidos los usuarios, los roles, los datos del negocio y **Mi plan**. |
+| **Encargado** | Quien lleva la tienda cuando tú no estás | La operación diaria completa: vender, anular ventas, productos, inventario, compras y gastos. No administra usuarios ni roles, no cambia los datos del negocio, no diseña los campos propios del catálogo, no cancela traspasos ni aprueba un inventario físico. |
+| **Cajero** | Quien cobra en la caja | Vender, cotizar, ver el historial de ventas y reimprimir tickets, y consultar productos y servicios. No ve los reportes ni el dinero del negocio. |
+| **Consulta** | Quien solo revisa | Consultar el catálogo, el inventario, las compras, los gastos, los usuarios, el historial de ventas y los reportes, sin poder cambiar nada. Útil para tu contador. |
+
+Si la cuenta se creó en inglés, se llaman **Admin**, **Manager**, **Cashier**
+y **Viewer**. Son nombres guardados en tu negocio, como los de tus productos:
+cambiar el idioma de tu pantalla no los traduce. En Plus les puedes poner otro
+nombre («Cambiar o eliminar un rol», más abajo).
 
 El detalle, permiso por permiso, está en el apéndice B.
 
@@ -33,7 +39,7 @@ con marcados los que tiene ese rol. Cada uno se ve con un nombre claro («Vender
 en caja», «Cancelar ventas», «Administrar sucursales») y no con el código interno.
 El apéndice B explica qué hace cada permiso, rol por rol.
 
-![Los permisos del rol Seller](screen:roles-seller)
+![Los permisos del rol Cajero](screen:roles-seller)
 
 En los planes Basic y Pro la pantalla es de **solo lectura**, con un aviso
 arriba: los roles de fábrica se asignan igual a tus usuarios, pero no se
@@ -41,9 +47,9 @@ cambian ni se crean roles nuevos.
 
 ## Crear un rol a tu medida
 
-En el plan Plus puedes armar roles propios. Por ejemplo, un «Encargado de
-almacén» que solo consulta productos y registra entradas y salidas, o un cajero
-que además puede anular ventas.
+En el plan Plus puedes armar roles propios. Por ejemplo, un «Almacenista» que
+consulta los productos y las existencias y registra entradas y salidas, o un
+cajero que además puede anular ventas.
 
 1. Presiona **Nuevo rol**.
 2. Escribe el **Nombre del rol** y presiona **Crear rol**.
@@ -61,6 +67,12 @@ incluidos los de fábrica: elígelo, ajusta y presiona **Guardar cambios**.
 **Cancelar** deshace lo que no guardaste. Los permisos nuevos valen de
 inmediato; si alguien con ese rol tiene SellPointy abierto, que recargue la
 página para ver su menú al día.
+
+Un rol de fábrica sigue siéndolo aunque le cambies el nombre: si al **Cajero**
+lo llamas «Caja», SellPointy lo sigue reconociendo como el rol del cajero.
+Cuando una actualización de SellPointy trae permisos nuevos para los roles de
+fábrica, también le llegan al que renombraste. Un rol que tú creaste, en
+cambio, solo tiene los permisos que tú le marques.
 
 Para quitar un rol, presiona **Eliminar** junto a su nombre y confirma con
 **Eliminar rol**. No se puede eliminar un rol que tiene usuarios asignados:

@@ -32,6 +32,31 @@ function ean13(base: string): string {
   return `${base}${(10 - (sum % 10)) % 10}`;
 }
 
+/** La llave fija de cada rol de fábrica (F10-MANFIX-22). */
+type FactoryRoleKey = "admin" | "manager" | "seller" | "viewer";
+/**
+ * Un rol de `GET /roles`. La llave del rol de fábrica viaja en `systemKey`,
+ * nula en los personalizados: si el API la llama de otra forma, se cambia
+ * aquí y en `factoryRole`, y en ningún otro lado.
+ */
+interface RoleRow {
+  id: string;
+  name: string;
+  systemKey: FactoryRoleKey | null;
+}
+/**
+ * Un rol de fábrica por su llave, nunca por su nombre: el nombre sale en el
+ * idioma de la dueña («Cajero», en la demo) y el negocio lo puede cambiar.
+ */
+function factoryRole(roles: readonly RoleRow[], key: FactoryRoleKey): RoleRow {
+  const role = roles.find((candidate) => candidate.systemKey === key);
+  if (!role) {
+    const found = roles.map((r) => `${r.name} (${r.systemKey ?? "personalizado"})`).join(", ");
+    throw new Error(`GET /roles no trae el rol de fábrica «${key}». Trae: ${found}`);
+  }
+  return role;
+}
+
 export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   const t = demo.token;
   const api = <T = Json>(method: string, path: string, body?: unknown) =>
@@ -276,19 +301,21 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   console.log("  · el subcatálogo «Pasillos» y el campo «Pasillo» en los productos");
 
   // ── El equipo ──────────────────────────────────────────────────────────
-  const roles = items<{ id: string; name: string }>(await api("GET", "/roles"));
-  const vendedor = roles.find((r) => /seller|vendedor|cajero/i.test(r.name));
-  if (!vendedor) throw new Error(`No encontré el rol de vendedor: ${roles.map((r) => r.name)}`);
+  const cajeroDeFabrica = factoryRole(items<RoleRow>(await api("GET", "/roles")), "seller");
+  // Un rol personalizado (Plus), el de quien recibe y saca mercancía. Se
+  // llama «Almacenista» y no «Encargado de almacén» para no confundirse con
+  // el rol de fábrica «Encargado». Sin `warehouses:read` no podría elegir la
+  // sucursal de una entrada o una salida: el selector la pide a `GET /warehouses`.
   await api("POST", "/roles", {
-    name: "Encargado de almacén",
-    permissionCodes: ["products:read", "inventory:read", "inventory:movement"],
+    name: "Almacenista",
+    permissionCodes: ["products:read", "warehouses:read", "inventory:read", "inventory:movement"],
   });
   await api("POST", "/users", {
     email: CASHIER.email,
     firstName: CASHIER.firstName,
     lastName: CASHIER.lastName,
     locale: "es",
-    roleIds: [vendedor.id],
+    roleIds: [cajeroDeFabrica.id],
     defaultWarehouseId: centro,
   });
   await http("POST", "/auth/reset-password", {
@@ -763,7 +790,7 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     }),
     { quoteId: paraCobrar.id },
   );
-  // Un gasto que salió de SU cajón. El rol Seller no registra gastos (le
+  // Un gasto que salió de SU cajón. El rol Cajero no registra gastos (le
   // falta `expenses:manage`): lo registra Ana y elige como caja de origen el
   // turno de Luis, como en el formulario de Gastos. Al cerrar, se le resta
   // del efectivo que su turno espera.
@@ -806,7 +833,7 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     ],
     { discount: { amount: 15, code: DEMO.discountCode, reason: "Cliente frecuente" } },
   );
-  // Cancelar es de gestión (`pos:cancel`, que Seller no tiene): la cancela Ana.
+  // Cancelar es de gestión (`pos:cancel`, que el Cajero no tiene): la cancela Ana.
   await api("POST", `/pos/sales/${devuelta}/cancel`, {
     reason: "El cliente devolvió la mercancía sin abrir.",
   });

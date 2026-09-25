@@ -5,9 +5,9 @@ import type { Locator, Page } from "playwright";
  * como cualquier persona, y lo que ve es lo que su cuenta le deja ver:
  *
  * - `visitor`: sin sesión.
- * - `owner`: Ana Pérez, la dueña de «Abarrotes La Esquina» (rol Admin), con su
- *   turno de caja abierto hoy en la Sucursal Centro.
- * - `cashier`: Luis Ramírez, su cajero (rol Seller), con SU turno abierto hoy
+ * - `owner`: Ana Pérez, la dueña de «Abarrotes La Esquina» (rol Administrador),
+ *   con su turno de caja abierto hoy en la Sucursal Centro.
+ * - `cashier`: Luis Ramírez, su cajero (rol Cajero), con SU turno abierto hoy
  *   en la misma sucursal: cada cajero cuadra su propio cajón.
  * - `newcomer`: Sofía Luna, de «Papelería Luna»: una cuenta NUEVA, con el
  *   correo verificado y el asistente de alta sin terminar. Ya guardó el paso 1

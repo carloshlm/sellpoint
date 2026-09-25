@@ -12,11 +12,11 @@ aparece como un faltante tuyo.
 
 ## Quién lo registra
 
-**Tú no registras gastos**: el rol de fábrica del cajero, Seller, no tiene ese
-permiso. Lo registra
-la dueña o el encargado (quien tenga el permiso **Registrar gastos**; de
-fábrica, los roles Admin y Manager), y tiene que ser **mientras tu turno sigue
-abierto**. Avísale en el momento y dale el comprobante.
+**Tú no registras gastos**: el rol de fábrica **Cajero** no tiene ese permiso.
+Lo registra la dueña o el encargado (quien tenga el permiso
+**Registrar gastos**; de fábrica, los roles **Administrador** y **Encargado**),
+y tiene que ser **mientras tu turno sigue abierto**. Avísale en el momento y
+dale el comprobante.
 
 En **Gastos** › **Registrar gasto**, esa persona:
 

@@ -63,9 +63,13 @@ rota (`pos:view`) que nadie vio hasta regenerar el manual.
   idioma de la captura: `locale: "en"` usa las de inglés) o en los datos de `seed.ts`/`demo.ts`.
   Si viaja por una función auxiliar (`card`, `title`, `openRow`), la prueba lo sigue.
 - **Lo que no sale de ahí** (folios como `SAL-000003`, códigos de barras, montos, nombres que
-  pone el API como «Seller»): una regex (`/^Gasto GAS-/`, que la prueba omite) o una entrada en
-  `TEXT_EXCEPTIONS` de `apps/manual/src/manual.test.ts` con su motivo (`why`) y, si el texto
-  está escrito en un archivo del repo, ese archivo (`source`): la prueba vigila que siga ahí.
+  pone el API como el rol «Cajero»): una regex (`/^Gasto GAS-/`, que la prueba omite) o una
+  entrada en `TEXT_EXCEPTIONS` de `apps/manual/src/manual.test.ts` con su motivo (`why`) y, si
+  el texto está escrito en un archivo del repo, ese archivo (`source`): la prueba vigila que
+  siga ahí.
+- **Los roles de fábrica** llevan el nombre en el idioma de la dueña (la demo, en español:
+  Administrador, Encargado, Cajero, Consulta). En `seed.ts` se buscan por su llave con
+  `factoryRole(roles, "seller")`, nunca por su nombre.
 - **`getByTestId`, `#id`, `[for='…']`, `[data-testid='…']`**: el valor tiene que estar entre
   comillas en `apps/web/src`.
 - **Si abre un detalle desde un listado, espera su URL** con `page.waitForURL(/…/)`: así

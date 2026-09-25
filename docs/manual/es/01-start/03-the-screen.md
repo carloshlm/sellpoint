@@ -31,10 +31,10 @@ Debajo, las opciones se agrupan así:
 
 No todas las personas ven lo mismo:
 
-- **Tu rol decide qué opciones aparecen.** Un cajero con el rol de fábrica
-  Seller, por ejemplo, solo ve **Panel**, **Mi perfil**, **Punto de venta** y,
-  en **Catálogos**, **Productos** y **Servicios**. Qué puede hacer cada rol
-  está en el apéndice B.
+- **Tu rol decide qué opciones aparecen.** Con el rol de fábrica **Cajero**,
+  por ejemplo, solo se ven **Panel**, **Mi perfil**, **Punto de venta** y, en
+  **Catálogos**, **Productos** y **Servicios**. Qué puede hacer cada rol está
+  en el apéndice B.
 - **Tu plan decide qué opciones funcionan.** Lo que tu plan no incluye aparece
   con un candado: al presionarlo se abre la comparación de planes, para que
   veas cuál lo trae (capítulo 34). Los grupos **Compras** y **Gastos**, en
@@ -102,7 +102,7 @@ Lo que tú escribes, como los nombres de tus productos, no se traduce.
 El tema son los colores de SellPointy, y es de **todo el negocio**: se ve igual
 para todas las personas que entran a él. Lo elige quien administra el negocio,
 en **Mi perfil** › **Tema**. Esa tarjeta solo la ve quien tiene el permiso
-**Configurar el negocio**, como el rol Admin (apéndice B).
+**Configurar el negocio**, como el rol **Administrador** (apéndice B).
 
 ![El tema del negocio, en Mi perfil; aquí, con Oscuro](screen:theme-card)
 

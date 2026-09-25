@@ -19,7 +19,7 @@ Todas las personas ven estas cuatro tarjetas:
 Quien administra el negocio ve además **Datos del negocio** y **Configuración
 del ticket** (capítulo 12), **Impuestos** (capítulo 13), **Descuentos en caja**
 (capítulo 14) y **Tema** (capítulo 3). Esas tarjetas solo aparecen con el
-permiso **Configurar el negocio**, que tiene el rol Admin.
+permiso **Configurar el negocio**, que tiene el rol **Administrador**.
 
 ## Tus datos
 

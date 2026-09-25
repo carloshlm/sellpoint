@@ -5,7 +5,8 @@ who: dueño
 
 En **Mi plan** ves qué plan tienes, hasta cuándo está pagado y todos los pagos
 que has hecho. Está en el menú de la izquierda, en **Sistema** › **Mi plan**, y
-solo la ve el rol **Admin**.
+solo la ve quien tiene el permiso **Configurar el negocio**: de fábrica, el rol
+**Administrador**.
 
 ![Mi plan y los módulos del plan](screen:my-plan)
 

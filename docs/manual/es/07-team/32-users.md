@@ -6,8 +6,8 @@ who: dueño
 Cada persona que trabaja contigo necesita su propio usuario: así SellPointy sabe
 quién cobró cada venta y le muestra a cada quien solo lo que le toca. Los
 usuarios se administran en el menú de la izquierda, en **Sistema** ›
-**Usuarios**. Crear, editar y suspender usuarios es del rol **Admin**; un
-**Manager** puede ver la lista, pero no cambiarla.
+**Usuarios**. Crear, editar y suspender usuarios es del rol **Administrador**;
+un **Encargado** puede ver la lista, pero no cambiarla.
 
 ![La lista de usuarios](screen:users-list)
 
@@ -28,8 +28,8 @@ Cada usuario tiene uno de tres estados:
 4. En **Sucursal asignada**, elige desde dónde trabaja. Es la sucursal donde
    abre su turno de caja y la que se le propone en cada movimiento. Si la dejas
    en **Sin asignar**, tendrá que elegir sucursal cada vez.
-5. Marca al menos un rol en **Roles**. Para un cajero, **Seller**. Lo que puede
-   hacer cada rol está en el capítulo 33 y en el apéndice B.
+5. Marca al menos un rol en **Roles**. Para quien cobra en la caja, **Cajero**.
+   Lo que puede hacer cada rol está en el capítulo 33 y en el apéndice B.
 6. Presiona **Crear usuario**.
 
 ![Nuevo usuario, llenado como ejemplo](screen:user-new)
@@ -86,8 +86,8 @@ Esto se hace al **editar** al usuario, no al crearlo:
   limitarlo.
 - La **Sucursal asignada** tiene que estar dentro de su alcance: las que quedan
   fuera se ven en gris.
-- Quien tiene un rol que administra usuarios y roles, como **Admin**, ve todas
-  las sucursales siempre; la pantalla te lo avisa.
+- Quien tiene un rol que administra usuarios y roles, como **Administrador**,
+  ve todas las sucursales siempre; la pantalla te lo avisa.
 
 Con el alcance puesto, esa persona solo ve los reportes, el inventario y los
 números del panel de sus sucursales. Si intenta operar en otra, SellPointy le

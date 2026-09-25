@@ -55,7 +55,9 @@ export const TEAM: Screen[] = [
       await page.getByLabel("Nombre", { exact: true }).fill("Marta");
       await page.getByLabel("Apellido paterno").fill("López");
       await page.getByLabel("Sucursal asignada").selectOption({ label: "Sucursal Norte" });
-      await page.getByRole("checkbox", { name: "Seller" }).click();
+      // El rol de fábrica del cajero, con su nombre en español: la dueña de
+      // la demo se registra en español.
+      await page.getByRole("checkbox", { name: "Cajero" }).click();
     },
     target: (page) => [card(page, "Nuevo usuario")],
   },
@@ -97,7 +99,7 @@ export const TEAM: Screen[] = [
     as: "owner",
     path: "/system/roles",
     prepare: async (page) => {
-      await roleList(page).getByText("Seller", { exact: true }).click();
+      await roleList(page).getByText("Cajero", { exact: true }).click();
       await page.getByText("Ver historial de ventas", { exact: true }).waitFor();
       await scrollToTop(roleList(page));
       // El ratón se queda donde hizo clic y, tras desplazar, resalta otro rol.
