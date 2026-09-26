@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import { Button } from "@/components/ui/button";
 import { applyTheme } from "@/lib/theme/apply-theme";
-import { type ThemeId, WIZARD_THEME_LIST } from "@/lib/theme/themes";
+import { DEFAULT_THEME, type ThemeId, WIZARD_THEME_LIST } from "@/lib/theme/themes";
 
 /**
  * Paso 3 del wizard (Carlos, 2026-08-25): el TEMA inicial del negocio.
@@ -13,8 +13,10 @@ import { type ThemeId, WIZARD_THEME_LIST } from "@/lib/theme/themes";
  * no imaginando. Si el usuario recarga sin Terminar, el bootstrap vuelve al
  * tema real del tenant: la vista previa nunca persiste sola.
  *
- * `light` preseleccionado: es el aspecto que el usuario YA está viendo, así
- * que Terminar sin tocar nada es una elección coherente, no una omisión.
+ * El default (SellPointy) preseleccionado (Carlos, 2026-09-26): es el tema
+ * con el que nace el negocio y el que el usuario YA está viendo desde el
+ * registro, así que Terminar sin tocar nada es una elección coherente, no una
+ * omisión.
  */
 export type ThemeChoice = ThemeId;
 
@@ -26,7 +28,7 @@ interface StepThemeProps {
 
 function StepTheme({ isSubmitting, formError, onSubmit }: StepThemeProps) {
   const { t } = useTranslation();
-  const [selected, setSelected] = useState<ThemeChoice>("light");
+  const [selected, setSelected] = useState<ThemeChoice>(DEFAULT_THEME);
 
   function preview(theme: ThemeChoice) {
     setSelected(theme);

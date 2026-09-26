@@ -318,12 +318,13 @@ describe("/onboarding", () => {
       useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
     });
 
-    // Carlos, 2026-09-26: abre con el tema de la marca y Algodón toma el
-    // lugar de Uva. Claro sigue preseleccionado: es lo que ya está viendo.
-    it("muestra las CINCO opciones en su orden, con Claro preseleccionado", async () => {
+    // Carlos, 2026-09-26: abre con el tema de la marca, que además es el
+    // preseleccionado (el default del producto), y Algodón toma el lugar de Uva.
+    it("muestra las CINCO opciones en su orden, con SellPointy preseleccionado", async () => {
       await renderRoute("/onboarding");
 
-      expect(await screen.findByRole("radio", { name: "Claro" })).toBeChecked();
+      expect(await screen.findByRole("radio", { name: "SellPointy" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Claro" })).not.toBeChecked();
       expect(
         screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent),
       ).toEqual(["SellPointy", "Claro", "Oscuro", "Arena", "Algodón"]);

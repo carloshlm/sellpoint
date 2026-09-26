@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { applyTheme } from "./apply-theme";
 import {
   DEFAULT_THEME,
+  ROOT_THEME,
   resolveTheme,
   THEME_IDS,
   THEME_LIST,
@@ -23,6 +24,14 @@ describe("catálogo de temas", () => {
 
   it("el default es un tema real del catálogo", () => {
     expect(THEME_IDS).toContain(DEFAULT_THEME);
+  });
+
+  it("el default es SellPointy y el de :root sigue siendo Claro: son dos cosas distintas", () => {
+    // Carlos, 2026-09-26: la marca desde el inicio de sesión, el registro y el
+    // wizard. Claro no se mueve de :root: si el CSS no carga un bloque, la app
+    // cae a la paleta clara completa, nunca a una sin estilos.
+    expect(DEFAULT_THEME).toBe("sellpointy");
+    expect(ROOT_THEME).toBe("light");
   });
 
   it("cada tema trae su clave i18n y su muestra para el selector", () => {
@@ -65,17 +74,17 @@ describe("catálogo de temas", () => {
  * explota en producción con un cliente real. Acá falla en CI.
  */
 describe("sincronía entre el catálogo y los tokens CSS", () => {
-  const NON_DEFAULT = THEME_IDS.filter((id) => id !== DEFAULT_THEME);
+  const NON_ROOT = THEME_IDS.filter((id) => id !== ROOT_THEME);
 
-  it("el tema default vive en :root — la app nunca aparece sin estilos", () => {
+  it("el tema raíz (Claro) vive en :root — la app nunca aparece sin estilos", () => {
     expect(css).toMatch(/:root\s*\{[^}]*--background:/);
   });
 
-  it.each(NON_DEFAULT)("el tema '%s' define su bloque de tokens", (id) => {
+  it.each(NON_ROOT)("el tema '%s' define su bloque de tokens", (id) => {
     expect(css).toMatch(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{`));
   });
 
-  it.each(NON_DEFAULT)("el tema '%s' define los tokens mínimos para no verse roto", (id) => {
+  it.each(NON_ROOT)("el tema '%s' define los tokens mínimos para no verse roto", (id) => {
     // Un bloque vacío pasaría el test de existencia pero dejaría la app sin
     // fondo ni texto: exigimos los tokens estructurales de shadcn — sidebar
     // incluido, que es donde vive la identidad del Bitono.
@@ -98,7 +107,7 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
     }
   });
 
-  it("el tema default también define el color de los títulos del menú", () => {
+  it("el tema raíz también define el color de los títulos del menú", () => {
     expect(css).toMatch(/:root\s*\{[^}]*--sidebar-section:/);
   });
 
@@ -200,15 +209,22 @@ describe("applyTheme", () => {
     }
   });
 
-  it("el default LIMPIA el atributo y la clase: :root ya es la paleta clara", () => {
+  it("Claro LIMPIA el atributo y la clase: :root ya es la paleta clara", () => {
     applyTheme("grape");
     applyTheme("light");
     expect(document.documentElement.dataset.theme).toBeUndefined();
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
+  it("sin tema (antes de iniciar sesión) aplica el default: SellPointy, con su atributo", () => {
+    applyTheme("light");
+    applyTheme();
+    expect(document.documentElement.dataset.theme).toBe("sellpointy");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+
   it("un tema inválido guardado en la config del tenant no rompe la app: cae al default", () => {
     applyTheme("tema-borrado-del-catalogo");
-    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(document.documentElement.dataset.theme).toBe("sellpointy");
   });
 });

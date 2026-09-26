@@ -405,10 +405,23 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
      * El tema inicial del wizard (Carlos, 2026-08-25): el paso 3 guarda la
      * elección aunque los ESTILOS lleguen después — la columna existe para
      * que la preferencia no se pierda entre el wizard y el selector de
-     * Mi perfil. Cuatro valores cerrados, mismo criterio de validación que
+     * Mi perfil. Valores cerrados, mismo criterio de validación que
      * currency (enum en el DTO, sin CHECK SQL).
      */
     describe("theme (wizard de temas, 2026-08-25)", () => {
+      // Carlos, 2026-09-26: el tema de la marca es el default del producto, y
+      // la base lo pone al nacer el negocio (DEFAULT de la columna): quien
+      // abandona el wizard antes del paso 3 ya tiene su tema guardado.
+      it("un negocio recién registrado nace con el tema SellPointy", async () => {
+        const owner = await registerActiveOwner();
+
+        const response = await request(app.getHttpServer())
+          .get("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .expect(200);
+        expect(response.body).toMatchObject({ theme: "sellpointy" });
+      });
+
       it("PATCH theme válido persiste y un GET posterior lo refleja", async () => {
         const owner = await registerActiveOwner();
 

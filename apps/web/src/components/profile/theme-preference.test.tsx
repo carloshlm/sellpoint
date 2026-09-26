@@ -104,8 +104,9 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
     await user.click(screen.getByRole("radio", { name: "Oscuro" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Algo salió mal");
-    // La pantalla no miente un tema que no se guardó.
-    expect(document.documentElement.dataset.theme).toBeUndefined();
-    expect(screen.getByRole("radio", { name: "Claro" })).toBeChecked();
+    // La pantalla no miente un tema que no se guardó: vuelve al que tenía
+    // (el negocio de prueba no eligió tema, así que el default, SellPointy).
+    expect(document.documentElement.dataset.theme).toBe("sellpointy");
+    expect(screen.getByRole("radio", { name: "SellPointy" })).toBeChecked();
   });
 });

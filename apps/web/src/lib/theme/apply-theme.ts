@@ -1,12 +1,13 @@
-import { DEFAULT_THEME, resolveTheme, THEMES, type ThemeId } from "./themes";
+import { ROOT_THEME, resolveTheme, THEMES, type ThemeId } from "./themes";
 
 /**
  * Aplica un tema al documento — la ÚNICA forma de cambiar el tema activo.
  *
  * Dos escrituras, y las dos importan:
  * - `data-theme` en <html> activa el bloque de tokens del tema en
- *   `index.css`. El default (light) LIMPIA el atributo: `:root` ya trae la
- *   paleta clara completa y así la app nunca aparece sin estilos.
+ *   `index.css`. Claro (`ROOT_THEME`) LIMPIA el atributo: `:root` ya trae la
+ *   paleta clara completa y así la app nunca aparece sin estilos. El default
+ *   (SellPointy, sin argumento o con un valor inválido) sí lo escribe.
  * - La clase `.dark` acompaña a los temas que el catálogo marca `isDark`
  *   (Grafito, Cabina, Carbón): los tokens los trae su bloque, pero los
  *   semánticos oscuros (success/warning) y las variantes `dark:` de los
@@ -15,7 +16,7 @@ import { DEFAULT_THEME, resolveTheme, THEMES, type ThemeId } from "./themes";
 export function applyTheme(theme?: string | null): ThemeId {
   const resolved = resolveTheme(theme);
   const root = document.documentElement;
-  if (resolved === DEFAULT_THEME) {
+  if (resolved === ROOT_THEME) {
     delete root.dataset.theme;
   } else {
     root.dataset.theme = resolved;

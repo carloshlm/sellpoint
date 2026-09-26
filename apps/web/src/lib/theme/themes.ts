@@ -32,8 +32,22 @@ export const THEME_IDS = [
 
 export type ThemeId = (typeof THEME_IDS)[number];
 
-/** El tema antes de saber a qué tenant pertenece quien mira (login, registro). */
-export const DEFAULT_THEME: ThemeId = "light";
+/**
+ * El tema antes de saber a qué tenant pertenece quien mira (inicio de sesión,
+ * registro), el preseleccionado del wizard y el de un negocio sin tema
+ * guardado. Desde el 2026-09-26 es el de la marca (Carlos). Los negocios que
+ * ya existían sin tema quedaron fijados en `light` por migración, para no
+ * cambiarles el aspecto sin avisar, y los nuevos nacen con `sellpointy` en la
+ * base: mover este default ya no repinta a nadie.
+ */
+export const DEFAULT_THEME: ThemeId = "sellpointy";
+
+/**
+ * El tema cuyos tokens viven en `:root` (sin `data-theme`). No es lo mismo
+ * que el default: `:root` es la red de seguridad, la paleta clara completa
+ * que se ve si falta un bloque, y por eso se queda en Claro.
+ */
+export const ROOT_THEME: ThemeId = "light";
 
 /**
  * Los que ofrece el paso 3 del wizard (Carlos, 2026-08-26): la primera tanda

@@ -116,7 +116,7 @@ describe("/me (e2e)", () => {
         city: null,
         postalCode: null,
         phone: null,
-        theme: null,
+        theme: "sellpointy",
         timezone: expect.any(String),
         currency: "MXN",
         templateChoice: null,

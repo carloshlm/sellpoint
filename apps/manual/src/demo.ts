@@ -168,6 +168,9 @@ export async function createDemo(stack: Stack): Promise<Demo> {
       monthlySalesGoal: 60000,
       discountCode: DEMO.discountCode,
       discountMaxPercent: 15,
+      // La tienda de la demo se ve en Claro (Carlos, 2026-09-26): el manual
+      // no se pasa al tema SellPointy aunque ahora sea el default del producto.
+      theme: "light",
     },
     token,
   );

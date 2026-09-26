@@ -31,11 +31,11 @@ describe("installTenantThemeSync", () => {
     expect(document.documentElement.dataset.theme).toBe("sand");
   });
 
-  it("un tenant sin tema elegido cae al claro", () => {
+  it("un tenant sin tema elegido cae al default, SellPointy", () => {
     applyTheme("grape");
     useAuthStore.getState().setAuth("jwt", userWithTheme(null));
 
-    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(document.documentElement.dataset.theme).toBe("sellpointy");
   });
 
   it("cerrar sesión NO revierte: sin fogonazo camino al login", () => {
