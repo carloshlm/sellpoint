@@ -884,4 +884,44 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
       });
     });
   });
+
+  /**
+   * F10-SEC-01 — la bitácora de auditoría es de solo escritura.
+   *
+   * `audit_logs` es la prueba de «quién hizo qué y cuándo». Una bitácora que
+   * el rol de la aplicación puede reescribir o borrar no prueba nada: con la
+   * conexión de la app bastaría para limpiar el rastro. El mismo privilegio
+   * que ya protege `stock_movements`: la app inserta y lee, y no más. Borrar
+   * un negocio entero sigue funcionando porque `purge_tenant` corre como
+   * SECURITY DEFINER, con el dueño de la función y no con `sellpoint_app`.
+   */
+  describe("audit_logs es de solo escritura (F10-SEC-01)", () => {
+    async function unRenglon() {
+      return prisma.withTenantContext(tenantId, (tx) =>
+        tx.auditLog.create({
+          data: { tenantId, userId, action: "prueba.inmutable", resourceType: "prueba" },
+        }),
+      );
+    }
+
+    it("un renglón de la bitácora no se edita", async () => {
+      const renglon = await unRenglon();
+
+      await expect(
+        prisma.withTenantContext(tenantId, (tx) =>
+          tx.auditLog.update({ where: { id: renglon.id }, data: { action: "otra.cosa" } }),
+        ),
+      ).rejects.toThrow(/42501/);
+    });
+
+    it("un renglón de la bitácora no se borra", async () => {
+      const renglon = await unRenglon();
+
+      await expect(
+        prisma.withTenantContext(tenantId, (tx) =>
+          tx.auditLog.delete({ where: { id: renglon.id } }),
+        ),
+      ).rejects.toThrow(/42501/);
+    });
+  });
 });
