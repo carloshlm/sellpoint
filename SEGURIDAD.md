@@ -96,6 +96,7 @@ SellPointy no está certificado conforme a la NOM-024-SSA3-2012.
 | Qué se registra | Más de cien acciones: entrar (con éxito o no), salir, cambios y restablecimientos de contraseña, reuso de sesión y verificación de correo; usuarios, roles y alcances; la configuración del negocio; catálogos, productos, servicios y almacenes; movimientos de inventario, compras y gastos; cobros, planes y módulos del backoffice; el Consultorio; y la aceptación de los términos | `rg 'action: "' apps/api/src` (2026-09-25) | 2026-08-12, y crece con cada módulo |
 | Lo que no se registra | Un intento con un correo que no existe (no hay negocio donde anotarlo) va solo al log de la aplicación. Las **lecturas** no se registran: nadie anota quién abrió un expediente, un reporte o una pantalla del backoffice (§5) | `audit.service.ts` (docblock) | — |
 | Inventario inalterable | Los movimientos de inventario no se pueden editar ni borrar, porque la base se lo prohíbe a la aplicación. Un documento confirmado tampoco se toca: se corrige con otro movimiento | `mig/20260818150000_f3_enable_rls` (`REVOKE UPDATE, DELETE`), `mig/20260818041500_f3_document_immutability` (trigger) | 2026-08-18 |
+| Bitácora inalterable | Un renglón de `audit_logs` no se puede editar ni borrar: la base le quita esos privilegios a la aplicación, igual que a los movimientos de inventario. Con la conexión de la app no se puede limpiar el rastro | `mig/20261002100000_f10_sec_audit_logs_append_only`; prueba en `api/infrastructure/prisma/inventory-schema.integration.spec.ts` | 2026-09-25 |
 
 ### 2.5 En tránsito y en el borde
 
@@ -107,6 +108,7 @@ SellPointy no está certificado conforme a la NOM-024-SSA3-2012.
 | Logs sin secretos | nginx no guarda lo que va después de `?` en la URL ni el Referer con tokens. La API censura `authorization`, las cookies, las contraseñas y el Referer | `infra/nginx/conf.d/01-noquery-log.conf`, `api/app.module.ts` (`redact`) | 2026-08-14 |
 | Correo autenticado | Los correos salen de `sellpointy.com` con SPF y DKIM. DMARC está en modo de solo observar (`p=none`) | F11-SITE-INFRA-05 | 2026-09-19 |
 | Sin proxy delante | La app usa el DNS de Cloudflare en gris: nginx es la única capa y no hay WAF (§5) | Comentario del vhost de la app; Pospuestos de la Fase 6 | — |
+| Documentación del API cerrada en producción | La documentación interactiva (`/api/docs`, OpenAPI) no se monta en producción: no expone datos, pero sí el mapa completo de rutas. En desarrollo y pruebas sigue disponible | `api/common/http/api-docs.ts` (`exposeApiDocs`), `api/main.ts` | 2026-09-25 |
 
 ### 2.6 En reposo
 
@@ -233,12 +235,11 @@ expedientes.
 |---|---|
 | Segundo factor de autenticación (MFA) | Hoy basta una contraseña robada para entrar |
 | Plan escrito de respuesta a incidentes | Los Términos prometen avisar «sin demora injustificada» (T7, A10) y no hay un procedimiento escrito |
-| Bitácora inalterable y consultable | El rol de la aplicación puede modificar `audit_logs` (le falta el `REVOKE` que sí tienen los movimientos de inventario), y no hay una pantalla para consultarla: se lee en la base |
+| Bitácora consultable | No hay una pantalla para consultar `audit_logs`: se lee en la base. (Inalterable ya es, desde el 2026-09-25: §2.4) |
 | Registro de las lecturas del backoffice | Las consultas del operador a los datos de un negocio no dejan rastro |
 | Cifrado por campo | Con acceso a la base (solo Carlos), los datos, incluidos los de salud, se leen en claro |
 | Filtro propio en Sentry (`beforeSend`) | Garantizaría que ningún evento de error lleve datos personales |
 | DMARC en modo de rechazo | Con `p=none`, un correo que suplante a `sellpointy.com` no se bloquea |
-| Documentación de la API cerrada | `/api/docs` (OpenAPI) es pública: no expone datos, pero sí el mapa de rutas (`api/main.ts`) |
 | Actualizaciones automáticas del sistema operativo | No consta en el repositorio que estén configuradas |
 | Un nuevo ensayo de restauración | El RTO se midió con una base de 388 KB; la propia tarea pide volver a medirlo cuando la base crezca (F6-DRILL-01) |
 | Revisión externa | Nadie ajeno al proyecto ha revisado estas medidas (ni auditoría ni prueba de penetración) |

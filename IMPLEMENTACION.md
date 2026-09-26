@@ -5759,6 +5759,14 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
   **≈5 h**
 
+### Módulo F10-SEC — Lo que destapó escribir SEGURIDAD.md (2026-09-25)
+
+> Al poner las medidas de seguridad por escrito (F9-CLINIC-NOM024-05) salieron huecos que ninguna tarea tenía. Los dos primeros los pidió Carlos el mismo día; el resto queda en la §5 de `SEGURIDAD.md` («Lo que no hay todavía») y se atomiza cuando se decida. **Regla:** cada tarea de este módulo cierra actualizando su fila en `SEGURIDAD.md` en el MISMO commit.
+
+- [x] **F10-SEC-01** *(2026-09-25 — migración `20261002100000_f10_sec_audit_logs_append_only`: `REVOKE UPDATE, DELETE ON audit_logs FROM sellpoint_app`, con la guarda del rol; ningún código del API editaba ni borraba la tabla, y `purge_tenant` corre como SECURITY DEFINER así que borrar un negocio sigue funcionando; dos pruebas de integración en `inventory-schema.integration.spec.ts` que primero vieron el update y el delete pasar)* — **La bitácora de auditoría es de solo escritura.** Con la conexión de la app se podía reescribir o borrar `audit_logs`, y una bitácora que se puede limpiar no prueba nada. Mismo privilegio que ya tenían los movimientos de inventario. **0.5 h**
+- [x] **F10-SEC-02** *(2026-09-25 — `common/http/api-docs.ts` (`exposeApiDocs(nodeEnv)`, con su spec) y `main.ts` monta Swagger solo cuando devuelve true; comprobado antes con `curl` que `app.sellpointy.com/api/docs` respondía 200 sin sesión)* — **La documentación del API no se monta en producción.** `/api/docs` (OpenAPI) era pública: no expone datos, pero sí el mapa completo de rutas. En desarrollo y pruebas sigue disponible. **0.5 h**
+- [ ] **F10-SEC-03** — **`ARQUITECTURA.md` §5 contradice al código** y un documento de seguridad que miente es peor que ninguno: dice respaldos «en S3 con KMS» (son a R2 cifrados con `age`), da por hecho el cifrado del disco (no verificado), pone argon2 en 65536/3/4 (el real es 19456/2/1), da límites de intentos que ya no son los reales y menciona CloudWatch, `pnpm audit` y MFA, que no existen. Reescribir §5 desde `SEGURIDAD.md` (que ya tiene cada medida con su fuente) y dejar en §5 solo lo arquitectónico, remitiendo a `SEGURIDAD.md` para el detalle. **1 h**
+
 ### Módulo F11-SITE — El sitio público de sellpointy.com (atomizado el 2026-09-18)
 
 > Carlos (2026-09-18): «quiero hacer mi sitio web para sellpointy.com… pocas secciones, solo para anunciar lo que hace la plataforma y beneficios para el negocio de los clientes. Es mi página del producto, enfócate en que sea atractivo para comprar». De tres propuestas de diseño eligió **«El Punto»**; la dirección visual completa —colores, tipografía, medidas, CSS y HTML del prototipo— vive en [`SITIO-WEB-DISENO.md`](SITIO-WEB-DISENO.md) y **este módulo no la repite**.
