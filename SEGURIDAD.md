@@ -8,7 +8,7 @@ afirmación lleva su fuente. Lo que todavía no existe está en la
 
 | | |
 |---|---|
-| **Revisado** | 2026-09-25 |
+| **Revisado** | 2026-09-26 |
 | **Responsable** | Carlos Hernandez Hernandez, persona física que opera SellPointy (Aviso de privacidad, P1) |
 | **Preguntas de privacidad** | privacy@sellpointy.com |
 | **Leyes que piden demostrar las medidas** | México: LFPDPPP · Canadá: PIPEDA · Estados Unidos: leyes estatales |
@@ -266,7 +266,7 @@ carpetas llevan fechas adelantadas (por ejemplo, `20261001120000_…` se escribi
 
 | Documento | Qué aporta |
 |---|---|
-| [ARQUITECTURA.md](./ARQUITECTURA.md) §3.1 y §5 | El diseño de la seguridad. **Ojo:** §5 conserva partes del diseño original que no describen lo que corre, como los parámetros de Argon2, los respaldos «en S3 con KMS», el cifrado de disco dado por hecho, los límites de tasa, CloudWatch, `pnpm audit` o el MFA. Donde difieran, manda este documento |
+| [ARQUITECTURA.md](./ARQUITECTURA.md) §3.1 y §5 | El diseño de la seguridad: qué capas hay y por qué. Desde el 2026-09-26 (F10-SEC-03) §5 se escribe a partir de este documento y no repite sus valores (parámetros, vidas de tokens, límites, horarios): remite aquí. Donde difieran, manda este documento, y quien cambie una medida revisa también que §5 siga diciendo lo mismo |
 | `RUNBOOK.md` | Los procedimientos de operación: restaurar, revertir un despliegue, leer logs. **Todavía no existe** (F6-DR-02) |
 | [SITIO-WEB-LEGAL.md](./SITIO-WEB-LEGAL.md) | Lo que SellPointy promete en el Aviso y en los Términos. Este documento muestra con qué se cumple |
 | [IMPLEMENTACION.md](./IMPLEMENTACION.md) | Las tareas (F6, F9-CLINIC-NOM024) y la bitácora con fecha de cada decisión |

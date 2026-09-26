@@ -590,72 +590,85 @@ sellpoint/
 
 ## 5. Seguridad
 
-### 5.1 Autenticación
+> **Esta sección explica el DISEÑO: qué capas hay y por qué están donde están.** Las medidas concretas —parámetros de argon2, vidas de los tokens, límites de intentos, horarios y retención de los respaldos— y la fuente de cada una viven en [`SEGURIDAD.md`](./SEGURIDAD.md), y **donde difieran, manda ese documento**. Aquí no se copian números que se afinan: duplicados, se desincronizan. Así pasó con esta sección, que hasta el 2026-09-26 describía el diseño original (respaldos en S3 con KMS, argon2 en 65536/3/4, CloudWatch, MFA) y no lo que corre (F10-SEC-03).
 
-| Control | Implementación |
-|---|---|
-| Hash de password | **Argon2id** — `memoryCost: 65536, timeCost: 3, parallelism: 4` |
-| Access token | **JWT RS256**, vida 15 min, contiene `userId`, `tenantId`, `permissions` |
-| Refresh token | Rotativo, en cookie `httpOnly + Secure + SameSite=Strict`, vida 7 días |
-| Detección de reuse | Si se reusa un refresh ya rotado → se invalida toda la familia |
-| Logout | Marca refresh como revocado en Redis (TTL = remaining lifetime) |
-| Throttling login | 5 intentos / 15 min por IP + 10 intentos / hora por email |
-| Email enumeration | Respuesta idéntica para email inexistente y password incorrecto |
-| Recuperación de password | Token de un solo uso, 30 min de vida, link enviado por email |
-| Cambio de password | Invalida TODOS los refresh tokens del usuario |
+### 5.1 Principio: la última barrera es la base
 
-### 5.2 Autorización
+La aplicación puede tener errores; la base no debe dejar que se conviertan en fugas. Por eso las protecciones que importan están en Postgres y no solo en el código de Nest:
 
+- **Aislamiento entre negocios con RLS `FORCE`** (§3.1–3.2). La API se conecta con `sellpoint_app`, que no es superusuario ni tiene `BYPASSRLS`, y se niega a arrancar si alguien configura un rol que lo tenga. `withTenantContext` es la única puerta para abrir un negocio, y solo dura la transacción. Las excepciones están acotadas y tienen nombre: la función de login que ve dos columnas, el `billing_admin_bypass` del cobro y del backoffice, y los catálogos globales sin dueño (SEGURIDAD §2.1).
+- **Lo que no se debe reescribir, la base lo prohíbe.** Los movimientos de inventario y la bitácora de auditoría son de solo escritura para la app (`REVOKE UPDATE, DELETE`), y un documento confirmado se corrige con otro movimiento, no editándolo (trigger de inmutabilidad).
+- **Borrar un negocio tiene una sola puerta**, `purge_tenant()`, con el candado de retención legal dentro de la función: ni un guion se lo salta (SEGURIDAD §2.9).
+
+### 5.2 Autenticación
+
+- **Contraseñas con argon2id**, largo mínimo y sin reglas de composición (criterio NIST). El PIN del punto de venta, igual.
+- **Dos tokens con papeles distintos.** El de acceso es un JWT RS256 de vida corta, con el algoritmo fijo, y viaja en la cabecera `Authorization`. El de sesión (refresh) es un valor aleatorio del que la base guarda solo la huella; vive en una cookie `httpOnly` + `Secure` + `SameSite=Strict` limitada a `/api/auth`, **rota en cada uso** y, si alguien reusa uno ya rotado, se revoca la familia entera y se audita como posible robo.
+- **Revocación inmediata sin perder un JWT sin estado:** una época por usuario y por negocio en Redis. El guard la compara en cada petición, así que suspender a alguien, cambiarle el rol o cambiar la contraseña corta los tokens vivos en el acto.
+- **Tokens de un solo uso** (verificar el correo, restablecer la contraseña): aleatorios, y de ellos solo se guarda la huella SHA-256.
+- **Sin enumerar cuentas:** entrar, recuperar la contraseña y reenviar la verificación responden igual exista o no la cuenta, y al entrar se tarda lo mismo en ambos casos. La excepción es deliberada: el registro avisa si el correo ya tiene cuenta (F10-MANFIX-11).
+- **Límites de intentos en dos capas:** la app, por IP y por correo, con el contador en Redis; y nginx, delante de `/api/auth/`.
+- **No hay segundo factor** (SEGURIDAD §5).
+
+### 5.3 Autorización
+
+- **Cerrado por omisión.** Los guards globales (`APP_GUARD`) corren en orden fijo: límite, identidad, permisos y plan. Una ruta sin token existe solo si se marca `@Public()`.
 - **RBAC con scoping de dos capas**: roles + permisos definen QUÉ; `user_warehouse_scopes` define DÓNDE (ver § 3.4).
 - Roles por tenant: cuatro **de fábrica** que nacen con el negocio, más los personalizados que el negocio arme. **Convención (F10-MANFIX-22, Carlos, 2026-09-24): clave fija + nombre en el idioma del negocio.** Cada rol de fábrica lleva una clave inmutable en `roles.system_key` —`admin`, `manager`, `seller`, `viewer`— y un nombre en el idioma del dueño que el negocio puede cambiar: Administrador · Encargado · Cajero · Consulta, en inglés Admin · Manager · Cashier · Viewer. Un rol personalizado tiene la clave en `NULL`. La base la cuida con un CHECK de las cuatro claves y un índice único parcial `(tenant_id, system_key)`; la fuente es `TENANT_ROLES` en `modules/tenants/role-catalog.ts`. **La clave es lo único por lo que el código, las pruebas y las migraciones reconocen un rol de fábrica:** una migración de permisos futura busca `WHERE r.system_key = 'viewer'`, **nunca** `r.name` (el nombre cambia con el idioma y con el negocio, y un rol renombrado se quedaría sin los permisos siguientes). Las 11 migraciones de permisos anteriores buscan por nombre y no se tocan: ya corrieron, y en una base nueva no insertan nada. `GET /roles` y los roles de cada usuario devuelven `systemKey`.
-- Permisos granulares (formato `recurso:accion`): `catalogs:read/write/manage`, `products:read/manage`, `warehouses:read/manage`, `inventory:read/movement/manage` (F3: `manage` = cancelar traspaso y aprobar conteo, solo TenantAdmin), `pos:sell`, `pos:quote` y `pos:view` (F4), `reports:read` (F5 — **no existe `reports:export`**: exportar es leer, mismo criterio que «reimprimir es leer» de F4), `users:manage`, etc.
-- Decorator: `@RequirePermissions('inventory:movement')`.
-- `TenantAdmin` bypasea el scoping de almacenes; el resto de roles, si tiene scope asignado, queda filtrado automáticamente en repos.
+- Permisos granulares (formato `recurso:accion`): `catalogs:read/write/manage`, `products:read/manage`, `warehouses:read/manage`, `inventory:read/movement/manage` (F3: `manage` = cancelar traspaso y aprobar conteo, solo el Administrador), `pos:sell`, `pos:quote` y `pos:view` (F4), `reports:read` (F5 — **no existe `reports:export`**: exportar es leer, mismo criterio que «reimprimir es leer» de F4), `users:manage`, etc. Un endpoint los declara con `@RequirePermissions('inventory:movement')` y exige todos los que pide.
+- **«El administrador ve todas las sucursales» se decide por permisos, no por nombre:** quien tiene a la vez `roles:manage` y `users:manage` (`TENANT_ADMIN_PERMISSION_CODES`) se salta el alcance. El resto, si tiene sucursales asignadas, queda filtrado a ellas en los repositorios, y sin ninguna asignada ve todas (§3.4; `infrastructure/warehouse-scope/`).
+- **Sin escalada de privilegios:** nadie da un permiso que no tiene ni asigna un rol con permisos que no tiene, y el último administrador activo no se puede quitar.
+- **El plan también es una barrera:** `@RequiresFeature` (402 si el plan no lo incluye) y `@RequiresModule` (un módulo apagado no responde ni para leer).
+- **El backoffice del operador** pide cuatro llaves a la vez, y la marca de administrador de plataforma no viaja en el token, así que revocarla es inmediato (SEGURIDAD §2.3).
 
-### 5.3 API
+### 5.4 El borde y la API
 
-| Control | Detalle |
-|---|---|
-| CORS | Whitelist estricta de origins (dev + prod) |
-| Helmet | CSP, HSTS, X-Frame-Options, X-Content-Type-Options |
-| Rate limit global | 100 req/min por IP |
-| Rate limit auth | 10 req/min por IP en `/auth/*` |
-| Input validation | Zod vía `ZodValidationPipe` (DTO) + validador derivado de `catalog_fields` (atributos dinámicos). Los ids de ruta, con `@UuidParam("id")` (`common/http/uuid-param.decorator.ts`): 400 `common.invalid_id` antes de tocar la base; `route-ids.e2e-spec.ts` recorre el router y falla si una ruta nueva lo olvida |
-| SQL injection | Imposible — Prisma usa queries parametrizadas |
-| CSRF | Cookie `SameSite=Strict`. Double-submit token en endpoints sensibles si se requiere |
-| Logging | Pino con redacción de `password`, `token`, `authorization`, `cookie` |
+- **nginx es la única capa delante:** TLS, redirección a HTTPS, HSTS, CSP (propio origen y el envío de errores a Sentry) y el resto de cabeceras; la API suma Helmet. No hay proxy de Cloudflare ni WAF: está pospuesto (SEGURIDAD §5).
+- **CSRF: la defensa es de diseño, no un token.** El token de acceso viaja en `Authorization`, que un formulario de otro sitio no puede poner; la única cookie es la de sesión, `SameSite=Strict` y limitada a `/api/auth`; y CORS solo acepta credenciales de los orígenes de la app. Por eso no hay token double-submit.
+- **Toda entrada se valida antes de llegar al servicio:** zod en cada cuerpo y consulta (`ZodValidationPipe`), el validador derivado de `catalog_fields` para los atributos dinámicos, y `@UuidParam("id")` en los ids de ruta, con una prueba (`route-ids.e2e-spec.ts`) que recorre el router y falla si una ruta nueva lo olvida.
+- **SQL siempre parametrizado:** Prisma, y `$queryRaw` con plantilla. `queryRawUnsafe` y `executeRawUnsafe` no se usan.
+- **Un cobro no se duplica:** el punto de venta manda un `Idempotency-Key`.
+- **Sin SSRF por construcción:** el API no pide URLs que controle el usuario; su única salida HTTP propia va a una dirección fija (Resend).
+- **Los logs no guardan secretos:** Pino censura cabeceras de autorización, cookies y contraseñas, y nginx no registra la parte de la URL después de `?`.
+- **La documentación interactiva (`/api/docs`) no se monta en producción** (F10-SEC-02).
 
-### 5.4 Datos
+### 5.5 Datos y respaldos
 
-- **PII en reposo:** cifrado a nivel disco (cifrado de disco del VPS). Passwords hasheadas con Argon2id. Sin almacenamiento de tarjetas (integración futura con pasarela tercerizada).
-- **Backups cifrados** en S3 con KMS (`SSE-KMS`).
-- **Auditoría:** tabla `audit_log` con `who/what/when/before/after` para:
-  - Movimientos de inventario
-  - Cambios de stock
-  - Creación/edición de usuarios
-  - Cambios en schemas de producto
-  - Logins y logouts
+- **Dónde:** Postgres en un VPS de Vultr en la Ciudad de México, escuchando solo en `127.0.0.1`; nginx es lo único que publica puertos. Redis guarda solo datos de control (límites, épocas, cachés), nada del negocio.
+- **Lo que se guarda como huella:** contraseñas y PIN con argon2; tokens de sesión y enlaces con SHA-256.
+- **En reposo no hay cifrado propio:** ni por campo, y el cifrado del disco del VPS **no está verificado** (pospuesto por Carlos el 2026-09-25). Quien accede a la base lee los datos en claro, y hoy ese acceso lo tiene solo Carlos (SEGURIDAD §2.6 y §5).
+- **Respaldos:** `pg_dump` nocturno, cifrado con `age` **antes de salir del servidor** (la llave pública vive ahí; la privada la guarda Carlos fuera) y subido a Cloudflare R2 con un token limitado a su bucket. Los `.env` viajan en el mismo respaldo, también cifrados. La restauración se ensayó (F6-DRILL-01). Frecuencia, retención y tiempos medidos: SEGURIDAD §3.
+- **Secretos:** los `.env` viven solo en el servidor, fuera de git; las llaves del JWT entran por variable de entorno.
 
-### 5.5 Frontend
+### 5.6 Auditoría y monitoreo
 
-- **Access token en memoria** (store Zustand) — nunca `localStorage` ni cookie legible.
-- **Refresh automático** vía interceptor de Axios cuando el access expira (status 401).
-- **Logout** al cerrar pestaña: el access se pierde, el refresh está en cookie pero invalidado al hacer logout explícito.
-- **CSP estricta** en respuesta de Nginx.
-- **Sanitización de HTML** en cualquier renderizado de input de usuario (DOMPurify si se renderiza markdown/HTML).
+- **`audit_logs`** guarda quién, qué acción, sobre qué, cuándo, el antes y el después, la IP y el navegador. Tiene RLS y es de solo escritura para la app (F10-SEC-01). **Las lecturas no se registran**: nadie anota quién abrió un expediente o una pantalla del backoffice (SEGURIDAD §2.4 y §5).
+- **Monitoreo:** Sentry recibe solo errores (5xx de la API y errores del navegador), y dos monitores externos revisan la app y el sandbox. Los logs rotan en cada contenedor y se leen por SSH: no hay logs centralizados.
 
-### 5.6 Checklist OWASP Top 10 (2021)
+### 5.7 Frontend
 
-- [x] **A01 Broken Access Control** — Guards Nest + RLS Postgres
-- [x] **A02 Cryptographic Failures** — HTTPS forzado, Argon2id, KMS para backups
-- [x] **A03 Injection** — Prisma (SQL), Zod (input), validador derivado (JSON dinámico)
-- [x] **A04 Insecure Design** — Threat modeling al inicio de cada módulo crítico
-- [x] **A05 Security Misconfiguration** — Helmet, CSP, cabeceras revisadas
-- [x] **A06 Vulnerable Components** — Dependabot + `pnpm audit` en CI
-- [x] **A07 Identification/Auth Failures** — Throttling, refresh rotativo, MFA opcional v2
-- [x] **A08 Data Integrity Failures** — Transacciones atómicas, signed JWT
-- [x] **A09 Security Logging Failures** — Pino + Sentry + CloudWatch + audit log
-- [x] **A10 SSRF** — No se hacen requests salientes a URLs controladas por el usuario
+- **El token de acceso vive en memoria** (store de Zustand), nunca en `localStorage` ni en una cookie legible.
+- **Refresh automático con single-flight** (`lib/auth/refresh-interceptor.ts`): ante un 401, UNA sola llamada a `/auth/refresh` y las demás peticiones esperan. No es optimización: como el backend trata un refresh ya rotado como robo, tres refresh en paralelo cerrarían la sesión.
+- **Cerrar o recargar la pestaña no cierra la sesión:** el access se pierde con la página y `useSessionBootstrap` la recupera con la cookie. Lo que la cierra es «Cerrar sesión», que revoca el refresh en el servidor.
+- **HTML de usuario, nunca:** React escapa por omisión y la regla `noDangerouslySetInnerHtml` de Biome frena cualquier excepción en el lint. La única que hay pinta un SVG propio de `packages/shared` (`ticket-settings.tsx`), con su `biome-ignore` justificado. Por eso no hace falta DOMPurify.
+- **La CSP la pone nginx** y solo permite el propio origen (más el envío de errores a Sentry): el web no carga scripts de terceros.
+
+### 5.8 OWASP Top 10 (2021): dónde se cubre cada punto
+
+| Categoría | Qué lo cubre en este diseño | Lo que falta |
+|---|---|---|
+| A01 Broken Access Control | Cerrado por omisión, permisos, alcance por sucursal y RLS como segunda barrera | — |
+| A02 Cryptographic Failures | HTTPS obligatorio, argon2id, JWT RS256 con algoritmo fijo, respaldos cifrados con `age` | Disco sin verificar; sin cifrado por campo |
+| A03 Injection | SQL parametrizado, zod, validador derivado de `catalog_fields`, React sin HTML crudo | — |
+| A04 Insecure Design | Candados en la base (RLS, solo escritura, `purge_tenant`), cerrado por omisión, idempotencia del cobro | Nadie ajeno al proyecto lo ha revisado |
+| A05 Security Misconfiguration | Cabeceras en nginx y Helmet, Postgres solo en `127.0.0.1`, contenedores sin `root`, candado del rol al arrancar, `/api/docs` cerrado en producción | — |
+| A06 Vulnerable Components | Dependabot semanal y Trivy en cada despliegue | Trivy solo informa; no hay `pnpm audit` que frene el despliegue |
+| A07 Identification/Auth Failures | Límites en dos capas, refresh rotativo con detección de reuso, revocación por época, sin enumeración | Sin segundo factor |
+| A08 Data Integrity Failures | JWT firmado, transacciones atómicas, `Idempotency-Key`, pipeline único que prueba antes de desplegar | Imágenes sin firmar (cosign pospuesto) |
+| A09 Security Logging Failures | `audit_logs` inalterable, Sentry y monitores externos | No se registran las lecturas; sin logs centralizados |
+| A10 SSRF | El API no pide URLs que controle el usuario | — |
+
+El estado de cada pendiente, con su tarea o su decisión, está en SEGURIDAD §5.
 
 ---
 
