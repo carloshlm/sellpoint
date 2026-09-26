@@ -5070,7 +5070,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 - [ ] **F9-CLINIC-NOM024-04** *(2026-09-21)* — Bitácora de CONSULTAS de expedientes
   - **Por qué:** la auditoría registra quién creó, modificó o cerró (`medical_clinic.record.create`, `section.save`, `order.create`…), pero NO quién ABRIÓ un expediente. Con datos de salud, ante una queja por fuga no se podría decir quién vio qué.
   - **Salida:** acción `medical_clinic.record.view` (y la de la receta) en `audit_logs`, sin duplicar por recargas en la misma sesión. · **Estimación:** 3 h
-- [ ] **F9-CLINIC-NOM024-05** *(2026-09-21; el disco pospuesto por Carlos el 2026-09-25 junto con F6-DR-01: SEGURIDAD.md se escribe ya y deja el punto del disco como pendiente por escrito)* — Documento de medidas de seguridad, y verificar el cifrado del disco
+- [x] **F9-CLINIC-NOM024-05** *(2026-09-21; el disco pospuesto por Carlos el 2026-09-25 junto con F6-DR-01: SEGURIDAD.md se escribe ya y deja el punto del disco como pendiente por escrito; SEGURIDAD.md escrito el 2026-09-25; el disco sigue pendiente)* — Documento de medidas de seguridad, y verificar el cifrado del disco
   - **Por qué:** las medidas existen (roles y permisos, aislamiento por negocio con RLS, HTTPS, respaldos nocturnos cifrados con `age` a R2, bitácora de cambios) pero no están ESCRITAS, y la ley de datos personales pide poder demostrarlas. En el repositorio no consta que el disco del servidor esté cifrado: se revisa en el panel de Vultr, no en el código.
   - **Salida:** `SEGURIDAD.md` de pocas páginas, redactado desde lo que ya hay; y la respuesta de Carlos sobre el disco. · **Estimación:** 3 h
 

@@ -67,4 +67,5 @@ infrastructure/  # docker-compose, deploy, IaC
 | [VISTAS.md](./VISTAS.md) | Especificación de pantallas y UX |
 | [MERCADOS.md](./MERCADOS.md) | Países soportados, monedas, zonas horarias y diferencias de nomenclatura |
 | [IMPLEMENTACION.md](./IMPLEMENTACION.md) | Plan de fases, tareas atomizadas, bitácora de decisiones |
+| [SEGURIDAD.md](./SEGURIDAD.md) | Medidas de seguridad: qué se protege, cómo, desde cuándo y lo que todavía no hay |
 | [ControlDeInventario.md](./ControlDeInventario.md) · [PuntoDeVenta.md](./PuntoDeVenta.md) | Documentos de idea originales |
