@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
+import { exposeApiDocs } from "./common/http/api-docs";
 import { JSON_BODY_LIMIT } from "./common/http/body-limits";
 import { resolveCorsOptions } from "./common/http/cors";
 import { Env } from "./config/env.schema";
@@ -59,15 +60,19 @@ async function bootstrap() {
     callback(null, resolveCorsOptions(request.url, corsOrigins));
   });
 
-  const openApiConfig = new DocumentBuilder()
-    .setTitle("SellPointy API")
-    .setDescription("API de control de inventario y punto de venta")
-    .setVersion("0.0.1")
-    .build();
-  const document = SwaggerModule.createDocument(app, openApiConfig);
-  SwaggerModule.setup("docs", app, document, {
-    jsonDocumentUrl: "openapi.json",
-  });
+  // F10-SEC-02: la documentación del API no se monta en producción; ver
+  // `common/http/api-docs.ts`.
+  if (exposeApiDocs(configService.get("NODE_ENV", { infer: true }))) {
+    const openApiConfig = new DocumentBuilder()
+      .setTitle("SellPointy API")
+      .setDescription("API de control de inventario y punto de venta")
+      .setVersion("0.0.1")
+      .build();
+    const document = SwaggerModule.createDocument(app, openApiConfig);
+    SwaggerModule.setup("docs", app, document, {
+      jsonDocumentUrl: "openapi.json",
+    });
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }
