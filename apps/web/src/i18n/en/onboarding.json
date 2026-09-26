@@ -91,7 +91,7 @@
   "step3": {
     "title": "Pick a theme",
     "subtitle": "This is how SellPointy will look for your business. It's just a starting point.",
-    "changeLaterHint": "These are the four basics. From My profile you can change the theme anytime — and pick from more options.",
+    "changeLaterHint": "These are the five basics. From My profile you can change the theme anytime — and pick from more options.",
     "finish": "Finish",
     "error": "We couldn't save the theme. Please try again."
   }

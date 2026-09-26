@@ -318,13 +318,17 @@ describe("/onboarding", () => {
       useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
     });
 
-    it("muestra las CUATRO opciones con Claro preseleccionado", async () => {
+    // Carlos, 2026-09-26: abre con el tema de la marca y Algodón toma el
+    // lugar de Uva. Claro sigue preseleccionado: es lo que ya está viendo.
+    it("muestra las CINCO opciones en su orden, con Claro preseleccionado", async () => {
       await renderRoute("/onboarding");
 
       expect(await screen.findByRole("radio", { name: "Claro" })).toBeChecked();
+      expect(
+        screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent),
+      ).toEqual(["SellPointy", "Claro", "Oscuro", "Arena", "Algodón"]);
       expect(screen.getByRole("radio", { name: "Oscuro" })).not.toBeChecked();
-      expect(screen.getByRole("radio", { name: "Arena" })).toBeInTheDocument();
-      expect(screen.getByRole("radio", { name: "Uva" })).toBeInTheDocument();
+      expect(screen.queryByRole("radio", { name: "Uva" })).not.toBeInTheDocument();
       // Y el aviso de que no es una decisión definitiva.
       expect(screen.getByText(/Mi perfil/)).toBeInTheDocument();
     });
@@ -338,7 +342,7 @@ describe("/onboarding", () => {
       await renderRoute("/onboarding");
       await screen.findByRole("radio", { name: "Claro" });
 
-      expect(screen.getAllByRole("radio")).toHaveLength(4);
+      expect(screen.getAllByRole("radio")).toHaveLength(5);
       expect(screen.queryByRole("radio", { name: "Esmeralda" })).not.toBeInTheDocument();
       expect(screen.queryByRole("radio", { name: "Cabina" })).not.toBeInTheDocument();
       expect(screen.getByText(/más opciones/)).toBeInTheDocument();
@@ -346,20 +350,20 @@ describe("/onboarding", () => {
 
     it("Terminar guarda el tema elegido y COMPLETA el onboarding, aterrizando en /dashboard", async () => {
       const user = userEvent.setup();
-      const done = tenantWithBusinessDone({ theme: "grape", onboarded: true });
+      const done = tenantWithBusinessDone({ theme: "cotton", onboarded: true });
       mockedTenantApi.updateMyTenant.mockResolvedValue(done);
       mockedTenantApi.completeOnboarding.mockResolvedValue(done);
       mockedGetMe.mockResolvedValue(demoUser(done));
 
       const router = await renderRoute("/onboarding");
-      await screen.findByRole("radio", { name: "Uva" });
+      await screen.findByRole("radio", { name: "Algodón" });
 
-      await user.click(screen.getByRole("radio", { name: "Uva" }));
+      await user.click(screen.getByRole("radio", { name: "Algodón" }));
       await user.click(screen.getByRole("button", { name: "Terminar" }));
 
       await waitFor(() =>
         expect(mockedTenantApi.updateMyTenant).toHaveBeenCalledWith(
-          { theme: "grape" },
+          { theme: "cotton" },
           expect.anything(),
         ),
       );
@@ -376,7 +380,7 @@ describe("/onboarding", () => {
       });
 
       await renderRoute("/onboarding");
-      await screen.findByRole("radio", { name: "Uva" });
+      await screen.findByRole("radio", { name: "Algodón" });
 
       await user.click(screen.getByRole("button", { name: "Terminar" }));
 
@@ -391,11 +395,11 @@ describe("/onboarding", () => {
     it("el clic en una muestra aplica el tema AL MOMENTO, antes de Terminar", async () => {
       const user = userEvent.setup();
       await renderRoute("/onboarding");
-      await screen.findByRole("radio", { name: "Uva" });
+      await screen.findByRole("radio", { name: "Algodón" });
 
-      await user.click(screen.getByRole("radio", { name: "Uva" }));
+      await user.click(screen.getByRole("radio", { name: "Algodón" }));
 
-      expect(document.documentElement.dataset.theme).toBe("grape");
+      expect(document.documentElement.dataset.theme).toBe("cotton");
       expect(mockedTenantApi.updateMyTenant).not.toHaveBeenCalled();
 
       await user.click(screen.getByRole("radio", { name: "Claro" }));

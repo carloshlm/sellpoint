@@ -53,12 +53,15 @@ function StepTheme({ isSubmitting, formError, onSubmit }: StepThemeProps) {
       )}
 
       {/* Solo la primera tanda: elegir tema no debe volverse la parte larga
-          del registro. El hint de abajo avisa que en Mi perfil hay más. */}
+          del registro. El hint de abajo avisa que en Mi perfil hay más. Tres
+          columnas: son cinco temas y en cinco columnas «SellPointy» no cabe
+          en su tarjeta. */}
       <ThemePicker
         value={selected}
         onChange={preview}
         disabled={isSubmitting}
         options={WIZARD_THEME_LIST}
+        className="sm:grid-cols-3"
       />
 
       <p className="text-muted-foreground text-xs">{t("onboarding.step3.changeLaterHint")}</p>

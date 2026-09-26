@@ -23,6 +23,11 @@ interface ThemePickerProps {
   options?: readonly ThemeOption[];
   /** Distingue los grupos cuando hubiera dos pickers montados (no hoy). */
   name?: string;
+  /**
+   * Clases extra de la rejilla. El wizard pide tres columnas: cinco temas en
+   * cuatro columnas dejaban el quinto solo, y en cinco no cabe «SellPointy».
+   */
+  className?: string;
 }
 
 function ThemePicker({
@@ -31,11 +36,15 @@ function ThemePicker({
   disabled = false,
   options = THEME_LIST,
   name = "theme",
+  className,
 }: ThemePickerProps) {
   const { t } = useTranslation();
 
   return (
-    <fieldset className="grid grid-cols-2 gap-3 border-0 p-0 sm:grid-cols-4" disabled={disabled}>
+    <fieldset
+      className={cn("grid grid-cols-2 gap-3 border-0 p-0 sm:grid-cols-4", className)}
+      disabled={disabled}
+    >
       <legend className="sr-only">{t("common.theme.label")}</legend>
       {options.map((theme) => (
         <label

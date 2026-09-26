@@ -38,9 +38,17 @@ export const DEFAULT_THEME: ThemeId = "light";
 /**
  * Los que ofrece el paso 3 del wizard (Carlos, 2026-08-26): la primera tanda
  * nada más — elegir tema no debe volverse la parte larga del registro. El
- * copy del paso avisa que en Mi perfil hay más.
+ * copy del paso avisa que en Mi perfil hay más. El ORDEN es el de pantalla:
+ * desde el 2026-09-26 abre con el de la marca y Algodón toma el lugar de Uva
+ * (Carlos). Mi perfil no usa esta lista: muestra el catálogo en su orden.
  */
-export const WIZARD_THEME_IDS: readonly ThemeId[] = ["light", "dark", "sand", "grape"];
+export const WIZARD_THEME_IDS: readonly ThemeId[] = [
+  "sellpointy",
+  "light",
+  "dark",
+  "sand",
+  "cotton",
+];
 
 export interface ThemeOption {
   id: ThemeId;

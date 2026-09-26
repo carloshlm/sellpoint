@@ -48,10 +48,11 @@ describe("catálogo de temas", () => {
     ]);
   });
 
-  it("el wizard ofrece SOLO la primera tanda; el perfil, las dos", () => {
+  it("el wizard ofrece SOLO la primera tanda, en su orden; el perfil, todas", () => {
     // Elegir tema no debe volverse la parte larga del registro (Carlos,
-    // 2026-08-26) — el paso 3 avisa que en Mi perfil hay más.
-    expect([...WIZARD_THEME_IDS]).toEqual(["light", "dark", "sand", "grape"]);
+    // 2026-08-26) — el paso 3 avisa que en Mi perfil hay más. Desde el
+    // 2026-09-26 abre con el de la marca y Algodón toma el lugar de Uva.
+    expect([...WIZARD_THEME_IDS]).toEqual(["sellpointy", "light", "dark", "sand", "cotton"]);
     expect(THEME_IDS.length).toBeGreaterThan(WIZARD_THEME_IDS.length);
   });
 });
