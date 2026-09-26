@@ -89,9 +89,16 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
       "--border",
       "--sidebar:",
       "--sidebar-accent:",
+      // El color de los títulos de sección del menú: sin él, un menú oscuro
+      // los pinta con el gris del contenido y no se leen (2026-09-26).
+      "--sidebar-section:",
     ]) {
       expect(block).toContain(token);
     }
+  });
+
+  it("el tema default también define el color de los títulos del menú", () => {
+    expect(css).toMatch(/:root\s*\{[^}]*--sidebar-section:/);
   });
 
   it("los tokens semánticos NO se redefinen por tema claro: alerta y error son universales", () => {

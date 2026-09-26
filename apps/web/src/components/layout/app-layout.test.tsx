@@ -152,6 +152,28 @@ describe("el orden de los grupos del menú", () => {
     // Y Movimientos sigue después de Catálogos: solo subió la caja.
     expect(grupos.indexOf("Movimientos")).toBeGreaterThan(grupos.indexOf("Catálogos"));
   });
+
+  /**
+   * Los títulos de sección («Punto de venta», «Catálogos»…) se pintaban con
+   * `text-muted-foreground`, el gris del CONTENIDO: sobre un menú oscuro
+   * (SellPointy, Cabina, Carbón) casi no se veían. Un título del menú toma
+   * su color del menú, y cada tema decide cuál con `--sidebar-section`
+   * (Carlos, 2026-09-26: en SellPointy es el amarillo de la marca).
+   */
+  it("los títulos de sección toman su color del menú, no del contenido", async () => {
+    const sidebar = await renderLayout(
+      buildAuthUser({
+        tenant: buildTenantBlock({ id: "t1" }),
+        permissions: ["pos:sell", "products:read", "inventory:read"],
+      }),
+    );
+    const titulos = Array.from(sidebar.querySelectorAll("span.uppercase"));
+    expect(titulos.length).toBeGreaterThan(0);
+    for (const titulo of titulos) {
+      expect(titulo.className).toContain("text-sidebar-section");
+      expect(titulo.className).not.toContain("text-muted-foreground");
+    }
+  });
 });
 
 describe("el logotipo del sidebar", () => {

@@ -235,7 +235,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("common.layout.nav.backoffice")}
                 </span>
@@ -285,7 +285,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("pos.title")}
                 </span>
@@ -348,7 +348,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("catalogs.nav.group")}
                 </span>
@@ -403,7 +403,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("catalogs.nav.customGroup")}
                 </span>
@@ -445,7 +445,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("inventory.nav.group")}
                 </span>
@@ -490,7 +490,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("reports.nav.group")}
                 </span>
@@ -518,7 +518,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {grupo.label}
                 </span>
@@ -551,7 +551,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                  className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("common.layout.nav.system")}
                 </span>

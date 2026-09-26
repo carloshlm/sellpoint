@@ -95,6 +95,7 @@
   --sidebar-accent-foreground: oklch(0.5164 0.2229 264.63);
   --sidebar-border: oklch(0.9275 0.0129 266.7);
   --sidebar-ring: oklch(0.5164 0.2229 264.63);
+  --sidebar-section: oklch(0.503 0.0338 266.08);
 }
 
 /* ========================= TEMA: OSCURO «Grafito» ==========================
@@ -134,6 +135,7 @@
   --sidebar-accent-foreground: #b9c8ff;
   --sidebar-border: #383b42;
   --sidebar-ring: #7c9aff;
+  --sidebar-section: #a2a7ae;
 }
 
 /* =========================== TEMA: UVA «Bitono» ============================
@@ -174,6 +176,7 @@
   --sidebar-accent-foreground: #f3eff9;
   --sidebar-border: #59506680;
   --sidebar-ring: #cbbfe0;
+  --sidebar-section: #6e6879;
 }
 
 /* =========================== TEMA: ARENA «Crema» ===========================
@@ -213,6 +216,7 @@
   --sidebar-accent-foreground: #8a5730;
   --sidebar-border: #e7d8bf;
   --sidebar-ring: #a9714b;
+  --sidebar-section: #857664;
 }
 
 /* ========================= TEMA: ESMERALDA «Hoja» ==========================
@@ -253,6 +257,7 @@
   --sidebar-accent-foreground: #24634a;
   --sidebar-border: #dde8da;
   --sidebar-ring: #2e7d5b;
+  --sidebar-section: #63705f;
 }
 
 /* ========================== TEMA: MOTOR «Cabina» ===========================
@@ -295,6 +300,7 @@
   --sidebar-accent-foreground: #ff8b96;
   --sidebar-border: #26282e;
   --sidebar-ring: #ff5a68;
+  --sidebar-section: #a0a4ac;
 }
 
 /* ======================== TEMA: PASTEL «Algodón» ===========================
@@ -335,6 +341,7 @@
   --sidebar-accent-foreground: #c25a7b;
   --sidebar-border: #f3dbe2;
   --sidebar-ring: #e37e9e;
+  --sidebar-section: #8a7078;
 }
 
 /* ===================== TEMA: LA MARCA «SellPointy» =========================
@@ -383,6 +390,7 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #2747e0;
   --sidebar-ring: #ffc42e;
+  --sidebar-section: #ffc42e;
 }
 
 /* ======================== TEMA: OSCURO «Carbón» ============================
@@ -422,6 +430,7 @@
   --sidebar-accent-foreground: #eebd7f;
   --sidebar-border: #383129;
   --sidebar-ring: #d9954a;
+  --sidebar-section: #a89e91;
 }
 
 @theme inline {
@@ -438,6 +447,9 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-soft: var(--warning-soft);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Los títulos de sección del menú («Punto de venta»…): color del MENÚ,
+     no del contenido, para que se lean sobre un menú oscuro. */
+  --color-sidebar-section: var(--sidebar-section);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
