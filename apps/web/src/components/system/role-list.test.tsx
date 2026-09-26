@@ -82,6 +82,31 @@ describe("RoleList", () => {
     expect(screen.getByText("0 usuarios")).toBeInTheDocument();
   });
 
+  // F10-THEME-03: la columna se diseñó para «Admin» y «Administrador» salía
+  // «Administrad…». Un nombre largo se parte en renglones, nunca se corta: ni
+  // el nombre ni su botón (el `truncate` del botón pone `nowrap`, y eso lo
+  // heredan sus hijos) pueden llevar las clases que lo recortan.
+  it("un nombre largo se parte en renglones, no se corta con puntos suspensivos", () => {
+    renderList({
+      roles: [
+        {
+          id: "r3",
+          name: "Encargado de almacén",
+          systemKey: null,
+          permissionCodes: [],
+          userCount: 0,
+        },
+      ],
+    });
+
+    const name = screen.getByText("Encargado de almacén");
+    expect(name).toHaveClass("break-words");
+    for (let el: HTMLElement | null = name; el && el.tagName !== "LI"; el = el.parentElement) {
+      expect(el).not.toHaveClass("truncate");
+      expect(el).not.toHaveClass("whitespace-nowrap");
+    }
+  });
+
   it("'Eliminar' está habilitado cuando userCount === 0", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();

@@ -237,10 +237,15 @@ function SystemRolesContent() {
 
       {/* Sobre tarjeta, como Mi perfil (Carlos, 2026-08-25): la lista y el
           editor pintaban sus controles directo sobre el fondo. `self-start`:
-          cada tarjeta mide su contenido, no la altura de la otra columna. */}
+          cada tarjeta mide su contenido, no la altura de la otra columna.
+          280 px y no 240 (F10-THEME-03): con 240 «Administrador» no cabía
+          junto a «Eliminar»; lo más largo de un rol propio se parte en
+          renglones dentro de la lista. Dos columnas desde `lg` y no desde
+          `md`: a 768 px el menú lateral ya ocupa 256 y el editor de permisos
+          quedaba cortado por la derecha; debajo de 1024 van una sobre otra. */}
       {has("roles:manage") && !rolesPropios && <FeatureLockCard feature="custom_roles" />}
 
-      <div className="grid gap-6 md:grid-cols-[240px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <Card className="self-start">
           <CardContent className="py-4">
             <RoleList

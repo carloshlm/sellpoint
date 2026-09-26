@@ -49,11 +49,14 @@ function RoleList({
                 onClick={() => onSelect(role.id)}
                 aria-current={role.id === selectedRoleId ? "true" : undefined}
                 className={cn(
-                  "flex flex-1 flex-col truncate rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+                  "flex min-w-0 flex-1 flex-col rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
                   role.id === selectedRoleId && "bg-muted text-foreground",
                 )}
               >
-                <span className="truncate">{role.name}</span>
+                {/* F10-THEME-03: el nombre se parte en renglones, nunca se corta —
+                    «Administrador» salía «Administrad…». Sin `truncate` en el
+                    botón: su `nowrap` lo heredan los hijos. */}
+                <span className="break-words">{role.name}</span>
                 {/* W4 (verify-report #341): el design pedía un sidebar con
                     `userCount` — la clave i18n existía, el número nunca se
                     renderizaba. */}
