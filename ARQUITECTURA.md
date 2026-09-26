@@ -807,7 +807,7 @@ El estado de cada pendiente, con su tarea o su decisión, está en SEGURIDAD §5
 
 **Entregable:** todos los reportes solicitados en los requerimientos originales, visibles en sistema y descargables — más las herencias de F3: valorización con promedio ponderado, vencimientos y tránsito exportables.
 
-### Fase 6 — Hardening de Producción ✅ (quedan F6-DR-01 y F6-DR-02)
+### Fase 6 — Hardening de Producción ✅ (queda F6-DR-01)
 
 > Se hizo con la LEY de la fase (Carlos, 2026-08-27): el proyecto es chico, así que nada que corra permanente en el servidor entra sin pagar su renta en RAM. El detalle, en `IMPLEMENTACION.md` (Fase 6).
 
@@ -818,7 +818,7 @@ El estado de cada pendiente, con su tarea o su decisión, está en SEGURIDAD §5
 5. Monitoreo: Sentry solo errores y UptimeRobot (F6-WATCH) ✅
 6. Pruebas de humo después de cada despliegue ✅
 7. Cabeceras y límites en nginx, Dependabot y Trivy, versiones con tag y retención en GHCR (F6-EDGE, F6-SUPPLY, F6-RELEASE) ✅
-8. `RUNBOOK.md` (F6-DR-02) y los respaldos automáticos del VPS (F6-DR-01): pendientes
+8. [`RUNBOOK.md`](RUNBOOK.md), el manual de operaciones (F6-DR-02, 2026-09-26) ✅; los respaldos automáticos del VPS (F6-DR-01): pospuestos por Carlos
 
 **Entregable:** sistema corriendo en el VPS de Vultr con HTTPS, respaldos y monitoreo. **Pospuesto con razón escrita:** logs centralizados, gestor de secretos, proxy de Cloudflare y firma de imágenes (SEGURIDAD §5).
 
@@ -1091,7 +1091,7 @@ El idioma y la moneda no son variables: salen del negocio (§ 7).
 
 ## 9. Comandos de Inicio Rápido
 
-> El día a día está en [`README.md`](README.md), y las reglas para commitear, probar y desplegar, en [`CONTRIBUTING.md`](CONTRIBUTING.md). Aquí va lo mínimo.
+> El día a día está en [`README.md`](README.md); las reglas para commitear, probar y desplegar, en [`CONTRIBUTING.md`](CONTRIBUTING.md); y la operación del servidor, en [`RUNBOOK.md`](RUNBOOK.md). Aquí va lo mínimo.
 
 ### Primera vez
 
@@ -1130,7 +1130,7 @@ No hay despliegue a mano: **un push a `main`** corre `deploy.yml` (pruebas → i
 | Desplegar | Push a `main` |
 | Volver a la versión anterior | Automático si falla la prueba de humo; a mano, con `IMAGE_TAG` en `/opt/sellpoint/.env` (`infrastructure/scripts/deploy-remote.sh`) |
 | Respaldo | Cron nocturno con `infrastructure/scripts/backup-postgres.sh`; también se puede correr a mano en el servidor |
-| Restaurar | El paso a paso está en el encabezado de `backup-postgres.sh`, hasta que exista `RUNBOOK.md` (F6-DR-02) |
+| Restaurar | [`RUNBOOK.md`](RUNBOOK.md) §4, el procedimiento ensayado |
 | Publicar una versión con número | `pnpm release` y push del tag (README, «Releases») |
 
 ---

@@ -68,4 +68,5 @@ infrastructure/  # docker-compose, deploy, IaC
 | [MERCADOS.md](./MERCADOS.md) | Países soportados, monedas, zonas horarias y diferencias de nomenclatura |
 | [IMPLEMENTACION.md](./IMPLEMENTACION.md) | Plan de fases, tareas atomizadas, bitácora de decisiones |
 | [SEGURIDAD.md](./SEGURIDAD.md) | Medidas de seguridad: qué se protege, cómo, desde cuándo y lo que todavía no hay |
+| [RUNBOOK.md](./RUNBOOK.md) | Operación: desplegar, volver atrás, restaurar la base, leer logs, levantar un ambiente, cuentas y accesos |
 | [ControlDeInventario.md](./ControlDeInventario.md) · [PuntoDeVenta.md](./PuntoDeVenta.md) | Documentos de idea originales |

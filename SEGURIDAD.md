@@ -182,7 +182,7 @@ provocó un fallo a propósito: el despliegue se revirtió solo y el servicio si
 
 - Todo depende de la llave privada de Carlos: sin ella nadie puede leer los respaldos, ni un atacante ni otra persona del equipo.
 - Se respalda la base, no la máquina. Los respaldos automáticos de Vultr están pospuestos (F6-DR-01).
-- Todavía no existe un procedimiento formal para que otra persona restaure: es `RUNBOOK.md`, pendiente (F6-DR-02).
+- El procedimiento para que otra persona restaure está en [RUNBOOK.md](./RUNBOOK.md) §4 (F6-DR-02, 2026-09-26). Para ejecutarlo necesita la llave privada de `age` y una llave SSH que Carlos autorice: las dos dependen de él.
 
 ---
 
@@ -219,7 +219,6 @@ expedientes.
 |---|---|---|
 | Verificar el cifrado del disco del servidor | Si alguien se llevara el disco, podría leer los datos | Pospuesto por Carlos el 2026-09-25; se revisa en el panel de Vultr (F9-CLINIC-NOM024-05, F6-DR-01) |
 | Respaldo de la máquina (auto-backups de Vultr) | Recuperaría el servidor entero; hoy solo se recuperan los datos | Pospuesto el 2026-09-25 (F6-DR-01) |
-| `RUNBOOK.md` | Que otra persona pueda restaurar y operar sin Carlos | Pendiente (F6-DR-02) |
 | Registro de consultas de expedientes | Ante una fuga de datos de salud no se podría saber quién vio qué | F9-CLINIC-NOM024-04 |
 | Certificación NOM-024-SSA3-2012 | La norma prevé que el sistema de expediente clínico electrónico esté certificado | F9-CLINIC-NOM024-01; el piso realista es de 9 a 12 meses |
 | Aceptación del Anexo A al activar el módulo | Sería una prueba más sólida de quién aceptó, cuándo y qué versión | F9-CLINIC-NOM024-02 |
@@ -267,6 +266,6 @@ carpetas llevan fechas adelantadas (por ejemplo, `20261001120000_…` se escribi
 | Documento | Qué aporta |
 |---|---|
 | [ARQUITECTURA.md](./ARQUITECTURA.md) §3.1 y §5 | El diseño de la seguridad: qué capas hay y por qué. Desde el 2026-09-26 (F10-SEC-03) §5 se escribe a partir de este documento y no repite sus valores (parámetros, vidas de tokens, límites, horarios): remite aquí. Donde difieran, manda este documento, y quien cambie una medida revisa también que §5 siga diciendo lo mismo |
-| `RUNBOOK.md` | Los procedimientos de operación: restaurar, revertir un despliegue, leer logs. **Todavía no existe** (F6-DR-02) |
+| [RUNBOOK.md](./RUNBOOK.md) | Los procedimientos de operación: desplegar, volver atrás, restaurar, leer logs, levantar un ambiente, los incidentes vividos y dónde vive cada credencial. Existe desde el 2026-09-26 (F6-DR-02) |
 | [SITIO-WEB-LEGAL.md](./SITIO-WEB-LEGAL.md) | Lo que SellPointy promete en el Aviso y en los Términos. Este documento muestra con qué se cumple |
 | [IMPLEMENTACION.md](./IMPLEMENTACION.md) | Las tareas (F6, F9-CLINIC-NOM024) y la bitácora con fecha de cada decisión |
