@@ -35,10 +35,12 @@ Desarrollo de un sistema web integral para la gestión de inventarios y ventas, 
 * **Frontend:** React (Vite) con Tailwind CSS.
 * **Base de Datos:** PostgreSQL para garantizar integridad referencial.
 
-### 3.2. Despliegue en AWS
-* **Servidor:** AWS EC2 (Ubuntu) gestionado con Docker y Docker Compose.
+### 3.2. Despliegue
+> El requerimiento original pedía AWS EC2. Desde el 2026-08-04 el sistema corre en un VPS de Vultr en la Ciudad de México; el detalle está en `ARQUITECTURA.md` §2.4.
+
+* **Servidor:** VPS de Vultr (Ubuntu) en la Ciudad de México, gestionado con Docker y Docker Compose.
 * **Proxy/SSL:** Nginx con certificado SSL de Let's Encrypt (indispensable para activar funciones de hardware en el navegador).
-* **Persistencia:** Backups automáticos de la base de datos PostgreSQL.
+* **Persistencia:** Respaldos automáticos cada noche de la base de datos PostgreSQL, cifrados y guardados fuera del servidor (Cloudflare R2).
 
 ## 4. Requerimientos de Movilidad
 * **Capacidades PWA:** Archivo manifest, service workers para caché y funcionamiento offline, e icono de acceso directo.

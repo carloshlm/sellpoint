@@ -55,65 +55,72 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 
 ## 2. Stack Tecnológico
 
+> **Revisado contra el código el 2026-09-26.** Las versiones son las mayores de cada `package.json` y la infraestructura es la que corre en Vultr. El diseño original suponía AWS (EC2, S3 con KMS, SES, CloudWatch, Parameter Store); se descartó antes de tener clientes y la EC2 previa se dio de baja al elegir Vultr (2026-08-04). Donde este documento y el código difieran, manda el código; las medidas de seguridad, con su fuente, están en [`SEGURIDAD.md`](./SEGURIDAD.md).
+
 ### 2.1 Backend (`apps/api`)
 
-| Decisión | Recomendación | Justificación |
+| Decisión | Elección | Justificación |
 |---|---|---|
-| Framework | **NestJS 10** | Modular, DI nativa, decoradores, guards/interceptors. Estándar de la industria para APIs Node.js de tamaño medio/grande. |
-| Lenguaje | **TypeScript 5** | Type safety en todo el stack. Tipos compartidos con frontend vía `packages/shared`. |
-| ORM | **Prisma 5** | Type-safe, soporte nativo de JSONB en Postgres, migraciones declarativas, generación automática de tipos. |
+| Framework | **NestJS 11** | Modular, DI nativa, decoradores, guards/interceptors. Estándar de la industria para APIs Node.js de tamaño medio/grande. |
+| Lenguaje | **TypeScript** | Type safety en todo el stack. Tipos y reglas compartidos con el web y el sitio vía `packages/shared`. |
+| ORM | **Prisma 7** | Type-safe, soporte de JSONB en Postgres y migraciones versionadas. Lo que Prisma no modela —RLS, triggers, funciones como `purge_tenant`— va en SQL dentro de las mismas migraciones. |
 | Base de datos | **PostgreSQL 16** | JSONB + GIN indexes para atributos dinámicos. Row-Level Security nativo. Soporte transaccional ACID. |
-| Validación | **Zod** (`ZodValidationPipe`) + **validador derivado** | Zod para DTOs estáticos (lo que F1 implementó de hecho). Los atributos dinámicos se validan con la función pura derivada de `catalog_fields` — sin Ajv (ver § 3.3, 2026-08-16). |
-| Auth | **JWT (access) + Refresh rotativo** | Access en memoria, refresh en cookie `httpOnly + Secure + SameSite=Strict`. RS256 (par de claves). |
-| Hash | **Argon2id** | Más resistente que bcrypt a ataques GPU/ASIC. Recomendación OWASP 2024. |
-| Rate limit | **@nestjs/throttler + Redis** | Por IP y por user. Agresivo en `/auth/*`. |
-| Cache / Cola | **Redis 7** | Hoy: rate-limiting y revocación de tokens. La cola de jobs (importación, reportes pesados) quedó **diferida** al construir F5: la importación es síncrona fila-por-fila y la exportación es síncrona con tope — sin un caso real que la exija, montar workers sería código de fe (mismo criterio que F4-PRINT-BT). |
-| Docs | **Swagger (OpenAPI 3.1)** | Auto-generada desde decoradores. Fuente de verdad para `packages/api-client`. |
-| Logs | **Pino** | JSON estructurado, alto throughput. Redacción de campos sensibles (passwords, tokens). |
+| Validación | **Zod 4** (`ZodValidationPipe`) + **validador derivado** | Zod para DTOs estáticos. Los atributos dinámicos se validan con la función pura derivada de `catalog_fields` — sin Ajv (ver § 3.3, 2026-08-16). |
+| Auth | **JWT (access) + Refresh rotativo** | Access en memoria, refresh en cookie `httpOnly + Secure + SameSite=Strict`. RS256 (par de claves). Diseño en § 5.2. |
+| Hash | **Argon2id** | Más resistente que bcrypt a ataques GPU/ASIC. Los parámetros están en SEGURIDAD §2.2. |
+| Rate limit | **@nestjs/throttler + Redis** | Por IP en toda la API y en las rutas de acceso, y por correo al entrar y al recuperar la contraseña. Los valores, en SEGURIDAD §2.2. |
+| Cache / Cola | **Redis 7** (ioredis) | Hoy: límites de intentos, épocas de revocación de sesiones y cachés (entitlements del plan). La cola de jobs (importación, reportes pesados) quedó **diferida** al construir F5: la importación es síncrona fila-por-fila y la exportación es síncrona con tope — sin un caso real que la exija, montar workers sería código de fe (mismo criterio que F4-PRINT-BT). |
+| Correo | **Resend** detrás de `MailerPort` | `MAIL_DRIVER=resend` en producción (la API no arranca con otro); `console` en desarrollo. Sale de `sellpointy.com` con SPF y DKIM. |
+| Docs | **Swagger (OpenAPI)** | Auto-generada desde decoradores, solo en desarrollo y pruebas: en producción no se monta (F10-SEC-02). `packages/api-client` iba a generarse desde aquí y sigue siendo un placeholder. |
+| Logs | **Pino** (`nestjs-pino`) | JSON estructurado a stdout, con redacción de cabeceras de autorización, cookies y contraseñas. |
+| Errores | **Sentry** (`@sentry/node`) | Solo errores: los 5xx de la API (`AllExceptionsFilter`). |
 
 ### 2.2 Frontend Web (`apps/web`)
 
-| Decisión | Recomendación | Justificación |
+| Decisión | Elección | Justificación |
 |---|---|---|
-| Build | **Vite 5** | HMR instantáneo, build optimizado con Rollup. |
-| UI | **React 18 + TypeScript** | Concurrent features (transitions, Suspense), ecosistema robusto. |
+| Build | **Vite 8** | HMR instantáneo, build optimizado con Rollup. |
+| UI | **React 19 + TypeScript** | Concurrent features (transitions, Suspense), ecosistema robusto. |
 | Routing | **TanStack Router** | Type-safe routing, code-splitting nativo, loaders integrados con TanStack Query. |
 | Server state | **TanStack Query v5** | Cache automático, retries, optimistic updates, invalidation. Indispensable para POS en tiempo real. |
-| Client state | **Zustand** | ~1kb, sin boilerplate, ideal para carrito POS, UI state, preferencias. |
+| Client state | **Zustand** | ~1kb, sin boilerplate. Hoy guarda la sesión (el access token, solo en memoria), el carrito del POS, el modal de planes y el borrador de la carga rápida de catálogo, el único que persiste en `localStorage` para no perder lo escaneado. |
 | Forms | **React Hook Form + Zod** | Performance, validación compartida con backend (mismo Zod schema en `packages/shared`). |
-| UI Kit | **Tailwind CSS + shadcn/ui** | Componentes copiados al proyecto (no dep npm), accesibles (Radix UI), customizables. |
-| Tablas | **TanStack Table v8** | Headless, paginación server-side, filtros, ordenamiento. |
+| UI Kit | **Tailwind CSS 4 + shadcn/ui** | Componentes copiados al proyecto (no dep npm), accesibles (Radix UI), customizables. |
+| Tablas | **TanStack Table v9** | Headless, paginación server-side, filtros, ordenamiento. |
 | PWA | **service worker a mano** (`public/sw.js`) | Manifest + cascarón cacheado. Se descartó `vite-plugin-pwa` al construir (F4-PWA-01): precachear la lista del build hace falta para servir TODO offline, y acá solo hace falta que la app ABRA — a cambio, el worker se lee entero en dos minutos y no hay que mantenerlo al día con el bundler. |
 | Escáner | **@zxing/browser** | Códigos de barras vía cámara. Compatible con la mayoría de formatos (EAN, UPC, Code128). |
 | Impresión | **pdfmake 0.2.x** → `window.open(blob)` | El ticket es un PDF que arma el SERVIDOR con su tamaño de papel (58/80 mm) y el navegador abre para imprimir. Se descartó el CSS `@page` al construir (F4-TICKET-02): obligaba a mantener dos plantillas del mismo ticket. `escpos-buffer` + Web Bluetooth siguen sin usarse — F4-PRINT-BT diferida. |
-| HTTP | **Axios** + interceptors | Refresh token automático, manejo de errores centralizado. |
+| HTTP | **Axios** + interceptors | Refresh token automático con single-flight (§ 5.7), manejo de errores centralizado. |
+| Errores | **Sentry** (`@sentry/react`) | Solo errores, y solo desde `app.sellpointy.com`. |
 
 ### 2.3 Tooling
 
 | Herramienta | Para qué |
 |---|---|
-| **Turborepo** | Cache de builds/tests, ejecución paralela, dependency graph. |
+| **Turborepo** | Cache de builds/tests, ejecución paralela, grafo de dependencias. |
 | **pnpm workspaces** | Manejo eficiente de dependencias, dedupe automático. |
-| **Biome** | Lint + format ultra-rápido (10x ESLint). Alternativa: ESLint + Prettier si el equipo prefiere ecosistema más maduro. |
-| **Husky + lint-staged** | Pre-commit: lint + type-check + tests afectados. |
-| **Vitest** | Tests unitarios web (compatible con API de Jest). |
-| **Jest + Supertest** | Tests unitarios e integración para API Nest. |
-| **Playwright** | E2E para flujos críticos (login, venta completa, importación). |
+| **Biome** | Lint + format de todo el repo con un solo binario (`pnpm lint` = `biome check .`). |
+| **Husky + lint-staged + commitlint** | Pre-commit: `biome check` sobre lo que se va a commitear. Commit-msg: commitlint (Conventional Commits; asunto de 100 caracteres como máximo y en minúscula). Los tipos y las pruebas corren en el CI, no en el commit. |
+| **Vitest** | Pruebas de `web`, `packages/shared`, `site` y `manual`. |
+| **Jest + Supertest** | Pruebas del API: unitarias, de integración contra el RLS real conectadas como `sellpoint_app`, y e2e (`pnpm --filter api test:e2e`). |
+| **Playwright** | No hay E2E de navegador en el CI: lo usa `apps/manual` para levantar un SellPointy aparte y tomar las capturas del manual de usuario. |
+| **commit-and-tag-version** | Versión y `CHANGELOG.md` (`pnpm release`, F6-RELEASE). |
 
 ### 2.4 Infraestructura
 
 | Componente | Stack |
 |---|---|
-| Servidor | **VPS Vultr High Frequency 2GB, Ciudad de México** (Ubuntu LTS; decidido 2026-08-04 tras descartar Hetzner post-suba de precios; EC2 previa dada de baja) |
-| Orquestación local y prod | **Docker Compose** (api, web, postgres, redis, nginx) |
-| Proxy reverso | **Nginx** + **Let's Encrypt (certbot)** — HTTPS obligatorio para Web Bluetooth y cámara |
-| Imágenes | **GHCR** (privado, gratis con el repo) |
-| CI/CD | **GitHub Actions**: lint → test → build → push GHCR → SSH deploy |
-| Backups | Cron `pg_dump` cifrado → **Cloudflare R2 / Backblaze B2** (retención 14 días en F0, endurece F6) |
-| Logs | **Pino** → archivo con rotación en F0; destino final a revisar en F6 (sin cuenta AWS: Grafana Loki self-hosted o similar) |
-| Errores | **Sentry** (frontend + backend con `@sentry/nestjs`) |
-| Secretos | `.env.prod` con permisos 600 en F0 (F0-DEPLOY-07); gestor a revisar en F6 (sin cuenta AWS: sops/age o Infisical). Nunca commitear `.env` plano. |
-
+| Servidor | **VPS Vultr High Frequency 2GB, Ciudad de México** (Ubuntu LTS; decidido 2026-08-04 tras descartar Hetzner post-suba de precios; la EC2 del diseño original se dio de baja). En el mismo servidor corren producción (`app.sellpointy.com`), el sandbox (`sandbox.sellpointy.com`), el sitio público y sitios informativos de otros dominios (PHP-FPM). |
+| Orquestación | **Docker Compose**. Producción (`docker-compose.prod.yml`): `nginx-edge`, `web`, `api`, `postgres`, `redis`, `migrate` (corre las migraciones y termina), `certbot` y `php-fpm`; el sandbox tiene su propio compose. En local, `docker-compose.dev.yml` levanta solo Postgres y Redis. |
+| Proxy reverso | **nginx** (`nginx-edge`), el único servicio con puertos publicados (80/443), con **Let's Encrypt** (certbot; renovación por cron y aviso por correo antes de que venza un certificado). HTTPS es obligatorio también para la cámara del escáner. |
+| DNS | **Cloudflare**, en gris: sin proxy ni WAF (pospuesto hasta tener más clientes). |
+| Imágenes | **GHCR** (privado, gratis con el repo): `sellpoint-api`, `sellpoint-web` y `sellpoint-migrate`, con retención automática (`ghcr-retention.yml`). |
+| CI/CD | **GitHub Actions**, un solo pipeline (`deploy.yml`) en cada push a `main`: pruebas (`checks.yml`: lint, tipos, unitarias, integración contra RLS real, e2e y build) → imágenes a GHCR → sandbox (migración y prueba de humo) → producción (prueba de humo, y se revierte sola si falla). Los PR corren `ci.yml`; el sitio, su propio `site.yml` (§ 2.5). Trivy revisa la imagen del API en modo informativo. |
+| Respaldos | `backup-postgres.sh` por cron cada noche: `pg_dump` y los `.env`, cifrados con **age** antes de salir del servidor, a **Cloudflare R2**, con 14 días de historia. Restauración ensayada (F6-DRILL-01). Detalle en SEGURIDAD §3. |
+| Logs | **Pino** a stdout; Docker los rota (10 MB × 3 por servicio) y se leen por SSH. Centralizarlos quedó pospuesto por tamaño (Fase 6). |
+| Errores | **Sentry**, solo errores, en el API y en el navegador (F6-WATCH-02). |
+| Disponibilidad | **UptimeRobot**: dos monitores HTTP a `/api/health` de producción y del sandbox, cada 5 min, con aviso por correo (F6-WATCH-01). |
+| Secretos | `/opt/sellpoint/.env` en el servidor (permisos 600, dueño `deploy`), generado ahí y nunca en git; las llaves del JWT se generan en el servidor y entran como `*_BASE64`. Su copia viaja cifrada en el respaldo nocturno. Un gestor de secretos quedó pospuesto por tamaño (F6-SECRETS-01, versión ligera). |
 
 ### 2.5 El sitio público (`apps/site`) — el tercer despliegue
 
@@ -488,102 +495,66 @@ El TenantAdmin gestiona presentaciones y composición con la **mínima fricción
 - **Composición**: tab "Composición" visible solo si `is_composite=true`. Tabla con `Componente | Cantidad | Unidad | ✕`. Picker de productos con autocompletado. Costo y unidades armables estimados en vivo.
 - **No hay wizards, ni pasos múltiples, ni drag-and-drop.** Solo tablas editables inline.
 
+---
+
+## 4. Estructura del Monorepo
+
+> Revisada el 2026-09-26. Muestra las carpetas que explican la arquitectura, no cada archivo.
+
 ```
 sellpoint/
 ├── apps/
 │   ├── api/                          # NestJS — API REST
 │   │   ├── src/
-│   │   │   ├── modules/
-│   │   │   │   ├── auth/             # login, register, refresh, logout
-│   │   │   │   ├── tenants/          # gestión de tenants y onboarding
-│   │   │   │   ├── users/            # CRUD usuarios, roles, permisos
-│   │   │   │   ├── catalogs/         # motor de catálogos: catálogos, campos, registros
-│   │   │   │   ├── products/         # CRUD productos (validador derivado de campos)
-│   │   │   │   ├── warehouses/       # CRUD almacenes
-│   │   │   │   ├── inventory/        # entradas, salidas, inventario físico
-│   │   │   │   ├── pos/              # ventas, tickets, cierre de caja
-│   │   │   │   ├── reports/          # generación + exportación a Excel
-│   │   │   │   └── audit/            # kardex, audit log
-│   │   │   ├── common/
-│   │   │   │   ├── guards/           # JwtAuthGuard, PermissionsGuard
-│   │   │   │   ├── decorators/       # @CurrentUser, @RequirePermissions
-│   │   │   │   ├── pipes/            # ZodValidationPipe
-│   │   │   │   ├── filters/          # AllExceptionsFilter
-│   │   │   │   └── interceptors/     # LoggingInterceptor
-│   │   │   ├── infrastructure/
-│   │   │   │   ├── prisma/           # PrismaService, TenantContextMiddleware
-│   │   │   │   ├── redis/
-│   │   │   │   ├── mail/             # SES o SendGrid
-│   │   │   │   └── storage/          # S3 para imports/exports
-│   │   │   ├── config/               # variables de entorno tipadas
+│   │   │   ├── modules/              # un módulo por dominio:
+│   │   │   │                         #   auth, tenants, users, roles, permissions
+│   │   │   │                         #   catalogs, products, services, warehouses, suppliers
+│   │   │   │                         #   inventory, cost, pos, purchases, purchase-orders, expenses
+│   │   │   │                         #   reports, audit, billing, admin (backoffice), legal, mail, site
+│   │   │   │                         #   reception y medical-clinic (módulos verticales)
+│   │   │   ├── common/               # pipes (zod), filters, http (CORS, límites, UUID, docs)
+│   │   │   ├── infrastructure/       # prisma (withTenantContext), redis, crypto (argon2),
+│   │   │   │                         #   throttle, warehouse-scope, tenant-context, clock
+│   │   │   ├── config/               # env.schema.ts: variables validadas con zod al arrancar
+│   │   │   ├── i18n/                 # mensajes del API en es/en (nestjs-i18n)
+│   │   │   ├── health/               # /api/health: lo miran UptimeRobot y la prueba de humo
 │   │   │   └── main.ts
-│   │   ├── prisma/
-│   │   │   ├── schema.prisma
-│   │   │   └── migrations/
-│   │   └── test/                     # e2e tests
+│   │   ├── prisma/                   # schema.prisma, migrations/ (con el SQL de RLS), seed.ts
+│   │   ├── scripts/                  # generate-keys.sh (llaves de dev), ensure-test-db.mjs
+│   │   └── test/                     # e2e (Jest + Supertest)
 │   │
-│   └── web/                          # React + Vite — PWA
-│       ├── src/
-│       │   ├── features/             # Screaming architecture
-│       │   │   ├── auth/
-│       │   │   │   ├── components/
-│       │   │   │   ├── hooks/
-│       │   │   │   └── api.ts
-│       │   │   ├── catalog/
-│       │   │   ├── inventory/
-│       │   │   ├── pos/
-│       │   │   └── reports/
-│       │   ├── shared/
-│       │   │   ├── components/       # shadcn/ui copiados acá
-│       │   │   ├── hooks/
-│       │   │   ├── lib/
-│       │   │   │   ├── api.ts        # axios instance + interceptors
-│       │   │   │   ├── auth.ts       # auth store + refresh logic
-│       │   │   │   └── utils.ts
-│       │   │   └── stores/           # Zustand stores
-│       │   ├── routes/               # TanStack Router routes
-│       │   ├── main.tsx
-│       │   └── App.tsx
-│       ├── public/
-│       └── vite.config.ts
+│   ├── web/                          # React + Vite — PWA
+│   │   └── src/
+│   │       ├── routes/               # TanStack Router, una ruta por archivo
+│   │       ├── components/           # por dominio (pos, inventory, system…) + ui/ (shadcn)
+│   │       ├── lib/                  # clientes del API por dominio, auth, theme, pwa, sentry
+│   │       ├── stores/               # Zustand: sesión, carrito, carga rápida, modal de planes
+│   │       ├── i18n/                 # textos de la UI en es/en
+│   │       └── main.tsx
+│   │
+│   ├── site/                         # Astro — sellpointy.com (§ 2.5)
+│   └── manual/                       # generador del manual de usuario (Playwright + PDF)
 │
 ├── packages/
-│   ├── shared/                       # Tipos, Zod schemas, constantes
-│   │   ├── src/
-│   │   │   ├── schemas/              # Zod schemas compartidos
-│   │   │   ├── types/                # Tipos comunes
-│   │   │   └── constants/
-│   │   └── package.json
-│   ├── api-client/                   # Cliente HTTP generado desde OpenAPI
-│   │   └── src/
-│   └── ui/                           # (futuro) componentes compartidos web/mobile
+│   ├── shared/                       # reglas y tipos que comparten API, web y sitio
+│   │                                 #   (dinero, impuestos, códigos, mercados, planes…)
+│   └── api-client/                   # placeholder: iba a generarse desde OpenAPI
 │
 ├── infrastructure/
-│   ├── docker/
-│   │   ├── api.Dockerfile            # multi-stage, non-root user
-│   │   ├── web.Dockerfile            # nginx + build estático
-│   │   └── docker-compose.yml
-│   ├── docker-compose.dev.yml
-│   ├── docker-compose.prod.yml
-│   ├── nginx/
-│   │   ├── nginx.conf
-│   │   └── ssl/
-│   └── scripts/
-│       ├── backup.sh                 # pg_dump → S3 cifrado
-│       ├── restore.sh
-│       └── deploy.sh
+│   ├── docker/                       # api.Dockerfile, web.Dockerfile, php-fpm.Dockerfile
+│   ├── docker-compose.dev.yml        # Postgres + Redis locales
+│   ├── docker-compose.prod.yml       # producción en el VPS
+│   ├── docker-compose.sandbox.yml    # el sandbox, en el mismo VPS
+│   ├── env.prod.example              # qué variables lleva /opt/sellpoint/.env (sin valores)
+│   ├── nginx/                        # nginx-edge: vhosts, cabeceras, límites, TLS
+│   └── scripts/                      # bootstrap, deploy-remote, backup-postgres,
+│                                     #   renew-certs, ghcr-retention, site-deploy-remote…
 │
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                    # lint + test + build
-│       └── deploy.yml                # push imágenes + SSH deploy
-│
-├── turbo.json
-├── pnpm-workspace.yaml
-├── package.json
-├── .gitignore
-├── .env.example
-└── README.md
+├── .github/workflows/                # deploy.yml, checks.yml, ci.yml, site.yml, ghcr-retention.yml
+├── docs/manual/                      # el manual de usuario, un Markdown por capítulo
+├── ARQUITECTURA.md, IMPLEMENTACION.md, SEGURIDAD.md, …
+├── turbo.json, pnpm-workspace.yaml, biome.json, commitlint.config.js
+└── package.json
 ```
 
 ---
@@ -836,30 +807,34 @@ El estado de cada pendiente, con su tarea o su decisión, está en SEGURIDAD §5
 
 **Entregable:** todos los reportes solicitados en los requerimientos originales, visibles en sistema y descargables — más las herencias de F3: valorización con promedio ponderado, vencimientos y tránsito exportables.
 
-### Fase 6 — Hardening de Producción (1 semana)
+### Fase 6 — Hardening de Producción ✅ (quedan F6-DR-01 y F6-DR-02)
 
-1. Dockerfiles productivos: multi-stage, non-root user, sin dependencias de dev
-2. `docker-compose.prod.yml` con Nginx + certbot + healthchecks
-3. CI/CD: GitHub Actions → GHCR → SSH deploy al VPS (Vultr CDMX)
-4. Cron de backups a S3 cifrado
-5. Sentry + CloudWatch
-6. Smoke tests post-deploy
-7. Documentación de runbook (cómo desplegar, rollback, restore)
+> Se hizo con la LEY de la fase (Carlos, 2026-08-27): el proyecto es chico, así que nada que corra permanente en el servidor entra sin pagar su renta en RAM. El detalle, en `IMPLEMENTACION.md` (Fase 6).
 
-**Entregable:** sistema corriendo en EC2 con HTTPS, backups y monitoreo.
+1. Dockerfiles productivos: multi-stage, sin `root`, memoria limitada ✅
+2. `docker-compose.prod.yml` con `nginx-edge`, certbot y healthchecks ✅
+3. CI/CD: un solo pipeline de GitHub Actions → GHCR → sandbox → producción en el VPS de Vultr, con reversión automática ✅
+4. Respaldos nocturnos cifrados con `age` a Cloudflare R2, y restauración ensayada (F6-BACKUPS, F6-DRILL) ✅
+5. Monitoreo: Sentry solo errores y UptimeRobot (F6-WATCH) ✅
+6. Pruebas de humo después de cada despliegue ✅
+7. Cabeceras y límites en nginx, Dependabot y Trivy, versiones con tag y retención en GHCR (F6-EDGE, F6-SUPPLY, F6-RELEASE) ✅
+8. `RUNBOOK.md` (F6-DR-02) y los respaldos automáticos del VPS (F6-DR-01): pendientes
 
-### Fase 7 — Planes + Billing + Suscripciones (3-4 semanas)
+**Entregable:** sistema corriendo en el VPS de Vultr con HTTPS, respaldos y monitoreo. **Pospuesto con razón escrita:** logs centralizados, gestor de secretos, proxy de Cloudflare y firma de imágenes (SEGURIDAD §5).
 
-1. Modelo de `plans` (Chica/Mediana/Empresa) con dimensiones de límite (`max_users`, `max_warehouses`)
-2. `subscriptions` por tenant con estados: trial → active → past_due → canceled
-3. Integración Stripe vía `PaymentGatewayPort` (adapter pattern) — extensible a MercadoPago en el futuro
-4. Trial de 14 días sin tarjeta + dunning con grace period de 7 días → read-only
-5. Webhooks idempotentes (`webhook_events` con unique key) procesados async vía BullMQ
-6. Guards de límite (`@CheckLimit('max_users')`) aplicados retroactivamente a endpoints existentes
-7. Vistas: SuperAdmin (MRR/ARR, override manual), TenantAdmin (mi plan, métodos de pago, historial)
-8. Facturación fiscal (CFDI/SAT, AFIP, DIAN) **fuera de scope MVP** — integración futura con Facturapi/PAC cuando lo pida el primer cliente
+### Fase 7 — Planes + Billing + Suscripciones ✅ CERRADA (cobro manual)
 
-**Entregable:** monetización activa, tenants en planes pagos con suscripciones recurrentes.
+> El diseño original de esta fase (planes Chica/Mediana/Empresa, Stripe primero, webhooks con BullMQ, gracia de 7 días) se reemplazó el 2026-08-27, antes de construirla. Lo que corre está en [`apps/api/src/modules/billing/README.md`](apps/api/src/modules/billing/README.md) y en `IMPLEMENTACION.md` (Fase 7).
+
+1. Planes Free, Basic, Pro, Plus y Premium (este, pactado por cliente), con límites de usuarios y almacenes y funciones por plan; precios por mercado (México, Estados Unidos, Canadá) en `plan_prices`, y anual = mensual × 10
+2. Una suscripción por negocio, nacida en la misma transacción que el negocio, con trial de 14 días a nivel Plus y sin tarjeta
+3. **Cobro manual:** el cliente transfiere y Carlos registra el pago en el backoffice; el sistema calcula el cargo, avanza el período, avisa antes de cada corte y degrada solo al que no paga. Solo un pago registrado promueve
+4. Guards de plan (`subscription.guard.ts`): funciones con `@RequiresFeature` (402), módulos con `@RequiresModule`, y los límites de usuarios y almacenes
+5. Backoffice del operador y «Mi plan» del negocio
+6. Stripe **pospuesto**: el modelo ya tiene sus columnas (`gateway`, `gateway_customer_id`, los price IDs en `plan_prices`) y el adapter entra sin migración cuando el volumen lo pida
+7. Facturación fiscal (CFDI/SAT) sigue fuera de alcance — integración futura con un PAC cuando lo pida el primer cliente
+
+**Entregable:** monetización activa con cobro manual.
 
 ### Fase 8 — Mobile (futuro)
 
@@ -870,7 +845,7 @@ El estado de cada pendiente, con su tarea o su decisión, está en SEGURIDAD §5
 
 ### Fase 9+ — Extensiones Verticales y Módulos Avanzados (futuro, fuera de MVP)
 
-> Módulos opcionales activables por tenant (add-ons sobre el plan base). Se construyen **sobre el core** sin modificarlo. Los add-ons se ofrecen como `subscription_items` adicionales en Stripe — el TenantAdmin los activa/desactiva en `/settings/modules` en cualquier momento, **no obligatoriamente en el onboarding**.
+> Módulos opcionales activables por tenant (add-ons sobre el plan base). Se construyen **sobre el core** sin modificarlo. Cómo se activan hoy (F9-PLANMOD; ver «9.5 Modelo de pricing de los add-ons», más abajo): un módulo **pactado** (`reception`, `medical_clinic`) lo enciende el operador desde el backoffice en `tenant_modules`, y un módulo **de plan** (`expenses`, `purchases`) viene con el plan contratado según `MODULE_MIN_PLAN`. **No se elige en el onboarding.**
 
 **Clientes reales que motivan estos módulos** (registrar en Bitácora cuando se atomice):
 - 1 prospecto — **consultorio médico** → motiva F9-VERT-MEDICAL (receta médica)
@@ -989,7 +964,7 @@ SellPoint soporta **dos idiomas** (español, inglés) a nivel de usuario y **dos
 | **Idioma default** | `es` (español) | Mercado primario MX/LATAM. |
 | **Currency default** | `MXN` | Mercado primario. |
 | **Idiomas soportados (MVP)** | `es`, `en` | Extensible: agregar nuevos locales = agregar archivos de traducción + entry en allowlist. |
-| **Currencies soportadas (MVP)** | `MXN`, `USD` | Extensible: agregar nuevas = agregar entry en tabla `currencies` + Stripe Prices. |
+| **Currencies soportadas** | `MXN`, `USD`, `CAD`, `EUR`, `GBP` | `SUPPORTED_CURRENCIES` en `packages/shared` y la tabla `currencies`. Agregar una = una entrada en ambos. Los planes se cobran solo en MXN, USD y CAD (§ 7.6). |
 | **Detección inicial de idioma** | `Accept-Language` del browser al signup; editable en perfil | UX correcta. |
 | **Resolución de locale en API** | `user.locale` (si autenticado) → `Accept-Language` (público) → `es` (default) | Predecible y testeable. |
 | **Cambio de currency** | Bloqueado si el tenant ya tiene transacciones | Sin tasas de cambio no podemos convertir movimientos históricos. |
@@ -997,7 +972,7 @@ SellPoint soporta **dos idiomas** (español, inglés) a nivel de usuario y **dos
 | **Lib frontend** | `react-i18next` + namespaces por dominio | Estándar React, lazy-load por ruta. |
 | **Catalog data (productos)** | **NO se traduce** en MVP | Es data del tenant. Si en el futuro un tenant necesita catálogo bilingüe, fase aparte. |
 | **Tasas de cambio** | No se implementan | El diseño per-tenant las hace innecesarias. |
-| **Billing currency** | Independiente de la operacional | Tenant MX puede operar en MXN y pagar Stripe en USD si quiere (Stripe maneja multi-currency). |
+| **Moneda del cobro** | La del mercado del negocio | El precio del plan sale de su mercado, no de un tipo de cambio: MXN en México, USD en Estados Unidos, CAD en Canadá (§ 7.6). |
 
 ### 7.2 Modelo de datos
 
@@ -1065,11 +1040,11 @@ export function formatMoney(amount: number, currency: string, locale: string): s
 
 El helper vive en `packages/shared` para reutilizarse en `apps/api` (PDFs, emails), `apps/web` y futuro `apps/mobile`.
 
-### 7.6 Stripe — multi-currency en billing
+### 7.6 El cobro: precios por mercado, sin pasarela
 
-- Cada `plans.code` tiene **2 `Price` por ciclo** en Stripe: uno en MXN y otro en USD (4 prices por plan: monthly_MXN, monthly_USD, annual_MXN, annual_USD).
-- Al onboarding, el tenant elige la `currency` operacional. Esa es **también** la moneda de su suscripción por default — pero puede cambiarla en `/settings/billing`.
-- La conversión MXN↔USD en billing la maneja **Stripe**: no hay tasas en nuestra DB. Si el tenant cambia de currency en billing, Stripe genera invoice de cierre + invoice nueva con prorating.
+- Cada plan tiene **un precio por mercado** en `plan_prices`: MXN en México, USD en Estados Unidos y CAD en Canadá. No se convierte por tipo de cambio.
+- El mercado lo resuelve `resolveMarket` (`packages/shared`): el país del negocio manda; sin país, su moneda. **La misma función** la usan la vitrina y el cobro: mostrar un precio y cobrar otro sería el peor error del módulo.
+- El cobro es manual (§ 6, Fase 7), así que no hay pasarela que maneje monedas. Cuando entre Stripe, los price IDs por mercado ya tienen su columna en `plan_prices` (`billing/README.md` §7).
 
 ### 7.7 Limitaciones explícitas (out of scope MVP)
 
@@ -1083,143 +1058,80 @@ El helper vive en `packages/shared` para reutilizarse en `apps/api` (PDFs, email
 
 ## 8. Variables de Entorno
 
-### `apps/api/.env.example`
+> La fuente de verdad del API es `apps/api/src/config/env.schema.ts`: valida cada variable con zod al arrancar, y la API no levanta si falta una obligatoria o si una combinación está prohibida en producción (`MAIL_DRIVER` distinto de `resend`, `BILLING_ADMIN_EMAILS` vacía, `COOKIE_DOMAIN` con valor). Las plantillas son `apps/api/.env.example` y `apps/web/.env.example` para desarrollo, e `infrastructure/env.prod.example` para el servidor (solo nombres y formato, sin valores).
 
-```bash
-# App
-NODE_ENV=development
-PORT=3000
-APP_URL=http://localhost:3000
+### API
 
-# Database
-DATABASE_URL=postgresql://sellpoint:sellpoint@localhost:5432/sellpoint?schema=public
+| Grupo | Variables | Nota |
+|---|---|---|
+| App | `NODE_ENV`, `PORT`, `APP_URL`, `CORS_ORIGINS` | `APP_URL` arma los enlaces de los correos |
+| Base | `DATABASE_URL`, `DATABASE_URL_ADMIN` | La primera es el runtime (`sellpoint_app`, sujeto a RLS); la segunda, solo las migraciones y el seed |
+| Redis | `REDIS_URL` | |
+| JWT | `JWT_PRIVATE_KEY_BASE64`, `JWT_PUBLIC_KEY_BASE64` (producción) · `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH` (desarrollo) · `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_ACCESS_TTL_MIN` | |
+| Sesión | `REFRESH_COOKIE_PATH`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_FAMILY_MAX_DAYS`, `COOKIE_DOMAIN` | `COOKIE_DOMAIN` va vacía: la cookie es solo del host |
+| Límites | `THROTTLE_ENABLED`, `TRUST_PROXY_HOPS`, `THROTTLE_GLOBAL_*`, `THROTTLE_AUTH_IP_*`, `THROTTLE_AUTH_EMAIL_*` | Los valores por omisión, en SEGURIDAD §2.2 |
+| Correo | `MAIL_DRIVER` (`console`, `resend` o `noop`), `MAIL_FROM`, `RESEND_API_KEY` | |
+| Errores | `SENTRY_DSN` | |
+| Plataforma | `BILLING_ADMIN_EMAILS`, `PLATFORM_NOTIFY_EMAILS`, `BILLING_CRON_ENABLED`, `BILLING_CRON_TZ`, `BILLING_CRON_HOUR`, `SITE_LEADS_RETENTION_ENABLED` | Quién entra al backoffice, a quién se avisa, y los jobs |
+| Solo en el servidor | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SELLPOINT_APP_PASSWORD`, `GHCR_OWNER`, `IMAGE_TAG`, `NODE_OPTIONS` | Los usa docker compose; `IMAGE_TAG` es la versión que corre |
 
-# Redis
-REDIS_URL=redis://localhost:6379
+El idioma y la moneda no son variables: salen del negocio (§ 7).
 
-# JWT
-JWT_PRIVATE_KEY_PATH=./keys/jwt-private.pem
-JWT_PUBLIC_KEY_PATH=./keys/jwt-public.pem
-JWT_ACCESS_EXPIRES=15m
-JWT_REFRESH_EXPIRES=7d
+### Web (se hornean en el build)
 
-# Cookies
-COOKIE_DOMAIN=localhost
-COOKIE_SECURE=false  # true en prod
+| Variable | Para qué |
+|---|---|
+| `VITE_API_URL` | A qué API habla el web |
+| `VITE_SENTRY_DSN` | Sentry del navegador |
+| `VITE_APP_VERSION`, `VITE_APP_BUILD` | La versión que se ve al pie del menú |
 
-# CORS
-CORS_ORIGINS=http://localhost:5173
-
-# Mail (SES o SendGrid)
-MAIL_FROM=noreply@sellpoint.app
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_USER=
-SMTP_PASS=
-
-# AWS (prod)
-AWS_REGION=us-east-1
-S3_BACKUPS_BUCKET=sellpoint-backups
-
-# Sentry
-SENTRY_DSN=
-
-# Logs
-LOG_LEVEL=info
-
-# i18n
-DEFAULT_LOCALE=es
-SUPPORTED_LOCALES=es,en
-
-# Currency
-DEFAULT_CURRENCY=MXN
-SUPPORTED_CURRENCIES=MXN,USD
-```
-
-### `apps/web/.env.example`
-
-```bash
-VITE_API_URL=http://localhost:3000
-VITE_SENTRY_DSN=
-VITE_DEFAULT_LOCALE=es
-VITE_SUPPORTED_LOCALES=es,en
-```
-
-> **Importante:** En producción, los secretos viven en **AWS Parameter Store** (SecureString con KMS), no en `.env` plano. Los servicios los leen en startup o vía sidecar.
+> **En producción los secretos viven en `/opt/sellpoint/.env`** (permisos 600, dueño `deploy`), generado en el servidor y nunca en git; su copia viaja cifrada con `age` en el respaldo nocturno (§ 2.4).
 
 ---
 
 ## 9. Comandos de Inicio Rápido
 
+> El día a día está en [`README.md`](README.md), y las reglas para commitear, probar y desplegar, en [`CONTRIBUTING.md`](CONTRIBUTING.md). Aquí va lo mínimo.
+
 ### Primera vez
 
 ```bash
-# Clonar e instalar
-git clone <repo>
-cd sellpoint
-pnpm install
-
-# Copiar envs
+pnpm install                              # dependencias y git hooks
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
-
-# Generar par de claves JWT
-mkdir -p apps/api/keys
-openssl genpkey -algorithm RSA -out apps/api/keys/jwt-private.pem -pkeyopt rsa_keygen_bits:2048
-openssl rsa -pubout -in apps/api/keys/jwt-private.pem -out apps/api/keys/jwt-public.pem
-
-# Levantar Postgres + Redis
-docker compose -f infrastructure/docker-compose.dev.yml up -d postgres redis
-
-# Migraciones + seed
-pnpm --filter api prisma migrate dev
-pnpm --filter api prisma db seed
+bash apps/api/scripts/generate-keys.sh    # par RS256 de desarrollo en apps/api/keys/
+pnpm dev:up                               # Postgres + Redis (docker-compose.dev.yml)
+cd apps/api && pnpm exec prisma migrate deploy && pnpm exec prisma db seed
 ```
 
 ### Día a día
 
 ```bash
-# Levantar todo en dev (api + web)
-pnpm dev
-
-# Solo API
-pnpm --filter api dev
-
-# Solo Web
-pnpm --filter web dev
-
-# Tests
-pnpm test           # todos
-pnpm --filter api test
-pnpm --filter web test
-
-# Lint + format
-pnpm lint
-pnpm format
-
-# Type-check
-pnpm type-check
-
-# Build producción
+pnpm dev                      # api + web (turbo)
+pnpm lint                     # biome check del repo
+pnpm typecheck:full           # los tipos, igual que el CI
+pnpm test                     # todas las pruebas; el API usa su propia base, sellpoint_test
+pnpm --filter api test:e2e    # e2e del API
 pnpm build
+pnpm manual                   # regenera el manual de usuario (~10 min)
 
-# Prisma
-pnpm --filter api prisma migrate dev --name <nombre>
-pnpm --filter api prisma studio
+# Migración nueva
+cd apps/api && pnpm exec prisma migrate dev --name <nombre>
 ```
 
-### Producción (EC2)
+`pnpm test` migra solo `sellpoint_test`. La base del servidor de desarrollo (`sellpoint_dev`) se migra aparte, con `prisma migrate deploy` y su `DATABASE_URL`.
 
-```bash
-# Deploy manual
-./infrastructure/scripts/deploy.sh
+### Producción (VPS de Vultr)
 
-# Backup manual
-./infrastructure/scripts/backup.sh
+No hay despliegue a mano: **un push a `main`** corre `deploy.yml` (pruebas → imágenes → sandbox → producción).
 
-# Restore
-./infrastructure/scripts/restore.sh <backup-file>
-```
+| Qué | Cómo |
+|---|---|
+| Desplegar | Push a `main` |
+| Volver a la versión anterior | Automático si falla la prueba de humo; a mano, con `IMAGE_TAG` en `/opt/sellpoint/.env` (`infrastructure/scripts/deploy-remote.sh`) |
+| Respaldo | Cron nocturno con `infrastructure/scripts/backup-postgres.sh`; también se puede correr a mano en el servidor |
+| Restaurar | El paso a paso está en el encabezado de `backup-postgres.sh`, hasta que exista `RUNBOOK.md` (F6-DR-02) |
+| Publicar una versión con número | `pnpm release` y push del tag (README, «Releases») |
 
 ---
 
@@ -1244,7 +1156,7 @@ pnpm --filter api prisma studio
 | **Lote** | Partida de un producto con un `lot_code` único por producto y una **caducidad propia del lote** (`expires_at`, opcional). Solo existe para productos con `tracks_lots = true` (opt-in). Su stock se guarda en `stock_lots` por almacén y **ubicación** (texto libre; la ubicación parte el stock), y la suma siempre iguala al total de `stock_by_warehouse`. |
 | **FEFO** | *First Expired, First Out*: en una salida (incluida la venta del POS) de un producto con lotes, el ledger descuenta primero del lote que **vence antes** (`expires_at ASC`, los sin fecha al final). El usuario puede forzar un lote concreto. Es genérico: lo usa una farmacia con medicinas, una tienda con alimentos o una refaccionaria con partidas. |
 | **Vertical** | Especialización del sistema para un rubro específico (farmacia, consultorio, óptica, gastronomía, etc.). El core es vertical-agnóstico; los verticales se agregan como add-ons opcionales en Fase 9+. |
-| **Add-on / Módulo activable** | Módulo opcional que un tenant activa en `/settings/modules` con precio independiente del plan base. Stripe lo modela como `subscription_item` adicional (Fase 7 + Fase 9). |
+| **Add-on / Módulo activable** | Módulo opcional sobre el core. Si es **pactado** (`reception`, `medical_clinic`), lo enciende el operador desde el backoffice y lleva al negocio a Premium con precio pactado; si es **de plan** (`expenses`, `purchases`), viene con el plan (F9-PLANMOD). |
 | **Cotización** | Documento previo a la venta con folio `COT-…` y líneas de productos/servicios a precio de **referencia** — sin vigencia ni precios congelados: el POS los recalcula al cargarla. Estados `open → loaded / canceled`. Tabla `quotes` (**Fase 4**, adelantada de F9; la vista pública compartible queda como `F9-QUOTE-SHARE`). |
 | **Prescripción / Documento clínico** | Documento generado por un módulo vertical clínico (receta médica, plan dental, receta óptica, orden de servicio) con un **folio** que se referencia en el POS para pre-cargar las líneas de la venta. Tabla `clinical_documents` (Fase 9+). |
 | **Folio de prescripción / cotización** | Identificador único del documento. Input opcional en el POS que busca el documento y pre-carga el carrito. |
