@@ -429,7 +429,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       it("los temas de la segunda tanda (2026-08-26) también persisten", async () => {
         const owner = await registerActiveOwner();
 
-        for (const theme of ["emerald", "cabin", "cotton", "charcoal"]) {
+        for (const theme of ["emerald", "cabin", "cotton", "charcoal", "sellpointy"]) {
           const response = await request(app.getHttpServer())
             .patch("/tenants/me")
             .set("Authorization", bearer(owner.accessToken))

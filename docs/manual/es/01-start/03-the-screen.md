@@ -106,8 +106,9 @@ en **Mi perfil** › **Tema**. Esa tarjeta solo la ve quien tiene el permiso
 
 ![El tema del negocio, en Mi perfil; aquí, con Oscuro](screen:theme-card)
 
-Hay ocho: **Claro**, **Oscuro**, **Arena**, **Uva**, **Esmeralda**, **Cabina**,
-**Algodón** y **Carbón**. Al presionar uno, SellPointy se pinta con él y queda
+Hay nueve: **Claro**, **Oscuro**, **Arena**, **Uva**, **Esmeralda**, **Cabina**,
+**Algodón**, **Carbón** y **SellPointy**, que lleva los colores de la marca, con
+el menú en azul. Al presionar uno, SellPointy se pinta con él y queda
 guardado, sin presionar ningún botón. Tú lo ves al instante; los demás, la
 próxima vez que abran SellPointy o recarguen la página.
 

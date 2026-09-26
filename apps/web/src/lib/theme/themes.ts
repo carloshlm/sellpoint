@@ -27,6 +27,7 @@ export const THEME_IDS = [
   "cabin",
   "cotton",
   "charcoal",
+  "sellpointy",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -69,6 +70,14 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     nameKey: "common.theme.names.charcoal",
     swatch: "#d9954a",
     isDark: true,
+  },
+  // La marca (Carlos, 2026-09-26): la muestra es el azul profundo del menú,
+  // que es lo que distingue este tema del Claro de un vistazo.
+  sellpointy: {
+    id: "sellpointy",
+    nameKey: "common.theme.names.sellpointy",
+    swatch: "#15309f",
+    isDark: false,
   },
 };
 

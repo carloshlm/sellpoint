@@ -116,7 +116,7 @@ asistente se pinta con él para que veas cómo queda; si no eliges, se queda
 
 Presiona **Terminar**. SellPointy guarda el tema, deja listos los impuestos de
 tu país (capítulo 13) y te lleva a tu **Panel**. El tema lo puedes cambiar
-cuando quieras, entre ocho, en **Mi perfil** (capítulo 3).
+cuando quieras, entre nueve, en **Mi perfil** (capítulo 3).
 
 ## Tu prueba gratis
 

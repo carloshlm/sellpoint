@@ -337,6 +337,54 @@
   --sidebar-ring: #e37e9e;
 }
 
+/* ===================== TEMA: LA MARCA «SellPointy» =========================
+   Los colores de sellpointy.com, tal cual (apps/site/src/styles/tokens.css):
+   el fondo gris azulado del sitio, el azul #1e3fd8 como primario y el menú
+   lateral en el azul profundo #15309f, como la portada. Carlos lo eligió
+   entre tres propuestas el 2026-09-26 («Cobalto»). El contenido sigue CLARO
+   a propósito: un cajero pasa ocho horas frente a la pantalla de venta.
+
+   El amarillo #ffc42e del logotipo es ACENTO, no color de botón: con texto
+   blanco no se lee, y con texto oscuro se confunde con las advertencias, que
+   también son amarillas. Va en el anillo de foco (`--ring`), donde se nota
+   sin competir con nada. Tema claro: no enciende `.dark`, y los semánticos
+   (éxito, advertencia) son los de :root, como en todos los claros. */
+:root[data-theme="sellpointy"] {
+  --background: #f4f5fa;
+  --foreground: #0d1233;
+  --card: #ffffff;
+  --card-foreground: #0d1233;
+  --popover: #ffffff;
+  --popover-foreground: #0d1233;
+  --primary: #1e3fd8;
+  --primary-foreground: #ffffff;
+  --secondary: #edf0fb;
+  --secondary-foreground: #0d1233;
+  --muted: #edf0fb;
+  --muted-foreground: #565d80;
+  --accent: #edf0fb;
+  --accent-foreground: #15309f;
+  --destructive: #d23f3f;
+  --destructive-foreground: #ffffff;
+  --border: #dfe2ee;
+  --input: #dfe2ee;
+  --ring: #ffc42e;
+  --radius: 0.5rem;
+  --chart-1: #1e3fd8;
+  --chart-2: oklch(0.5861 0.1343 156.58);
+  --chart-3: #ffc42e;
+  --chart-4: #15309f;
+  --chart-5: #7c8ee6;
+  --sidebar: #15309f;
+  --sidebar-foreground: #e6eaff;
+  --sidebar-primary: #ffc42e;
+  --sidebar-primary-foreground: #0d1233;
+  --sidebar-accent: #1e3fd8;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2747e0;
+  --sidebar-ring: #ffc42e;
+}
+
 /* ======================== TEMA: OSCURO «Carbón» ============================
    Negro cálido con acento cobre: el azul desaparece y el sistema toma una
    identidad de noche cálida. Tema oscuro: `.dark` lo acompaña. */

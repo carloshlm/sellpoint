@@ -75,7 +75,17 @@ export const updateTenantSchema = z
     // mismo criterio que currency/country. Los primeros 4 se ofrecen en el
     // wizard; los 8 completos, desde Mi perfil.
     theme: z
-      .enum(["light", "dark", "sand", "grape", "emerald", "cabin", "cotton", "charcoal"])
+      .enum([
+        "light",
+        "dark",
+        "sand",
+        "grape",
+        "emerald",
+        "cabin",
+        "cotton",
+        "charcoal",
+        "sellpointy",
+      ])
       .optional(),
     // F7-POS-05: "Vender sin existencias". En planes CON control de stock lo
     // decide el admin; en Free/Basic la venta sin stock ya es implícita por

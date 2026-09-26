@@ -44,6 +44,7 @@ describe("catálogo de temas", () => {
       "grape",
       "light",
       "sand",
+      "sellpointy",
     ]);
   });
 
@@ -97,7 +98,7 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
     // Que un tenant elija su tema no puede volver indistinguible un error de
     // un éxito. Los temas CLAROS usan los semánticos de :root; los oscuros
     // usan los de `.dark` — por eso `applyTheme` los acompaña con la clase.
-    for (const id of ["sand", "grape", "emerald", "cotton"] as const) {
+    for (const id of ["sand", "grape", "emerald", "cotton", "sellpointy"] as const) {
       const block =
         css.match(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
       expect(block).not.toContain("--success:");

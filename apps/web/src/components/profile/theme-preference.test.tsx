@@ -56,12 +56,12 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
     expect(screen.getByRole("radio", { name: "Arena" })).toBeChecked();
   });
 
-  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO. */
-  it("ofrece los OCHO temas, segunda tanda incluida", () => {
+  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: las dos tandas y el de la marca (2026-09-26). */
+  it("ofrece los NUEVE temas, segunda tanda y marca incluidas", () => {
     renderCard(demoUser(["tenants:manage"]));
 
-    expect(screen.getAllByRole("radio")).toHaveLength(8);
-    for (const nombre of ["Esmeralda", "Cabina", "Algodón", "Carbón"]) {
+    expect(screen.getAllByRole("radio")).toHaveLength(9);
+    for (const nombre of ["Esmeralda", "Cabina", "Algodón", "Carbón", "SellPointy"]) {
       expect(screen.getByRole("radio", { name: nombre })).toBeInTheDocument();
     }
   });
