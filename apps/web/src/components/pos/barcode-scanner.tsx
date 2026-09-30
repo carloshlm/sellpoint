@@ -2,6 +2,7 @@ import { Camera, CameraOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { createConfirmer, isInsideArea, visibleArea } from "@/lib/scanner/visible-area";
 
 /**
  * F4-CART-04 — el escáner de cámara.
@@ -106,7 +107,13 @@ const FOCO_ESCANER_M = 0.15;
 const FORMATOS_1D = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar"];
 
 interface DetectorNativo {
-  detect: (v: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>;
+  // `boundingBox` viene en pixeles de la FOTO, los mismos de `visibleArea`.
+  detect: (v: HTMLVideoElement) => Promise<
+    Array<{
+      rawValue: string;
+      boundingBox?: { x: number; y: number; width: number; height: number };
+    }>
+  >;
 }
 
 interface ConstructorDetectorNativo {
@@ -148,6 +155,15 @@ const OPCIONES_LECTOR = { delayBetweenScanAttempts: 100 };
  * ventana también: tres unidades iguales son tres entregas legítimas.
  */
 const ENFRIAMIENTO_MS = 1500;
+
+/**
+ * La DOBLE lectura (Carlos, 2026-09-29): un código se entrega cuando se lee
+ * igual dos veces seguidas con no más de esto entre las dos. Los intentos van
+ * cada ~100 ms más lo que tarde el detector; 500 ms deja pasar un cuadro sin
+ * código en medio. Cuesta ~100 ms por código y elimina las lecturas borrosas
+ * que cuadran su dígito verificador — ver `lib/scanner/visible-area.ts`.
+ */
+const CONFIRMACION_MS = 500;
 
 /**
  * SIN hints — y en particular SIN `TRY_HARDER`, aunque un arreglo anterior lo
@@ -338,8 +354,12 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // escaneando hasta que el usuario elija parar. El enfriamiento evita
         // que los cuadros consecutivos del MISMO código se cobren doble; la
         // vibración es el «bip» del escáner: sin ella no se sabe si registró.
+        const confirmar = createConfirmer(CONFIRMACION_MS);
         const entregar = (texto: string) => {
           const ahora = Date.now();
+          if (!confirmar(texto, ahora)) {
+            return;
+          }
           const previa = ultimaLecturaRef.current;
           if (previa !== null && previa.texto === texto && ahora - previa.en < ENFRIAMIENTO_MS) {
             return;
@@ -368,7 +388,13 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
             }
             try {
               const codigos = await detector.detect(video);
-              const texto = codigos[0]?.rawValue;
+              // SOLO lo que se ve (2026-09-29): el detector recibe la foto
+              // completa y el recuadro muestra el tercio central. Un código
+              // fuera de la vista no cuenta, aunque se lea bien.
+              const area = visibleArea(video);
+              const texto = codigos.find(
+                (codigo) => codigo.rawValue !== "" && isInsideArea(codigo.boundingBox, area),
+              )?.rawValue;
               if (texto !== undefined && texto !== "" && vivo && !cancelado) {
                 // Sin `return`: el loop sigue — modo continuo. El
                 // enfriamiento de `entregar` filtra los cuadros repetidos.
@@ -523,9 +549,11 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           <video
             ref={videoRef}
             // Franja de escáner, no pantalla completa (Carlos, 2026-08-23):
-            // `object-cover` recorta solo lo visible — el detector recibe el
-            // cuadro entero — y el recorte simétrico deja el centro real
-            // exactamente donde la guía dice que está.
+            // `object-cover` recorta solo lo visible y el recorte simétrico
+            // deja el centro real exactamente donde la guía dice que está. El
+            // detector nativo recibe la foto ENTERA: por eso descarta lo que
+            // cae fuera de este recuadro (`visibleArea`, 2026-09-29). zxing
+            // barre las filas del centro, que son las de la línea.
             className="h-48 w-full rounded-md bg-black object-cover"
             autoPlay
             muted

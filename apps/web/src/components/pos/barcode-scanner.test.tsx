@@ -240,10 +240,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    * ventana — pero dos códigos DISTINTOS seguidos sí, y el mismo código tras
    * la ventana también (tres unidades iguales son tres entregas legítimas).
    */
-  it("un código leído se entrega y la cámara SIGUE encendida", async () => {
+  it("un código leído DOS veces seguidas se entrega y la cámara SIGUE encendida", async () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 40);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -261,6 +262,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
       setTimeout(() => callback({ getText: () => "7501234567890" }), 60);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 110);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -268,7 +270,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     await encender();
 
     await waitFor(() => expect(onScan).toHaveBeenCalled());
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 200));
     expect(onScan).toHaveBeenCalledTimes(1);
   });
 
@@ -276,7 +278,9 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      setTimeout(() => callback({ getText: () => "064042603179" }), 60);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 40);
+      setTimeout(() => callback({ getText: () => "064042603179" }), 70);
+      setTimeout(() => callback({ getText: () => "064042603179" }), 100);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -292,9 +296,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 40);
       // Tres unidades iguales son tres entregas legítimas: la ventana solo
       // filtra los cuadros consecutivos de UNA misma pasada.
       setTimeout(() => callback({ getText: () => "7501234567890" }), 1700);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 1730);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -302,6 +308,91 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     await encender();
 
     await waitFor(() => expect(onScan).toHaveBeenCalledTimes(2), { timeout: 3000 });
+  });
+
+  /**
+   * Carlos, 2026-09-29: con el código a la vista entregaba lecturas VÁLIDAS
+   * pero equivocadas (721733000937, 721966444003… para un 721733000968): una
+   * lectura borrosa cuadra el dígito verificador de vez en cuando. Un código
+   * cuenta si se lee igual dos veces seguidas, como en un escáner de mostrador.
+   */
+  it("una sola lectura NO se entrega: puede ser borrosa", async () => {
+    const onScan = vi.fn();
+    decodeFromStream.mockImplementation((_stream, _video, callback) => {
+      setTimeout(() => callback({ getText: () => "721733000937" }), 10);
+      setTimeout(() => callback({ getText: () => "721733000968" }), 40);
+      return Promise.resolve({ stop });
+    });
+    renderScanner(onScan);
+
+    await encender();
+
+    await new Promise((r) => setTimeout(r, 150));
+    expect(onScan).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Carlos, 2026-09-29: un código DEBAJO del recuadro se leía. El video usa
+   * `object-cover`: con la cámara vertical el recuadro muestra solo el tercio
+   * central de la foto, y el detector nativo recibe la foto completa. Se
+   * fingen las medidas de un teléfono: 1080×1920 en una franja de 360×192
+   * (se ve de y=672 a y=1248).
+   */
+  describe("solo cuenta lo que se ve en el recuadro (detector nativo)", () => {
+    const medidas = { videoWidth: 1080, videoHeight: 1920, clientWidth: 360, clientHeight: 192 };
+    beforeEach(() => {
+      for (const [prop, value] of Object.entries(medidas)) {
+        Object.defineProperty(HTMLVideoElement.prototype, prop, { value, configurable: true });
+      }
+    });
+    afterEach(() => {
+      for (const prop of Object.keys(medidas)) {
+        Reflect.deleteProperty(HTMLVideoElement.prototype, prop);
+      }
+    });
+
+    it("un código debajo del recuadro NO se entrega, aunque esté en la foto", async () => {
+      const detect = vi
+        .fn()
+        .mockResolvedValue([
+          { rawValue: "721733000968", boundingBox: { x: 300, y: 1500, width: 480, height: 160 } },
+        ]);
+      instalarDetectorNativo(detect);
+      const onScan = renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(detect.mock.calls.length).toBeGreaterThan(2));
+      expect(onScan).not.toHaveBeenCalled();
+    });
+
+    it("el código sobre la línea sí se entrega", async () => {
+      const detect = vi
+        .fn()
+        .mockResolvedValue([
+          { rawValue: "721733000968", boundingBox: { x: 300, y: 900, width: 480, height: 160 } },
+        ]);
+      instalarDetectorNativo(detect);
+      const onScan = renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(onScan).toHaveBeenCalledWith("721733000968"));
+    });
+
+    it("si en la foto hay uno fuera y otro dentro, se entrega el de dentro", async () => {
+      const detect = vi.fn().mockResolvedValue([
+        { rawValue: "9788353000038", boundingBox: { x: 300, y: 1500, width: 480, height: 160 } },
+        { rawValue: "721733000968", boundingBox: { x: 300, y: 900, width: 480, height: 160 } },
+      ]);
+      instalarDetectorNativo(detect);
+      const onScan = renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(onScan).toHaveBeenCalledWith("721733000968"));
+      expect(onScan).not.toHaveBeenCalledWith("9788353000038");
+    });
   });
 
   /**
