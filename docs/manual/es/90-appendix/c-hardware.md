@@ -32,8 +32,8 @@ Al elegirlo o configurarlo, revisa dos cosas:
   eso ahí sí es indispensable que el lector mande Enter.
 - **Sin lector**, en un celular o una tableta puedes presionar **Escanear con
   la cámara** al vender. Coloca el código horizontal, sobre la línea: solo
-  cuenta lo que se ve dentro del recuadro, y cada código se lee dos veces
-  antes de entrar al carrito, para no cobrar una lectura borrosa. Si el
+  cuenta lo que se ve dentro del recuadro, y una lectura dudosa no entra al
+  carrito hasta que se repite. Si el
   navegador no puede usar la cámara, verás **No pudimos usar la cámara. Puedes
   buscar tecleando.** En una computadora ese botón no aparece: ahí se escanea
   con un lector o se teclea el código.

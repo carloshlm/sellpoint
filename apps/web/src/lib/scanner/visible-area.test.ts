@@ -53,19 +53,27 @@ describe("isInsideArea: el código cuenta si su centro está a la vista", () => 
   });
 });
 
-describe("createConfirmer: un código cuenta si se lee igual dos veces seguidas", () => {
-  it("la primera lectura no basta; la segunda igual y seguida, sí", () => {
+describe("createConfirmer: un código cuenta si se lee igual dos veces en la ventana", () => {
+  it("la primera lectura no basta; la segunda igual, sí", () => {
     const confirm = createConfirmer(500);
     expect(confirm("721733000968", 0)).toBe(false);
     expect(confirm("721733000968", 100)).toBe(true);
   });
 
-  it("una lectura borrosa distinta en medio vuelve a empezar la cuenta", () => {
+  it("una lectura borrosa distinta en medio NO reinicia la cuenta", () => {
+    // Carlos, 2026-09-29, en su Android: con «dos seguidas» un cuadro fallido
+    // en medio obligaba a sostener el producto quieto y a la distancia exacta.
     const confirm = createConfirmer(500);
     expect(confirm("721733000968", 0)).toBe(false);
     expect(confirm("721733000937", 100)).toBe(false);
-    expect(confirm("721733000968", 200)).toBe(false);
-    expect(confirm("721733000968", 300)).toBe(true);
+    expect(confirm("721733000968", 200)).toBe(true);
+  });
+
+  it("la lectura borrosa no junta votos con la buena", () => {
+    const confirm = createConfirmer(500);
+    expect(confirm("721733000968", 0)).toBe(false);
+    expect(confirm("721733000937", 100)).toBe(false);
+    expect(confirm("721966444003", 200)).toBe(false);
   });
 
   it("la misma lectura, pero ya fuera de la ventana, no confirma", () => {

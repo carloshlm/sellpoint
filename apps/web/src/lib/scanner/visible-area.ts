@@ -78,16 +78,21 @@ export function isInsideArea(box: Area | undefined, area: Area | null): boolean 
 }
 
 /**
- * Un código cuenta cuando se lee IGUAL dos veces seguidas, con no más de
- * `windowMs` entre las dos. Una lectura borrosa rara vez se repite idéntica;
- * un código bien leído se repite en el cuadro siguiente (~100 ms después).
- * Una lectura distinta en medio vuelve a empezar la cuenta.
+ * Un código cuenta cuando se lee IGUAL dos veces dentro de `windowMs`, no
+ * necesariamente seguidas: una lectura borrosa distinta en medio NO reinicia
+ * la cuenta. Así fue el primer intento (2026-09-29) y Carlos lo sufrió en su
+ * Android: cada intento del detector tarda 100–300 ms más la pausa, y con
+ * «dos seguidas en 500 ms» un solo cuadro fallido volvía a empezar — solo
+ * confirmaba con el producto quieto y a la distancia exacta. Una lectura
+ * borrosa rara vez se repite idéntica; la buena se repite en cuanto el
+ * detector vuelve a acertar.
  */
 export function createConfirmer(windowMs: number): (text: string, at: number) => boolean {
-  let last: { text: string; at: number } | null = null;
+  let reads: Array<{ text: string; at: number }> = [];
   return (text, at) => {
-    const confirmed = last !== null && last.text === text && at - last.at <= windowMs;
-    last = { text, at };
-    return confirmed;
+    reads = reads.filter((read) => at - read.at <= windowMs);
+    const votes = reads.filter((read) => read.text === text).length + 1;
+    reads.push({ text, at });
+    return votes >= 2;
   };
 }

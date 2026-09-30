@@ -240,11 +240,10 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    * ventana — pero dos códigos DISTINTOS seguidos sí, y el mismo código tras
    * la ventana también (tres unidades iguales son tres entregas legítimas).
    */
-  it("un código leído DOS veces seguidas se entrega y la cámara SIGUE encendida", async () => {
+  it("un código leído se entrega y la cámara SIGUE encendida", async () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 40);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -262,7 +261,6 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
       setTimeout(() => callback({ getText: () => "7501234567890" }), 60);
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 110);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -270,7 +268,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     await encender();
 
     await waitFor(() => expect(onScan).toHaveBeenCalled());
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 150));
     expect(onScan).toHaveBeenCalledTimes(1);
   });
 
@@ -278,9 +276,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 40);
-      setTimeout(() => callback({ getText: () => "064042603179" }), 70);
-      setTimeout(() => callback({ getText: () => "064042603179" }), 100);
+      setTimeout(() => callback({ getText: () => "064042603179" }), 60);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -296,11 +292,9 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 40);
       // Tres unidades iguales son tres entregas legítimas: la ventana solo
       // filtra los cuadros consecutivos de UNA misma pasada.
       setTimeout(() => callback({ getText: () => "7501234567890" }), 1700);
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 1730);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
@@ -311,24 +305,41 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   });
 
   /**
-   * Carlos, 2026-09-29: con el código a la vista entregaba lecturas VÁLIDAS
-   * pero equivocadas (721733000937, 721966444003… para un 721733000968): una
-   * lectura borrosa cuadra el dígito verificador de vez en cuando. Un código
-   * cuenta si se lee igual dos veces seguidas, como en un escáner de mostrador.
+   * Carlos, 2026-09-29: con el código a la vista, el detector NATIVO entregaba
+   * lecturas VÁLIDAS pero equivocadas (721733000937, 721966444003… para un
+   * 721733000968): ML Kit tolera tanto el desenfoque que a veces cuadra un
+   * dígito verificador. Un código cuenta cuando se lee igual dos veces en la
+   * ventana; una lectura borrosa distinta en medio no reinicia la cuenta.
+   * zxing (iPhone) NO confirma: exigírselo lo dejó sin leer (2026-09-30).
    */
-  it("una sola lectura NO se entrega: puede ser borrosa", async () => {
+  it("el detector nativo entrega la lectura que se REPITE, no la borrosa", async () => {
+    const detect = vi
+      .fn()
+      .mockResolvedValueOnce([{ rawValue: "721733000937" }])
+      .mockResolvedValueOnce([{ rawValue: "721733000968" }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ rawValue: "721733000968" }]);
+    instalarDetectorNativo(detect);
+    const onScan = renderScanner();
+
+    await encender();
+
+    await waitFor(() => expect(onScan).toHaveBeenCalledWith("721733000968"));
+    expect(onScan).not.toHaveBeenCalledWith("721733000937");
+    expect(onScan).toHaveBeenCalledTimes(1);
+  });
+
+  it("zxing (iPhone) entrega al PRIMER acierto: falla en vez de inventar", async () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
-      setTimeout(() => callback({ getText: () => "721733000937" }), 10);
-      setTimeout(() => callback({ getText: () => "721733000968" }), 40);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
       return Promise.resolve({ stop });
     });
     renderScanner(onScan);
 
     await encender();
 
-    await new Promise((r) => setTimeout(r, 150));
-    expect(onScan).not.toHaveBeenCalled();
+    await waitFor(() => expect(onScan).toHaveBeenCalledWith("7501234567890"));
   });
 
   /**
@@ -366,7 +377,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       expect(onScan).not.toHaveBeenCalled();
     });
 
-    it("el código sobre la línea sí se entrega", async () => {
+    it("el código sobre la línea sí se entrega (leído dos veces)", async () => {
       const detect = vi
         .fn()
         .mockResolvedValue([
@@ -392,6 +403,41 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       await waitFor(() => expect(onScan).toHaveBeenCalledWith("721733000968"));
       expect(onScan).not.toHaveBeenCalledWith("9788353000038");
+    });
+
+    /**
+     * Cuando el navegador sabe recortar, el detector recibe SOLO el área
+     * visible: un tercio de los píxeles, y ningún código de fuera. El bitmap
+     * se cierra siempre — es memoria de la GPU.
+     */
+    it("si el navegador sabe recortar, el detector recibe el recorte y se cierra", async () => {
+      const close = vi.fn();
+      const bitmap = { close };
+      const createImageBitmap = vi.fn().mockResolvedValue(bitmap);
+      Object.defineProperty(window, "createImageBitmap", {
+        value: createImageBitmap,
+        configurable: true,
+      });
+      try {
+        const detect = vi.fn().mockResolvedValue([{ rawValue: "721733000968" }]);
+        instalarDetectorNativo(detect);
+        const onScan = renderScanner();
+
+        await encender();
+
+        await waitFor(() => expect(onScan).toHaveBeenCalledWith("721733000968"));
+        expect(createImageBitmap).toHaveBeenCalledWith(
+          expect.any(HTMLVideoElement),
+          0,
+          672,
+          1080,
+          576,
+        );
+        expect(detect).toHaveBeenCalledWith(bitmap);
+        expect(close).toHaveBeenCalled();
+      } finally {
+        Reflect.deleteProperty(window, "createImageBitmap");
+      }
     });
   });
 

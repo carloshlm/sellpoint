@@ -2,7 +2,7 @@ import { Camera, CameraOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { createConfirmer, isInsideArea, visibleArea } from "@/lib/scanner/visible-area";
+import { type Area, createConfirmer, isInsideArea, visibleArea } from "@/lib/scanner/visible-area";
 
 /**
  * F4-CART-04 — el escáner de cámara.
@@ -107,8 +107,9 @@ const FOCO_ESCANER_M = 0.15;
 const FORMATOS_1D = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar"];
 
 interface DetectorNativo {
-  // `boundingBox` viene en pixeles de la FOTO, los mismos de `visibleArea`.
-  detect: (v: HTMLVideoElement) => Promise<
+  // `boundingBox` viene en pixeles de la FUENTE: la foto entera si se le da
+  // el <video>, o el recorte si se le da un ImageBitmap.
+  detect: (v: HTMLVideoElement | ImageBitmap) => Promise<
     Array<{
       rawValue: string;
       boundingBox?: { x: number; y: number; width: number; height: number };
@@ -119,6 +120,23 @@ interface DetectorNativo {
 interface ConstructorDetectorNativo {
   new (opciones: { formats: string[] }): DetectorNativo;
   getSupportedFormats: () => Promise<string[]>;
+}
+
+/**
+ * El área visible del cuadro como ImageBitmap, o `null` si el navegador no
+ * sabe recortar (`createImageBitmap` con rectángulo) o el video aún no tiene
+ * medidas. Quien lo recibe lo cierra: un bitmap sin `close()` es memoria de la
+ * GPU que se queda hasta el GC.
+ */
+async function recortar(video: HTMLVideoElement, area: Area | null): Promise<ImageBitmap | null> {
+  if (area === null || typeof createImageBitmap !== "function") {
+    return null;
+  }
+  try {
+    return await createImageBitmap(video, area.x, area.y, area.width, area.height);
+  } catch {
+    return null;
+  }
 }
 
 /** `null` cuando no hay detector nativo o no sabe ninguno de nuestros formatos. */
@@ -157,13 +175,21 @@ const OPCIONES_LECTOR = { delayBetweenScanAttempts: 100 };
 const ENFRIAMIENTO_MS = 1500;
 
 /**
- * La DOBLE lectura (Carlos, 2026-09-29): un código se entrega cuando se lee
- * igual dos veces seguidas con no más de esto entre las dos. Los intentos van
- * cada ~100 ms más lo que tarde el detector; 500 ms deja pasar un cuadro sin
- * código en medio. Cuesta ~100 ms por código y elimina las lecturas borrosas
- * que cuadran su dígito verificador — ver `lib/scanner/visible-area.ts`.
+ * La confirmación del detector NATIVO (Carlos, 2026-09-29): un código se
+ * entrega cuando se lee igual dos veces dentro de esta ventana, aunque en
+ * medio haya una lectura distinta o cuadros sin nada. ML Kit tolera el
+ * desenfoque tanto que a veces «lee» un código válido que no está (cuatro
+ * distintos para una misma caja): la buena se repite, la borrosa no. Los
+ * intentos van cada ~100 ms más lo que tarde el detector (100–300 ms), así que
+ * 1.5 s son unos cuatro o cinco intentos. El primer intento fue «dos SEGUIDAS
+ * en 500 ms» y obligaba a sostener el producto quieto: un cuadro fallido
+ * reiniciaba la cuenta. Ver `lib/scanner/visible-area.ts`.
+ *
+ * zxing (el fallback, iPhone incluido) NO confirma: ante una imagen dudosa
+ * falla en vez de inventar, y acierta de forma intermitente — exigirle dos
+ * aciertos fue lo que dejó al iPhone sin leer nada (2026-09-30).
  */
-const CONFIRMACION_MS = 500;
+const CONFIRMACION_MS = 1500;
 
 /**
  * SIN hints — y en particular SIN `TRY_HARDER`, aunque un arreglo anterior lo
@@ -354,12 +380,8 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // escaneando hasta que el usuario elija parar. El enfriamiento evita
         // que los cuadros consecutivos del MISMO código se cobren doble; la
         // vibración es el «bip» del escáner: sin ella no se sabe si registró.
-        const confirmar = createConfirmer(CONFIRMACION_MS);
         const entregar = (texto: string) => {
           const ahora = Date.now();
-          if (!confirmar(texto, ahora)) {
-            return;
-          }
           const previa = ultimaLecturaRef.current;
           if (previa !== null && previa.texto === texto && ahora - previa.en < ENFRIAMIENTO_MS) {
             return;
@@ -382,20 +404,33 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
             // `autoPlay` ya lo pide; un play() rechazado acá no es fatal.
           }
           let vivo = true;
+          const confirmar = createConfirmer(CONFIRMACION_MS);
           const tick = async () => {
             if (!vivo || cancelado) {
               return;
             }
             try {
-              const codigos = await detector.detect(video);
-              // SOLO lo que se ve (2026-09-29): el detector recibe la foto
-              // completa y el recuadro muestra el tercio central. Un código
-              // fuera de la vista no cuenta, aunque se lea bien.
+              // SOLO lo que se ve (2026-09-29): el recuadro muestra el tercio
+              // central de la foto y el detector, si se le da el <video>,
+              // recibe la foto completa — leía códigos fuera de la vista. Se
+              // le da el RECORTE: un tercio de los píxeles, así que también
+              // intenta más veces por segundo. Si el navegador no sabe
+              // recortar, recibe el <video> y se filtra por la caja de cada
+              // código (`isInsideArea`).
               const area = visibleArea(video);
-              const texto = codigos.find(
-                (codigo) => codigo.rawValue !== "" && isInsideArea(codigo.boundingBox, area),
-              )?.rawValue;
-              if (texto !== undefined && texto !== "" && vivo && !cancelado) {
+              const recorte = await recortar(video, area);
+              let texto: string | undefined;
+              try {
+                const codigos = await detector.detect(recorte ?? video);
+                texto = codigos.find(
+                  (codigo) =>
+                    codigo.rawValue !== "" &&
+                    (recorte !== null || isInsideArea(codigo.boundingBox, area)),
+                )?.rawValue;
+              } finally {
+                recorte?.close();
+              }
+              if (texto !== undefined && vivo && !cancelado && confirmar(texto, Date.now())) {
                 // Sin `return`: el loop sigue — modo continuo. El
                 // enfriamiento de `entregar` filtra los cuadros repetidos.
                 entregar(texto);
