@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@sellpoint/shared": "workspace:*",
-    "astro": "^7.3.3",
-    "marked": "^18.0.13"
+    "astro": "^7.3.5",
+    "marked": "^18.0.14"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
