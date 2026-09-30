@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { gtinCheckDigit } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -140,6 +141,16 @@ describe("Buscador del POS (F4-CART-01)", () => {
         ],
       });
 
+      // Un UPC-A VÁLIDO de 12 dígitos (con su dígito verificador), guardado
+      // tal cual: es la escritura que entrega el Android. El iPhone entrega
+      // el mismo código como EAN-13 con cero delante.
+      const cuerpoUpc = `7${stamp.replace(/\D/g, "").padEnd(10, "3").slice(0, 10)}`;
+      const codigoUpc = `${cuerpoUpc}${gtinCheckDigit(cuerpoUpc)}`;
+      const conUpc = await producto("UPC", "Cebolla en polvo", {
+        enCentral: 5,
+        presentaciones: [{ name: "Frasco", factor: 1, barcode: codigoUpc, price: 14 }],
+      });
+
       const conStock = await producto("CONSTOCK", "Agua con gas", { enCentral: 30 });
       const sinStock = await producto("SINSTOCK", "Agua sin existencias", { enCentral: 0 });
 
@@ -155,11 +166,13 @@ describe("Buscador del POS (F4-CART-01)", () => {
         central,
         sucursal,
         conCodigo,
+        conUpc,
         conStock,
         sinStock,
         servicioId: servicio.id,
         codigoCaja,
         codigoPieza,
+        codigoUpc,
         stamp,
       };
     });
@@ -378,6 +391,18 @@ describe("Buscador del POS (F4-CART-01)", () => {
 
       expect((res.body as { exact: boolean }).exact).toBe(true);
       expect(items(res)).toHaveLength(1);
+    });
+
+    // Carlos, 2026-09-30: el iPhone leía el frasco como 0776455320351 y el
+    // producto estaba guardado como 776455320351 — «no encontramos nada».
+    it("un UPC-A guardado con 12 dígitos se encuentra escaneado como EAN-13 con cero delante", async () => {
+      const e = await escenario();
+      await abrirTurno(e.token, e.central).expect(201);
+
+      const res = await buscar(e.token, `0${e.codigoUpc}`).expect(200);
+
+      expect((res.body as { exact: boolean }).exact).toBe(true);
+      expect(items(res).map((i) => i.id)).toEqual([e.conUpc]);
     });
 
     it("un código que no existe cae a la búsqueda difusa en vez de devolver vacío", async () => {

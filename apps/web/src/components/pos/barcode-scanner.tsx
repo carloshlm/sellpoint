@@ -92,9 +92,12 @@ const ZOOM_ESCANER = 2;
 const NIVELES_ZOOM = [1, 2, 5];
 
 /**
- * Foco FIJO de mostrador (~15 cm), para lentes con enfoque manual. Las
- * capturas del 2026-08-22 mostraron el autofoco continuo sin clavar nunca la
- * caja; un escáner dedicado no enfoca: vive clavado a distancia de trabajo.
+ * Foco FIJO de mostrador (~15 cm), SOLO para lentes que no saben enfocar de
+ * continuo. Hasta el 2026-09-30 se prefería sobre el continuo, por unas
+ * capturas del 2026-08-22 (con zxing-js y sin zoom) en las que el autofoco no
+ * clavaba la caja. En el Samsung S20 Ultra de Carlos era al revés: la cámara
+ * nativa enfoca de continuo y se ve nítida; la app, clavada a 15 cm, borrosa.
+ * Un valor adivinado no puede ganarle al motor de enfoque del teléfono.
  * Se acota al rango que la lente declare.
  */
 const FOCO_ESCANER_M = 0.15;
@@ -352,17 +355,20 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         console.info("[barcode-scanner] capabilities", capacidades);
         const ajustes: Record<string, unknown>[] = [];
         const rangoFoco = capacidades.focusDistance;
-        if (capacidades.focusMode?.includes("manual") === true && rangoFoco !== undefined) {
-          // Foco FIJO de mostrador, en el MISMO set que el modo manual: van
-          // juntos o no van — un `focusDistance` sin modo manual no hace nada.
-          // Y no se pide el continuo a la vez: dos jefes para el mismo motor.
+        if (capacidades.focusMode?.includes("continuous") === true) {
+          // Como la cámara nativa (Samsung S20 Ultra, 2026-09-30): el motor
+          // de enfoque del teléfono sigue al producto. No se pide el manual
+          // a la vez: dos jefes para el mismo motor.
+          ajustes.push({ focusMode: "continuous" });
+        } else if (capacidades.focusMode?.includes("manual") === true && rangoFoco !== undefined) {
+          // Sin continuo: foco FIJO de mostrador, en el MISMO set que el modo
+          // manual — van juntos o no van; un `focusDistance` sin modo manual
+          // no hace nada.
           const distancia = Math.min(
             Math.max(FOCO_ESCANER_M, rangoFoco.min ?? FOCO_ESCANER_M),
             rangoFoco.max ?? FOCO_ESCANER_M,
           );
           ajustes.push({ focusMode: "manual", focusDistance: distancia });
-        } else if (capacidades.focusMode?.includes("continuous") === true) {
-          ajustes.push({ focusMode: "continuous" });
         }
         const maximoDeLaLente = capacidades.zoom?.max ?? 0;
         if (maximoDeLaLente >= ZOOM_ESCANER) {

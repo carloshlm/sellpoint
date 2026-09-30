@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  barcodeSearchForms,
   classifyGtin,
   gs1Prefix,
   gtinCheckDigit,
@@ -97,6 +98,22 @@ describe("gtin", () => {
     expect(isScannableBarcode("12345")).toBe(false);
     expect(isScannableBarcode("")).toBe(false);
     expect(isScannableBarcode(null)).toBe(false);
+  });
+
+  it("buscar un UPC-A encuentra su forma de 13 y viceversa (dos teléfonos, dos escrituras)", () => {
+    // 776455320351 es un UPC-A real (Onion Powder); el iPhone lo entrega
+    // como 0776455320351.
+    expect(barcodeSearchForms("0776455320351")).toEqual([
+      "00776455320351",
+      "0776455320351",
+      "776455320351",
+    ]);
+    expect(barcodeSearchForms("776455320351")).toEqual(barcodeSearchForms("0776455320351"));
+  });
+
+  it("un código que no es GTIN se busca tal cual, sin espacios", () => {
+    expect(barcodeSearchForms(" ABC-123 ")).toEqual(["ABC123"]);
+    expect(barcodeSearchForms("9999999999999")).toEqual(["9999999999999"]);
   });
 
   it("clasificar entrega la clave, el prefijo y las variantes de una vez", () => {

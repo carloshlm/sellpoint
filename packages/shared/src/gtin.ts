@@ -138,6 +138,26 @@ export function gtinVariants(gtin14: string): string[] {
 }
 
 /**
+ * Las formas con las que hay que BUSCAR un código escaneado o tecleado.
+ *
+ * Carlos, 2026-09-30, con dos teléfonos sobre el mismo frasco: el Android
+ * leyó `776455320351` (UPC-A, 12 dígitos) y el iPhone `0776455320351`
+ * (el mismo código como EAN-13: un UPC-A ES un EAN-13 con un cero delante).
+ * El producto estaba guardado con la forma de 12, y el mostrador comparaba
+ * literal: el iPhone «no encontraba nada». Cada motor de lectura elige una
+ * escritura; el negocio guardó la que le tocó al dar de alta. Buscar con
+ * TODAS las escrituras equivalentes deja de depender de eso.
+ *
+ * Si el texto no es un GTIN válido (un código interno alfanumérico, un
+ * EAN mal tecleado), se busca tal cual: no hay equivalencias que inventar.
+ */
+export function barcodeSearchForms(code: string): string[] {
+  const limpio = cleanGtin(code);
+  const gtin14 = normalizeGtin14(limpio);
+  return gtin14 === null ? [limpio] : gtinVariants(gtin14);
+}
+
+/**
  * Lo que un lector puede entregar: **solo dígitos, de 6 a 14**.
  *
  * ── Por qué esta regla y no otra ────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { POS_FOLIO_PREFIXES } from "@sellpoint/shared";
+import { barcodeSearchForms, POS_FOLIO_PREFIXES } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { contextoFiscal, impuestoDeItem } from "./tax-resolver";
 import { sellableStock } from "./warehouse-availability";
@@ -345,6 +345,10 @@ export async function conDisponibilidad(
  * **Esa columna nunca existió** en el esquema (verificado 2026-08-21): el
  * código de barras nació en la presentación con F2-PRESENT y ahí se quedó. No
  * se implementa un respaldo contra una columna fantasma.
+ *
+ * Se busca con TODAS las escrituras equivalentes del código (2026-09-30): un
+ * UPC-A de 12 y su forma EAN-13 con cero delante son el mismo producto, y
+ * cada lector entrega la que quiere — ver `barcodeSearchForms` en shared.
  */
 const barcodeLookup: LookupStrategy = {
   kind: "barcode",
@@ -354,7 +358,7 @@ const barcodeLookup: LookupStrategy = {
     const presentaciones = await ctx.tx.productPresentation.findMany({
       where: {
         tenantId: ctx.tenantId,
-        barcode: ctx.q.trim(),
+        barcode: { in: barcodeSearchForms(ctx.q) },
         isActive: true,
         isSellable: true,
         product: { isActive: true },

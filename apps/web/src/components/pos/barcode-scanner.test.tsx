@@ -651,7 +651,9 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("fija el enfoque CERCA cuando la lente permite enfoque manual", async () => {
+    it("prefiere el enfoque CONTINUO aunque la lente sepa enfoque manual", async () => {
+      // Samsung S20 Ultra (Carlos, 2026-09-30): la cámara nativa enfoca de
+      // continuo y se ve nítida; la app, clavada a 15 cm, se veía borrosa.
       track.getCapabilities.mockReturnValue({
         focusMode: ["continuous", "manual"],
         focusDistance: { min: 0.1, max: 10 },
@@ -665,11 +667,26 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       const avanzado = track.applyConstraints.mock.calls[1]?.[0] as {
         advanced: Record<string, unknown>[];
       };
-      // Lo que hace un escáner dedicado: foco FIJO a distancia de mostrador.
-      // El continuo de este teléfono nunca clavó la caja (capturas del 22).
+      expect(avanzado.advanced).toContainEqual({ focusMode: "continuous" });
+      // Y no se pide el manual A LA VEZ: dos jefes para el mismo motor.
+      expect(avanzado.advanced.some((a) => a.focusMode === "manual")).toBe(false);
+    });
+
+    it("sin enfoque continuo, fija el foco CERCA si la lente permite el manual", async () => {
+      track.getCapabilities.mockReturnValue({
+        focusMode: ["manual"],
+        focusDistance: { min: 0.1, max: 10 },
+        zoom: { min: 1, max: 8 },
+      });
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(track.applyConstraints).toHaveBeenCalledTimes(2));
+      const avanzado = track.applyConstraints.mock.calls[1]?.[0] as {
+        advanced: Record<string, unknown>[];
+      };
       expect(avanzado.advanced).toContainEqual({ focusMode: "manual", focusDistance: 0.15 });
-      // Y no se pide el continuo A LA VEZ: dos jefes para el mismo motor.
-      expect(avanzado.advanced).not.toContainEqual({ focusMode: "continuous" });
     });
 
     it("si la cámara muere sola, se dice — no se deja el cuadro negro", async () => {
