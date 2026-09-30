@@ -85,7 +85,7 @@ Nada se borra en ningún momento. Esto es lo que pasa, paso a paso:
 1. **Al vencer**, arriba de cada pantalla aparece un aviso como «Tu pago venció
    el 24/10/2026. Ponte al corriente para no perder tu plan».
 2. **Diez días de gracia.** Sigues con tu plan completo. El aviso cambia a «Tu
-   pago venció. Te quedan 10 días antes de pasar al modo gratuito», y cuenta
+   suscripción termina en 10 días. Realiza tu pago para no perderla», y cuenta
    hacia atrás. Te llega un correo al empezar la gracia y otro 3 días antes de
    que termine.
 3. **Al día 11 sin pago**, tu cuenta pasa al **modo gratuito** y te avisamos por

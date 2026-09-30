@@ -39,6 +39,23 @@ describe("BillingBanner (F7-WEB-06)", () => {
     expect(banner.textContent).toMatch(/5 días/);
   });
 
+  // Carlos, 2026-09-29: el aviso habla de la suscripción que termina y de qué
+  // hacer, no del modo gratuito al que pasaría.
+  it("en gracia dice cuándo termina la suscripción y qué hacer, sin mencionar el modo gratuito", () => {
+    const { unmount } = renderBanner({ status: "past_due", daysLeft: 5 });
+    expect(screen.getByTestId("billing-banner").textContent).toBe(
+      "Tu suscripción termina en 5 días. Realiza tu pago para no perderla",
+    );
+    unmount();
+
+    renderBanner({ status: "past_due", daysLeft: 1 });
+    const banner = screen.getByTestId("billing-banner");
+    expect(banner.textContent).toBe(
+      "Tu suscripción termina en 1 día. Realiza tu pago para no perderla",
+    );
+    expect(banner.textContent).not.toMatch(/gratuito/);
+  });
+
   it("en free explica el modo gratuito con su límite", () => {
     renderBanner({ status: "free", dailySalesLimit: 10 });
     expect(screen.getByText(/10 ventas al día/)).toBeInTheDocument();

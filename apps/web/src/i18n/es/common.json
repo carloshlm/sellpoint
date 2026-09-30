@@ -310,8 +310,8 @@
     "banner": {
       "trial": "Te quedan {{count}} días de prueba con el plan Plus completo — elige tu plan",
       "trial_one": "Te queda 1 día de prueba con el plan Plus completo — elige tu plan",
-      "pastDue": "Tu pago venció. Te quedan {{count}} días antes de pasar al modo gratuito",
-      "pastDue_one": "Tu pago venció. Te queda 1 día antes de pasar al modo gratuito",
+      "pastDue": "Tu suscripción termina en {{count}} días. Realiza tu pago para no perderla",
+      "pastDue_one": "Tu suscripción termina en 1 día. Realiza tu pago para no perderla",
       "free": "Modo gratuito: consulta todo y vende hasta {{limit}} ventas al día — contrata un plan",
       "overdue": "Tu pago venció el {{date}}. Ponte al corriente para no perder tu plan"
     },
