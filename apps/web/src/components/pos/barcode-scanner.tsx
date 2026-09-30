@@ -1,6 +1,10 @@
 import { Camera, CameraOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+// El .wasm del lector de respaldo, empaquetado por Vite y servido desde el
+// propio origen: la CSP no deja bajarlo de un CDN, que es lo que zxing-wasm
+// haría por omisión.
+import zxingWasmUrl from "zxing-wasm/reader/zxing_reader.wasm?url";
 import { Button } from "@/components/ui/button";
 import { type Area, createConfirmer, isInsideArea, visibleArea } from "@/lib/scanner/visible-area";
 
@@ -23,30 +27,31 @@ import { type Area, createConfirmer, isInsideArea, visibleArea } from "@/lib/sca
  *
  * ── La carga es DIFERIDA ────────────────────────────────────────────────
  *
- * `@zxing/browser` se importa dentro del `useEffect`, no arriba. Es un
- * decodificador de imágenes y pesa; la mayoría de los turnos no abre la cámara
+ * El lector de respaldo (`barcode-detector`, zxing-cpp en WebAssembly) se
+ * importa dentro del `useEffect`, no arriba, y SOLO en los navegadores sin
+ * `BarcodeDetector` nativo. Pesa; la mayoría de los turnos no abre la cámara
  * ni una vez, así que hacer que todos paguen su descarga al entrar al POS
  * sería cobrarles por algo que no usan.
  */
 
 /**
- * ── POR QUÉ ESTA CONFIGURACIÓN, Y NO LOS DEFAULTS (2026-08-22) ────────────
+ * ── LA RESOLUCIÓN NO ES OPCIONAL (2026-08-22) ─────────────────────────────
  *
- * Carlos: «ya muestra la imagen pero no detecta el código de barras». La cámara
- * estaba bien; el lector venía con tres defaults que juntos lo volvían casi
- * inútil para una caja. Los tres, medidos en la fuente de `@zxing/browser`:
+ * Carlos: «ya muestra la imagen pero no detecta el código de barras». Sin
+ * `width`/`height` el navegador entrega lo que quiera — típicamente 640×480.
+ * Un UPC-A son 95 módulos: a 640 px, ocupando media pantalla, quedan ~3 px por
+ * barra. Decodificable en teoría, y cualquier temblor o brillo lo tira abajo.
+ * Por eso se pide 1920×1080 — en dos pasos, ver abajo.
  *
- *  1. Sin `width`/`height` el navegador entrega lo que quiera — típicamente
- *     640×480. Un UPC-A son 95 módulos: a 640 px, ocupando media pantalla,
- *     quedan ~3 px por barra. Decodificable en teoría, y cualquier temblor o
- *     brillo lo tira abajo.
- *  2. `delayBetweenScanAttempts` vale 500 ms: DOS intentos por segundo. El
- *     cajero tiene que aguantar el pulso como en una foto larga.
- *  3. Sin `TRY_HARDER`, `OneDReader` mira 25 filas alrededor del centro y no
- *     rota la imagen. Con el hint mira el alto completo y reintenta a 90°.
+ * ── UN SOLO LECTOR, DOS MOTORES (2026-09-30) ──────────────────────────────
  *
- * Nada de esto se ve leyendo el componente: son defaults de la librería. Por
- * eso `barcode-scanner.test.tsx` los fija uno por uno.
+ * Hasta el 2026-09-29 el respaldo era `@zxing/browser` (zxing-js, puerto viejo
+ * de Java) con su propio bucle, sus hints rotos (`TRY_HARDER` mataba el stream)
+ * y su ceguera a la nitidez: en el iPhone de Carlos, con un UPC enorme y
+ * nítido centrado en la línea, NO leía nada. Ahora el respaldo es
+ * `barcode-detector`: el MISMO API `BarcodeDetector` que trae Chrome Android,
+ * implementado con zxing-cpp en WebAssembly. Un solo bucle para los dos
+ * motores; lo único que cambia es quién construye el detector.
  */
 
 /**
@@ -106,7 +111,7 @@ const FOCO_ESCANER_M = 0.15;
  */
 const FORMATOS_1D = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar"];
 
-interface DetectorNativo {
+interface Detector {
   // `boundingBox` viene en pixeles de la FUENTE: la foto entera si se le da
   // el <video>, o el recorte si se le da un ImageBitmap.
   detect: (v: HTMLVideoElement | ImageBitmap) => Promise<
@@ -117,8 +122,8 @@ interface DetectorNativo {
   >;
 }
 
-interface ConstructorDetectorNativo {
-  new (opciones: { formats: string[] }): DetectorNativo;
+interface ConstructorDetector {
+  new (opciones: { formats: string[] }): Detector;
   getSupportedFormats: () => Promise<string[]>;
 }
 
@@ -139,12 +144,8 @@ async function recortar(video: HTMLVideoElement, area: Area | null): Promise<Ima
   }
 }
 
-/** `null` cuando no hay detector nativo o no sabe ninguno de nuestros formatos. */
-async function crearDetectorNativo(): Promise<DetectorNativo | null> {
-  const Ctor = (window as { BarcodeDetector?: ConstructorDetectorNativo }).BarcodeDetector;
-  if (Ctor === undefined) {
-    return null;
-  }
+/** Con `Ctor`, un detector que sepa alguno de nuestros formatos; si no, `null`. */
+async function construirDetector(Ctor: ConstructorDetector): Promise<Detector | null> {
   try {
     const soportados = await Ctor.getSupportedFormats();
     const formats = FORMATOS_1D.filter((f) => soportados.includes(f));
@@ -159,11 +160,37 @@ async function crearDetectorNativo(): Promise<DetectorNativo | null> {
 }
 
 /**
- * 100 ms ≈ 10 intentos por segundo. No es gratis —cada intento binariza el
- * cuadro y lo recorre— pero el lector 1D es barato comparado con el
- * multiformato, y el cuello de botella real es la mano del cajero.
+ * El detector: el NATIVO del navegador si existe (Chrome Android: ML Kit), y
+ * si no, el mismo API por `barcode-detector` (zxing-cpp en WebAssembly), que
+ * se descarga solo aquí. `null` si ninguno sabe leer un código 1D.
  */
-const OPCIONES_LECTOR = { delayBetweenScanAttempts: 100 };
+async function crearDetector(): Promise<Detector | null> {
+  const nativo = (window as { BarcodeDetector?: ConstructorDetector }).BarcodeDetector;
+  if (nativo !== undefined) {
+    const detector = await construirDetector(nativo);
+    if (detector !== null) {
+      return detector;
+    }
+  }
+  const { BarcodeDetector, prepareZXingModule } = await import("barcode-detector/ponyfill");
+  // El .wasm sale del propio bundle (ver el import de arriba); sin esto la
+  // librería lo pide a jsDelivr y la CSP lo bloquea en silencio.
+  prepareZXingModule({
+    overrides: {
+      locateFile: (ruta: string, prefijo: string) =>
+        ruta.endsWith(".wasm") ? zxingWasmUrl : prefijo + ruta,
+    },
+  });
+  return construirDetector(BarcodeDetector as unknown as ConstructorDetector);
+}
+
+/**
+ * La pausa entre un intento y el siguiente. Corta a propósito: cada intento ya
+ * espera a que el detector termine (100–300 ms en ML Kit, menos en wasm sobre
+ * el recorte), y cuantos más intentos por segundo, antes junta sus dos votos
+ * un código bien leído. Era 100 ms hasta el 2026-09-30.
+ */
+const PAUSA_ENTRE_INTENTOS_MS = 30;
 
 /**
  * Modo CONTINUO (2026-08-23, pedido de Carlos): la cámara ya no se apaga con
@@ -181,29 +208,12 @@ const ENFRIAMIENTO_MS = 1500;
  * desenfoque tanto que a veces «lee» un código válido que no está (cuatro
  * distintos para una misma caja): la buena se repite, la borrosa no. Los
  * intentos van cada ~100 ms más lo que tarde el detector (100–300 ms), así que
- * 1.5 s son unos cuatro o cinco intentos. El primer intento fue «dos SEGUIDAS
- * en 500 ms» y obligaba a sostener el producto quieto: un cuadro fallido
- * reiniciaba la cuenta. Ver `lib/scanner/visible-area.ts`.
- *
- * zxing (el fallback, iPhone incluido) NO confirma: ante una imagen dudosa
- * falla en vez de inventar, y acierta de forma intermitente — exigirle dos
- * aciertos fue lo que dejó al iPhone sin leer nada (2026-09-30).
+ * 2.5 s son bastantes intentos. El primer intento fue «dos SEGUIDAS en 500 ms»
+ * y obligaba a sostener el producto quieto: un cuadro fallido reiniciaba la
+ * cuenta. Ver `lib/scanner/visible-area.ts`. Aplica a los dos motores: el
+ * wasm también lee cuadro tras cuadro cuando el código está a la vista.
  */
-const CONFIRMACION_MS = 1500;
-
-/**
- * SIN hints — y en particular SIN `TRY_HARDER`, aunque un arreglo anterior lo
- * pidió a propósito. Medido el 2026-08-22 con A/B en un navegador real contra
- * el chunk desplegado: con el hint puesto, el PRIMER cuadro sin código lanza
- * `Error: Could not create a Canvas element.` — el camino de rotación de
- * `@zxing/browser@0.2.1` está roto — y zxing, ante un error que no es
- * NotFound, MATA el stream él solo, sin excepción hacia afuera: cámara
- * encendida ~700 ms y cuadro negro mudo, en cualquier dispositivo. Sin el
- * hint, el loop reporta NotFoundException (lo normal mientras no hay código) y
- * el track sigue vivo. El costo real de perderlo: el lector mira ~25 filas del
- * centro y no rota — el código se presenta horizontal, como en cualquier
- * escáner de mostrador. `barcode-scanner.test.tsx` fija su AUSENCIA.
- */
+const CONFIRMACION_MS = 2500;
 
 interface BarcodeScannerProps {
   /** Recibe el texto decodificado. El mismo que produciría el teclado. */
@@ -391,98 +401,86 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           onScanRef.current(texto);
         };
 
-        const detector = await crearDetectorNativo();
-        let controles: { stop: () => void };
-
-        if (detector !== null) {
-          // ── Camino nativo: nosotros somos el loop ─────────────────────
-          const streamNativo = stream;
-          video.srcObject = streamNativo;
-          try {
-            await video.play();
-          } catch {
-            // `autoPlay` ya lo pide; un play() rechazado acá no es fatal.
+        const detector = await crearDetector();
+        if (detector === null) {
+          throw new Error("ningún detector de códigos de barras disponible");
+        }
+        if (cancelado) {
+          for (const t of stream.getTracks()) {
+            t.stop();
           }
-          let vivo = true;
-          const confirmar = createConfirmer(CONFIRMACION_MS);
-          const tick = async () => {
-            if (!vivo || cancelado) {
-              return;
-            }
-            try {
-              // SOLO lo que se ve (2026-09-29): el recuadro muestra el tercio
-              // central de la foto y el detector, si se le da el <video>,
-              // recibe la foto completa — leía códigos fuera de la vista. Se
-              // le da el RECORTE: un tercio de los píxeles, así que también
-              // intenta más veces por segundo. Si el navegador no sabe
-              // recortar, recibe el <video> y se filtra por la caja de cada
-              // código (`isInsideArea`).
-              const area = visibleArea(video);
-              const recorte = await recortar(video, area);
-              let texto: string | undefined;
-              try {
-                const codigos = await detector.detect(recorte ?? video);
-                texto = codigos.find(
-                  (codigo) =>
-                    codigo.rawValue !== "" &&
-                    (recorte !== null || isInsideArea(codigo.boundingBox, area)),
-                )?.rawValue;
-              } finally {
-                recorte?.close();
-              }
-              if (texto !== undefined && vivo && !cancelado && confirmar(texto, Date.now())) {
-                // Sin `return`: el loop sigue — modo continuo. El
-                // enfriamiento de `entregar` filtra los cuadros repetidos.
-                entregar(texto);
-              }
-            } catch {
-              // Cuadro aún no listo o detector quisquilloso: se reintenta.
-            }
-            setTimeout(() => {
-              void tick();
-            }, OPCIONES_LECTOR.delayBetweenScanAttempts);
-          };
-          void tick();
-          controles = {
-            stop: () => {
-              vivo = false;
-              for (const t of streamNativo.getTracks()) {
-                t.stop();
-              }
-              video.srcObject = null;
-            },
-          };
-        } else {
-          // ── Fallback universal: zxing, con import diferido — solo quien
-          // cae acá paga la descarga del decodificador. ──────────────────
-          const { BrowserMultiFormatOneDReader } = await import("@zxing/browser");
-          const lector = new BrowserMultiFormatOneDReader(undefined, OPCIONES_LECTOR);
-          if (cancelado) {
-            for (const t of stream.getTracks()) {
-              t.stop();
-            }
+          return;
+        }
+
+        // ── Nosotros somos el bucle, con cualquiera de los dos motores ──
+        const streamVivo = stream;
+        video.srcObject = streamVivo;
+        try {
+          await video.play();
+        } catch {
+          // `autoPlay` ya lo pide; un play() rechazado acá no es fatal.
+        }
+        let vivo = true;
+        const confirmar = createConfirmer(CONFIRMACION_MS);
+        const tick = async () => {
+          if (!vivo || cancelado) {
             return;
           }
-          controles = await lector.decodeFromStream(stream, video, (resultado) => {
-            if (resultado === undefined || cancelado) {
-              return;
+          try {
+            // SOLO lo que se ve (2026-09-29): el recuadro muestra el tercio
+            // central de la foto y el detector, si se le da el <video>,
+            // recibe la foto completa — leía códigos fuera de la vista. Se
+            // le da el RECORTE: un tercio de los píxeles, así que también
+            // intenta más veces por segundo. Si el navegador no sabe
+            // recortar, recibe el <video> y se filtra por la caja de cada
+            // código (`isInsideArea`).
+            const area = visibleArea(video);
+            const recorte = await recortar(video, area);
+            let texto: string | undefined;
+            try {
+              const codigos = await detector.detect(recorte ?? video);
+              texto = codigos.find(
+                (codigo) =>
+                  codigo.rawValue !== "" &&
+                  (recorte !== null || isInsideArea(codigo.boundingBox, area)),
+              )?.rawValue;
+            } finally {
+              recorte?.close();
             }
-            entregar(resultado.getText());
-          });
-        }
+            if (texto !== undefined && vivo && !cancelado && confirmar(texto, Date.now())) {
+              // Sin `return`: el loop sigue — modo continuo. El
+              // enfriamiento de `entregar` filtra los cuadros repetidos.
+              entregar(texto);
+            }
+          } catch {
+            // Cuadro aún no listo o detector quisquilloso: se reintenta.
+          }
+          setTimeout(() => {
+            void tick();
+          }, PAUSA_ENTRE_INTENTOS_MS);
+        };
+        void tick();
+        const controles = {
+          stop: () => {
+            vivo = false;
+            for (const t of streamVivo.getTracks()) {
+              t.stop();
+            }
+            video.srcObject = null;
+          },
+        };
 
         if (cancelado) {
           controles.stop();
           return;
         }
         controlesRef.current = controles;
-        // La segunda vigilancia, y no es redundante con la del track: cuando
-        // zxing muere por un error interno de su loop, apaga el stream con
-        // `track.stop()`, y un stop programático NO dispara "ended" — eso lo
-        // reservan los navegadores para muertes de origen físico. Lo que sí
-        // deja huella es que al soltar el stream pone `srcObject = null`, y el
-        // <video> dispara "emptied". Sin esto, esa muerte era invisible:
-        // cuadro negro sin aviso, sin excepción y sin consola.
+        // La segunda vigilancia, y no es redundante con la del track: un
+        // `track.stop()` programático NO dispara "ended" — eso lo reservan
+        // los navegadores para muertes de origen físico. Lo que sí deja
+        // huella es soltar el stream (`srcObject = null`): el <video> dispara
+        // "emptied". Nació para la auto-destrucción de zxing-js y se queda:
+        // si algo suelta el video, el cuadro negro no será mudo.
         video.addEventListener("emptied", () => {
           if (!cancelado) {
             setEncendida(false);

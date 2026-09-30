@@ -18,13 +18,17 @@ import { BarcodeScanner } from "./barcode-scanner";
  *
  * El test de `pos-cart.test.tsx` no podía verlo: en jsdom no hay cámara, así
  * que ese camino siempre caía en «sin cámara» y el arranque exitoso nunca se
- * ejercitaba. Acá se simula `@zxing/browser` para poder recorrerlo.
+ * ejercitaba. Acá se simulan la cámara y el detector para poder recorrerlo.
+ *
+ * Dos motores, un bucle (2026-09-30): el `BarcodeDetector` nativo cuando el
+ * navegador lo trae, y si no, el mismo API por `barcode-detector` (zxing-cpp
+ * en wasm). Por defecto NO hay nativo: la mayoría de los tests ejercitan el
+ * respaldo, que es el camino del iPhone; el nativo se instala donde se prueba.
  */
 
-const stop = vi.fn();
-const decodeFromStream = vi.fn();
-/** Con qué se CONSTRUYÓ el lector: hints y opciones. Ver los tests de config. */
-const construidoCon = vi.fn();
+/** El `detect` del respaldo wasm. Cada llamada es un intento del bucle. */
+const detectPonyfill = vi.fn();
+const prepareZXingModule = vi.fn();
 
 /**
  * El stream falso. El TRACK es el personaje importante: es lo que el
@@ -40,17 +44,15 @@ const track = {
 const streamFalso = { getVideoTracks: () => [track], getTracks: () => [track] };
 const getUserMedia = vi.fn();
 
-vi.mock("@zxing/browser", () => ({
-  // El lector 1D, no el multiformato: una tienda escanea EAN/UPC/Code-128, y
-  // probar QR, Aztec, PDF417 y DataMatrix en cada ciclo gasta el presupuesto
-  // del intento en formatos que nadie va a presentar en una caja.
-  BrowserMultiFormatOneDReader: class {
-    constructor(hints: unknown, opciones: unknown) {
-      construidoCon(hints, opciones);
-    }
-    decodeFromStream = decodeFromStream;
+vi.mock("barcode-detector/ponyfill", () => ({
+  BarcodeDetector: class {
+    static getSupportedFormats = vi.fn().mockResolvedValue(["ean_13", "upc_a", "code_128"]);
+    detect = detectPonyfill;
   },
+  prepareZXingModule,
 }));
+// El .wasm que Vite empaqueta: en jsdom basta con que resuelva a una ruta.
+vi.mock("zxing-wasm/reader/zxing_reader.wasm?url", () => ({ default: "/zxing_reader.wasm" }));
 
 /**
  * Los argumentos de la primera llamada a un mock, exigiendo que exista.
@@ -116,7 +118,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     // Una lente de teléfono típica: sabe enfocar de continuo y hacer zoom.
     track.getCapabilities.mockReturnValue({ focusMode: ["continuous"], zoom: { min: 1, max: 8 } });
     getUserMedia.mockResolvedValue(streamFalso);
-    decodeFromStream.mockResolvedValue({ stop });
+    detectPonyfill.mockResolvedValue([]);
     // jsdom no trae `mediaDevices`: se instala el nuestro.
     Object.defineProperty(navigator, "mediaDevices", {
       value: { getUserMedia },
@@ -164,10 +166,10 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
     await encender();
 
-    await waitFor(() => expect(decodeFromStream).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
     // Se le da tiempo a cualquier re-render de hacer daño.
     await new Promise((r) => setTimeout(r, 50));
-    expect(stop).not.toHaveBeenCalled();
+    expect(track.stop).not.toHaveBeenCalled();
   });
 
   it("la cámara se enciende UNA sola vez, no en cada repintado", async () => {
@@ -175,11 +177,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
     await encender();
 
-    await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+    await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 50));
     // Arrancarla dos veces deja un stream huérfano con la luz de la cámara
     // encendida y sin nadie que la apague.
-    expect(decodeFromStream).toHaveBeenCalledTimes(1);
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 
   it("el <video> se pinta y puede reproducirse solo", async () => {
@@ -214,8 +216,8 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     // recuadro a pantalla casi completa estorba. Una franja de ~190 px al
     // estilo escáner de paquetería alcanza — para leer no hace falta ver la
     // escena, hace falta ver la línea y el código sobre ella. `object-cover`
-    // recorta solo lo VISUAL (simétrico, el centro queda donde la línea): el
-    // detector sigue recibiendo el cuadro completo de la cámara.
+    // recorta solo lo VISUAL (simétrico, el centro queda donde la línea); al
+    // detector se le da ese mismo recorte (ver «solo cuenta lo que se ve»).
     expect(video.className).toContain("h-48");
     expect(video.className).toContain("object-cover");
   });
@@ -223,11 +225,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   it("al parar, sí se apaga", async () => {
     renderScanner();
     await encender();
-    await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+    await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("button", { name: /Dejar de escanear/ }));
 
-    await waitFor(() => expect(stop).toHaveBeenCalled());
+    await waitFor(() => expect(track.stop).toHaveBeenCalled());
   });
 
   /**
@@ -242,27 +244,21 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    */
   it("un código leído se entrega y la cámara SIGUE encendida", async () => {
     const onScan = vi.fn();
-    decodeFromStream.mockImplementation((_stream, _video, callback) => {
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      return Promise.resolve({ stop });
-    });
+    detectPonyfill.mockResolvedValue([{ rawValue: "7501234567890" }]);
     renderScanner(onScan);
 
     await encender();
 
     await waitFor(() => expect(onScan).toHaveBeenCalledWith("7501234567890"));
-    expect(stop).not.toHaveBeenCalled();
+    expect(track.stop).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /Dejar de escanear/ })).toBeInTheDocument();
     expect(document.querySelector("video")).not.toBeNull();
   });
 
   it("el MISMO código en cuadros seguidos se entrega UNA vez (enfriamiento)", async () => {
     const onScan = vi.fn();
-    decodeFromStream.mockImplementation((_stream, _video, callback) => {
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 60);
-      return Promise.resolve({ stop });
-    });
+    // El mismo código en TODOS los cuadros: una sola entrega.
+    detectPonyfill.mockResolvedValue([{ rawValue: "7501234567890" }]);
     renderScanner(onScan);
 
     await encender();
@@ -274,11 +270,13 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
   it("códigos DISTINTOS seguidos se entregan los dos", async () => {
     const onScan = vi.fn();
-    decodeFromStream.mockImplementation((_stream, _video, callback) => {
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      setTimeout(() => callback({ getText: () => "064042603179" }), 60);
-      return Promise.resolve({ stop });
-    });
+    // Cada código se lee dos veces (sus votos) y después el otro.
+    detectPonyfill
+      .mockResolvedValueOnce([{ rawValue: "7501234567890" }])
+      .mockResolvedValueOnce([{ rawValue: "7501234567890" }])
+      .mockResolvedValueOnce([{ rawValue: "064042603179" }])
+      .mockResolvedValueOnce([{ rawValue: "064042603179" }])
+      .mockResolvedValue([]);
     renderScanner(onScan);
 
     await encender();
@@ -290,13 +288,10 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
   it("el mismo código VUELVE a entregarse pasado el enfriamiento", async () => {
     const onScan = vi.fn();
-    decodeFromStream.mockImplementation((_stream, _video, callback) => {
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      // Tres unidades iguales son tres entregas legítimas: la ventana solo
-      // filtra los cuadros consecutivos de UNA misma pasada.
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 1700);
-      return Promise.resolve({ stop });
-    });
+    // Tres unidades iguales son tres entregas legítimas: la ventana solo
+    // filtra los cuadros consecutivos de UNA misma pasada. El código está a
+    // la vista todo el tiempo: pasado el enfriamiento, vuelve a entregarse.
+    detectPonyfill.mockResolvedValue([{ rawValue: "7501234567890" }]);
     renderScanner(onScan);
 
     await encender();
@@ -329,17 +324,27 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     expect(onScan).toHaveBeenCalledTimes(1);
   });
 
-  it("zxing (iPhone) entrega al PRIMER acierto: falla en vez de inventar", async () => {
+  /**
+   * El iPhone (2026-09-30): Safari no trae `BarcodeDetector`, y zxing-js no
+   * leía ni un UPC enorme y nítido. El respaldo es ahora el mismo API por
+   * `barcode-detector` (zxing-cpp en wasm), con el .wasm del PROPIO bundle:
+   * la CSP bloquea el CDN del que la librería lo bajaría por omisión.
+   */
+  it("sin detector nativo, el respaldo wasm lee por el mismo bucle y con el wasm propio", async () => {
     const onScan = vi.fn();
-    decodeFromStream.mockImplementation((_stream, _video, callback) => {
-      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
-      return Promise.resolve({ stop });
-    });
+    detectPonyfill.mockResolvedValue([{ rawValue: "7501234567890" }]);
     renderScanner(onScan);
 
     await encender();
 
     await waitFor(() => expect(onScan).toHaveBeenCalledWith("7501234567890"));
+    const opciones = prepareZXingModule.mock.calls[0]?.[0] as {
+      overrides: { locateFile: (ruta: string, prefijo: string) => string };
+    };
+    expect(opciones.overrides.locateFile("zxing_reader.wasm", "https://cdn/")).toBe(
+      "/zxing_reader.wasm",
+    );
+    expect(opciones.overrides.locateFile("otro.js", "https://cdn/")).toBe("https://cdn/otro.js");
   });
 
   /**
@@ -538,7 +543,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       await encender();
 
-      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
       await new Promise((r) => setTimeout(r, 20));
       expect(track.applyConstraints).toHaveBeenCalledTimes(1);
     });
@@ -587,7 +592,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       await encender();
 
-      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
       await new Promise((r) => setTimeout(r, 20));
       expect(screen.queryByRole("button", { name: "2×" })).not.toBeInTheDocument();
     });
@@ -610,7 +615,8 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       await waitFor(() => expect(onScan).toHaveBeenCalledWith("7501234567890"));
       expect(onScan).toHaveBeenCalledTimes(1);
-      expect(decodeFromStream).not.toHaveBeenCalled();
+      expect(detectPonyfill).not.toHaveBeenCalled();
+      expect(prepareZXingModule).not.toHaveBeenCalled();
     });
 
     it("ofrece linterna cuando la lente la declara, y la enciende", async () => {
@@ -639,7 +645,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       await encender();
 
-      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
       expect(
         screen.queryByRole("button", { name: /linterna|flashlight/i }),
       ).not.toBeInTheDocument();
@@ -683,55 +689,15 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       expect(await screen.findByTestId("scanner-unavailable")).toBeInTheDocument();
     });
 
-    it("intenta MUCHO más de dos veces por segundo", async () => {
-      renderScanner();
-
-      await encender();
-
-      await waitFor(() => expect(construidoCon).toHaveBeenCalled());
-      const opciones = primeraLlamada(construidoCon, "el constructor del lector")[1] as {
-        delayBetweenScanAttempts: number;
-      };
-      expect(opciones.delayBetweenScanAttempts).toBeLessThanOrEqual(150);
-    });
-
-    /**
-     * ── TRY_HARDER MATA EL ESCÁNER (2026-08-22, medido con A/B en navegador
-     * real contra producción) ──────────────────────────────────────────────
-     *
-     * Este test es el INVERSO del que vivía acá: el hint que un arreglo
-     * anterior pidió para «mirar la imagen entera». Medido con cámara falsa y
-     * el chunk desplegado: con TRY_HARDER, el PRIMER cuadro sin código lanza
-     * `Error: Could not create a Canvas element.` (el camino de rotación de
-     * `@zxing/browser@0.2.1` está roto) y zxing, ante un error que no es
-     * NotFound, MATA el stream él solo — track `ended` a los ~700 ms, cuadro
-     * negro, sin excepción hacia afuera. Sin el hint: NotFoundException
-     * continuo (lo normal mientras no hay código) y el track sigue `live`.
-     *
-     * 3 === DecodeHintType.TRY_HARDER de `@zxing/library`.
-     */
-    it("NO pide TRY_HARDER: su camino de rotación revienta y zxing mata el stream", async () => {
-      renderScanner();
-
-      await encender();
-
-      await waitFor(() => expect(construidoCon).toHaveBeenCalled());
-      const hints = primeraLlamada(construidoCon, "el constructor del lector")[0] as
-        | Map<number, unknown>
-        | undefined;
-      expect(hints?.get(3)).toBeUndefined();
-    });
-
-    it("si la librería suelta el video por un error interno, también se dice", async () => {
+    it("si algo suelta el video (srcObject = null), también se dice", async () => {
       renderScanner();
 
       await encender();
 
       // `track.stop()` programático NO dispara "ended" (solo las muertes de
-      // origen físico lo hacen), así que la vigilancia del track no ve cuando
-      // zxing se auto-destruye. Lo que sí se ve: al soltar el stream pone
-      // `srcObject = null`, y eso dispara "emptied" en el <video>.
-      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      // origen físico lo hacen), así que la vigilancia del track no lo ve.
+      // Lo que sí se ve: soltar el stream dispara "emptied" en el <video>.
+      await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
       await new Promise((r) => setTimeout(r, 20));
       const video = document.querySelector("video");
       if (video === null) {
@@ -840,7 +806,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   });
 
   it("si la cámara falla, lo dice y no deja la pantalla muda", async () => {
-    decodeFromStream.mockRejectedValue(new Error("NotAllowedError"));
+    // El detector revienta al construirse: ni nativo ni respaldo.
+    detectPonyfill.mockRejectedValue(new Error("boom"));
+    (prepareZXingModule as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("NotAllowedError");
+    });
     renderScanner();
 
     await encender();
