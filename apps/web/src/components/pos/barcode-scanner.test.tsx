@@ -38,11 +38,14 @@ const prepareZXingModule = vi.fn();
 const track = {
   applyConstraints: vi.fn(),
   getCapabilities: vi.fn(),
+  getSettings: vi.fn(),
   stop: vi.fn(),
   addEventListener: vi.fn(),
 };
 const streamFalso = { getVideoTracks: () => [track], getTracks: () => [track] };
 const getUserMedia = vi.fn();
+/** Las cámaras que el aparato declara. Por defecto, ninguna lista: una sola lente. */
+const enumerateDevices = vi.fn();
 
 vi.mock("barcode-detector/ponyfill", () => ({
   BarcodeDetector: class {
@@ -121,9 +124,12 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     detectPonyfill.mockResolvedValue([]);
     // jsdom no trae `mediaDevices`: se instala el nuestro.
     Object.defineProperty(navigator, "mediaDevices", {
-      value: { getUserMedia },
+      value: { getUserMedia, enumerateDevices },
       configurable: true,
     });
+    enumerateDevices.mockResolvedValue([]);
+    track.getSettings.mockReturnValue({ deviceId: "lente-a" });
+    localStorage.clear();
     // Ni `matchMedia`. Estas pruebas son sobre un aparato que SÍ tiene la
     // cámara en la mano; sin esto, el componente no pinta nada y todas fallan
     // por la razón equivocada.
@@ -819,6 +825,84 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       // 48 px es el mínimo de un objetivo táctil. `size-8` (32) es de ratón.
       expect(botonEscaneo().className).toContain("size-12");
+    });
+  });
+
+  /**
+   * ── ELEGIR LA LENTE (Samsung S20 Ultra, 2026-09-30) ────────────────────
+   *
+   * Con «cámara trasera» a secas, Chrome eligió una lente que no enfoca a
+   * distancia de mostrador: borroso en la app con el enfoque continuo puesto,
+   * nítido en la cámara nativa. La web no puede pedir una lente por nombre;
+   * sí puede listar las traseras y dejar cambiar hasta dar con la buena, y
+   * recordarla en el aparato.
+   */
+  describe("cambiar de lente", () => {
+    const camaras = [
+      { kind: "videoinput", deviceId: "lente-a", label: "camera2 0, facing back", groupId: "" },
+      { kind: "videoinput", deviceId: "lente-b", label: "camera2 2, facing back", groupId: "" },
+      { kind: "videoinput", deviceId: "selfie", label: "camera2 1, facing front", groupId: "" },
+    ];
+
+    it("con más de una trasera ofrece cambiar; al cambiar pide la siguiente y la recuerda", async () => {
+      enumerateDevices.mockResolvedValue(camaras);
+      renderScanner();
+
+      await encender();
+
+      const boton = await screen.findByRole("button", { name: "Cambiar cámara" });
+      await userEvent.click(boton);
+
+      await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+      expect(getUserMedia.mock.calls[1]?.[0]).toEqual({
+        video: { deviceId: { exact: "lente-b" } },
+      });
+      expect(localStorage.getItem("pos.scanner.deviceId")).toBe("lente-b");
+      // La cámara anterior se apagó: no quedan dos streams vivos.
+      expect(track.stop).toHaveBeenCalled();
+    });
+
+    it("la selfie no cuenta: solo se rota entre las traseras", async () => {
+      enumerateDevices.mockResolvedValue(camaras);
+      track.getSettings.mockReturnValue({ deviceId: "lente-b" });
+      renderScanner();
+
+      await encender();
+
+      await userEvent.click(await screen.findByRole("button", { name: "Cambiar cámara" }));
+
+      await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+      expect(getUserMedia.mock.calls[1]?.[0]).toEqual({
+        video: { deviceId: { exact: "lente-a" } },
+      });
+    });
+
+    it("con una sola lente no hay botón", async () => {
+      enumerateDevices.mockResolvedValue([camaras[0]]);
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
+      expect(screen.queryByRole("button", { name: "Cambiar cámara" })).not.toBeInTheDocument();
+    });
+
+    it("la lente recordada se pide primero; si ya no existe, cae a la trasera y la olvida", async () => {
+      localStorage.setItem("pos.scanner.deviceId", "lente-vieja");
+      getUserMedia
+        .mockRejectedValueOnce(new Error("OverconstrainedError"))
+        .mockResolvedValue(streamFalso);
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+      expect(getUserMedia.mock.calls[0]?.[0]).toEqual({
+        video: { deviceId: { exact: "lente-vieja" } },
+      });
+      expect(getUserMedia.mock.calls[1]?.[0]).toEqual({ video: { facingMode: "environment" } });
+      expect(localStorage.getItem("pos.scanner.deviceId")).toBeNull();
+      await waitFor(() => expect(detectPonyfill).toHaveBeenCalled());
     });
   });
 

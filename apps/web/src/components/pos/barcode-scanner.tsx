@@ -70,6 +70,52 @@ import { type Area, createConfirmer, isInsideArea, visibleArea } from "@/lib/sca
  * mismo: peor que una imagen modesta es no tener ninguna.
  */
 const CAMARA_TRASERA: MediaStreamConstraints = { video: { facingMode: "environment" } };
+
+/**
+ * ── ELEGIR LA LENTE (Samsung S20 Ultra, 2026-09-30) ──────────────────────
+ *
+ * Con `facingMode: environment` a secas, Chrome elige UNA de las cámaras
+ * traseras — y en un teléfono con tres o cuatro, no siempre la que enfoca a
+ * distancia de mostrador: la telefoto periscópica no enfoca a menos de ~60 cm
+ * y la principal de 108 MP tampoco enfoca cerca. Carlos lo vio: borroso en
+ * la app con el enfoque continuo puesto, nítido en la cámara nativa, que
+ * cambia de lente sola. La web no puede pedir una lente por nombre, pero sí
+ * listar las traseras y dejar que la persona cambie hasta dar con la buena.
+ * La elegida se recuerda en el aparato: se escoge una vez por caja.
+ */
+const LLAVE_LENTE = "pos.scanner.deviceId";
+
+function lenteRecordada(): string | null {
+  try {
+    return localStorage.getItem(LLAVE_LENTE);
+  } catch {
+    return null;
+  }
+}
+
+function recordarLente(deviceId: string | null): void {
+  try {
+    if (deviceId === null) {
+      localStorage.removeItem(LLAVE_LENTE);
+    } else {
+      localStorage.setItem(LLAVE_LENTE, deviceId);
+    }
+  } catch {
+    // Sin almacenamiento (modo privado): se elige en cada sesión, nada más.
+  }
+}
+
+/**
+ * Las cámaras traseras, o todas si las etiquetas no dicen hacia dónde miran
+ * (antes del permiso vienen vacías). Chrome Android etiqueta «camera2 0,
+ * facing back»; otros navegadores, «Back Camera» o «trasera».
+ */
+async function camarasTraseras(): Promise<MediaDeviceInfo[]> {
+  const todas = (await navigator.mediaDevices.enumerateDevices?.()) ?? [];
+  const video = todas.filter((d) => d.kind === "videoinput");
+  const traseras = video.filter((d) => /back|rear|environment|trasera|posterior/i.test(d.label));
+  return traseras.length > 0 ? traseras : video;
+}
 const RESOLUCION_IDEAL: MediaTrackConstraints = {
   width: { ideal: 1920 },
   height: { ideal: 1080 },
@@ -289,6 +335,9 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   const [topeZoom, setTopeZoom] = useState<number | null>(null);
   const [conLinterna, setConLinterna] = useState(false);
   const [torchDisponible, setTorchDisponible] = useState(false);
+  // La lente pedida (por `deviceId`) y las traseras disponibles para cambiar.
+  const [lente, setLente] = useState<string | null>(lenteRecordada);
+  const [lentes, setLentes] = useState<MediaDeviceInfo[]>([]);
 
   // `onScan` en un ref y no en las dependencias: si el padre le pasa una
   // función nueva en cada render, incluirla reiniciaría la cámara sola.
@@ -325,7 +374,26 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           throw new Error("el <video> no estaba montado al arrancar el lector");
         }
 
-        stream = await navigator.mediaDevices.getUserMedia(CAMARA_TRASERA);
+        // La lente recordada, y si ya no existe (otro aparato, otro
+        // navegador), la trasera que Chrome elija — y se olvida la vieja.
+        if (lente !== null) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: lente } },
+            });
+          } catch {
+            recordarLente(null);
+            stream = await navigator.mediaDevices.getUserMedia(CAMARA_TRASERA);
+          }
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia(CAMARA_TRASERA);
+        }
+        // Con el permiso dado, las etiquetas ya dicen qué cámara es cada una.
+        camarasTraseras()
+          .then((lista) => {
+            if (!cancelado) setLentes(lista);
+          })
+          .catch(() => undefined);
         if (cancelado) {
           for (const t of stream.getTracks()) {
             t.stop();
@@ -516,7 +584,7 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
       controlesRef.current?.stop();
       controlesRef.current = null;
     };
-  }, [encendida]);
+  }, [encendida, lente]);
 
   // El apagado limpio: la fase sigue a la intención cuando no hubo error.
   useEffect(() => {
@@ -529,6 +597,22 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
       setTorchDisponible(false);
     }
   }, [encendida]);
+
+  /**
+   * La siguiente lente trasera después de la que está en uso. Cambiar `lente`
+   * reinicia el efecto: la cámara actual se apaga y la nueva arranca con los
+   * mismos ajustes (resolución, enfoque, zoom).
+   */
+  const cambiarLente = () => {
+    const actual = pistaRef.current?.getSettings?.().deviceId ?? lente;
+    const indice = lentes.findIndex((d) => d.deviceId === actual);
+    const siguiente = lentes[(indice + 1) % lentes.length];
+    if (siguiente === undefined) {
+      return;
+    }
+    recordarLente(siguiente.deviceId);
+    setLente(siguiente.deviceId);
+  };
 
   const alternarLinterna = () => {
     const objetivo = !conLinterna;
@@ -609,8 +693,15 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           >
             <div className="h-0.5 w-full rounded bg-destructive/70" />
           </div>
-          {(torchDisponible || topeZoom !== null) && (
+          {(torchDisponible || topeZoom !== null || lentes.length > 1) && (
             <div className="absolute right-2 bottom-2 flex gap-1">
+              {lentes.length > 1 && (
+                // Solo con más de una trasera: en un teléfono de una lente el
+                // botón no tendría a dónde cambiar.
+                <Button type="button" size="sm" variant="secondary" onClick={cambiarLente}>
+                  {t("pos.cart.switchCamera")}
+                </Button>
+              )}
               {torchDisponible && (
                 // Más luz ataca el desenfoque por dos vías: profundidad de
                 // campo y obturación corta. Solo si la lente declara torch.

@@ -33,7 +33,9 @@ Al elegirlo o configurarlo, revisa dos cosas:
 - **Sin lector**, en un celular o una tableta puedes presionar **Escanear con
   la cámara** al vender. Coloca el código horizontal, sobre la línea: solo
   cuenta lo que se ve dentro del recuadro, y una lectura dudosa no entra al
-  carrito hasta que se repite. Si el
+  carrito hasta que se repite. Si la imagen se ve borrosa y tu teléfono tiene
+  varias cámaras traseras, presiona **Cambiar cámara** hasta que enfoque: la
+  que elijas se recuerda en ese aparato. Si el
   navegador no puede usar la cámara, verás **No pudimos usar la cámara. Puedes
   buscar tecleando.** En una computadora ese botón no aparece: ahí se escanea
   con un lector o se teclea el código.
