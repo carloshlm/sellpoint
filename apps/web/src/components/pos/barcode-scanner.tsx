@@ -131,11 +131,11 @@ const ZOOM_ESCANER = 2;
 
 /**
  * Los niveles que se OFRECEN al usuario, filtrados por lo que la lente declare.
- * Carlos pidió 5× al ver que 2× no alcanzaba a su distancia de enfoque; se le
- * da el control en vez de otra constante adivinada — y los botones diagnostican
- * de paso: si no aparecen, la lente no expone zoom vía web.
+ * Hubo 5× (Carlos, 2026-08-22, cuando 2× no alcanzaba a su distancia de
+ * enfoque); con la lente correcta sobra, y lo quitó el 2026-09-30. Los botones
+ * diagnostican de paso: si no aparecen, la lente no expone zoom vía web.
  */
-const NIVELES_ZOOM = [1, 2, 5];
+const NIVELES_ZOOM = [1, 2];
 
 /**
  * Foco FIJO de mostrador (~15 cm), SOLO para lentes que no saben enfocar de
@@ -471,6 +471,12 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
             return;
           }
           ultimaLecturaRef.current = { texto, en: ahora };
+          // La lente que LEE es la buena: se recuerda para el próximo arranque
+          // sin esperar a que alguien toque «Cambiar cámara» (2026-09-30).
+          const lenteQueLeyo = pistaRef.current?.getSettings?.().deviceId;
+          if (lenteQueLeyo !== undefined && lenteQueLeyo !== lenteRecordada()) {
+            recordarLente(lenteQueLeyo);
+          }
           navigator.vibrate?.(60);
           onScanRef.current(texto);
         };

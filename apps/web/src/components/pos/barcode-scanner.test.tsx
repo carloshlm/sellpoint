@@ -582,13 +582,15 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
       await encender();
 
-      // tope 8 → 1×, 2× y 5× disponibles.
-      const boton5 = await screen.findByRole("button", { name: "5×" });
-      await userEvent.click(boton5);
+      // tope 8 → 1× y 2×; el 5× se quitó (Carlos, 2026-09-30): con la lente
+      // correcta sobra, y a 5× la imagen es toda desenfoque.
+      const boton1 = await screen.findByRole("button", { name: "1×" });
+      expect(screen.queryByRole("button", { name: "5×" })).not.toBeInTheDocument();
+      await userEvent.click(boton1);
 
       await waitFor(() => {
         const pedidos = track.applyConstraints.mock.calls.map((c) => c[0]);
-        expect(pedidos).toContainEqual({ advanced: [{ zoom: 5 }] });
+        expect(pedidos).toContainEqual({ advanced: [{ zoom: 1 }] });
       });
     });
 
@@ -875,6 +877,18 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       expect(getUserMedia.mock.calls[1]?.[0]).toEqual({
         video: { deviceId: { exact: "lente-a" } },
       });
+    });
+
+    it("la lente con la que se LEE queda recordada, sin tocar el botón", async () => {
+      enumerateDevices.mockResolvedValue(camaras);
+      track.getSettings.mockReturnValue({ deviceId: "lente-a" });
+      detectPonyfill.mockResolvedValue([{ rawValue: "7501234567890" }]);
+      const onScan = renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(onScan).toHaveBeenCalled());
+      expect(localStorage.getItem("pos.scanner.deviceId")).toBe("lente-a");
     });
 
     it("con una sola lente no hay botón", async () => {
