@@ -9,6 +9,7 @@
   "empty": "You haven't registered any services yet.",
   "search": "Search service",
   "searchPlaceholder": "Code or name…",
+  "noResults": "No active service matches.",
   "status": "Status",
   "active": "Active",
   "inactive": "Inactive",

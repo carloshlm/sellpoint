@@ -70,10 +70,11 @@ totales, cómo pagó el cliente y, si pagó en efectivo, con cuánto (**Recibido
 y su **Cambio** (capítulo 7).
 
 Si tu negocio tiene el módulo **Recepción**, el ticket de venta también puede
-llevar el **número de turno**: marca los servicios en **Configuración
-Recepción** › **Servicios que generan turno al venderse** y, al cobrarlos en la
-caja, el turno se genera solo y su número sale en grande en el ticket, también
-al reimprimirlo.
+llevar el **número de turno**. En **Configuración Recepción** › **Servicios que
+generan turno al venderse**, busca cada servicio por su nombre o código y
+agrégalo a la lista; con **Quitar** lo sacas, y **Guardar** deja los cambios.
+Al cobrar en la caja uno o varios de esos servicios, se genera **un turno por
+venta** y su número sale en grande en el ticket, también al reimprimirlo.
 
 El **ancho del papel** (58 u 80 mm) no se elige aquí: es un ajuste de la
 computadora donde se imprime, no del negocio —la impresora está conectada a

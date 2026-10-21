@@ -9,6 +9,7 @@
   "empty": "Todavía no registraste servicios.",
   "search": "Buscar servicio",
   "searchPlaceholder": "Código o nombre…",
+  "noResults": "Ningún servicio activo coincide.",
   "status": "Estado",
   "active": "Activo",
   "inactive": "Inactivo",

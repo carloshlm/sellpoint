@@ -119,7 +119,7 @@ describe("grupo de menú de un módulo avanzado (F9-MOD-08)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: false,
-      turnServiceIds: [],
+      turnServices: [],
     });
     await renderCon(["reception"], ["reception:read"]);
     expect(await screen.findByRole("link", { name: "Registro de paciente" })).toHaveAttribute(
@@ -134,7 +134,7 @@ describe("grupo de menú de un módulo avanzado (F9-MOD-08)", () => {
       customerLabel: null,
       showCustomers: false,
       showTurns: false,
-      turnServiceIds: [],
+      turnServices: [],
     });
     await renderCon(["reception"], ["reception:read", "reception:manage"]);
     await screen.findByRole("heading", { level: 1 });

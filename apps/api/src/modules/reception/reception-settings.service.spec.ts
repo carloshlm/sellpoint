@@ -1,3 +1,4 @@
+import { Prisma } from "../../generated/prisma/client";
 import { ReceptionSettingsService } from "./reception-settings.service";
 
 /**
@@ -55,7 +56,7 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       customerLabel: null,
       showCustomers: true,
       showTurns: true,
-      turnServiceIds: [],
+      turnServices: [],
     });
     expect(tx.receptionSettings.upsert).not.toHaveBeenCalled();
   });
@@ -74,18 +75,18 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: true,
-      turnServiceIds: [],
+      turnServices: [],
     });
     expect(audit.record).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         action: "reception.settings.update",
-        before: { customerLabel: null, showCustomers: true, showTurns: true, turnServiceIds: [] },
+        before: { customerLabel: null, showCustomers: true, showTurns: true, turnServices: [] },
         after: {
           customerLabel: "Paciente",
           showCustomers: true,
           showTurns: true,
-          turnServiceIds: [],
+          turnServices: [],
         },
       }),
     );
@@ -126,7 +127,7 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       customerLabel: "Alumno",
       showCustomers: false,
       showTurns: true,
-      turnServiceIds: [],
+      turnServices: [],
     });
   });
 
@@ -139,13 +140,31 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
     const CONSULTA = "11111111-1111-4111-8111-111111111111";
     const ESPECIALIDAD = "22222222-2222-4222-8222-222222222222";
 
-    it("get los devuelve en un orden estable (es un conjunto)", async () => {
+    const fila = (id: string, code: string, name: string, price: string | null) => ({
+      service: { id, code, name, price: price === null ? null : new Prisma.Decimal(price) },
+    });
+
+    /**
+     * F9-RECEP-32 — con su nombre, código y precio, para que la tarjeta pinte
+     * la lista sin pedir el catálogo entero; solo los ACTIVOS (uno inactivo no
+     * se puede vender) y por nombre, que es como se buscan.
+     */
+    it("get los devuelve con nombre, código y precio: solo los activos, por nombre", async () => {
       tx.receptionTurnService.findMany.mockResolvedValue([
-        { serviceId: CONSULTA },
-        { serviceId: ESPECIALIDAD },
+        fila(CONSULTA, "CONS", "Consulta médica", "500.00"),
+        fila(ESPECIALIDAD, "ESP", "Consulta de especialidad", null),
       ]);
+
       await expect(service.get(USER)).resolves.toMatchObject({
-        turnServiceIds: [CONSULTA, ESPECIALIDAD],
+        turnServices: [
+          { id: CONSULTA, code: "CONS", name: "Consulta médica", price: "500" },
+          { id: ESPECIALIDAD, code: "ESP", name: "Consulta de especialidad", price: null },
+        ],
+      });
+      expect(tx.receptionTurnService.findMany).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, service: { isActive: true } },
+        select: { service: { select: { id: true, code: true, name: true, price: true } } },
+        orderBy: [{ service: { name: "asc" } }, { serviceId: "asc" }],
       });
     });
 
@@ -200,14 +219,16 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       tx.service.count.mockResolvedValue(1);
       tx.receptionTurnService.findMany
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ serviceId: CONSULTA }]);
+        .mockResolvedValueOnce([fila(CONSULTA, "CONS", "Consulta médica", "500.00")]);
       await service.update(USER, { turnServiceIds: [CONSULTA] }, META);
 
       expect(audit.record).toHaveBeenCalledWith(
         tx,
         expect.objectContaining({
-          before: expect.objectContaining({ turnServiceIds: [] }),
-          after: expect.objectContaining({ turnServiceIds: [CONSULTA] }),
+          before: expect.objectContaining({ turnServices: [] }),
+          after: expect.objectContaining({
+            turnServices: [{ id: CONSULTA, code: "CONS", name: "Consulta médica", price: "500" }],
+          }),
         }),
       );
     });

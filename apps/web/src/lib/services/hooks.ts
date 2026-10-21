@@ -25,15 +25,15 @@ export function useServices(params: { query?: string; page?: number } = {}) {
 }
 
 /**
- * F9-RECEP-28 — los servicios ACTIVOS para elegir de una lista (hoy, los que
- * generan turno al venderse). Una sola página de 100, el tope del API: un
- * negocio tiene decenas de servicios, no cientos.
+ * F9-RECEP-32 — buscar servicios ACTIVOS por nombre o código para elegir uno
+ * (hoy, los que generan turno al venderse). En blanco no pide nada: un
+ * catálogo de miles no se despliega entero, se busca.
  */
-export function useActiveServiceOptions(enabled: boolean) {
+export function useServiceSearch(term: string) {
   return useQuery<ServicesPage, ApiError, Service[]>({
-    queryKey: [...SERVICES_QUERY_KEY, "active-options"],
-    queryFn: () => listServices({ pageSize: 100 }),
-    enabled,
+    queryKey: [...SERVICES_QUERY_KEY, "search", term],
+    queryFn: () => listServices({ query: term, pageSize: 20 }),
+    enabled: term !== "",
     select: (page) => page.rows.filter((service) => service.isActive),
   });
 }

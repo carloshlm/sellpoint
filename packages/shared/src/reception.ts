@@ -26,12 +26,29 @@ export interface ReceptionSettings {
    * F9-RECEP-25 — los servicios que, al VENDERSE en la caja, generan un turno
    * (ley 31). Vacío, ninguna venta genera turnos: los negocios que solo usan
    * «Generar turno» no notan nada.
+   *
+   * F9-RECEP-32 — viajan con su nombre, código y precio, y solo los ACTIVOS:
+   * la tarjeta pinta la lista sin pedir el catálogo entero, que puede tener
+   * miles. Para cambiarla se manda `turnServiceIds` (los ids, la lista
+   * completa).
    */
-  turnServiceIds: string[];
+  turnServices: TurnService[];
 }
 
-/** Cuántos servicios pueden generar turno. Un consultorio tiene dos o tres consultas. */
-export const TURN_SERVICES_MAX = 20;
+/** Un servicio que genera turno, como lo pinta «Configuración Recepción». */
+export interface TurnService {
+  id: string;
+  code: string;
+  name: string;
+  /** Decimal en texto, como todo precio del API; `null` si el servicio no tiene precio. */
+  price: string | null;
+}
+
+/**
+ * Cuántos servicios pueden generar turno. Con el buscador (F9-RECEP-32) la
+ * lista ya no depende del tamaño del catálogo; 100 es la página máxima del API.
+ */
+export const TURN_SERVICES_MAX = 100;
 
 /**
  * Sin fila, todo visible y sin palabra propia: los MISMOS defaults que las
@@ -42,7 +59,7 @@ export const DEFAULT_RECEPTION_SETTINGS: ReceptionSettings = {
   customerLabel: null,
   showCustomers: true,
   showTurns: true,
-  turnServiceIds: [],
+  turnServices: [],
 };
 
 /** Una palabra: sin espacio de ninguna clase (tab, salto, nbsp incluidos). */

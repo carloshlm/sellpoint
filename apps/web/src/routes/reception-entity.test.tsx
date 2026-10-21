@@ -78,7 +78,7 @@ beforeEach(() => {
     customerLabel: "Paciente",
     showCustomers: true,
     showTurns: true,
-    turnServiceIds: [],
+    turnServices: [],
   });
 });
 
@@ -121,7 +121,7 @@ describe("la palabra propia del negocio en Recepción (F9-RECEP-18)", () => {
       customerLabel: null,
       showCustomers: true,
       showTurns: true,
-      turnServiceIds: [],
+      turnServices: [],
     });
     await renderRuta("/reception/customers");
     expect(
@@ -134,7 +134,7 @@ describe("la palabra propia del negocio en Recepción (F9-RECEP-18)", () => {
       customerLabel: null,
       showCustomers: true,
       showTurns: false,
-      turnServiceIds: [],
+      turnServices: [],
     });
     await renderRuta("/reception/turns");
     expect(await screen.findByText("Esta sección está desactivada")).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe("la palabra propia del negocio en Recepción (F9-RECEP-18)", () => {
       customerLabel: null,
       showCustomers: true,
       showTurns: false,
-      turnServiceIds: [],
+      turnServices: [],
     });
     api.listCustomers.mockResolvedValue({
       rows: [

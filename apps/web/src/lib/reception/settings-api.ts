@@ -10,7 +10,14 @@ import { api } from "@/lib/api";
  */
 export type { ReceptionSettings };
 
-export type UpdateReceptionSettingsInput = Partial<ReceptionSettings>;
+/**
+ * Lo que se cambia. Los servicios que generan turno se LEEN con su nombre y
+ * precio (`turnServices`) pero se MANDAN como ids, la lista completa: el API
+ * la reemplaza (F9-RECEP-32).
+ */
+export type UpdateReceptionSettingsInput = Partial<Omit<ReceptionSettings, "turnServices">> & {
+  turnServiceIds?: string[];
+};
 
 export async function getReceptionSettings(): Promise<ReceptionSettings> {
   const { data } = await api.get<ReceptionSettings>("/reception/settings");

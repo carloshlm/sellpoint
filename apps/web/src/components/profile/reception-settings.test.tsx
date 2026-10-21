@@ -35,6 +35,13 @@ const servicio = (id: string, name: string, price: string, isActive = true) => (
   taxGroupId: null,
   attributes: {},
 });
+/** Como la manda la lectura de la configuración: sin lo que la tarjeta no usa. */
+const enLista = (s: ReturnType<typeof servicio>) => ({
+  id: s.id,
+  code: s.code,
+  name: s.name,
+  price: s.price,
+});
 const CONSULTA = servicio("11111111-1111-4111-8111-111111111111", "Consulta médica", "500.00");
 const ESPECIALIDAD = servicio(
   "22222222-2222-4222-8222-222222222222",
@@ -74,23 +81,27 @@ beforeEach(() => {
     customerLabel: null,
     showCustomers: true,
     showTurns: true,
-    turnServiceIds: [],
+    turnServices: [],
   });
   mocked.updateReceptionSettings.mockImplementation(async (input) => ({
     customerLabel: null,
     showCustomers: true,
     showTurns: true,
-    turnServiceIds: [],
+    turnServices: [],
     ...input,
   }));
 });
 
 beforeEach(() => {
-  servicios.listServices.mockResolvedValue({
-    rows: [CONSULTA, ESPECIALIDAD, INACTIVA],
-    total: 3,
-    page: 1,
-    pageSize: 100,
+  // Como el API: busca por nombre o código, y trae también los inactivos.
+  servicios.listServices.mockImplementation(async (params = {}) => {
+    const texto = (params.query ?? "").toLocaleLowerCase("es");
+    const rows = [CONSULTA, ESPECIALIDAD, INACTIVA].filter(
+      (s) =>
+        s.name.toLocaleLowerCase("es").includes(texto) ||
+        s.code.toLocaleLowerCase("es").includes(texto),
+    );
+    return { rows, total: rows.length, page: 1, pageSize: 20 };
   });
 });
 
@@ -150,7 +161,7 @@ describe("«Configuración Recepción» en Mi perfil (F9-RECEP-18)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: true,
-      turnServiceIds: [],
+      turnServices: [],
     });
     renderCard(user(["reception"], ["tenants:manage"]));
     await screen.findByTestId("reception-settings");
@@ -191,59 +202,101 @@ describe("«Configuración Recepción» en Mi perfil (F9-RECEP-18)", () => {
   });
 
   /**
-   * F9-RECEP-28 — los servicios que generan turno al VENDERSE en la caja
-   * (ley 31). Solo se ofrecen los activos; se manda la lista COMPLETA, y solo
-   * si cambió.
+   * F9-RECEP-32 — los servicios que generan turno al venderse (ley 31), con
+   * un BUSCADOR: el catálogo puede tener miles, así que no se despliega
+   * entero. La lista guardada llega con nombre y precio; se agrega desde la
+   * búsqueda, se quita en la tabla y Guardar manda la lista COMPLETA, solo si
+   * cambió.
    */
-  describe("servicios que generan turno al venderse (F9-RECEP-28)", () => {
+  describe("servicios que generan turno al venderse (F9-RECEP-32)", () => {
     const admin = () => user(["reception"], ["tenants:manage", "services:read"]);
-
-    it("las casillas reflejan lo guardado, y un servicio inactivo no se ofrece", async () => {
+    const conLista = (turnServices: ReturnType<typeof enLista>[]) =>
       mocked.getReceptionSettings.mockResolvedValue({
         customerLabel: null,
         showCustomers: true,
         showTurns: true,
-        turnServiceIds: [CONSULTA.id],
+        turnServices,
       });
+
+    it("pinta los guardados con su precio sin pedir el catálogo", async () => {
+      conLista([enLista(CONSULTA)]);
       renderCard(admin());
 
-      expect(await screen.findByRole("checkbox", { name: "Consulta médica" })).toBeChecked();
-      expect(screen.getByRole("checkbox", { name: "Consulta de especialidad" })).not.toBeChecked();
-      expect(screen.queryByRole("checkbox", { name: "Consulta vieja" })).not.toBeInTheDocument();
+      const lista = await screen.findByTestId("reception-turn-services");
+      const fila = await within(lista).findByRole("row", { name: /Consulta médica/ });
+      expect(fila).toHaveTextContent("$500.00");
+      expect(servicios.listServices).not.toHaveBeenCalled();
     });
 
-    it("marcar uno y guardar manda la lista completa", async () => {
-      mocked.getReceptionSettings.mockResolvedValue({
-        customerLabel: null,
-        showCustomers: true,
-        showTurns: true,
-        turnServiceIds: [CONSULTA.id],
-      });
+    it("buscar y agregar uno, y Guardar manda la lista completa", async () => {
+      conLista([enLista(CONSULTA)]);
       const usuario = userEvent.setup();
       renderCard(admin());
 
-      await usuario.click(
-        await screen.findByRole("checkbox", { name: "Consulta de especialidad" }),
-      );
-      await usuario.click(screen.getByRole("button", { name: "Guardar" }));
+      await usuario.type(await screen.findByLabelText("Buscar servicio"), "espec");
+      await usuario.click(await screen.findByRole("button", { name: /^Consulta de especialidad/ }));
+      expect(
+        within(screen.getByTestId("reception-turn-services")).getByRole("row", {
+          name: /Consulta de especialidad/,
+        }),
+      ).toBeInTheDocument();
+      // El buscador queda listo para el siguiente.
+      expect(screen.getByLabelText("Buscar servicio")).toHaveValue("");
 
+      await usuario.click(screen.getByRole("button", { name: "Guardar" }));
       await waitFor(() =>
         expect(mocked.updateReceptionSettings).toHaveBeenCalledWith({
           turnServiceIds: [CONSULTA.id, ESPECIALIDAD.id],
         }),
       );
+      expect(servicios.listServices).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "espec" }),
+      );
     });
 
-    it("sin servicios activos lo dice, en lugar de una lista vacía", async () => {
-      servicios.listServices.mockResolvedValue({
-        rows: [INACTIVA],
-        total: 1,
-        page: 1,
-        pageSize: 100,
-      });
+    it("Quitar uno y Guardar manda la lista sin él", async () => {
+      conLista([enLista(CONSULTA), enLista(ESPECIALIDAD)]);
+      const usuario = userEvent.setup();
       renderCard(admin());
 
-      expect(await screen.findByText(/No tienes servicios activos/)).toBeInTheDocument();
+      await usuario.click(await screen.findByRole("button", { name: "Quitar Consulta médica" }));
+      await usuario.click(screen.getByRole("button", { name: "Guardar" }));
+
+      await waitFor(() =>
+        expect(mocked.updateReceptionSettings).toHaveBeenCalledWith({
+          turnServiceIds: [ESPECIALIDAD.id],
+        }),
+      );
+    });
+
+    it("en la búsqueda, el que ya está en la lista no se agrega dos veces y el inactivo no sale", async () => {
+      conLista([enLista(CONSULTA)]);
+      const usuario = userEvent.setup();
+      renderCard(admin());
+
+      await usuario.type(await screen.findByLabelText("Buscar servicio"), "consulta");
+
+      expect(await screen.findByRole("button", { name: /^Consulta médica/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /^Consulta de especialidad/ })).toBeEnabled();
+      expect(screen.queryByRole("button", { name: /^Consulta vieja/ })).not.toBeInTheDocument();
+    });
+
+    it("sin servicios en la lista lo dice, en lugar de una tabla vacía", async () => {
+      renderCard(admin());
+
+      expect(await screen.findByText(/Ningún servicio genera turno todavía/)).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId("reception-turn-services")).queryByRole("table"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("lo que no coincide con nada lo dice", async () => {
+      const usuario = userEvent.setup();
+      renderCard(admin());
+
+      await usuario.type(await screen.findByLabelText("Buscar servicio"), "zzz");
+
+      expect(await screen.findByText("Ningún servicio activo coincide.")).toBeInTheDocument();
     });
   });
 });

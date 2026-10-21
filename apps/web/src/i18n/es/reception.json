@@ -96,8 +96,13 @@
       "description": "Quien administra el negocio la apagó en Mi perfil › Configuración Recepción."
     },
     "turnServicesTitle": "Servicios que generan turno al venderse",
-    "turnServicesHint": "Al cobrar uno de estos servicios en la caja se genera el turno, y su número sale en el ticket de venta.",
-    "turnServicesEmpty": "No tienes servicios activos. Dalos de alta en Catálogos › Servicios."
+    "turnServicesHint": "Al cobrar uno o varios de estos servicios en la caja se genera un turno por venta, y su número sale en el ticket.",
+    "turnServicesEmpty": "Ningún servicio genera turno todavía. Búscalo arriba para agregarlo.",
+    "turnServicesMax": "Llegaste al máximo de {{max}} servicios.",
+    "turnServicesColumns": {
+      "service": "Servicio",
+      "price": "Precio de venta"
+    }
   },
   "saleAnnotation": {
     "turn": "Turno"

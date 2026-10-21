@@ -73,7 +73,7 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
       customerLabel: null,
       showCustomers: true,
       showTurns: true,
-      turnServiceIds: [],
+      turnServices: [],
     });
 
     const guardado = await put(negocio.token, {
@@ -84,7 +84,7 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: false,
-      turnServiceIds: [],
+      turnServices: [],
     });
 
     await put(negocio.token, { customerLabel: "Paciente nuevo" }).expect(400);
@@ -96,7 +96,7 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: false,
-      turnServiceIds: [],
+      turnServices: [],
     });
 
     const fabrica = await put(negocio.token, { customerLabel: null }).expect(200);
@@ -120,27 +120,37 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
         tx.service.create({ data: { tenantId, code, name: `Servicio ${code}`, isActive } }),
       );
 
-    it("se guardan, se releen y se vacían (es un conjunto: el orden no importa)", async () => {
-      const consulta = await servicio(negocio.tenantId, "E2E-CONSULTA");
+    /**
+     * F9-RECEP-32 — la lectura los trae con nombre, código y precio, por
+     * nombre: la tarjeta los pinta sin pedir el catálogo entero.
+     */
+    it("se guardan, se releen con su nombre y precio (por nombre) y se vacían", async () => {
       const especialidad = await servicio(negocio.tenantId, "E2E-ESPECIALIDAD");
+      const consulta = await servicio(negocio.tenantId, "E2E-CONSULTA");
+      const vista = (s: { id: string; code: string }) => ({
+        id: s.id,
+        code: s.code,
+        name: `Servicio ${s.code}`,
+        price: null,
+      });
+      const ambos = [vista(consulta), vista(especialidad)];
 
       const guardado = await put(negocio.token, {
-        turnServiceIds: [consulta.id, especialidad.id],
+        turnServiceIds: [especialidad.id, consulta.id],
       }).expect(200);
-      const ambos = [consulta.id, especialidad.id].sort();
-      expect([...guardado.body.turnServiceIds].sort()).toEqual(ambos);
+      expect(guardado.body.turnServices).toEqual(ambos);
 
       const releido = await get(negocio.token).expect(200);
-      expect([...releido.body.turnServiceIds].sort()).toEqual(ambos);
+      expect(releido.body.turnServices).toEqual(ambos);
       // El que solo lee el módulo también los ve: su pantalla los necesita.
       const lectura = await get(viewerToken).expect(200);
-      expect([...lectura.body.turnServiceIds].sort()).toEqual(ambos);
+      expect(lectura.body.turnServices).toEqual(ambos);
 
       const uno = await put(negocio.token, { turnServiceIds: [especialidad.id] }).expect(200);
-      expect(uno.body.turnServiceIds).toEqual([especialidad.id]);
+      expect(uno.body.turnServices).toEqual([vista(especialidad)]);
 
       const vacio = await put(negocio.token, { turnServiceIds: [] }).expect(200);
-      expect(vacio.body.turnServiceIds).toEqual([]);
+      expect(vacio.body.turnServices).toEqual([]);
     });
 
     it("un servicio inactivo, uno de otro negocio o uno repetido rebotan con 400", async () => {
@@ -154,7 +164,18 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
 
       // Nada de eso tocó la lista.
       const releido = await get(negocio.token).expect(200);
-      expect(releido.body.turnServiceIds).toEqual([]);
+      expect(releido.body.turnServices).toEqual([]);
+    });
+
+    it("un servicio marcado que se desactiva deja de salir en la lista", async () => {
+      const temporal = await servicio(negocio.tenantId, "E2E-TEMPORAL");
+      await put(negocio.token, { turnServiceIds: [temporal.id] }).expect(200);
+      await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.service.update({ where: { id: temporal.id }, data: { isActive: false } }),
+      );
+
+      const releido = await get(negocio.token).expect(200);
+      expect(releido.body.turnServices).toEqual([]);
     });
   });
 });

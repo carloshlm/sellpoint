@@ -96,8 +96,13 @@
       "description": "Whoever manages the business turned it off in My profile › Reception settings."
     },
     "turnServicesTitle": "Services that issue a ticket when sold",
-    "turnServicesHint": "When one of these services is charged at the register, a ticket is issued and its number prints on the sales receipt.",
-    "turnServicesEmpty": "You have no active services. Add them in Catalogs › Services."
+    "turnServicesHint": "When one or more of these services are charged at the register, one ticket is issued per sale and its number prints on the receipt.",
+    "turnServicesEmpty": "No service issues a ticket yet. Search for one above to add it.",
+    "turnServicesMax": "You reached the maximum of {{max}} services.",
+    "turnServicesColumns": {
+      "service": "Service",
+      "price": "Price"
+    }
   },
   "saleAnnotation": {
     "turn": "Ticket"

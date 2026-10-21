@@ -3,6 +3,7 @@ import {
   DEFAULT_RECEPTION_SETTINGS,
   normalizeCustomerLabel,
   type ReceptionSettings,
+  type TurnService,
 } from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -36,25 +37,34 @@ export class ReceptionSettingsService {
     tenantId: string,
   ): Promise<ReceptionSettings> {
     const fila = await tx.receptionSettings.findUnique({ where: { tenantId } });
-    const turnServiceIds = await this.serviciosQueGeneranTurno(tx, tenantId);
+    const turnServices = await this.serviciosQueGeneranTurno(tx, tenantId);
     return fila === null
-      ? { ...DEFAULT_RECEPTION_SETTINGS, turnServiceIds }
-      : toView(fila, turnServiceIds);
+      ? { ...DEFAULT_RECEPTION_SETTINGS, turnServices }
+      : toView(fila, turnServices);
   }
 
+  /**
+   * F9-RECEP-32 — con nombre, código y precio: la tarjeta pinta la lista sin
+   * pedir el catálogo, que puede tener miles. Solo los ACTIVOS: uno inactivo
+   * no se puede vender, y al guardar la lista se cae. Por nombre, que es como
+   * se buscan; el id desempata (`createMany` les da a todos el mismo
+   * `created_at`).
+   */
   private async serviciosQueGeneranTurno(
     tx: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0],
     tenantId: string,
-  ): Promise<string[]> {
-    // Orden ESTABLE, no «el de marcado»: `createMany` inserta varios con el
-    // mismo `created_at`, y el desempate sería un UUID al azar. Es un
-    // conjunto; el web pinta casillas.
+  ): Promise<TurnService[]> {
     const filas = await tx.receptionTurnService.findMany({
-      where: { tenantId },
-      select: { serviceId: true },
-      orderBy: { serviceId: "asc" },
+      where: { tenantId, service: { isActive: true } },
+      select: { service: { select: { id: true, code: true, name: true, price: true } } },
+      orderBy: [{ service: { name: "asc" } }, { serviceId: "asc" }],
     });
-    return filas.map((f) => f.serviceId);
+    return filas.map(({ service }) => ({
+      id: service.id,
+      code: service.code,
+      name: service.name,
+      price: service.price?.toString() ?? null,
+    }));
   }
 
   async update(
@@ -89,8 +99,8 @@ export class ReceptionSettingsService {
         action: "reception.settings.update",
         resourceType: "reception_settings",
         resourceId: user.tenantId,
-        before: { ...antes },
-        after: { ...despues },
+        before: paraAuditoria(antes),
+        after: paraAuditoria(despues),
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
@@ -127,14 +137,22 @@ export class ReceptionSettingsService {
   }
 }
 
+/**
+ * La auditoría guarda JSON: los servicios van como objetos planos (una
+ * `interface` no tiene firma de índice y el tipo JSON de Prisma no la acepta).
+ */
+function paraAuditoria(settings: ReceptionSettings) {
+  return { ...settings, turnServices: settings.turnServices.map((s) => ({ ...s })) };
+}
+
 function toView(
-  fila: Omit<ReceptionSettings, "turnServiceIds">,
-  turnServiceIds: string[],
+  fila: Omit<ReceptionSettings, "turnServices">,
+  turnServices: TurnService[],
 ): ReceptionSettings {
   return {
     customerLabel: fila.customerLabel,
     showCustomers: fila.showCustomers,
     showTurns: fila.showTurns,
-    turnServiceIds,
+    turnServices,
   };
 }

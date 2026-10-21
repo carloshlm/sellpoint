@@ -2,23 +2,34 @@ import {
   customerLabelSchema,
   normalizeCustomerLabel,
   type ReceptionSettings as Settings,
+  TURN_SERVICES_MAX,
+  type TurnService,
 } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Money } from "@/components/common/money";
 import { TextField } from "@/components/form/text-field";
+import { ServicePicker } from "@/components/services/service-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import {
   useReceptionEntity,
   useReceptionSettings,
   useUpdateReceptionSettings,
 } from "@/lib/reception/settings";
-import { useActiveServiceOptions } from "@/lib/services/hooks";
+import type { UpdateReceptionSettingsInput } from "@/lib/reception/settings-api";
 import type { AuthUser } from "@/stores/auth.store";
 
 interface Formulario {
@@ -26,8 +37,8 @@ interface Formulario {
   palabra: string;
   showCustomers: boolean;
   showTurns: boolean;
-  /** F9-RECEP-28 — los servicios que generan turno al venderse. */
-  turnServiceIds: string[];
+  /** F9-RECEP-28/32 — los servicios que generan turno al venderse, con su nombre y precio. */
+  turnServices: TurnService[];
 }
 
 const desdeSettings = (s: Settings): Formulario => ({
@@ -35,8 +46,10 @@ const desdeSettings = (s: Settings): Formulario => ({
   palabra: s.customerLabel ?? "",
   showCustomers: s.showCustomers,
   showTurns: s.showTurns,
-  turnServiceIds: s.turnServiceIds,
+  turnServices: s.turnServices,
 });
+
+const idsDe = (lista: readonly TurnService[]) => lista.map((servicio) => servicio.id);
 
 /** Mismos elementos, sin importar el orden: la lista es un conjunto. */
 const mismoConjunto = (a: readonly string[], b: readonly string[]) =>
@@ -52,9 +65,11 @@ const mismoConjunto = (a: readonly string[], b: readonly string[]) =>
  * que cambió; desmarcar «Personalizar» manda `null`: vuelve a la de fábrica.
  *
  * F9-RECEP-28 — y qué servicios generan un turno al VENDERSE en la caja (ley
- * 31). Solo se ofrecen los ACTIVOS; si cambió, se manda la lista COMPLETA
- * (el API la reemplaza). Sin permiso para leer servicios, la sección no
- * aparece: no hay de dónde elegir.
+ * 31). F9-RECEP-32 — se agregan con un BUSCADOR y se quitan de una tabla: el
+ * catálogo puede tener miles, y desplegarlo en casillas no escala (Carlos,
+ * 2026-10-21). Si la lista cambió, se manda COMPLETA (el API la reemplaza).
+ * Sin permiso para leer servicios, la sección no aparece: no hay de dónde
+ * elegir.
  */
 export function ReceptionSettings({ user }: { user: AuthUser }) {
   const { t } = useTranslation();
@@ -62,7 +77,6 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
     user.subscription.modules.includes("reception") && user.permissions.includes("tenants:manage");
   const { data, isError } = useReceptionSettings(visible);
   const puedeVerServicios = visible && user.permissions.includes("services:read");
-  const { data: activos } = useActiveServiceOptions(puedeVerServicios);
   const entidad = useReceptionEntity();
   const update = useUpdateReceptionSettings();
   const [form, setForm] = useState<Formulario | null>(null);
@@ -89,36 +103,25 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
       ? { entity: previsualizacion, entityLower: previsualizacion.toLocaleLowerCase(user.locale) }
       : { entity: entidad.entity, entityLower: entidad.entityLower };
 
-  const cambios = (): Partial<Settings> | null => {
+  const cambios = (): UpdateReceptionSettingsInput | null => {
     if (data === undefined || form === null) return {};
-    const diff: Partial<Settings> = {};
+    const diff: UpdateReceptionSettingsInput = {};
     const palabraNueva = form.personalizar ? previsualizacion : null;
     if (form.personalizar && !palabraValida) return null;
     if (palabraNueva !== data.customerLabel) diff.customerLabel = palabraNueva;
     if (form.showCustomers !== data.showCustomers) diff.showCustomers = form.showCustomers;
     if (form.showTurns !== data.showTurns) diff.showTurns = form.showTurns;
-    // Solo los ACTIVOS que están marcados, en el orden de la lista: uno que se
-    // desactivó después de marcarlo se cae al guardar (el API lo rechazaría).
-    if (activos !== undefined) {
-      const elegidos = activos
-        .filter((servicio) => form.turnServiceIds.includes(servicio.id))
-        .map((servicio) => servicio.id);
-      if (!mismoConjunto(elegidos, data.turnServiceIds)) diff.turnServiceIds = elegidos;
-    }
+    const elegidos = idsDe(form.turnServices);
+    if (!mismoConjunto(elegidos, idsDe(data.turnServices))) diff.turnServiceIds = elegidos;
     return diff;
   };
 
-  const alternarServicio = (id: string, marcado: boolean) =>
+  const cambiarServicios = (cambio: (lista: TurnService[]) => TurnService[]) =>
     setForm((previo) =>
-      previo === null
-        ? previo
-        : {
-            ...previo,
-            turnServiceIds: marcado
-              ? [...previo.turnServiceIds.filter((x) => x !== id), id]
-              : previo.turnServiceIds.filter((x) => x !== id),
-          },
+      previo === null ? previo : { ...previo, turnServices: cambio(previo.turnServices) },
     );
+  const enLista = new Set(idsDe(form?.turnServices ?? []));
+  const lleno = enLista.size >= TURN_SERVICES_MAX;
 
   return (
     <Card data-testid="reception-settings">
@@ -205,39 +208,85 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
               </div>
             ))}
 
-            {puedeVerServicios && activos !== undefined && (
-              <div className="flex flex-col gap-2" data-testid="reception-turn-services">
-                <p className="font-medium text-sm">{t("reception.settings.turnServicesTitle")}</p>
-                <p className="text-muted-foreground text-xs">
-                  {t("reception.settings.turnServicesHint")}
-                </p>
-                {activos.length === 0 ? (
+            {puedeVerServicios && (
+              <div className="flex flex-col gap-3" data-testid="reception-turn-services">
+                <div className="flex flex-col gap-1">
+                  <p className="font-medium text-sm">{t("reception.settings.turnServicesTitle")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("reception.settings.turnServicesHint")}
+                  </p>
+                </div>
+                <ServicePicker
+                  selectedIds={enLista}
+                  disabled={update.isPending || lleno}
+                  onAdd={(servicio) =>
+                    cambiarServicios((lista) => [
+                      ...lista,
+                      {
+                        id: servicio.id,
+                        code: servicio.code,
+                        name: servicio.name,
+                        price: servicio.price,
+                      },
+                    ])
+                  }
+                />
+                {lleno && (
+                  <p className="text-muted-foreground text-xs">
+                    {t("reception.settings.turnServicesMax", { max: TURN_SERVICES_MAX })}
+                  </p>
+                )}
+                {form.turnServices.length === 0 ? (
                   <p className="text-muted-foreground text-sm">
                     {t("reception.settings.turnServicesEmpty")}
                   </p>
                 ) : (
-                  activos.map((servicio) => (
-                    <div key={servicio.id} className="flex items-center gap-3">
-                      <Checkbox
-                        id={`reception-turn-service-${servicio.id}`}
-                        aria-label={servicio.name}
-                        checked={form.turnServiceIds.includes(servicio.id)}
-                        disabled={update.isPending}
-                        onCheckedChange={(checked) =>
-                          alternarServicio(servicio.id, checked === true)
-                        }
-                      />
-                      <Label
-                        htmlFor={`reception-turn-service-${servicio.id}`}
-                        className="flex flex-1 items-baseline justify-between gap-3"
-                      >
-                        <span>{servicio.name}</span>
-                        <span className="text-muted-foreground tabular-nums">
-                          <Money value={servicio.price} />
-                        </span>
-                      </Label>
-                    </div>
-                  ))
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="px-2">
+                          {t("reception.settings.turnServicesColumns.service")}
+                        </TableHead>
+                        <TableHead className="px-2 text-right">
+                          {t("reception.settings.turnServicesColumns.price")}
+                        </TableHead>
+                        <TableHead className="px-2" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {form.turnServices.map((servicio) => (
+                        <TableRow key={servicio.id}>
+                          <TableCell className="px-2">
+                            <span className="flex min-w-0 flex-col">
+                              <span className="font-medium">{servicio.name}</span>
+                              <span className="font-mono text-muted-foreground text-xs">
+                                {servicio.code}
+                              </span>
+                            </span>
+                          </TableCell>
+                          <TableCell className="px-2 text-right tabular-nums">
+                            <Money value={servicio.price} />
+                          </TableCell>
+                          <TableCell className="px-2 text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`${t("common.form.remove")} ${servicio.name}`}
+                              disabled={update.isPending}
+                              onClick={() =>
+                                cambiarServicios((lista) =>
+                                  lista.filter((otro) => otro.id !== servicio.id),
+                                )
+                              }
+                            >
+                              {t("common.form.remove")}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </div>
             )}
