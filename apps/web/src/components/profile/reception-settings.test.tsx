@@ -43,11 +43,13 @@ beforeEach(() => {
     customerLabel: null,
     showCustomers: true,
     showTurns: true,
+    turnServiceIds: [],
   });
   mocked.updateReceptionSettings.mockImplementation(async (input) => ({
     customerLabel: null,
     showCustomers: true,
     showTurns: true,
+    turnServiceIds: [],
     ...input,
   }));
 });
@@ -108,6 +110,7 @@ describe("«Configuración Recepción» en Mi perfil (F9-RECEP-18)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: true,
+      turnServiceIds: [],
     });
     renderCard(user(["reception"], ["tenants:manage"]));
     await screen.findByTestId("reception-settings");

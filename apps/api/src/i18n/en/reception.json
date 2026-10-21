@@ -5,5 +5,9 @@
   "customer_not_found": "The customer does not exist.",
   "turn_not_found": "The ticket does not exist.",
   "invalid_phone": "The phone must include the country code, for example +1 555 123 4567.",
-  "invalid_birth_date": "The birth date is not valid or is in the future."
+  "invalid_birth_date": "The birth date is not valid or is in the future.",
+  "turn_service_invalid": "Choose active services from your business, without repeats.",
+  "saleAnnotation": {
+    "turn": "Ticket"
+  }
 }

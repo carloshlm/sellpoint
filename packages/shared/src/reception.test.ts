@@ -52,6 +52,7 @@ describe("la palabra con la que el negocio llama a su cliente (F9-RECEP-17)", ()
       customerLabel: null,
       showCustomers: true,
       showTurns: true,
+      turnServiceIds: [],
     });
     expect(RECEPTION_MENU_ITEMS).toEqual(["customers", "turns"]);
   });

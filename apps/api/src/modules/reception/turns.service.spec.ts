@@ -120,6 +120,36 @@ describe("TurnsService (F9-RECEP-07)", () => {
     });
   });
 
+  /**
+   * F9-RECEP-26 — la numeración vive en `createIn`, que también usa el gancho
+   * de la venta: la serie es UNA para los dos caminos.
+   */
+  describe("createIn (la numeración, dentro de una transacción ajena)", () => {
+    it("liga el turno a su venta y usa el instante que le dan, no el reloj", async () => {
+      const { fechaLocal } = await service.createIn(tx as never, {
+        tenantId: TENANT,
+        timeZone: "America/Mexico_City",
+        instant: new Date("2026-10-21T16:00:00.000Z"),
+        customerId: null,
+        customerName: null,
+        saleId: "venta-1",
+        createdBy: "u-cajero",
+      });
+      expect(fechaLocal).toBe("2026-10-21");
+      expect(secuencia).toHaveBeenCalledWith(tx, TENANT, "reception_turn:20261021");
+      expect(tx.receptionTurn.create.mock.calls[0][0].data).toMatchObject({
+        saleId: "venta-1",
+        createdBy: "u-cajero",
+        businessDate: new Date("2026-10-21"),
+      });
+    });
+
+    it("«Generar turno» no nace de una venta", async () => {
+      await service.create(USER, {}, META);
+      expect(tx.receptionTurn.create.mock.calls[0][0].data.saleId).toBeNull();
+    });
+  });
+
   describe("listar", () => {
     it("sin fecha, lista el día del negocio de HOY, del número mayor al menor", async () => {
       await service.list(USER, {});
@@ -127,6 +157,21 @@ describe("TurnsService (F9-RECEP-07)", () => {
       expect(args.where).toEqual({ tenantId: TENANT, businessDate: new Date("2026-09-02") });
       expect(args.orderBy).toEqual([{ number: "desc" }]);
       expect(args.take).toBe(500);
+    });
+
+    it("trae la venta de la que nació cada turno (F9-RECEP-26)", async () => {
+      tx.receptionTurn.findMany.mockResolvedValue([
+        turno({ sale: { id: "venta-1", folio: "VTA-000123", status: "canceled" } }),
+        turno({ id: "t-2", number: 4 }),
+      ]);
+      const lista = await service.list(USER, {});
+      expect(tx.receptionTurn.findMany.mock.calls[0][0].include).toEqual({
+        sale: { select: { id: true, folio: true, status: true } },
+      });
+      expect(lista.map((t) => t.sale)).toEqual([
+        { id: "venta-1", folio: "VTA-000123", status: "canceled" },
+        null,
+      ]);
     });
 
     it("con fecha, lista ese día", async () => {

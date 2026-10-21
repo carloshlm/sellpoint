@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   DEFAULT_RECEPTION_SETTINGS,
   normalizeCustomerLabel,
@@ -12,7 +12,8 @@ import type { UpdateReceptionSettingsDto } from "./dto/settings.dto";
 
 /**
  * F9-RECEP-17 — cómo llama el negocio a su «cliente» y qué entradas del menú
- * de Recepción muestra.
+ * de Recepción muestra. F9-RECEP-25 — y qué servicios generan un turno al
+ * venderse en la caja (`reception_turn_services`, ley 31).
  *
  * `get` no crea la fila: sin ella valen los defaults de `shared`, que son
  * los mismos que las columnas. `update` hace upsert y NORMALIZA la palabra
@@ -35,7 +36,25 @@ export class ReceptionSettingsService {
     tenantId: string,
   ): Promise<ReceptionSettings> {
     const fila = await tx.receptionSettings.findUnique({ where: { tenantId } });
-    return fila === null ? { ...DEFAULT_RECEPTION_SETTINGS } : toView(fila);
+    const turnServiceIds = await this.serviciosQueGeneranTurno(tx, tenantId);
+    return fila === null
+      ? { ...DEFAULT_RECEPTION_SETTINGS, turnServiceIds }
+      : toView(fila, turnServiceIds);
+  }
+
+  private async serviciosQueGeneranTurno(
+    tx: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0],
+    tenantId: string,
+  ): Promise<string[]> {
+    // Orden ESTABLE, no «el de marcado»: `createMany` inserta varios con el
+    // mismo `created_at`, y el desempate sería un UUID al azar. Es un
+    // conjunto; el web pinta casillas.
+    const filas = await tx.receptionTurnService.findMany({
+      where: { tenantId },
+      select: { serviceId: true },
+      orderBy: { serviceId: "asc" },
+    });
+    return filas.map((f) => f.serviceId);
   }
 
   async update(
@@ -44,9 +63,11 @@ export class ReceptionSettingsService {
     meta: RequestMeta,
   ): Promise<ReceptionSettings> {
     // `null` es «vuelve a la de fábrica» y se guarda como NULL; solo una
-    // palabra presente se normaliza.
+    // palabra presente se normaliza. Los servicios no son una columna de la
+    // fila: viven en su propia tabla y se reemplazan aparte.
+    const { turnServiceIds, ...deLaFila } = input;
     const cambios = {
-      ...input,
+      ...deLaFila,
       ...(typeof input.customerLabel === "string" && {
         customerLabel: normalizeCustomerLabel(input.customerLabel, user.locale),
       }),
@@ -58,7 +79,10 @@ export class ReceptionSettingsService {
         create: { tenantId: user.tenantId, ...cambios, updatedBy: user.userId },
         update: { ...cambios, updatedBy: user.userId },
       });
-      const despues = toView(fila);
+      if (turnServiceIds !== undefined) {
+        await this.reemplazarServicios(tx, user.tenantId, turnServiceIds);
+      }
+      const despues = toView(fila, await this.serviciosQueGeneranTurno(tx, user.tenantId));
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
         userId: user.userId,
@@ -73,12 +97,44 @@ export class ReceptionSettingsService {
       return despues;
     });
   }
+
+  /**
+   * F9-RECEP-25 — deja EXACTAMENTE estos servicios marcados. Cada uno tiene
+   * que ser un servicio ACTIVO de este negocio: la consulta corre con la RLS
+   * del tenant, así que un id de otro negocio simplemente no aparece — y un
+   * FK no la mira, por eso se valida aquí y no se deja a la base.
+   */
+  private async reemplazarServicios(
+    tx: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0],
+    tenantId: string,
+    ids: string[],
+  ): Promise<void> {
+    if (ids.length > 0) {
+      const validos = await tx.service.count({
+        where: { tenantId, id: { in: ids }, isActive: true },
+      });
+      if (validos !== ids.length) {
+        throw new BadRequestException({ message: "reception.turn_service_invalid" });
+      }
+    }
+    await tx.receptionTurnService.deleteMany({
+      where: { tenantId, serviceId: { notIn: ids } },
+    });
+    await tx.receptionTurnService.createMany({
+      data: ids.map((serviceId) => ({ tenantId, serviceId })),
+      skipDuplicates: true,
+    });
+  }
 }
 
-function toView(fila: ReceptionSettings): ReceptionSettings {
+function toView(
+  fila: Omit<ReceptionSettings, "turnServiceIds">,
+  turnServiceIds: string[],
+): ReceptionSettings {
   return {
     customerLabel: fila.customerLabel,
     showCustomers: fila.showCustomers,
     showTurns: fila.showTurns,
+    turnServiceIds,
   };
 }

@@ -5,5 +5,9 @@
   "customer_not_found": "El cliente no existe.",
   "turn_not_found": "El turno no existe.",
   "invalid_phone": "El teléfono debe llevar el prefijo del país, por ejemplo +52 55 1234 5678.",
-  "invalid_birth_date": "La fecha de nacimiento no es válida o es futura."
+  "invalid_birth_date": "La fecha de nacimiento no es válida o es futura.",
+  "turn_service_invalid": "Elige servicios activos de tu negocio, sin repetir.",
+  "saleAnnotation": {
+    "turn": "Turno"
+  }
 }

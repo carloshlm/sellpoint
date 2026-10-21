@@ -13,7 +13,11 @@ const META = { ip: "127.0.0.1", userAgent: "jest" };
 type Mock = jest.Mock;
 
 describe("ReceptionSettingsService (F9-RECEP-17)", () => {
-  let tx: { receptionSettings: { findUnique: Mock; upsert: Mock } };
+  let tx: {
+    receptionSettings: { findUnique: Mock; upsert: Mock };
+    receptionTurnService: { findMany: Mock; deleteMany: Mock; createMany: Mock };
+    service: { count: Mock };
+  };
   let prisma: { withTenantContext: Mock };
   let audit: { record: Mock };
   let service: ReceptionSettingsService;
@@ -33,6 +37,12 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
           }),
         ),
       },
+      receptionTurnService: {
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        createMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      service: { count: jest.fn().mockResolvedValue(0) },
     };
     prisma = { withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)) };
     audit = { record: jest.fn() };
@@ -45,6 +55,7 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       customerLabel: null,
       showCustomers: true,
       showTurns: true,
+      turnServiceIds: [],
     });
     expect(tx.receptionSettings.upsert).not.toHaveBeenCalled();
   });
@@ -59,13 +70,23 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       updatedBy: "u-1",
     });
     expect(args.update).toEqual({ customerLabel: "Paciente", updatedBy: "u-1" });
-    expect(res).toEqual({ customerLabel: "Paciente", showCustomers: true, showTurns: true });
+    expect(res).toEqual({
+      customerLabel: "Paciente",
+      showCustomers: true,
+      showTurns: true,
+      turnServiceIds: [],
+    });
     expect(audit.record).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         action: "reception.settings.update",
-        before: { customerLabel: null, showCustomers: true, showTurns: true },
-        after: { customerLabel: "Paciente", showCustomers: true, showTurns: true },
+        before: { customerLabel: null, showCustomers: true, showTurns: true, turnServiceIds: [] },
+        after: {
+          customerLabel: "Paciente",
+          showCustomers: true,
+          showTurns: true,
+          turnServiceIds: [],
+        },
       }),
     );
   });
@@ -105,6 +126,90 @@ describe("ReceptionSettingsService (F9-RECEP-17)", () => {
       customerLabel: "Alumno",
       showCustomers: false,
       showTurns: true,
+      turnServiceIds: [],
+    });
+  });
+
+  /**
+   * F9-RECEP-25 — los servicios que generan turno al venderse (ley 31). Se
+   * mandan COMPLETOS: lo que no viene, se quita. Cada uno tiene que ser un
+   * servicio activo del negocio.
+   */
+  describe("los servicios que generan turno (F9-RECEP-25)", () => {
+    const CONSULTA = "11111111-1111-4111-8111-111111111111";
+    const ESPECIALIDAD = "22222222-2222-4222-8222-222222222222";
+
+    it("get los devuelve en un orden estable (es un conjunto)", async () => {
+      tx.receptionTurnService.findMany.mockResolvedValue([
+        { serviceId: CONSULTA },
+        { serviceId: ESPECIALIDAD },
+      ]);
+      await expect(service.get(USER)).resolves.toMatchObject({
+        turnServiceIds: [CONSULTA, ESPECIALIDAD],
+      });
+    });
+
+    it("guardarlos deja EXACTAMENTE esos: quita los que no vienen y agrega los nuevos", async () => {
+      tx.service.count.mockResolvedValue(2);
+      await service.update(USER, { turnServiceIds: [CONSULTA, ESPECIALIDAD] }, META);
+
+      expect(tx.service.count).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, id: { in: [CONSULTA, ESPECIALIDAD] }, isActive: true },
+      });
+      expect(tx.receptionTurnService.deleteMany).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, serviceId: { notIn: [CONSULTA, ESPECIALIDAD] } },
+      });
+      expect(tx.receptionTurnService.createMany).toHaveBeenCalledWith({
+        data: [
+          { tenantId: TENANT, serviceId: CONSULTA },
+          { tenantId: TENANT, serviceId: ESPECIALIDAD },
+        ],
+        skipDuplicates: true,
+      });
+      // No es una columna de la fila: el upsert no la lleva.
+      expect(tx.receptionSettings.upsert.mock.calls[0][0].update).toEqual({ updatedBy: "u-1" });
+    });
+
+    it("un servicio inactivo o de otro negocio rebota con 400 y no toca la lista", async () => {
+      tx.service.count.mockResolvedValue(1);
+      await expect(
+        service.update(USER, { turnServiceIds: [CONSULTA, ESPECIALIDAD] }, META),
+      ).rejects.toMatchObject({
+        response: { message: "reception.turn_service_invalid" },
+      });
+      expect(tx.receptionTurnService.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("una lista vacía los quita todos, sin consultar servicios", async () => {
+      await service.update(USER, { turnServiceIds: [] }, META);
+
+      expect(tx.service.count).not.toHaveBeenCalled();
+      expect(tx.receptionTurnService.deleteMany).toHaveBeenCalledWith({
+        where: { tenantId: TENANT, serviceId: { notIn: [] } },
+      });
+    });
+
+    it("cambiar otra cosa NO toca la lista de servicios", async () => {
+      await service.update(USER, { showTurns: false }, META);
+
+      expect(tx.receptionTurnService.deleteMany).not.toHaveBeenCalled();
+      expect(tx.receptionTurnService.createMany).not.toHaveBeenCalled();
+    });
+
+    it("la auditoría guarda la lista antes y después", async () => {
+      tx.service.count.mockResolvedValue(1);
+      tx.receptionTurnService.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ serviceId: CONSULTA }]);
+      await service.update(USER, { turnServiceIds: [CONSULTA] }, META);
+
+      expect(audit.record).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({
+          before: expect.objectContaining({ turnServiceIds: [] }),
+          after: expect.objectContaining({ turnServiceIds: [CONSULTA] }),
+        }),
+      );
     });
   });
 });

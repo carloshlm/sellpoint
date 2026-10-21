@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { fullName, localCalendarDate } from "@sellpoint/shared";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
@@ -8,6 +9,32 @@ import { nextSequenceValue } from "../inventory/folio";
 import type { CreateTurnDto, ListTurnsQuery } from "./dto/turns.dto";
 
 export type TurnStatus = "waiting" | "attended";
+
+/**
+ * F9-RECEP-26 — la venta de la que nació el turno, si nació de una (un
+ * servicio marcado vendido en la caja). La lista dice «Pagado · VTA-…» o,
+ * con la venta anulada, «Venta anulada».
+ */
+export interface TurnSale {
+  id: string;
+  folio: string;
+  status: "completed" | "canceled";
+}
+
+/**
+ * F9-RECEP-26 — lo que hace falta para numerar un turno dentro de una
+ * transacción AJENA (la de la venta). El instante lo pone quien llama: de él
+ * salen la serie del día y `business_date` (ley 12).
+ */
+export interface CreateTurnInTx {
+  tenantId: string;
+  timeZone: string;
+  instant: Date;
+  customerId: string | null;
+  customerName: string | null;
+  saleId: string | null;
+  createdBy: string;
+}
 
 export interface TurnSummary {
   id: string;
@@ -19,7 +46,11 @@ export interface TurnSummary {
   status: TurnStatus;
   attendedAt: string | null;
   createdAt: string;
+  sale: TurnSale | null;
 }
+
+/** La venta del turno, tal como se lee para el resumen. */
+const SELECT_VENTA = { select: { id: true, folio: true, status: true } } as const;
 
 type TurnRow = {
   id: string;
@@ -30,6 +61,7 @@ type TurnRow = {
   status: string;
   attendedAt: Date | null;
   createdAt: Date;
+  sale?: { id: string; folio: string; status: string } | null;
 };
 
 /** Un día son decenas de turnos; el tope es defensivo, no una página. */
@@ -86,25 +118,14 @@ export class TurnsService {
         customerName = fullName(cliente).slice(0, 200);
       }
 
-      const instante = new Date();
-      const fechaLocal = localCalendarDate(zona, instante);
-      const consecutivo = await nextSequenceValue(
-        tx,
-        user.tenantId,
-        `reception_turn:${fechaLocal.replaceAll("-", "")}`,
-      );
-      const creado = await tx.receptionTurn.create({
-        data: {
-          tenantId: user.tenantId,
-          // `new Date("YYYY-MM-DD")` es medianoche UTC de ESE día: lo que una
-          // columna DATE necesita. Con el instante crudo, un turno de la tarde
-          // en CDMX caería en el día siguiente y el listado de hoy saldría vacío.
-          businessDate: new Date(fechaLocal),
-          number: Number(consecutivo),
-          customerId,
-          customerName,
-          createdBy: user.userId,
-        },
+      const { turno: creado, fechaLocal } = await this.createIn(tx, {
+        tenantId: user.tenantId,
+        timeZone: zona,
+        instant: new Date(),
+        customerId,
+        customerName,
+        saleId: null,
+        createdBy: user.userId,
       });
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
@@ -120,6 +141,40 @@ export class TurnsService {
     });
   }
 
+  /**
+   * F9-RECEP-26 — numera y crea un turno dentro de una transacción que ya
+   * está abierta: la de «Generar turno» (`create`) y la de una venta, cuando
+   * el gancho de Recepción reacciona a un servicio marcado (ley 31). La serie
+   * es la MISMA para los dos caminos, así que un turno vendido y uno generado
+   * a mano nunca chocan. No audita: cada camino audita con su propio origen.
+   */
+  async createIn(
+    tx: Prisma.TransactionClient,
+    input: CreateTurnInTx,
+  ): Promise<{ turno: TurnRow & { id: string }; fechaLocal: string }> {
+    const fechaLocal = localCalendarDate(input.timeZone, input.instant);
+    const consecutivo = await nextSequenceValue(
+      tx,
+      input.tenantId,
+      `reception_turn:${fechaLocal.replaceAll("-", "")}`,
+    );
+    const turno = await tx.receptionTurn.create({
+      data: {
+        tenantId: input.tenantId,
+        // `new Date("YYYY-MM-DD")` es medianoche UTC de ESE día: lo que una
+        // columna DATE necesita. Con el instante crudo, un turno de la tarde
+        // en CDMX caería en el día siguiente y el listado de hoy saldría vacío.
+        businessDate: new Date(fechaLocal),
+        number: Number(consecutivo),
+        customerId: input.customerId,
+        customerName: input.customerName,
+        saleId: input.saleId,
+        createdBy: input.createdBy,
+      },
+    });
+    return { turno, fechaLocal };
+  }
+
   async list(user: AuthUser, query: ListTurnsQuery): Promise<TurnSummary[]> {
     const fechaLocal =
       query.date ?? localCalendarDate(await this.zonaDelNegocio(user.tenantId), new Date());
@@ -129,6 +184,7 @@ export class TurnsService {
         // Del número mayor al menor (Carlos, 2026-09-02): el último que llegó, arriba.
         orderBy: [{ number: "desc" }],
         take: MAX_TURNOS_POR_DIA,
+        include: { sale: SELECT_VENTA },
       });
       return filas.map(toSummary);
     });
@@ -151,7 +207,10 @@ export class TurnsService {
     meta: RequestMeta,
   ): Promise<TurnSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const actual = await tx.receptionTurn.findFirst({ where: { id, tenantId: user.tenantId } });
+      const actual = await tx.receptionTurn.findFirst({
+        where: { id, tenantId: user.tenantId },
+        include: { sale: SELECT_VENTA },
+      });
       if (!actual) {
         throw new NotFoundException({ message: "reception.turn_not_found" });
       }
@@ -160,6 +219,7 @@ export class TurnsService {
       }
       const actualizado = await tx.receptionTurn.update({
         where: { id },
+        include: { sale: SELECT_VENTA },
         data:
           status === "attended"
             ? { status, attendedAt: new Date(), attendedBy: user.userId }
@@ -199,5 +259,13 @@ function toSummary(row: TurnRow): TurnSummary {
     status: row.status as TurnStatus,
     attendedAt: row.attendedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
+    sale:
+      row.sale == null
+        ? null
+        : {
+            id: row.sale.id,
+            folio: row.sale.folio,
+            status: row.sale.status as TurnSale["status"],
+          },
   };
 }

@@ -22,7 +22,16 @@ export interface ReceptionSettings {
   customerLabel: string | null;
   showCustomers: boolean;
   showTurns: boolean;
+  /**
+   * F9-RECEP-25 — los servicios que, al VENDERSE en la caja, generan un turno
+   * (ley 31). Vacío, ninguna venta genera turnos: los negocios que solo usan
+   * «Generar turno» no notan nada.
+   */
+  turnServiceIds: string[];
 }
+
+/** Cuántos servicios pueden generar turno. Un consultorio tiene dos o tres consultas. */
+export const TURN_SERVICES_MAX = 20;
 
 /**
  * Sin fila, todo visible y sin palabra propia: los MISMOS defaults que las
@@ -33,6 +42,7 @@ export const DEFAULT_RECEPTION_SETTINGS: ReceptionSettings = {
   customerLabel: null,
   showCustomers: true,
   showTurns: true,
+  turnServiceIds: [],
 };
 
 /** Una palabra: sin espacio de ninguna clase (tab, salto, nbsp incluidos). */

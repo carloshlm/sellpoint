@@ -69,7 +69,12 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
     viewerToken = await usuarioConRol(app, negocio, "viewer", "recep-settings-viewer");
 
     const inicial = await get(negocio.token).expect(200);
-    expect(inicial.body).toEqual({ customerLabel: null, showCustomers: true, showTurns: true });
+    expect(inicial.body).toEqual({
+      customerLabel: null,
+      showCustomers: true,
+      showTurns: true,
+      turnServiceIds: [],
+    });
 
     const guardado = await put(negocio.token, {
       customerLabel: "pACIENTE",
@@ -79,6 +84,7 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: false,
+      turnServiceIds: [],
     });
 
     await put(negocio.token, { customerLabel: "Paciente nuevo" }).expect(400);
@@ -90,6 +96,7 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
       customerLabel: "Paciente",
       showCustomers: true,
       showTurns: false,
+      turnServiceIds: [],
     });
 
     const fabrica = await put(negocio.token, { customerLabel: null }).expect(200);
@@ -100,5 +107,54 @@ describe("Recepción — configuración (F9-RECEP-17)", () => {
     const lectura = await get(viewerToken).expect(200);
     expect(lectura.body).toMatchObject({ showTurns: false });
     await put(viewerToken, { showTurns: true }).expect(403);
+  });
+
+  /**
+   * F9-RECEP-25 — los servicios que generan turno al venderse (ley 31). Se
+   * mandan COMPLETOS; cada uno tiene que ser un servicio activo de ESTE
+   * negocio, y la RLS hace que uno de otro negocio ni siquiera exista.
+   */
+  describe("los servicios que generan turno (F9-RECEP-25)", () => {
+    const servicio = (tenantId: string, code: string, isActive = true) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        tx.service.create({ data: { tenantId, code, name: `Servicio ${code}`, isActive } }),
+      );
+
+    it("se guardan, se releen y se vacían (es un conjunto: el orden no importa)", async () => {
+      const consulta = await servicio(negocio.tenantId, "E2E-CONSULTA");
+      const especialidad = await servicio(negocio.tenantId, "E2E-ESPECIALIDAD");
+
+      const guardado = await put(negocio.token, {
+        turnServiceIds: [consulta.id, especialidad.id],
+      }).expect(200);
+      const ambos = [consulta.id, especialidad.id].sort();
+      expect([...guardado.body.turnServiceIds].sort()).toEqual(ambos);
+
+      const releido = await get(negocio.token).expect(200);
+      expect([...releido.body.turnServiceIds].sort()).toEqual(ambos);
+      // El que solo lee el módulo también los ve: su pantalla los necesita.
+      const lectura = await get(viewerToken).expect(200);
+      expect([...lectura.body.turnServiceIds].sort()).toEqual(ambos);
+
+      const uno = await put(negocio.token, { turnServiceIds: [especialidad.id] }).expect(200);
+      expect(uno.body.turnServiceIds).toEqual([especialidad.id]);
+
+      const vacio = await put(negocio.token, { turnServiceIds: [] }).expect(200);
+      expect(vacio.body.turnServiceIds).toEqual([]);
+    });
+
+    it("un servicio inactivo, uno de otro negocio o uno repetido rebotan con 400", async () => {
+      const activo = await servicio(negocio.tenantId, "E2E-ACTIVO");
+      const inactivo = await servicio(negocio.tenantId, "E2E-INACTIVO", false);
+      const ajeno = await servicio(admin.tenantId, "E2E-AJENO");
+
+      await put(negocio.token, { turnServiceIds: [activo.id, inactivo.id] }).expect(400);
+      await put(negocio.token, { turnServiceIds: [ajeno.id] }).expect(400);
+      await put(negocio.token, { turnServiceIds: [activo.id, activo.id] }).expect(400);
+
+      // Nada de eso tocó la lista.
+      const releido = await get(negocio.token).expect(200);
+      expect(releido.body.turnServiceIds).toEqual([]);
+    });
   });
 });
