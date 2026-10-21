@@ -26,8 +26,10 @@ import { startTestApp } from "./support/start-test-app";
  *  - un negocio SIN Recepción vende el mismo servicio exactamente como hoy:
  *    sin anotaciones y sin turnos;
  *  - con Recepción pero sin servicios marcados, tampoco pasa nada;
- *  - el servicio marcado crea el turno —uno por unidad, en la MISMA serie que
- *    «Generar turno»— ligado a la venta, y la venta lo trae como anotación;
+ *  - el servicio marcado crea el turno —en la MISMA serie que «Generar
+ *    turno»— ligado a la venta, y la venta lo trae como anotación;
+ *  - F9-RECEP-31: UNA venta es UN turno, aunque lleve dos unidades o dos
+ *    servicios marcados (Carlos, 2026-10-21);
  *  - la reintentada idempotente no duplica turnos;
  *  - con el módulo apagado, la venta vuelve a ser la de siempre;
  *  - anular la venta deja el turno, y la lista lo dice.
@@ -78,7 +80,7 @@ describe("Recepción — la venta genera el turno (F9-RECEP-27)", () => {
       .set("Authorization", bearer(negocio.token))
       .send({ warehouseId: sucursal.id })
       .expect(201);
-    return { negocio, consultaId: (consulta.body as { id: string }).id };
+    return { negocio, sucursalId: sucursal.id, consultaId: (consulta.body as { id: string }).id };
   }
 
   const activarRecepcion = (tenantId: string) =>
@@ -127,10 +129,11 @@ describe("Recepción — la venta genera el turno (F9-RECEP-27)", () => {
 
   describe("con Recepción activo", () => {
     let negocio: TenantFixture;
+    let sucursalId: string;
     let consultaId: string;
 
     beforeAll(async () => {
-      ({ negocio, consultaId } = await negocioConCaja("recep-venta-con"));
+      ({ negocio, sucursalId, consultaId } = await negocioConCaja("recep-venta-con"));
       await activarRecepcion(negocio.tenantId);
     });
 
@@ -157,17 +160,50 @@ describe("Recepción — la venta genera el turno (F9-RECEP-27)", () => {
       expect(await turnosDe(negocio.tenantId)).toEqual([{ number: 1, saleId: venta.body.id }]);
     });
 
-    it("cantidad 2 son dos turnos, y «Generar turno» sigue la MISMA serie", async () => {
+    it("cantidad 2 es UN turno, y «Generar turno» sigue la MISMA serie", async () => {
       const venta = await vender(negocio.token, consultaId, 2);
-      expect(venta.body.annotations.map((a: { value: string }) => a.value)).toEqual(["2", "3"]);
+      expect(venta.body.annotations.map((a: { value: string }) => a.value)).toEqual(["2"]);
 
       const suelto = await http()
         .post("/reception/turns")
         .set("Authorization", bearer(negocio.token))
         .send({})
         .expect(201);
-      expect(suelto.body.number).toBe(4);
+      expect(suelto.body.number).toBe(3);
       expect(suelto.body.sale).toBeNull();
+    });
+
+    it("dos servicios marcados en la misma venta son UN turno", async () => {
+      const vista = await http()
+        .post("/services")
+        .set("Authorization", bearer(negocio.token))
+        .send({
+          code: `VISTA-${randomUUID().slice(0, 8)}`,
+          name: "Examen de la vista",
+          price: 300,
+          warehouseIds: [sucursalId],
+        })
+        .expect(201);
+      const vistaId = (vista.body as { id: string }).id;
+      await marcar(negocio.token, [consultaId, vistaId]);
+      const antes = (await turnosDe(negocio.tenantId)).length;
+
+      const venta = await http()
+        .post("/pos/sales")
+        .set("Authorization", bearer(negocio.token))
+        .set("Idempotency-Key", randomUUID())
+        .send({
+          paymentMethod: "cash",
+          cashReceived: 800,
+          lines: [
+            { serviceId: consultaId, quantity: 1 },
+            { serviceId: vistaId, quantity: 1 },
+          ],
+        })
+        .expect(201);
+
+      expect(venta.body.annotations.map((a: { value: string }) => a.value)).toEqual(["4"]);
+      expect((await turnosDe(negocio.tenantId)).length).toBe(antes + 1);
     });
 
     it("la reintentada con la misma clave devuelve la venta sin duplicar turnos", async () => {

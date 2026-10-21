@@ -1,30 +1,36 @@
 import type { SaleHookContext } from "../pos/sale-hooks";
-import { ReceptionSaleHook, TURNOS_POR_VENTA_MAX, turnosDeLinea } from "./reception-sale.hook";
+import { ReceptionSaleHook } from "./reception-sale.hook";
 
 /**
  * F9-RECEP-26 — el gancho de Recepción: la venta de un servicio MARCADO crea
  * el turno del paciente (ley 31; decisión de Carlos, 2026-10-21).
  *
+ * F9-RECEP-31 — y UNA venta es UN turno (Carlos, 2026-10-21, con el ticket de
+ * «TURNO 2 / TURNO 3» en la mano): quien paga dos servicios marcados, o dos
+ * unidades del mismo, es un paciente con un número.
+ *
  * Lo que fija:
  *  - sin servicios marcados entre los vendidos no hace nada (ni crea ni anota);
- *  - un turno por unidad, con un tope por VENTA que es también el de las
- *    anotaciones que la caja acepta;
- *  - todos los turnos de la venta salen del MISMO instante (ley 12): el de la
- *    venta;
- *  - cada turno queda ligado a su venta, auditado, y devuelve su número como
- *    anotación enfática.
+ *  - con uno o más marcados, crea UN turno, del instante de la venta (ley 12),
+ *    ligado a ella y auditado, y lo devuelve como anotación enfática.
  */
 type Mock = jest.Mock;
 
 const TENANT = "11111111-1111-1111-1111-111111111111";
 const CONSULTA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OTRO = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const VISTA = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const VENDIDA = new Date("2026-10-21T16:00:00.000Z");
 
 function contexto(items: SaleHookContext["items"], marcados: string[]) {
   const tx = {
     receptionTurnService: {
-      findMany: jest.fn().mockResolvedValue(marcados.map((serviceId) => ({ serviceId }))),
+      // Como la base: la primera fila marcada entre las pedidas, o nada.
+      findFirst: jest.fn().mockImplementation(({ where }) => {
+        const pedidos: string[] = where.serviceId.in;
+        const fila = pedidos.find((id) => marcados.includes(id));
+        return Promise.resolve(fila === undefined ? null : { serviceId: fila });
+      }),
     },
   };
   const ctx = {
@@ -46,7 +52,7 @@ const linea = (serviceId: string | null, quantity = "1", kind = "service") => ({
   quantity,
 });
 
-describe("ReceptionSaleHook (F9-RECEP-26)", () => {
+describe("ReceptionSaleHook (F9-RECEP-26 / F9-RECEP-31)", () => {
   let registry: { register: Mock };
   let turns: { createIn: Mock };
   let audit: { record: Mock };
@@ -80,7 +86,7 @@ describe("ReceptionSaleHook (F9-RECEP-26)", () => {
     const { ctx, tx } = contexto([linea(null, "2", "product")], [CONSULTA]);
 
     await expect(hook.afterSale(ctx)).resolves.toEqual([]);
-    expect(tx.receptionTurnService.findMany).not.toHaveBeenCalled();
+    expect(tx.receptionTurnService.findFirst).not.toHaveBeenCalled();
     expect(turns.createIn).not.toHaveBeenCalled();
   });
 
@@ -96,7 +102,7 @@ describe("ReceptionSaleHook (F9-RECEP-26)", () => {
 
     const anotaciones = await hook.afterSale(ctx);
 
-    expect(tx.receptionTurnService.findMany).toHaveBeenCalledWith({
+    expect(tx.receptionTurnService.findFirst).toHaveBeenCalledWith({
       where: { tenantId: TENANT, serviceId: { in: [CONSULTA] } },
       select: { serviceId: true },
     });
@@ -119,11 +125,12 @@ describe("ReceptionSaleHook (F9-RECEP-26)", () => {
     ]);
   });
 
-  it("cada turno se audita en la transacción de la venta, con su origen", async () => {
+  it("el turno se audita en la transacción de la venta, con su origen", async () => {
     const { ctx } = contexto([linea(CONSULTA)], [CONSULTA]);
 
     await hook.afterSale(ctx);
 
+    expect(audit.record).toHaveBeenCalledTimes(1);
     expect(audit.record).toHaveBeenCalledWith(ctx.tx, {
       tenantId: TENANT,
       userId: "u-cajero",
@@ -140,40 +147,36 @@ describe("ReceptionSaleHook (F9-RECEP-26)", () => {
     });
   });
 
-  it("cantidad 2 son dos turnos seguidos, del MISMO instante", async () => {
+  it("cantidad 2 del servicio marcado es UN turno: una venta, un paciente", async () => {
     const { ctx } = contexto([linea(CONSULTA, "2")], [CONSULTA]);
 
     const anotaciones = await hook.afterSale(ctx);
 
-    expect(anotaciones.map((a) => a.value)).toEqual(["7", "8"]);
-    const instantes = turns.createIn.mock.calls.map((c) => c[1].instant);
-    expect(instantes).toEqual([VENDIDA, VENDIDA]);
+    expect(anotaciones.map((a) => a.value)).toEqual(["7"]);
+    expect(turns.createIn).toHaveBeenCalledTimes(1);
   });
 
-  it("el tope es por VENTA: nunca más turnos que anotaciones acepta la caja", async () => {
-    const { ctx } = contexto([linea(CONSULTA, "8"), linea(CONSULTA, "8")], [CONSULTA]);
+  it("dos servicios marcados en la misma venta son UN turno", async () => {
+    const { ctx, tx } = contexto([linea(CONSULTA), linea(VISTA, "3")], [CONSULTA, VISTA]);
 
     const anotaciones = await hook.afterSale(ctx);
 
-    expect(anotaciones).toHaveLength(TURNOS_POR_VENTA_MAX);
-    expect(turns.createIn).toHaveBeenCalledTimes(TURNOS_POR_VENTA_MAX);
-  });
-});
-
-describe("turnosDeLinea", () => {
-  it("una unidad es un turno; una fracción no suma un turno más", () => {
-    expect(turnosDeLinea("1")).toBe(1);
-    expect(turnosDeLinea("1.5")).toBe(1);
-    expect(turnosDeLinea("2.0000")).toBe(2);
+    expect(anotaciones.map((a) => a.value)).toEqual(["7"]);
+    expect(turns.createIn).toHaveBeenCalledTimes(1);
+    // Una sola consulta con los dos: basta con saber si ALGUNO genera turno.
+    expect(tx.receptionTurnService.findFirst).toHaveBeenCalledTimes(1);
+    expect(tx.receptionTurnService.findFirst.mock.calls[0][0].where.serviceId.in).toEqual([
+      CONSULTA,
+      VISTA,
+    ]);
   });
 
-  it("nunca menos de uno: si se vendió, se atiende", () => {
-    expect(turnosDeLinea("0.5")).toBe(1);
-    expect(turnosDeLinea("no-es-numero")).toBe(1);
-  });
+  it("un marcado junto a uno que no lo está también es UN turno", async () => {
+    const { ctx } = contexto([linea(OTRO), linea(CONSULTA)], [CONSULTA]);
 
-  it("el tope es 10, el mismo de las anotaciones de una venta", () => {
-    expect(TURNOS_POR_VENTA_MAX).toBe(10);
-    expect(turnosDeLinea("50")).toBe(10);
+    const anotaciones = await hook.afterSale(ctx);
+
+    expect(anotaciones).toHaveLength(1);
+    expect(turns.createIn).toHaveBeenCalledTimes(1);
   });
 });

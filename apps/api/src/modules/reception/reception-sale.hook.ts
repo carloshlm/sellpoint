@@ -1,28 +1,8 @@
 import { Injectable, type OnModuleInit } from "@nestjs/common";
-import { SALE_ANNOTATIONS_MAX, type SaleAnnotation } from "@sellpoint/shared";
+import type { SaleAnnotation } from "@sellpoint/shared";
 import { AuditService } from "../audit/audit.service";
 import { type SaleHook, type SaleHookContext, SaleHooksRegistry } from "../pos/sale-hooks";
 import { TurnsService } from "./turns.service";
-
-/**
- * Cuántos turnos puede generar una venta. Es el MISMO tope de las anotaciones
- * que la caja acepta en una venta: un turno es una anotación, y si el gancho
- * devolviera más, la validación del POS desharía la venta entera.
- */
-export const TURNOS_POR_VENTA_MAX = SALE_ANNOTATIONS_MAX;
-
-/**
- * Cuántos turnos pide una línea: uno por unidad entera, nunca menos de uno (si
- * se vendió, se atiende) y nunca más que el tope. La cantidad llega como texto
- * decimal (`"2.0000"`).
- */
-export function turnosDeLinea(quantity: string): number {
-  const enteras = Math.floor(Number(quantity));
-  if (!Number.isFinite(enteras)) {
-    return 1;
-  }
-  return Math.min(TURNOS_POR_VENTA_MAX, Math.max(1, enteras));
-}
 
 /**
  * F9-RECEP-26 — el gancho de Recepción en la venta (ley 31; Carlos,
@@ -33,11 +13,15 @@ export function turnosDeLinea(quantity: string): number {
  *   Recepción (ley 16). Y solo corre si el negocio tiene Recepción activo.
  * - Sin servicios marcados entre los vendidos, no crea nada: los negocios que
  *   solo usan «Generar turno» no notan nada.
- * - Un turno por unidad, del MISMO instante —el de la venta—, ligado a ella
- *   (`sale_id`), sin paciente: el Consultorio lo liga al atender, como ya hace
- *   con un turno suelto.
- * - Le devuelve a la caja una anotación enfática por turno («Turno: 7»), que
- *   el ticket imprime en grande.
+ * - F9-RECEP-31 — UNA venta es UN turno, aunque lleve varios servicios
+ *   marcados o varias unidades (Carlos, 2026-10-21: «salen 2 turnos en un
+ *   ticket y eso está mal»). Quien paga es un paciente con un número; si
+ *   vienen dos, son dos ventas, o el segundo sale de «Generar turno».
+ * - El turno es del MISMO instante que la venta, va ligado a ella (`sale_id`)
+ *   y nace sin paciente: el Consultorio lo liga al atender, como ya hace con
+ *   un turno suelto.
+ * - Le devuelve a la caja una anotación enfática («Turno: 7»), que el ticket
+ *   imprime en grande.
  */
 @Injectable()
 export class ReceptionSaleHook implements SaleHook, OnModuleInit {
@@ -64,54 +48,47 @@ export class ReceptionSaleHook implements SaleHook, OnModuleInit {
     if (vendidos.length === 0) {
       return [];
     }
-    const marcados = await ctx.tx.receptionTurnService.findMany({
+    // Basta con saber si ALGUNO de los vendidos genera turno: el turno es de
+    // la venta, no de cada servicio.
+    const marcado = await ctx.tx.receptionTurnService.findFirst({
       where: { tenantId: ctx.tenantId, serviceId: { in: vendidos } },
       select: { serviceId: true },
     });
-    if (marcados.length === 0) {
+    if (marcado === null) {
       return [];
     }
-    const generanTurno = new Set(marcados.map((m) => m.serviceId));
 
-    const anotaciones: SaleAnnotation[] = [];
-    for (const item of ctx.items) {
-      if (item.serviceId === null || !generanTurno.has(item.serviceId)) {
-        continue;
-      }
-      const pedidos = turnosDeLinea(item.quantity);
-      for (let i = 0; i < pedidos && anotaciones.length < TURNOS_POR_VENTA_MAX; i++) {
-        const { turno, fechaLocal } = await this.turns.createIn(ctx.tx, {
-          tenantId: ctx.tenantId,
-          timeZone: ctx.timeZone,
-          // UN instante para toda la venta (ley 12): el de la venta misma.
-          instant: ctx.sale.createdAt,
-          customerId: null,
-          customerName: null,
-          saleId: ctx.sale.id,
-          createdBy: ctx.userId,
-        });
-        await this.auditService.record(ctx.tx, {
-          tenantId: ctx.tenantId,
-          userId: ctx.userId,
-          action: "reception.turn.create",
-          resourceType: "reception_turn",
-          resourceId: turno.id,
-          after: {
-            number: turno.number,
-            businessDate: fechaLocal,
-            customerId: null,
-            source: "sale",
-            saleFolio: ctx.sale.folio,
-          },
-        });
-        anotaciones.push({
-          sourceModule: "reception",
-          labelKey: "reception.saleAnnotation.turn",
-          value: String(turno.number),
-          emphasis: true,
-        });
-      }
-    }
-    return anotaciones;
+    const { turno, fechaLocal } = await this.turns.createIn(ctx.tx, {
+      tenantId: ctx.tenantId,
+      timeZone: ctx.timeZone,
+      // El instante de la venta misma (ley 12): el día del turno es el suyo.
+      instant: ctx.sale.createdAt,
+      customerId: null,
+      customerName: null,
+      saleId: ctx.sale.id,
+      createdBy: ctx.userId,
+    });
+    await this.auditService.record(ctx.tx, {
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      action: "reception.turn.create",
+      resourceType: "reception_turn",
+      resourceId: turno.id,
+      after: {
+        number: turno.number,
+        businessDate: fechaLocal,
+        customerId: null,
+        source: "sale",
+        saleFolio: ctx.sale.folio,
+      },
+    });
+    return [
+      {
+        sourceModule: "reception",
+        labelKey: "reception.saleAnnotation.turn",
+        value: String(turno.number),
+        emphasis: true,
+      },
+    ];
   }
 }
