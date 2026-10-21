@@ -65,10 +65,16 @@ describe("resolveLotsFefo (F3-CORE-08)", () => {
         return lot.id;
       };
 
-      // El Excel del cliente, tal cual.
-      st30 = await lote("st30", "2026-10-01", 20);
+      // El Excel del cliente, con st10 tal cual. st30 y st60 vencían con fecha
+      // fija (2026-10-01 y 2026-12-01): desde el 2 de octubre st30 ya estaba
+      // vencido y «un lote vencido no se vende» tomaba st60 (bomba de tiempo,
+      // vista el 2026-10-21). Ahora vencen a 30 y 60 días de HOY: siempre
+      // vigentes, siempre después de st10 y en el mismo orden.
+      const enDias = (dias: number) =>
+        new Date(stamp + dias * 86_400_000).toISOString().slice(0, 10);
+      st30 = await lote("st30", enDias(30), 20);
       st10 = await lote("st10", "2026-07-01", 10);
-      st60 = await lote("st60", "2026-12-01", 1);
+      st60 = await lote("st60", enDias(60), 1);
       sinFecha = await lote("sinfecha", null, 100);
 
       productId = product.id;
