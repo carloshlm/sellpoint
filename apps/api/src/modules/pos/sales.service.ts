@@ -36,6 +36,7 @@ import { CashboxService } from "./cashbox.service";
 import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
+import { runSaleHooks, SaleHooksRegistry } from "./sale-hooks";
 import { buildSalesWhere } from "./sales-where";
 import { allowNegativeStock } from "./stock-policy";
 import { contextoFiscal, grupoCongelado, grupoDe, snapshotDeTasas } from "./tax-resolver";
@@ -113,6 +114,7 @@ export class SalesService {
     private readonly weightedCost: WeightedCostService,
     @Inject(HASHER) private readonly hasher: HashPort,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly saleHooks: SaleHooksRegistry,
   ) {}
 
   private readonly logger = new Logger(SalesService.name);
@@ -507,6 +509,39 @@ export class SalesService {
             header: { saleId: venta.id, reference: folio },
             allowNegative,
           });
+        }
+
+        // ── Los ganchos de los módulos (F9-RECEP-23, ley 31) ──────────────
+        //
+        // Un módulo vertical reacciona a la venta SIN que el POS lo importe:
+        // se registró en `SaleHooksRegistry`. Solo corren los de los módulos
+        // ACTIVOS del negocio —sin Recepción, ni una consulta más— y dentro de
+        // ESTA transacción: si uno falla, la venta entera se deshace. Lo que
+        // devuelven son anotaciones genéricas («Turno: 7») que se guardan para
+        // que el ticket las imprima también al reimprimirse.
+        const ganchos = this.saleHooks.activeFor(entitlements.modules);
+        if (ganchos.length > 0) {
+          const lineas = await tx.saleItem.findMany({
+            where: { saleId: venta.id, tenantId: user.tenantId },
+            select: { lineNo: true, kind: true, productId: true, serviceId: true, quantity: true },
+            orderBy: { lineNo: "asc" },
+          });
+          const anotaciones = await runSaleHooks(ganchos, {
+            tx,
+            tenantId: user.tenantId,
+            userId: user.userId,
+            timeZone: zona,
+            sale: {
+              id: venta.id,
+              folio,
+              createdAt: venta.createdAt,
+              warehouseId: sesion.warehouseId,
+            },
+            items: lineas.map((l) => ({ ...l, quantity: l.quantity.toString() })),
+          });
+          if (anotaciones.length > 0) {
+            await tx.sale.update({ where: { id: venta.id }, data: { annotations: anotaciones } });
+          }
         }
 
         return tx.sale.findUniqueOrThrow({

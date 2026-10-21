@@ -164,4 +164,63 @@ describe("modelo de datos de Recepción (F9-RECEP-02/03)", () => {
       expect(filas).toHaveLength(1);
     });
   });
+
+  /**
+   * F9-RECEP-22 — la venta de un servicio genera el turno. Los servicios que
+   * lo hacen viven en `reception_turn_services`, con la RLS canónica; y la
+   * venta guarda lo que el módulo le devolvió en `sales.annotations`.
+   */
+  describe("reception_turn_services y sales.annotations (F9-RECEP-22)", () => {
+    const servicioDe = (tenantId: string, code: string) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        tx.service.create({ data: { tenantId, code, name: "Consulta médica" } }),
+      );
+
+    beforeAll(async () => {
+      for (const tenantId of [tenantA, tenantB]) {
+        const servicio = await servicioDe(tenantId, `CONS-${stamp}`);
+        await prisma.withTenantContext(tenantId, (tx) =>
+          tx.receptionTurnService.create({ data: { tenantId, serviceId: servicio.id } }),
+        );
+      }
+    });
+
+    it("RLS: sin contexto de tenant, cero filas con el rol real de la app", async () => {
+      const filas = await asAppRole((tx) => tx.receptionTurnService.findMany());
+      expect(filas).toHaveLength(0);
+    });
+
+    it("RLS: el contexto del tenant A no ve los servicios marcados del tenant B", async () => {
+      const filas = await asAppRole(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantA}::text, true)`;
+        return tx.receptionTurnService.findMany({
+          where: { tenantId: { in: [tenantA, tenantB] } },
+        });
+      });
+      expect(filas.map((f) => f.tenantId)).toEqual([tenantA]);
+    });
+
+    it("borrar el servicio lo quita de la lista (CASCADE)", async () => {
+      const servicio = await servicioDe(tenantA, `TEMP-${stamp}`);
+      const quedan = await prisma.withTenantContext(tenantA, async (tx) => {
+        await tx.receptionTurnService.create({
+          data: { tenantId: tenantA, serviceId: servicio.id },
+        });
+        await tx.service.delete({ where: { id: servicio.id } });
+        return tx.receptionTurnService.count({ where: { serviceId: servicio.id } });
+      });
+      expect(quedan).toBe(0);
+    });
+
+    it("`sales.annotations` nace en `[]` y su CHECK solo acepta un arreglo", async () => {
+      const [columna] = await prisma.$queryRaw<{ column_default: string }[]>`
+        SELECT column_default FROM information_schema.columns
+        WHERE table_name = 'sales' AND column_name = 'annotations'`;
+      expect(columna?.column_default).toContain("'[]'");
+      const [check] = await prisma.$queryRaw<{ def: string }[]>`
+        SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint
+        WHERE conname = 'sales_annotations_is_array'`;
+      expect(check?.def).toContain("jsonb_typeof(annotations) = 'array'");
+    });
+  });
 });

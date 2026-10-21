@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Currency, TaxMode } from "@sellpoint/shared";
-import { shortName } from "@sellpoint/shared";
+import { saleAnnotationsSchema, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { Prisma } from "../../generated/prisma/client";
@@ -9,6 +9,7 @@ import type { AuthUser } from "../auth/types/auth-user";
 import { TicketSettingsService } from "../tenants/ticket-settings.service";
 import {
   buildTicketDefinition,
+  type TicketAnnotation,
   type TicketInput,
   type TicketRow,
   type TicketWidth,
@@ -45,6 +46,20 @@ const FONTS = {
  * venta no la tiene y cae al nombre vigente del catálogo… salvo el concepto,
  * que no tiene catálogo: su texto vive en la fila (`concept_description`).
  */
+/**
+ * F9-RECEP-24 — las anotaciones de la venta, listas para el papel. Vienen de
+ * un JSONB que solo escribe el POS ya validado, pero se vuelven a validar:
+ * una reimpresión nunca se cae por un dato raro, simplemente no imprime
+ * anotaciones.
+ */
+export function anotacionesDelTicket(json: unknown): TicketAnnotation[] {
+  const leidas = saleAnnotationsSchema.safeParse(json);
+  if (!leidas.success) {
+    return [];
+  }
+  return leidas.data.map(({ labelKey, value, emphasis }) => ({ labelKey, value, emphasis }));
+}
+
 export function descripcionDeFila(
   line: { description?: string; conceptDescription?: string | null },
   producto: { name: string } | undefined,
@@ -175,6 +190,9 @@ export class TicketService {
         // garantiza que no sale negativo.
         received: venta.cashReceived?.toString() ?? null,
         change: venta.cashReceived?.minus(venta.total).toString() ?? null,
+        // F9-RECEP-24: lo que un módulo anotó al nacer la venta («Turno: 7»).
+        // Se lee de lo GUARDADO: el papel reimpreso dice lo que dijo aquel día.
+        annotations: anotacionesDelTicket(venta.annotations),
         note: null,
         currency: tenant.currency as Currency,
         locale: user.locale,

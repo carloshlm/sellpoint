@@ -915,3 +915,85 @@ describe("el nombre en el ticket (F10-MANFIX-14)", () => {
     ).toEqual(["Abarrotes La Esquina", "Ana Pérez · RFC: PEAA850315AB3"]);
   });
 });
+
+/**
+ * F9-RECEP-24 — lo que un módulo le anotó a la venta (ley 31) sale en el
+ * papel. El primer uso es Recepción: «TURNO 7» en grande, para que el paciente
+ * lo lea de un vistazo. Sin anotaciones, el papel es EL DE SIEMPRE, renglón por
+ * renglón: los negocios que no usan Recepción no ven ni un espacio de más.
+ */
+describe("las anotaciones del ticket (F9-RECEP-24)", () => {
+  const tr = (key: string) => (key === "reception.saleAnnotation.turn" ? "Turno" : key);
+  const base: TicketInput = {
+    tenant: { name: "Clínica", legalName: null, taxId: null, country: "MX" },
+    header: { address: null, phone: null },
+    kind: "sale",
+    folio: "VTA-000123",
+    createdAt: new Date("2026-10-21T16:00:00Z"),
+    timeZone: "America/Mexico_City",
+    sellerName: "Luis",
+    warehouseName: "Central",
+    rows: [
+      {
+        description: "Consulta médica",
+        quantity: "1",
+        baseUnit: null,
+        unitPrice: "500.00",
+        lineTotal: "500.00",
+        lotCode: null,
+        taxGroupCode: null,
+      },
+    ],
+    subtotal: "500.00",
+    discount: "0.00",
+    total: "500.00",
+    taxMode: "included",
+    taxBase: "500.00",
+    taxes: [],
+    taxMarks: [],
+    paymentMethod: "cash",
+    received: "500.00",
+    change: "0.00",
+    note: null,
+    currency: "MXN",
+    locale: "es",
+    width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
+  };
+  const nodos = (def: unknown) => (def as { content: Record<string, unknown>[] }).content;
+
+  it("sin anotaciones el papel es idéntico al de siempre", () => {
+    expect(buildTicketDefinition({ ...base, annotations: [] }, tr)).toEqual(
+      buildTicketDefinition(base, tr),
+    );
+  });
+
+  it("una enfática sale en grande, centrada y en mayúsculas: «TURNO 7»", () => {
+    const def = buildTicketDefinition(
+      {
+        ...base,
+        annotations: [{ labelKey: "reception.saleAnnotation.turn", value: "7", emphasis: true }],
+      },
+      tr,
+    );
+    const turno = nodos(def).find((n) => n.text === "TURNO 7");
+
+    expect(turno).toMatchObject({ alignment: "center", bold: true });
+    expect(Number(turno?.fontSize)).toBeGreaterThanOrEqual(14);
+  });
+
+  it("una no enfática sale como renglón chico, con su etiqueta traducida", () => {
+    const def = buildTicketDefinition(
+      {
+        ...base,
+        annotations: [{ labelKey: "reception.saleAnnotation.turn", value: "7", emphasis: false }],
+      },
+      tr,
+    );
+    const json = JSON.stringify(def);
+
+    expect(json).toContain('"Turno"');
+    expect(json).not.toContain("TURNO 7");
+  });
+});

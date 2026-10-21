@@ -50,6 +50,17 @@ function noVacio(value: string | null): value is string {
   return value !== null && value.trim() !== "";
 }
 
+/**
+ * F9-RECEP-24 — lo que un módulo vertical le anotó a la venta (ley 31), ya
+ * leído y validado por el service. `labelKey` se traduce aquí, con el mismo
+ * traductor del resto del papel.
+ */
+export interface TicketAnnotation {
+  labelKey: string;
+  value: string;
+  emphasis: boolean;
+}
+
 export interface TicketInput {
   tenant: {
     /** F10-MANFIX-14: el nombre del negocio, el que encabeza el papel. */
@@ -112,6 +123,11 @@ export interface TicketInput {
   paymentMethod?: string | null;
   received?: string | null;
   change?: string | null;
+  /**
+   * F9-RECEP-24 — solo en la venta, y solo cuando un módulo anotó algo
+   * («Turno: 7»). Ausente o vacío, el papel es el de siempre.
+   */
+  annotations?: TicketAnnotation[];
   note?: string | null;
   currency: Currency;
   locale: Locale;
@@ -341,6 +357,23 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
             ...(input.received == null ? [] : [fila(t("ticket.received"), dinero(input.received))]),
             ...(input.change == null ? [] : [fila(t("ticket.change"), dinero(input.change))]),
           ]),
+
+      // ── Lo que anotó un módulo (F9-RECEP-24, ley 31) ──────────────────
+      //
+      // La enfática, en grande y centrada: es el número que el paciente
+      // tiene que leer de un vistazo («TURNO 7»). Las demás, como un renglón
+      // más. El renderer no sabe qué es un turno: traduce la clave y pinta.
+      ...(input.annotations ?? []).map((a) =>
+        a.emphasis
+          ? {
+              text: `${t(a.labelKey)} ${a.value}`.toLocaleUpperCase(input.locale),
+              bold: true,
+              fontSize: 16,
+              alignment: "center",
+              margin: [0, 6, 0, 2],
+            }
+          : fila(t(a.labelKey), a.value),
+      ),
 
       ...(input.note == null || input.note === ""
         ? []

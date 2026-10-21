@@ -155,16 +155,17 @@ model Tenant {
   modules              TenantModule[]
 
   // Recepción (Fase 9)
-  customers            Customer[]
-  suppliers            Supplier[]
-  expenseCategories    ExpenseCategory[]
-  expenses             Expense[]
-  purchases            Purchase[]
-  purchaseLines        PurchaseLine[]
-  purchaseTaxes        PurchaseTax[]
-  purchaseCharges      PurchaseCharge[]
-  receptionTurns       ReceptionTurn[]
-  billingNotifications BillingNotification[]
+  customers             Customer[]
+  suppliers             Supplier[]
+  expenseCategories     ExpenseCategory[]
+  expenses              Expense[]
+  purchases             Purchase[]
+  purchaseLines         PurchaseLine[]
+  purchaseTaxes         PurchaseTax[]
+  purchaseCharges       PurchaseCharge[]
+  receptionTurns        ReceptionTurn[]
+  receptionTurnServices ReceptionTurnService[]
+  billingNotifications  BillingNotification[]
 
   medicalLabStudies        MedicalClinicLabStudy[]
   medicalDiagnosticStudies MedicalClinicDiagnosticStudy[]
@@ -764,11 +765,13 @@ model Service {
   createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant     Tenant             @relation(fields: [tenantId], references: [id])
-  warehouses ServiceWarehouse[]
-  saleItems  SaleItem[]
-  quoteLines QuoteLine[]
-  taxGroup   TaxGroup?          @relation("TaxGroupServices", fields: [taxGroupId], references: [id], onDelete: Restrict)
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id])
+  warehouses            ServiceWarehouse[]
+  saleItems             SaleItem[]
+  quoteLines            QuoteLine[]
+  taxGroup              TaxGroup?              @relation("TaxGroupServices", fields: [taxGroupId], references: [id], onDelete: Restrict)
+  /// F9-RECEP-22 — si este servicio genera turno al venderse.
+  receptionTurnServices ReceptionTurnService[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1573,16 +1576,23 @@ model Sale {
   canceledBy         String?       @map("canceled_by") @db.Uuid
   canceledAt         DateTime?     @map("canceled_at") @db.Timestamptz(6)
   cancelReason       String?       @map("cancel_reason")
+  /// F9-RECEP-22 — lo que un módulo vertical le devolvió a la venta («Turno:
+  /// 7»), validado con `saleAnnotationsSchema` de shared. La caja lo imprime
+  /// en el ticket sin saber qué significa (ley 31). El CHECK
+  /// `sales_annotations_is_array` vive en SQL.
+  annotations        Json          @default("[]")
 
-  tenant    Tenant          @relation(fields: [tenantId], references: [id])
-  warehouse Warehouse       @relation(fields: [warehouseId], references: [id])
-  session   CashboxSession  @relation(fields: [cashboxSessionId], references: [id])
-  seller    User            @relation("SaleCreatedBy", fields: [createdBy], references: [id])
-  canceler  User?           @relation("SaleCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
-  items     SaleItem[]
-  movements StockMovement[]
-  quote     Quote?          @relation(fields: [quoteId], references: [id], onDelete: Restrict)
-  taxes     SaleTax[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  session        CashboxSession  @relation(fields: [cashboxSessionId], references: [id])
+  seller         User            @relation("SaleCreatedBy", fields: [createdBy], references: [id])
+  canceler       User?           @relation("SaleCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+  items          SaleItem[]
+  movements      StockMovement[]
+  quote          Quote?          @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  taxes          SaleTax[]
+  /// F9-RECEP-22 — los turnos de Recepción que nacieron de esta venta.
+  receptionTurns ReceptionTurn[]
 
   @@unique([tenantId, folio])
   @@index([tenantId, createdAt(sort: Desc)], map: "sales_tenant_created_idx")
@@ -2542,15 +2552,37 @@ model ReceptionTurn {
   createdBy    String?   @map("created_by") @db.Uuid
   createdAt    DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// F9-RECEP-22 — la venta de la que nació el turno (un servicio marcado en
+  /// `reception_turn_services`); NULL en los de «Generar turno».
+  saleId       String?   @map("sale_id") @db.Uuid
 
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sale     Sale?     @relation(fields: [saleId], references: [id], onDelete: SetNull)
 
   medicalRecords MedicalClinicRecord[]
 
   @@unique([tenantId, businessDate, number])
   @@index([tenantId, businessDate, number(sort: Desc)])
+  @@index([tenantId, saleId])
   @@map("reception_turns")
+}
+
+/// F9-RECEP-22 — los servicios que, al VENDERSE, generan un turno de
+/// Recepción (F9-RECEP-21..30, ley 31). Sin filas —el default de todo
+/// negocio—, ninguna venta genera turnos. Se edita en «Configuración
+/// Recepción» de Mi perfil; el API valida que cada uno sea un servicio activo
+/// del negocio (un FK no mira la RLS).
+model ReceptionTurnService {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  serviceId String   @map("service_id") @db.Uuid
+  createdAt DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, serviceId])
+  @@map("reception_turn_services")
 }
 
 /// F9-RECEP-17 — la configuración de Recepción por negocio: cómo llama a su
