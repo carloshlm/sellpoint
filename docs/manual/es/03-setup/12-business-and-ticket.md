@@ -69,6 +69,12 @@ Lo demás del ticket no se configura y sale siempre: lo que se vendió, los
 totales, cómo pagó el cliente y, si pagó en efectivo, con cuánto (**Recibido**)
 y su **Cambio** (capítulo 7).
 
+Si tu negocio tiene el módulo **Recepción**, el ticket de venta también puede
+llevar el **número de turno**: marca los servicios en **Configuración
+Recepción** › **Servicios que generan turno al venderse** y, al cobrarlos en la
+caja, el turno se genera solo y su número sale en grande en el ticket, también
+al reimprimirlo.
+
 El **ancho del papel** (58 u 80 mm) no se elige aquí: es un ajuste de la
 computadora donde se imprime, no del negocio —la impresora está conectada a
 ella, no a tu cuenta—, y lo elige quien cobra, no solo quien administra. Cada

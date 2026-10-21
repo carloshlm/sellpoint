@@ -5,6 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as settingsApi from "@/lib/reception/settings-api";
+import * as servicesApi from "@/lib/services/api";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
@@ -16,6 +17,36 @@ vi.mock("@/lib/reception/settings-api", () => ({
   updateReceptionSettings: vi.fn(),
 }));
 const mocked = vi.mocked(settingsApi);
+vi.mock("@/lib/services/api", async (original) => ({
+  ...(await original<typeof import("@/lib/services/api")>()),
+  listServices: vi.fn(),
+}));
+const servicios = vi.mocked(servicesApi);
+
+const servicio = (id: string, name: string, price: string, isActive = true) => ({
+  id,
+  code: name.toUpperCase().replaceAll(" ", "-"),
+  name,
+  description: null,
+  cost: null,
+  price,
+  isActive,
+  warehouseIds: [],
+  taxGroupId: null,
+  attributes: {},
+});
+const CONSULTA = servicio("11111111-1111-4111-8111-111111111111", "Consulta médica", "500.00");
+const ESPECIALIDAD = servicio(
+  "22222222-2222-4222-8222-222222222222",
+  "Consulta de especialidad",
+  "900.00",
+);
+const INACTIVA = servicio(
+  "33333333-3333-4333-8333-333333333333",
+  "Consulta vieja",
+  "300.00",
+  false,
+);
 
 /**
  * F9-RECEP-18 — «Configuración Recepción» en Mi perfil: solo con el módulo
@@ -52,6 +83,15 @@ beforeEach(() => {
     turnServiceIds: [],
     ...input,
   }));
+});
+
+beforeEach(() => {
+  servicios.listServices.mockResolvedValue({
+    rows: [CONSULTA, ESPECIALIDAD, INACTIVA],
+    total: 3,
+    page: 1,
+    pageSize: 100,
+  });
 });
 
 afterEach(() => {
@@ -148,5 +188,62 @@ describe("«Configuración Recepción» en Mi perfil (F9-RECEP-18)", () => {
       "Escribe una sola palabra, sin espacios.",
     );
     expect(mocked.updateReceptionSettings).not.toHaveBeenCalled();
+  });
+
+  /**
+   * F9-RECEP-28 — los servicios que generan turno al VENDERSE en la caja
+   * (ley 31). Solo se ofrecen los activos; se manda la lista COMPLETA, y solo
+   * si cambió.
+   */
+  describe("servicios que generan turno al venderse (F9-RECEP-28)", () => {
+    const admin = () => user(["reception"], ["tenants:manage", "services:read"]);
+
+    it("las casillas reflejan lo guardado, y un servicio inactivo no se ofrece", async () => {
+      mocked.getReceptionSettings.mockResolvedValue({
+        customerLabel: null,
+        showCustomers: true,
+        showTurns: true,
+        turnServiceIds: [CONSULTA.id],
+      });
+      renderCard(admin());
+
+      expect(await screen.findByRole("checkbox", { name: "Consulta médica" })).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: "Consulta de especialidad" })).not.toBeChecked();
+      expect(screen.queryByRole("checkbox", { name: "Consulta vieja" })).not.toBeInTheDocument();
+    });
+
+    it("marcar uno y guardar manda la lista completa", async () => {
+      mocked.getReceptionSettings.mockResolvedValue({
+        customerLabel: null,
+        showCustomers: true,
+        showTurns: true,
+        turnServiceIds: [CONSULTA.id],
+      });
+      const usuario = userEvent.setup();
+      renderCard(admin());
+
+      await usuario.click(
+        await screen.findByRole("checkbox", { name: "Consulta de especialidad" }),
+      );
+      await usuario.click(screen.getByRole("button", { name: "Guardar" }));
+
+      await waitFor(() =>
+        expect(mocked.updateReceptionSettings).toHaveBeenCalledWith({
+          turnServiceIds: [CONSULTA.id, ESPECIALIDAD.id],
+        }),
+      );
+    });
+
+    it("sin servicios activos lo dice, en lugar de una lista vacía", async () => {
+      servicios.listServices.mockResolvedValue({
+        rows: [INACTIVA],
+        total: 1,
+        page: 1,
+        pageSize: 100,
+      });
+      renderCard(admin());
+
+      expect(await screen.findByText(/No tienes servicios activos/)).toBeInTheDocument();
+    });
   });
 });

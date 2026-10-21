@@ -152,9 +152,23 @@ function TurnsContent() {
                   {turn.customerName ?? t("reception.turns.noCustomer", entidad.vars)}
                 </TableCell>
                 <TableCell className="px-2">
-                  <Badge variant={turn.status === "attended" ? "success" : "warning"}>
-                    {t(`reception.turns.status.${turn.status}`)}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Badge variant={turn.status === "attended" ? "success" : "warning"}>
+                      {t(`reception.turns.status.${turn.status}`)}
+                    </Badge>
+                    {/* F9-RECEP-29 — el turno que nació de una venta dice con
+                        cuál se pagó. En gris: es un dato, no algo por hacer, y
+                        no compite con el verde de «Atendido». La venta
+                        cancelada, en rojo: eso sí se revisa antes de atender. */}
+                    {turn.sale !== null &&
+                      (turn.sale.status === "canceled" ? (
+                        <Badge variant="destructive">
+                          {t("reception.turns.saleCanceled", { folio: turn.sale.folio })}
+                        </Badge>
+                      ) : (
+                        <Badge>{t("reception.turns.paid", { folio: turn.sale.folio })}</Badge>
+                      ))}
+                  </div>
                 </TableCell>
                 <TableCell className="px-2 whitespace-nowrap">
                   {formatBusinessDate(turn.createdAt, locale, timeZone, true)}

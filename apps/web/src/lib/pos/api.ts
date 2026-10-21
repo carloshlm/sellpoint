@@ -1,4 +1,4 @@
-import type { PaymentMethod } from "@sellpoint/shared";
+import type { PaymentMethod, SaleAnnotation } from "@sellpoint/shared";
 import { api } from "@/lib/api";
 import { imprimirPdf } from "@/lib/download";
 import { getTicketWidthPreference, type TicketWidth } from "@/lib/ticket-width";
@@ -257,6 +257,13 @@ export interface Sale {
   total: string;
   createdAt: string;
   items: SaleItem[];
+  /**
+   * F9-RECEP-23 — lo que los módulos activos le pidieron a la caja anotar en
+   * la venta (ley 31), p. ej. el turno del paciente. La caja no sabe qué
+   * significan: traduce `labelKey` y muestra `value`. Vacío en todo negocio
+   * cuyo módulo no anotó nada, y en las ventas anteriores al cambio.
+   */
+  annotations: SaleAnnotation[];
 }
 
 export interface CreateSaleInput {

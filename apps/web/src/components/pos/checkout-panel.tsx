@@ -15,6 +15,7 @@ import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { moneyInputError } from "@/lib/money";
+import type { Sale } from "@/lib/pos/api";
 import { useCreateSale } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import {
@@ -48,9 +49,14 @@ import {
  * revisarlas una por una con el cliente enfrente.
  */
 
+/**
+ * La venta cerrada, como la necesita la franja verde: el `id` para imprimir
+ * su ticket y las anotaciones de los módulos para decirlas en voz alta.
+ */
+export type ClosedSale = Pick<Sale, "id" | "folio" | "annotations">;
+
 interface CheckoutPanelProps {
-  /** La venta cerrada. El `id` hace falta para imprimir su ticket. */
-  onDone: (venta: { id: string; folio: string }) => void;
+  onDone: (venta: ClosedSale) => void;
   onCancel: () => void;
 }
 
@@ -166,7 +172,7 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
       {
         onSuccess: (venta) => {
           clear();
-          onDone({ id: venta.id, folio: venta.folio });
+          onDone({ id: venta.id, folio: venta.folio, annotations: venta.annotations });
         },
         onError: (e: ApiError) => {
           setError(e.message || t("pos.checkout.failed"));

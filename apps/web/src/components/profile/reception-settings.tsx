@@ -5,6 +5,7 @@ import {
 } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Money } from "@/components/common/money";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import {
   useReceptionSettings,
   useUpdateReceptionSettings,
 } from "@/lib/reception/settings";
+import { useActiveServiceOptions } from "@/lib/services/hooks";
 import type { AuthUser } from "@/stores/auth.store";
 
 interface Formulario {
@@ -24,6 +26,8 @@ interface Formulario {
   palabra: string;
   showCustomers: boolean;
   showTurns: boolean;
+  /** F9-RECEP-28 — los servicios que generan turno al venderse. */
+  turnServiceIds: string[];
 }
 
 const desdeSettings = (s: Settings): Formulario => ({
@@ -31,7 +35,12 @@ const desdeSettings = (s: Settings): Formulario => ({
   palabra: s.customerLabel ?? "",
   showCustomers: s.showCustomers,
   showTurns: s.showTurns,
+  turnServiceIds: s.turnServiceIds,
 });
+
+/** Mismos elementos, sin importar el orden: la lista es un conjunto. */
+const mismoConjunto = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((id) => b.includes(id));
 
 /**
  * F9-RECEP-18 — «Configuración Recepción» en Mi perfil.
@@ -41,12 +50,19 @@ const desdeSettings = (s: Settings): Formulario => ({
  * desaparecen), y se previsualiza ya Capitalizada con la MISMA función que
  * usa el API — lo que el admin ve es lo que queda. Guardar manda SOLO lo
  * que cambió; desmarcar «Personalizar» manda `null`: vuelve a la de fábrica.
+ *
+ * F9-RECEP-28 — y qué servicios generan un turno al VENDERSE en la caja (ley
+ * 31). Solo se ofrecen los ACTIVOS; si cambió, se manda la lista COMPLETA
+ * (el API la reemplaza). Sin permiso para leer servicios, la sección no
+ * aparece: no hay de dónde elegir.
  */
 export function ReceptionSettings({ user }: { user: AuthUser }) {
   const { t } = useTranslation();
   const visible =
     user.subscription.modules.includes("reception") && user.permissions.includes("tenants:manage");
   const { data, isError } = useReceptionSettings(visible);
+  const puedeVerServicios = visible && user.permissions.includes("services:read");
+  const { data: activos } = useActiveServiceOptions(puedeVerServicios);
   const entidad = useReceptionEntity();
   const update = useUpdateReceptionSettings();
   const [form, setForm] = useState<Formulario | null>(null);
@@ -81,8 +97,28 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
     if (palabraNueva !== data.customerLabel) diff.customerLabel = palabraNueva;
     if (form.showCustomers !== data.showCustomers) diff.showCustomers = form.showCustomers;
     if (form.showTurns !== data.showTurns) diff.showTurns = form.showTurns;
+    // Solo los ACTIVOS que están marcados, en el orden de la lista: uno que se
+    // desactivó después de marcarlo se cae al guardar (el API lo rechazaría).
+    if (activos !== undefined) {
+      const elegidos = activos
+        .filter((servicio) => form.turnServiceIds.includes(servicio.id))
+        .map((servicio) => servicio.id);
+      if (!mismoConjunto(elegidos, data.turnServiceIds)) diff.turnServiceIds = elegidos;
+    }
     return diff;
   };
+
+  const alternarServicio = (id: string, marcado: boolean) =>
+    setForm((previo) =>
+      previo === null
+        ? previo
+        : {
+            ...previo,
+            turnServiceIds: marcado
+              ? [...previo.turnServiceIds.filter((x) => x !== id), id]
+              : previo.turnServiceIds.filter((x) => x !== id),
+          },
+    );
 
   return (
     <Card data-testid="reception-settings">
@@ -168,6 +204,43 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
                 </Label>
               </div>
             ))}
+
+            {puedeVerServicios && activos !== undefined && (
+              <div className="flex flex-col gap-2" data-testid="reception-turn-services">
+                <p className="font-medium text-sm">{t("reception.settings.turnServicesTitle")}</p>
+                <p className="text-muted-foreground text-xs">
+                  {t("reception.settings.turnServicesHint")}
+                </p>
+                {activos.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t("reception.settings.turnServicesEmpty")}
+                  </p>
+                ) : (
+                  activos.map((servicio) => (
+                    <div key={servicio.id} className="flex items-center gap-3">
+                      <Checkbox
+                        id={`reception-turn-service-${servicio.id}`}
+                        aria-label={servicio.name}
+                        checked={form.turnServiceIds.includes(servicio.id)}
+                        disabled={update.isPending}
+                        onCheckedChange={(checked) =>
+                          alternarServicio(servicio.id, checked === true)
+                        }
+                      />
+                      <Label
+                        htmlFor={`reception-turn-service-${servicio.id}`}
+                        className="flex flex-1 items-baseline justify-between gap-3"
+                      >
+                        <span>{servicio.name}</span>
+                        <span className="text-muted-foreground tabular-nums">
+                          <Money value={servicio.price} />
+                        </span>
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
 
             {error && (
               <p

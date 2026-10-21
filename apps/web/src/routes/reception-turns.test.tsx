@@ -42,6 +42,7 @@ const turno = (over: Partial<receptionApi.Turn> = {}): receptionApi.Turn => ({
   status: "waiting",
   attendedAt: null,
   createdAt: "2026-09-02T18:05:00.000Z",
+  sale: null,
   ...over,
 });
 
@@ -89,6 +90,27 @@ describe("Generar turno (F9-RECEP-13)", () => {
     expect(within(filas[0] as HTMLElement).getByText("Rosa Luna")).toBeInTheDocument();
     expect(within(filas[1] as HTMLElement).getByText("Sin cliente")).toBeInTheDocument();
     expect(within(filas[0] as HTMLElement).getByText("En espera")).toBeInTheDocument();
+  });
+
+  /**
+   * F9-RECEP-29 — el turno que nació de una venta (ley 31) dice con qué venta
+   * se pagó, o que esa venta se canceló; el de «Generar turno» no dice nada.
+   */
+  it("el turno de una venta dice «Pagado · folio» o «Venta cancelada · folio»", async () => {
+    mocked.listTurns.mockResolvedValue([
+      turno({ id: "t9", number: 9, sale: { id: "v2", folio: "VTA-000124", status: "canceled" } }),
+      turno({ id: "t8", number: 8, sale: { id: "v1", folio: "VTA-000123", status: "completed" } }),
+      turno({ id: "t7", number: 7 }),
+    ]);
+    await renderTurns(["reception:read", "reception:manage"]);
+
+    expect(
+      within(await screen.findByTestId("turn-t8")).getByText("Pagado · VTA-000123"),
+    ).toBeVisible();
+    expect(
+      within(screen.getByTestId("turn-t9")).getByText("Venta cancelada · VTA-000124"),
+    ).toBeVisible();
+    expect(screen.getByTestId("turn-t7")).not.toHaveTextContent(/Pagado|Venta cancelada/);
   });
 
   /**

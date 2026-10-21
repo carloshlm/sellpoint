@@ -69,7 +69,9 @@
     "ticketLabel": "Turno",
     "print": "Imprimir de nuevo",
     "reprint": "Reimprimir",
-    "printFailed": "No pudimos abrir el papel del turno. Intenta imprimirlo de nuevo."
+    "printFailed": "No pudimos abrir el papel del turno. Intenta imprimirlo de nuevo.",
+    "paid": "Pagado · {{folio}}",
+    "saleCanceled": "Venta cancelada · {{folio}}"
   },
   "entity": {
     "singular": "Cliente",
@@ -77,7 +79,7 @@
   },
   "settings": {
     "title": "Configuración Recepción",
-    "subtitle": "Cómo llama tu negocio a sus clientes y qué entradas del menú se muestran. Solo cambia dentro de Recepción.",
+    "subtitle": "Cómo llama tu negocio a sus clientes dentro de Recepción, qué entradas del menú se muestran y qué servicios generan turno al venderse.",
     "customizeLabel": "Personalizar la palabra «Cliente»",
     "labelField": "Palabra",
     "labelHint": "Una sola palabra, sin espacios. Se guarda como «{{preview}}».",
@@ -92,6 +94,12 @@
     "itemHidden": {
       "title": "Esta sección está desactivada",
       "description": "Quien administra el negocio la apagó en Mi perfil › Configuración Recepción."
-    }
+    },
+    "turnServicesTitle": "Servicios que generan turno al venderse",
+    "turnServicesHint": "Al cobrar uno de estos servicios en la caja se genera el turno, y su número sale en el ticket de venta.",
+    "turnServicesEmpty": "No tienes servicios activos. Dalos de alta en Catálogos › Servicios."
+  },
+  "saleAnnotation": {
+    "turn": "Turno"
   }
 }

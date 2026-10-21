@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CartPanel } from "@/components/pos/cart-panel";
 import { CartSearch } from "@/components/pos/cart-search";
-import { CheckoutPanel } from "@/components/pos/checkout-panel";
+import { CheckoutPanel, type ClosedSale } from "@/components/pos/checkout-panel";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { SessionBar } from "@/components/pos/session-bar";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,8 @@ export function SaleScreen({ session }: SaleScreenProps) {
   const { t } = useTranslation();
   const lines = useCartStore((s) => s.lines);
   const [cobrando, setCobrando] = useState(false);
-  const [ultima, setUltima] = useState<{ id: string; folio: string } | null>(null);
+  const [ultima, setUltima] = useState<ClosedSale | null>(null);
+  const enfaticas = ultima?.annotations.filter((a) => a.emphasis) ?? [];
 
   return (
     <div className="flex flex-col gap-4" data-testid="sale-screen">
@@ -58,6 +59,24 @@ export function SaleScreen({ session }: SaleScreenProps) {
           <p role="status" className="font-medium text-sm">
             {t("pos.checkout.done", { folio: ultima.folio })}
           </p>
+          {/* F9-RECEP-29 — lo que un módulo activo pidió decir EN GRANDE (ley
+              31): el turno del paciente, para dictárselo sin esperar el papel.
+              La caja no sabe qué es; traduce la clave que el módulo mandó. Las
+              no enfáticas van solo en el ticket. Juntas en su propia fila: en
+              un teléfono bajan las dos, no una arriba y otra abajo. */}
+          {enfaticas.length > 0 && (
+            <div className="flex flex-wrap gap-x-3">
+              {enfaticas.map((a) => (
+                <p
+                  key={`${a.sourceModule}-${a.labelKey}-${a.value}`}
+                  data-testid="sale-annotation"
+                  className="font-bold text-2xl tabular-nums"
+                >
+                  {`${t(a.labelKey)} ${a.value}`}
+                </p>
+              ))}
+            </div>
+          )}
           {/* El ticket SALE SOLO acá, con la venta recién cerrada, porque es el
               momento en que el cliente lo está esperando (Carlos, 2026-09-02);
               el botón queda para repetirlo. `key` por venta: cada cobro es un

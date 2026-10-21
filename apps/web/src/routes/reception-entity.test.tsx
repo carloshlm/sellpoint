@@ -71,6 +71,7 @@ beforeEach(() => {
       status: "waiting",
       attendedAt: null,
       createdAt: "2026-09-04T14:00:00.000Z",
+      sale: null,
     },
   ]);
   settings.getReceptionSettings.mockResolvedValue({

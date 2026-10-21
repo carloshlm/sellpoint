@@ -93,6 +93,7 @@ beforeEach(() => {
     status: "waiting",
     attendedAt: null,
     createdAt: "2026-09-02T18:05:00.000Z",
+    sale: null,
   });
   mocked.removeCustomer.mockResolvedValue(undefined);
 });

@@ -510,6 +510,7 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     total: "25.00",
     createdAt: "2026-08-21T16:00:00.000Z",
     items: [],
+    annotations: [],
   });
 
   async function conCarrito(usuario?: AuthUser) {
@@ -695,6 +696,53 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
       await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
       await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(0));
+    });
+
+    /**
+     * F9-RECEP-29 — la venta de un servicio que genera turno (ley 31) trae el
+     * número como anotación ENFÁTICA, y la franja verde lo muestra en grande:
+     * el cajero se lo dicta al paciente sin esperar el papel. La caja no sabe
+     * qué es un turno; traduce la clave que el módulo le mandó.
+     */
+    it("las anotaciones enfáticas salen en grande en la franja verde: «Turno 7», «Turno 8»", async () => {
+      const turno = (value: string) => ({
+        sourceModule: "reception" as const,
+        labelKey: "reception.saleAnnotation.turn",
+        value,
+        emphasis: true,
+      });
+      mocked.createSale.mockResolvedValue({ ...venta(), annotations: [turno("7"), turno("8")] });
+      await conCarrito();
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      const aviso = await screen.findByTestId("sale-done");
+      expect(
+        within(aviso)
+          .getAllByTestId("sale-annotation")
+          .map((a) => a.textContent),
+      ).toEqual(["Turno 7", "Turno 8"]);
+    });
+
+    it("una anotación NO enfática no sale en la franja: va solo en el papel", async () => {
+      mocked.createSale.mockResolvedValue({
+        ...venta(),
+        annotations: [
+          {
+            sourceModule: "reception",
+            labelKey: "reception.saleAnnotation.turn",
+            value: "7",
+            emphasis: false,
+          },
+        ],
+      });
+      await conCarrito();
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      const aviso = await screen.findByTestId("sale-done");
+      expect(within(aviso).queryByTestId("sale-annotation")).not.toBeInTheDocument();
+      expect(aviso).not.toHaveTextContent("Turno");
     });
 
     it("el botón deshabilitado frena el segundo clic mientras el primero está en vuelo", async () => {

@@ -60,6 +60,7 @@ const venta = (overrides: Partial<posApi.SaleRow> = {}): posApi.SaleRow => ({
   seller: { id: "u1", name: "Ana Pérez" },
   canceledAt: null,
   cancelReason: null,
+  annotations: [],
   ...overrides,
 });
 

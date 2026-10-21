@@ -61,6 +61,15 @@ export interface Turn {
   status: TurnStatus;
   attendedAt: string | null;
   createdAt: string;
+  /** F9-RECEP-26 — la venta que generó el turno (ley 31); `null` en el de «Generar turno». */
+  sale: TurnSale | null;
+}
+
+/** La venta de un turno: su folio y si sigue cobrada o se canceló después. */
+export interface TurnSale {
+  id: string;
+  folio: string;
+  status: "completed" | "canceled";
 }
 
 export interface ListCustomersParams {

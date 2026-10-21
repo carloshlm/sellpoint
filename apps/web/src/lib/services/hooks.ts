@@ -24,6 +24,20 @@ export function useServices(params: { query?: string; page?: number } = {}) {
   });
 }
 
+/**
+ * F9-RECEP-28 — los servicios ACTIVOS para elegir de una lista (hoy, los que
+ * generan turno al venderse). Una sola página de 100, el tope del API: un
+ * negocio tiene decenas de servicios, no cientos.
+ */
+export function useActiveServiceOptions(enabled: boolean) {
+  return useQuery<ServicesPage, ApiError, Service[]>({
+    queryKey: [...SERVICES_QUERY_KEY, "active-options"],
+    queryFn: () => listServices({ pageSize: 100 }),
+    enabled,
+    select: (page) => page.rows.filter((service) => service.isActive),
+  });
+}
+
 export function useCreateService() {
   const queryClient = useQueryClient();
   return useMutation<Service, ApiError, CreateServiceInput>({

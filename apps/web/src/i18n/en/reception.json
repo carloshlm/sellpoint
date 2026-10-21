@@ -19,7 +19,7 @@
       "title": "Delete «{{name}}»",
       "body": "This {{entityLower}} record is deleted and cannot be recovered. Their past tickets keep the name in the history.",
       "confirm": "Delete {{entityLower}}",
-      "done": "\u00ab{{name}}\u00bb deleted."
+      "done": "«{{name}}» deleted."
     }
   },
   "form": {
@@ -69,7 +69,9 @@
     "ticketLabel": "Ticket",
     "print": "Print again",
     "reprint": "Reprint",
-    "printFailed": "We could not open the ticket. Try printing it again."
+    "printFailed": "We could not open the ticket. Try printing it again.",
+    "paid": "Paid · {{folio}}",
+    "saleCanceled": "Sale canceled · {{folio}}"
   },
   "entity": {
     "singular": "Customer",
@@ -77,7 +79,7 @@
   },
   "settings": {
     "title": "Reception settings",
-    "subtitle": "What your business calls its customers and which menu entries are shown. It only changes inside Reception.",
+    "subtitle": "What your business calls its customers inside Reception, which menu entries are shown, and which services issue a ticket when sold.",
     "customizeLabel": "Customize the word “Customer”",
     "labelField": "Word",
     "labelHint": "A single word, no spaces. It is saved as “{{preview}}”.",
@@ -92,6 +94,12 @@
     "itemHidden": {
       "title": "This section is turned off",
       "description": "Whoever manages the business turned it off in My profile › Reception settings."
-    }
+    },
+    "turnServicesTitle": "Services that issue a ticket when sold",
+    "turnServicesHint": "When one of these services is charged at the register, a ticket is issued and its number prints on the sales receipt.",
+    "turnServicesEmpty": "You have no active services. Add them in Catalogs › Services."
+  },
+  "saleAnnotation": {
+    "turn": "Ticket"
   }
 }
