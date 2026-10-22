@@ -6,11 +6,16 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollableTable } from "@/components/ui/scrollable-table";
-import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getAdminTenants } from "@/lib/billing/api";
 import { formatDeadline } from "@/lib/billing/dates";
 import { formatBusinessDate } from "@/lib/inventory/format-date";
@@ -21,7 +26,13 @@ export const Route = createFileRoute("/admin/tenants/")({
   component: TenantsPage,
 });
 
-/** F9-ADMIN-06 — «Negocios»: la lista del backoffice que abre el expediente. */
+/**
+ * F9-ADMIN-06 — «Negocios»: la lista del backoffice que abre el expediente.
+ *
+ * Se ve como los demás listados (Carlos, 2026-10-22, «como el catálogo de
+ * productos»): título de página, el buscador y la tabla directa. Antes era una
+ * tarjeta con su título chico y otra tabla adentro, con filas de 4 px.
+ */
 function TenantsPage() {
   return (
     <ProtectedRoute>
@@ -56,82 +67,77 @@ function TenantsContent() {
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{k("title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{k("title")}</h1>
+      </header>
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1 text-sm">
           <Label htmlFor="tenant-search">{k("search")}</Label>
           <Input
             id="tenant-search"
             value={busqueda}
             onChange={(event) => setBusqueda(event.target.value)}
-            className="max-w-sm"
           />
         </div>
-        <ScrollableTable>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className={`border-b ${TABLE_HEAD_ROW}`}>
-                <th className="px-2 py-1">{k("columns.tenant")}</th>
-                <th className="px-2 py-1">{k("columns.market")}</th>
-                <th className="px-2 py-1">{k("columns.plan")}</th>
-                <th className="px-2 py-1">{k("columns.status")}</th>
-                <th className="px-2 py-1">{k("columns.modules")}</th>
-                <th className="px-2 py-1">{k("columns.dueAt")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((fila) => (
-                <tr
-                  key={fila.tenantId}
-                  className={`border-b ${TABLE_ROW_HOVER} ${
-                    fila.suspendedAt === null ? "" : "text-muted-foreground"
-                  }`}
-                  data-testid={`tenant-row-${fila.tenantId}`}
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{k("columns.tenant")}</TableHead>
+            <TableHead>{k("columns.market")}</TableHead>
+            <TableHead>{k("columns.plan")}</TableHead>
+            <TableHead>{k("columns.status")}</TableHead>
+            <TableHead>{k("columns.modules")}</TableHead>
+            <TableHead>{k("columns.dueAt")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filas.map((fila) => (
+            <TableRow
+              key={fila.tenantId}
+              className={fila.suspendedAt === null ? undefined : "text-muted-foreground"}
+              data-testid={`tenant-row-${fila.tenantId}`}
+            >
+              <TableCell>
+                <Link
+                  to="/admin/tenants/$tenantId"
+                  params={{ tenantId: fila.tenantId }}
+                  search={{ tab: "overview" }}
+                  className="font-medium text-primary hover:underline"
                 >
-                  <td className="px-2 py-1">
-                    <Link
-                      to="/admin/tenants/$tenantId"
-                      params={{ tenantId: fila.tenantId }}
-                      search={{ tab: "overview" }}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {fila.tenantName}
-                    </Link>
-                  </td>
-                  <td className="px-2 py-1">
-                    {fila.country ?? "—"} · {fila.currency}
-                  </td>
-                  <td className="px-2 py-1">{fila.planName}</td>
-                  <td className="whitespace-nowrap px-2 py-1">
-                    {fila.suspendedAt === null
-                      ? t(`common.billing.me.status.${fila.status}`)
-                      : `${k("suspended")} · ${formatBusinessDate(fila.suspendedAt, locale, fila.timezone)}`}
-                  </td>
-                  <td className="px-2 py-1">
-                    {fila.modules.length === 0 ? (
-                      "—"
-                    ) : (
-                      <span className="flex flex-wrap gap-1">
-                        {fila.modules.map((key) => (
-                          <Badge key={key} variant="success">
-                            {t(MODULE_NAV[key].labelKey)}
-                          </Badge>
-                        ))}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1 whitespace-nowrap">
-                    {formatDeadline(fila.dueAt, fila.timezone, locale)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </ScrollableTable>
-      </CardContent>
-    </Card>
+                  {fila.tenantName}
+                </Link>
+              </TableCell>
+              <TableCell>
+                {fila.country ?? "—"} · {fila.currency}
+              </TableCell>
+              <TableCell>{fila.planName}</TableCell>
+              <TableCell className="whitespace-nowrap">
+                {fila.suspendedAt === null
+                  ? t(`common.billing.me.status.${fila.status}`)
+                  : `${k("suspended")} · ${formatBusinessDate(fila.suspendedAt, locale, fila.timezone)}`}
+              </TableCell>
+              <TableCell>
+                {fila.modules.length === 0 ? (
+                  "—"
+                ) : (
+                  <span className="flex flex-wrap gap-1">
+                    {fila.modules.map((key) => (
+                      <Badge key={key} variant="success">
+                        {t(MODULE_NAV[key].labelKey)}
+                      </Badge>
+                    ))}
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="whitespace-nowrap">
+                {formatDeadline(fila.dueAt, fila.timezone, locale)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

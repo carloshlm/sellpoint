@@ -8,7 +8,6 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Paginator } from "@/components/ui/paginator";
 import {
   Table,
@@ -77,11 +76,12 @@ function SiteLeadsContent() {
   const rows = data?.items ?? [];
 
   return (
-    <Card data-testid="admin-site-leads">
-      <CardHeader>
-        <CardTitle>{k("title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    // Página, no tarjeta: se ve como los demás listados (Carlos, 2026-10-22).
+    <div className="flex flex-col gap-6" data-testid="admin-site-leads">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{k("title")}</h1>
+      </header>
+      <div className="flex flex-col gap-4">
         <DateRangeFilter
           id="site-leads"
           from={rango.from}
@@ -159,7 +159,7 @@ function SiteLeadsContent() {
           total={data?.total ?? 0}
           onPageChange={setPage}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

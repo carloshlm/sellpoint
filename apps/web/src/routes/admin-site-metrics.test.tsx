@@ -103,6 +103,18 @@ describe("«Números del sitio» (F11-SITE-LEAD-09)", () => {
     expect(within(referidos).getByText("14")).toBeInTheDocument();
   });
 
+  /**
+   * El backoffice se ve como los demás listados (Carlos, 2026-10-22): título
+   * de PÁGINA y el contenido directo, no una tarjeta que lo envuelve todo.
+   */
+  it("el título es el de la página y nada vive dentro de una tarjeta", async () => {
+    await renderMetrics();
+
+    const titulo = await screen.findByRole("heading", { level: 1, name: "Números del sitio" });
+    expect(titulo.closest("[data-slot=card]")).toBeNull();
+    expect(screen.getByTestId("admin-site-metrics").closest("[data-slot=card]")).toBeNull();
+  });
+
   it("sin nadie que haya abierto el formulario, se dice con una frase (nunca 0 % ni NaN)", async () => {
     mockedSummary.mockResolvedValue({
       from: "2026-08-19",

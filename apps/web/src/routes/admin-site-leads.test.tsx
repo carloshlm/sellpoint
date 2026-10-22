@@ -115,6 +115,18 @@ describe("«Prospectos del sitio» (F11-SITE-LEAD-08)", () => {
     expect(within(filaSinAvisar).getByText("Todavía no sé")).toBeInTheDocument();
   });
 
+  /**
+   * El backoffice se ve como los demás listados (Carlos, 2026-10-22): título
+   * de PÁGINA y el contenido directo, no una tarjeta que lo envuelve todo.
+   */
+  it("el título es el de la página y nada vive dentro de una tarjeta", async () => {
+    await renderLeads();
+
+    const titulo = await screen.findByRole("heading", { level: 1, name: "Prospectos del sitio" });
+    expect(titulo.closest("[data-slot=card]")).toBeNull();
+    expect(screen.getByTestId("admin-site-leads").closest("[data-slot=card]")).toBeNull();
+  });
+
   it("sin el flag, ni el link ni la página", async () => {
     const router = await renderLeads(false);
     await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard"));

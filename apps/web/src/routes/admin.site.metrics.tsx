@@ -17,7 +17,6 @@ import {
   rangoUltimosDias,
 } from "@/components/common/date-range-filter";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -81,11 +80,12 @@ function SiteMetricsContent() {
   }
 
   return (
-    <Card data-testid="admin-site-metrics">
-      <CardHeader>
-        <CardTitle>{k("title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+    // Página, no tarjeta: se ve como los demás listados (Carlos, 2026-10-22).
+    <div className="flex flex-col gap-6" data-testid="admin-site-metrics">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{k("title")}</h1>
+      </header>
+      <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-end gap-3">
           <DateRangeFilter
             id="site-metrics"
@@ -225,7 +225,7 @@ function SiteMetricsContent() {
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

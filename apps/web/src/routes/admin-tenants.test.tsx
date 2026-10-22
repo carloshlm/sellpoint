@@ -216,6 +216,21 @@ describe("«Negocios» (F9-ADMIN-06)", () => {
   });
 
   /**
+   * Carlos, 2026-10-22: «debería verse como otros listados que tienen tabla y
+   * buscador, como el catálogo de productos». Título de página y la tabla
+   * directa, no una tarjeta con otra tabla adentro.
+   */
+  it("se ve como los demás listados: título de página y la tabla sin tarjeta", async () => {
+    await renderEn("/admin/tenants");
+    await screen.findByTestId("tenant-row-t1");
+
+    const titulo = screen.getByRole("heading", { level: 1, name: "Negocios" });
+    expect(titulo.closest("[data-slot=card]")).toBeNull();
+    expect(screen.getByRole("table").closest("[data-slot=card]")).toBeNull();
+    expect(screen.getByLabelText("Buscar negocio")).toBeInTheDocument();
+  });
+
+  /**
    * F7-LIFECYCLE-07 — un negocio desactivado se ve tenue y su Estado dice
    * desde cuándo, en el calendario del negocio; el activo, como siempre.
    */

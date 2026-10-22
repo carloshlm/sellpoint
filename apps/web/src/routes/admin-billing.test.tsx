@@ -648,9 +648,11 @@ describe("el menú tiene su grupo Backoffice", () => {
       "href",
       "/admin/billing",
     );
-    expect(
-      await screen.findByText("Cobros", { selector: "[data-slot=card-title]" }),
-    ).toBeInTheDocument();
+    // Un listado como los demás (Carlos, 2026-10-22): el título es el de la
+    // PÁGINA y la tabla no vive dentro de una tarjeta.
+    const titulo = await screen.findByRole("heading", { level: 1, name: "Cobros" });
+    expect(titulo.closest("[data-slot=card]")).toBeNull();
+    expect(screen.getByRole("table").closest("[data-slot=card]")).toBeNull();
     expect(screen.queryByText("Backoffice de cobros")).not.toBeInTheDocument();
   });
 
