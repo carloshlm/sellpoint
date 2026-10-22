@@ -339,6 +339,42 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       expect(screen.getByRole("button", { name: /confirmar/i })).toBeDisabled();
     });
 
+    /**
+     * Carlos, 2026-10-22: en la salida, la banda del encabezado no llegaba a
+     * la última columna. La fila con error agregaba una celda EXTRA con el
+     * mensaje, y el encabezado no la tenía: la tabla quedaba chueca (y un
+     * lector de pantalla no sabía de qué columna era el aviso). El aviso va
+     * en la última celda, la de «Quitar línea».
+     */
+    it("con una línea con error, cada fila tiene las mismas celdas que el encabezado", async () => {
+      const base = detalle().rows[0] as DocumentRow;
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [
+            {
+              ...base,
+              errors: [{ field: "quantity", code: "inventory.quantity_must_be_positive" }],
+            },
+            { ...base, id: `${base.id}-2`, errors: [] },
+          ],
+          summary: { lines: 2, products: 1, newLots: 0, errors: 1 },
+        }),
+      );
+
+      await renderDoc();
+
+      const tabla = (await screen.findAllByText("PAR-500"))[0]?.closest("table") as HTMLElement;
+      const [encabezado, ...filas] = within(tabla).getAllByRole("row");
+      const columnas = encabezado?.querySelectorAll("th").length;
+      expect(filas).toHaveLength(2);
+      for (const fila of filas) {
+        expect(fila.querySelectorAll(":scope > td")).toHaveLength(columnas ?? -1);
+      }
+      expect(
+        within(filas[0] as HTMLElement).getByText("La cantidad tiene que ser mayor que cero."),
+      ).toBeInTheDocument();
+    });
+
     it("confirmar pide confirmación antes de mover stock", async () => {
       const user = userEvent.setup();
       mocked.confirmDocument.mockResolvedValue({ document: detalle({ status: "confirmed" }) });

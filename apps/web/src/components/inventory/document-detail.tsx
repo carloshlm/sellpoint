@@ -145,6 +145,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   // igual y queda esperando a quien pueda firmarlo.
   const puedeConfirmar = editable && (!esConteo || has("inventory:manage"));
   const conErrores = document.summary.errors > 0;
+  const conColumnaFinal = editable || conErrores;
   const sinLineas = document.rows.length === 0;
 
   // La cabecera se valida ANTES de mandar: descubrir que faltaba la nota por
@@ -406,7 +407,11 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                   <th className="px-2 py-2 font-medium">{t("inventory.document.location")}</th>
                 )}
                 <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
-                {editable && !esConteo && <th className="px-2 py-2" />}
+                {/* La última columna: «Quitar línea» y el aviso de una línea con
+                    error. Existe si el documento se puede editar o trae errores,
+                    y ENTONCES la tiene cada fila: con una celda de más solo en las
+                    filas con error, la tabla quedaba chueca (Carlos, 2026-10-22). */}
+                {conColumnaFinal && <th className="px-2 py-2" />}
               </tr>
             </thead>
             <tbody>
@@ -436,6 +441,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     conUbicacion={conUbicacion}
                     esSalida={document.type === "exit"}
                     esConteo={esConteo}
+                    conColumnaFinal={conColumnaFinal}
                     registrarCampo={registrarCampo}
                   />
                 ))}
@@ -519,6 +525,7 @@ function LineRow({
   conUbicacion,
   esSalida,
   esConteo,
+  conColumnaFinal,
   autoFocusQuantity,
   registrarCampo,
 }: {
@@ -531,6 +538,8 @@ function LineRow({
   conUbicacion: boolean;
   esSalida: boolean;
   esConteo: boolean;
+  /** La tabla tiene su última columna (quitar y avisos): la fila también, aunque vacía. */
+  conColumnaFinal: boolean;
   autoFocusQuantity: boolean;
   /** Deja este campo en el mapa del padre, con cómo devolverle su valor. */
   registrarCampo: (restaurar: (valor: string) => void) => (campo: HTMLInputElement | null) => void;
@@ -1057,27 +1066,27 @@ function LineRow({
         movió nada. Por eso no hay diálogo de confirmación — pedirla acá
         entrenaría a aceptar sin leer (mismo criterio que LotEditor).
       */}
-      {editable && !esConteo && (
+      {conColumnaFinal && (
         <td className="px-2 py-2 text-right">
-          <div className={`${LINE_CELL} justify-end`}>
-            <button
-              type="button"
-              onClick={() => quitar.mutate()}
-              disabled={quitar.isPending}
-              className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
-            >
-              {t("inventory.document.removeLine")}
-            </button>
-          </div>
-        </td>
-      )}
-      {conError && (
-        <td className="px-2 py-2 text-destructive text-xs">
-          <div className={LINE_CELL}>
-            {[
-              ...row.errors.map((error) => t(error.code, error.args)),
-              ...(errorCosto === null ? [] : [errorCosto]),
-            ].join(" · ")}
+          <div className={`${LINE_CELL} flex-wrap justify-end gap-x-4 gap-y-1`}>
+            {conError && (
+              <span className="text-left text-destructive text-xs">
+                {[
+                  ...row.errors.map((error) => t(error.code, error.args)),
+                  ...(errorCosto === null ? [] : [errorCosto]),
+                ].join(" · ")}
+              </span>
+            )}
+            {editable && !esConteo && (
+              <button
+                type="button"
+                onClick={() => quitar.mutate()}
+                disabled={quitar.isPending}
+                className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
+              >
+                {t("inventory.document.removeLine")}
+              </button>
+            )}
           </div>
         </td>
       )}
