@@ -428,28 +428,26 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         const patchResponse = await request(app.getHttpServer())
           .patch("/tenants/me")
           .set("Authorization", bearer(owner.accessToken))
-          .send({ theme: "grape" })
+          .send({ theme: "sand" })
           .expect(200);
-        expect(patchResponse.body).toMatchObject({ theme: "grape" });
+        expect(patchResponse.body).toMatchObject({ theme: "sand" });
 
         const getResponse = await request(app.getHttpServer())
           .get("/tenants/me")
           .set("Authorization", bearer(owner.accessToken))
           .expect(200);
-        expect(getResponse.body).toMatchObject({ theme: "grape" });
+        expect(getResponse.body).toMatchObject({ theme: "sand" });
       });
 
-      it("los temas de la segunda tanda (2026-08-26) también persisten", async () => {
+      it("todos los temas del catálogo (los nueve del 2026-10-22) persisten", async () => {
         const owner = await registerActiveOwner();
 
         for (const theme of [
-          "emerald",
+          "light",
+          "dark",
           "cabin",
           "cotton",
-          "charcoal",
           "sellpointy",
-          "liquid",
-          "cobalt",
           "espresso",
           "jade",
           "forest",
@@ -471,6 +469,77 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
           .set("Authorization", bearer(owner.accessToken))
           .send({ theme: "pink" })
           .expect(400);
+      });
+
+      // Carlos, 2026-10-22: Uva, Esmeralda y Carbón se retiraron, y Niebla
+      // Cobalto y Grafito Líquido se volvieron el estilo de Claro y Oscuro.
+      it("los cinco temas retirados el 2026-10-22 -> 400", async () => {
+        const owner = await registerActiveOwner();
+
+        for (const theme of ["grape", "emerald", "charcoal", "cobalt", "liquid"]) {
+          await request(app.getHttpServer())
+            .patch("/tenants/me")
+            .set("Authorization", bearer(owner.accessToken))
+            .send({ theme })
+            .expect(400);
+        }
+      });
+
+      /**
+       * La data migration del catálogo: un negocio que tuviera un tema
+       * retirado pasa al que más se le parece, y uno con un tema vigente no
+       * se toca. Mismo molde de replay que las otras: el SQL REAL, dos veces.
+       */
+      it("la migración lleva cada tema retirado al que más se le parece, y es idempotente", async () => {
+        const antes: Record<string, string> = {
+          cobalt: "light",
+          grape: "light",
+          liquid: "dark",
+          charcoal: "dark",
+          emerald: "jade",
+          sand: "sand",
+        };
+        const creados = await Promise.all(
+          Object.keys(antes).map((theme) =>
+            prisma.tenant.create({ data: { name: `Tema ${theme} ${randomUUID()}`, theme } }),
+          ),
+        );
+
+        const adminConnectionString = process.env.DATABASE_URL_ADMIN ?? process.env.DATABASE_URL;
+        if (!adminConnectionString) {
+          throw new Error("Falta DATABASE_URL_ADMIN (o DATABASE_URL) para replayar la migración");
+        }
+        const adminPrisma = new PrismaClient({
+          adapter: new PrismaPg({ connectionString: adminConnectionString }),
+        });
+        try {
+          const migrationSql = readFileSync(
+            join(
+              __dirname,
+              "../../prisma/migrations/20261022100000_f10_theme_catalog_consolidation/migration.sql",
+            ),
+            "utf-8",
+          );
+          const statements = migrationSql
+            .split("\n")
+            .filter((line) => !line.trim().startsWith("--"))
+            .join("\n")
+            .split(";")
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+          for (let vuelta = 0; vuelta < 2; vuelta++) {
+            for (const statement of statements) {
+              await adminPrisma.$executeRawUnsafe(statement);
+            }
+          }
+        } finally {
+          await adminPrisma.$disconnect();
+        }
+
+        for (const tenant of creados) {
+          const despues = await prisma.tenant.findUniqueOrThrow({ where: { id: tenant.id } });
+          expect(despues.theme).toBe(antes[tenant.theme ?? ""]);
+        }
       });
     });
 

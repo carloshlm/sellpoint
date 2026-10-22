@@ -46,17 +46,12 @@ describe("catálogo de temas", () => {
     // — o el API acepta uno que la app no sabe pintar.
     expect([...THEME_IDS].sort()).toEqual([
       "cabin",
-      "charcoal",
-      "cobalt",
       "cotton",
       "dark",
-      "emerald",
       "espresso",
       "forest",
-      "grape",
       "jade",
       "light",
-      "liquid",
       "sand",
       "sellpointy",
     ]);
@@ -120,16 +115,7 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
     // Que un tenant elija su tema no puede volver indistinguible un error de
     // un éxito. Los temas CLAROS usan los semánticos de :root; los oscuros
     // usan los de `.dark` — por eso `applyTheme` los acompaña con la clase.
-    for (const id of [
-      "sand",
-      "espresso",
-      "grape",
-      "emerald",
-      "jade",
-      "forest",
-      "cotton",
-      "cobalt",
-    ] as const) {
+    for (const id of ["sand", "espresso", "jade", "forest", "cotton"] as const) {
       const block =
         css.match(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
       expect(block).not.toContain("--success:");
@@ -202,28 +188,27 @@ describe("theming: ningún color crudo de la paleta de Tailwind", () => {
  * esa regla queda con un valor vacío y el elemento se ve roto — en ese tema
  * nada más, que es justo el que nadie mira en desarrollo.
  */
+/** El bloque CSS de un tema. Claro vive en `:root` a secas (en más de un bloque). */
+function bloqueDelTema(id: string): string {
+  if (id === ROOT_THEME) {
+    return [...css.matchAll(/(?:^|\n):root\s*\{([^}]*)\}/g)].map((m) => m[1]).join("\n");
+  }
+  return css.match(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+}
+
 describe("la piel por componente (temas skinned)", () => {
   const SKINNED = THEME_IDS.filter((id) => THEMES[id].skinned === true);
   const tokensDeLaPiel = [
     ...new Set([...css.matchAll(/var\((--skin-[a-z0-9-]+)\)/g)].map((m) => m[1] as string)),
   ];
 
-  it("los temas con piel: los nueve modernos, claros y oscuros", () => {
+  it("los nueve temas tienen piel, claros y oscuros", () => {
     // Carlos, 2026-10-22: Arena, Algodón, Cabina y SellPointy se reemplazaron
-    // por su versión con piel (mismo id) y se sumaron Café Expreso, Esmeralda
-    // Jade y Esmeralda Bosque.
-    expect(SKINNED).toEqual([
-      "sand",
-      "espresso",
-      "jade",
-      "forest",
-      "cabin",
-      "cotton",
-      "sellpointy",
-      "liquid",
-      "cobalt",
-    ]);
-    expect(SKINNED.filter((id) => THEMES[id].isDark)).toEqual(["cabin", "sellpointy", "liquid"]);
+    // por su versión con piel (mismo id); Claro y Oscuro tomaron el estilo de
+    // Niebla Cobalto y Grafito Líquido; se sumaron Café Expreso, Esmeralda
+    // Jade y Esmeralda Bosque, y se retiraron Uva, Esmeralda y Carbón.
+    expect(SKINNED).toEqual([...THEME_IDS]);
+    expect(SKINNED.filter((id) => THEMES[id].isDark)).toEqual(["dark", "cabin", "sellpointy"]);
   });
 
   it("el tema de la marca no usa amarillo para advertir: el amarillo es el punto", () => {
@@ -239,15 +224,18 @@ describe("la piel por componente (temas skinned)", () => {
   });
 
   it.each(SKINNED)("el tema '%s' define TODOS los tokens que la piel lee", (id) => {
-    const block =
-      css.match(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+    const block = bloqueDelTema(id);
     const faltan = tokensDeLaPiel.filter((token) => !block.includes(`${token}:`));
     expect(faltan).toEqual([]);
   });
 
-  it("las letras son tokens: sin piel, la app sigue en Geist", () => {
-    expect(css).toMatch(/:root\s*\{[^}]*--app-font-sans:\s*'Geist Variable'/);
-    expect(css).toMatch(/:root\s*\{[^}]*--app-font-mono:/);
+  it.each(SKINNED)("el tema '%s' trae sus propias letras", (id) => {
+    // Las letras son tokens que `font-sans` y `font-mono` leen. Claro las
+    // define en `:root` y cualquier otro tema que no las traiga heredaría
+    // las suyas sin que nadie lo decidiera.
+    const block = bloqueDelTema(id);
+    expect(block).toContain("--app-font-sans:");
+    expect(block).toContain("--app-font-mono:");
     expect(css).toMatch(/--font-sans:\s*var\(--app-font-sans\)/);
   });
 });
@@ -274,37 +262,26 @@ describe("applyTheme", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
 
     // Los TRES oscuros del catálogo (isDark), no solo el que se llama "dark".
-    for (const oscuro of ["dark", "cabin", "charcoal"] as const) {
+    for (const oscuro of ["dark", "cabin", "sellpointy"] as const) {
       applyTheme(oscuro);
       expect(document.documentElement.dataset.theme).toBe(oscuro);
       expect(document.documentElement.classList.contains("dark")).toBe(true);
     }
   });
 
-  it("Grafito Líquido enciende la piel y el oscuro; cualquier otro la apaga", () => {
-    applyTheme("liquid");
-    expect(document.documentElement.dataset.theme).toBe("liquid");
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(document.documentElement.classList.contains("skinned")).toBe(true);
-
+  it("Oscuro enciende la piel y el oscuro: es el estilo de Grafito Líquido", () => {
     applyTheme("dark");
-    expect(document.documentElement.classList.contains("skinned")).toBe(false);
+    expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
-  });
-
-  it("Niebla Cobalto enciende la piel SIN el oscuro: es el claro con piel", () => {
-    applyTheme("liquid");
-    applyTheme("cobalt");
-    expect(document.documentElement.dataset.theme).toBe("cobalt");
     expect(document.documentElement.classList.contains("skinned")).toBe(true);
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
-  it("Claro LIMPIA el atributo y la clase: :root ya es la paleta clara", () => {
-    applyTheme("grape");
+  it("Claro LIMPIA el atributo y el oscuro, pero lleva piel: es el estilo de Niebla Cobalto", () => {
+    applyTheme("dark");
     applyTheme("light");
     expect(document.documentElement.dataset.theme).toBeUndefined();
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+    expect(document.documentElement.classList.contains("skinned")).toBe(true);
   });
 
   it("sin tema (antes de iniciar sesión) aplica el default: SellPointy, oscuro y con piel", () => {

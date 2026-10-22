@@ -56,44 +56,47 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
     expect(screen.getByRole("radio", { name: "Arena" })).toBeChecked();
   });
 
-  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: las dos tandas y el de la marca (2026-09-26). */
-  it("ofrece los CATORCE temas, segunda tanda, marca y los nuevos con piel incluidos", () => {
+  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: los nueve del 2026-10-22. */
+  it("ofrece los NUEVE temas, y ya no los retirados", () => {
     renderCard(demoUser(["tenants:manage"]));
 
-    expect(screen.getAllByRole("radio")).toHaveLength(14);
+    expect(screen.getAllByRole("radio")).toHaveLength(9);
     for (const nombre of [
-      "Esmeralda",
-      "Cabina",
-      "Algodón",
-      "Carbón",
-      "SellPointy",
-      "Grafito Líquido",
-      "Niebla Cobalto",
+      "Claro",
+      "Oscuro",
+      "Arena",
       "Café Expreso",
       "Esmeralda Jade",
       "Esmeralda Bosque",
+      "Cabina",
+      "Algodón",
+      "SellPointy",
     ]) {
       expect(screen.getByRole("radio", { name: nombre })).toBeInTheDocument();
+    }
+    for (const retirado of ["Uva", "Esmeralda", "Carbón", "Grafito Líquido", "Niebla Cobalto"]) {
+      expect(screen.queryByRole("radio", { name: retirado })).not.toBeInTheDocument();
     }
   });
 
   /**
-   * F10-THEME-05 — Grafito Líquido es oscuro y además trae PIEL: elegirlo
-   * enciende las dos clases, y se guarda como cualquier otro.
+   * F10-THEME-05 — Oscuro lleva el estilo de Grafito Líquido: es oscuro y
+   * además trae PIEL. Elegirlo enciende las dos clases y se guarda con su id
+   * de siempre, `dark`.
    */
-  it("elegir Grafito Líquido enciende el oscuro y la piel, y lo guarda", async () => {
+  it("elegir Oscuro enciende el oscuro y la piel, y lo guarda como dark", async () => {
     const user = userEvent.setup();
     const actor = demoUser(["tenants:manage"]);
-    mockedUpdate.mockResolvedValue({ ...actor.tenant, theme: "liquid" });
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, theme: "dark" });
     renderCard(actor);
 
-    await user.click(screen.getByRole("radio", { name: "Grafito Líquido" }));
+    await user.click(screen.getByRole("radio", { name: "Oscuro" }));
 
-    expect(document.documentElement.dataset.theme).toBe("liquid");
+    expect(document.documentElement.dataset.theme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     expect(document.documentElement.classList.contains("skinned")).toBe(true);
     await waitFor(() => {
-      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ theme: "liquid" });
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ theme: "dark" });
     });
   });
 
@@ -116,14 +119,14 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
   it("el clic re-pinta AL MOMENTO y manda el PATCH detrás", async () => {
     const user = userEvent.setup();
     const actor = demoUser(["tenants:manage"]);
-    mockedUpdate.mockResolvedValue({ ...actor.tenant, theme: "grape" });
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, theme: "jade" });
     renderCard(actor);
 
-    await user.click(screen.getByRole("radio", { name: "Uva" }));
+    await user.click(screen.getByRole("radio", { name: "Esmeralda Jade" }));
 
-    expect(document.documentElement.dataset.theme).toBe("grape");
+    expect(document.documentElement.dataset.theme).toBe("jade");
     await waitFor(() => {
-      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ theme: "grape" });
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ theme: "jade" });
     });
   });
 

@@ -106,18 +106,16 @@ en **Mi perfil** › **Tema**. Esa tarjeta solo la ve quien tiene el permiso
 
 ![El tema del negocio, en Mi perfil; aquí, con Oscuro](screen:theme-card)
 
-Hay catorce. Cinco solo cambian los colores: **Claro**, **Oscuro**, **Uva**,
-**Esmeralda** y **Carbón**. Los otros nueve además cambian la forma de todo:
-las tarjetas, los botones, los campos, las tablas y la letra.
+Hay nueve. Además de los colores, cada uno cambia la forma de todo: las
+tarjetas, los botones, los campos, las tablas y la letra.
 
 - **SellPointy**, el de la marca: oscuro, con el menú en azul y un punto
   amarillo al final de cada título, como en sellpointy.com.
-- Claros: **Arena** (cremas y café), **Café Expreso** (el menú en café
-  oscuro), **Esmeralda Jade** (verde), **Esmeralda Bosque** (el menú en verde
-  bosque), **Algodón** (rosa, con tarjetas de vidrio) y **Niebla Cobalto**
-  (azul, con tarjetas blancas que flotan).
-- Oscuros: **Grafito Líquido** (vidrio y celeste) y **Cabina** (vidrio y
-  rojo).
+- Claros: **Claro** (azul, con tarjetas blancas que flotan), **Arena** (cremas
+  y café), **Café Expreso** (el menú en café oscuro), **Esmeralda Jade**
+  (verde), **Esmeralda Bosque** (el menú en verde bosque) y **Algodón** (rosa,
+  con tarjetas de vidrio).
+- Oscuros: **Oscuro** (vidrio y celeste) y **Cabina** (vidrio y rojo).
 
 Al presionar uno, SellPointy se pinta con él y queda guardado, sin presionar
 ningún botón. Tú lo ves al instante; los demás, la próxima vez que abran

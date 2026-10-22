@@ -7,14 +7,14 @@
    resto de la aplicación sigue en Geist. `wght.css` trae un solo eje; el
    navegador baja únicamente el tramo latino que usa la palabra. */
 @import "@fontsource-variable/bricolage-grotesque/wght.css";
-/* Las letras de Grafito Líquido (F10-THEME-05). Declararlas no cuesta: el
-   navegador baja un archivo de letra solo cuando algo en pantalla la usa, y
-   solo ese tema la usa. */
+/* Las letras de los temas (F10-THEME-05). Declararlas no cuesta: el
+   navegador baja un archivo de letra solo cuando algo en pantalla la usa.
+   Manrope e IBM Plex Mono: Oscuro, Cabina y Algodón. */
 @import "@fontsource-variable/manrope/wght.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
 @import "@fontsource/ibm-plex-mono/600.css";
-/* Las de Niebla Cobalto: Plus Jakarta Sans y DM Mono para las cifras. */
+/* Plus Jakarta Sans y DM Mono para las cifras: Claro, Arena y Esmeralda Jade. */
 @import "@fontsource-variable/plus-jakarta-sans/wght.css";
 @import "@fontsource/dm-mono/400.css";
 @import "@fontsource/dm-mono/500.css";
@@ -30,14 +30,21 @@
    SISTEMA DE TEMAS — UN SOLO EJE: `tenant.theme`
    ============================================================================
    El TENANT elige su tema (wizard paso 3, o Mi perfil) y toda la app se
-   pinta con él. Cuatro temas, elegidos por Carlos del artefacto "Temas de
-   SellPoint" (2026-08-25):
+   pinta con él. Desde el 2026-10-22 son nueve, todos con PIEL (ver «LA
+   PIEL», al final), elegidos por Carlos de un lienzo de propuestas:
 
-     light  (Claro)   -> `:root` a secas. El aspecto original del sistema.
-     dark   (Grafito) -> `:root[data-theme="dark"]` + clase `.dark`.
-     sand   (Crema)   -> `:root[data-theme="sand"]`.
-     grape  (Bitono)  -> `:root[data-theme="grape"]` — sidebar uva profunda
-                         con contenido claro.
+     light  (Claro)            -> `:root` a secas: la red de seguridad.
+     dark   (Oscuro)           -> `:root[data-theme="dark"]` + `.dark`.
+     sand   (Arena)            -> claro, cremas y café.
+     espresso (Café Expreso)   -> claro, bitono: menú espresso.
+     jade   (Esmeralda Jade)   -> claro, verde.
+     forest (Esmeralda Bosque) -> claro, bitono: menú verde bosque.
+     cabin  (Cabina)           -> oscuro, rojo racing.
+     cotton (Algodón)          -> claro, rosa con vidrio.
+     sellpointy (SellPointy)   -> oscuro, la marca y el tema por defecto.
+
+   Cada tema define también sus LETRAS (`--app-font-sans`/`--app-font-mono`),
+   que `font-sans` y `font-mono` leen.
 
    `applyTheme` (lib/theme/apply-theme.ts) es la única puerta: escribe
    `data-theme` y acompaña al oscuro con `.dark` (los semánticos oscuros y
@@ -74,136 +81,281 @@
   --warning-soft: oklch(0.3 0.05 72);
 }
 
-/* --- LETRAS como tokens (F10-THEME-05) ------------------------------------
-   `font-sans` y `font-mono` leen estas variables, así que un tema puede traer
-   su propia letra. Los valores de aquí son EXACTAMENTE los de antes (Geist y
-   la pila mono de Tailwind): los temas que no las redefinen no cambian. */
+/* =========================== TEMA: CLARO (light) ===========================
+   Desde el 2026-10-22 (Carlos) Claro lleva el estilo de «Niebla Cobalto», que
+   deja de existir aparte: niebla fría #f1f4f9 con luz cobalto arriba y un
+   rescoldo coral abajo, tarjetas de porcelana, el menú activo RELLENO de
+   cobalto y títulos de tabla en minúsculas sobre una banda gris azulada. Plus
+   Jakarta Sans con DM Mono para las cifras.
+
+   Vive en `:root` sin atributo para que la app arranque pintada siempre, y
+   por eso es también la RED DE SEGURIDAD: trae todos los tokens —colores,
+   letras y piel—, y un tema que olvide uno cae aquí en vez de verse roto.
+   Claro: usa los semánticos de arriba. */
 :root {
-  --app-font-sans: 'Geist Variable', sans-serif;
-  --app-font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
-}
-
-/* ============================ TEMA: CLARO (default) ========================
-   El aspecto original: azul cobalto sobre gris frío claro. Vive en `:root`
-   sin atributo para que la app arranque pintada siempre. */
-:root {
-  --background: oklch(0.973 0.007 268.55);
-  --foreground: oklch(0.2527 0.0344 264.68);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2527 0.0344 264.68);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2527 0.0344 264.68);
-  --primary: oklch(0.5164 0.2229 264.63);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9579 0.0099 267.36);
-  --secondary-foreground: oklch(0.2527 0.0344 264.68);
-  --muted: oklch(0.9579 0.0099 267.36);
-  --muted-foreground: oklch(0.503 0.0338 266.08);
-  --accent: oklch(0.9579 0.0099 267.36);
-  --accent-foreground: oklch(0.5164 0.2229 264.63);
-  --destructive: oklch(0.585 0.1921 25.41);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9275 0.0129 266.7);
-  --input: oklch(0.9275 0.0129 266.7);
-  --ring: oklch(0.5164 0.2229 264.63);
-  --radius: 0.5rem;
-  --chart-1: oklch(0.5164 0.2229 264.63);
-  --chart-2: oklch(0.5861 0.1343 156.58);
-  --chart-3: oklch(0.6264 0.1248 70.45);
-  --chart-4: oklch(0.65 0.16 300);
-  --chart-5: oklch(0.6 0.13 200);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2527 0.0344 264.68);
-  --sidebar-primary: oklch(0.5164 0.2229 264.63);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.9579 0.0099 267.36);
-  --sidebar-accent-foreground: oklch(0.5164 0.2229 264.63);
-  --sidebar-border: oklch(0.9275 0.0129 266.7);
-  --sidebar-ring: oklch(0.5164 0.2229 264.63);
-  --sidebar-section: oklch(0.503 0.0338 266.08);
-}
-
-/* ========================= TEMA: OSCURO «Grafito» ==========================
-   Gris profundo y NEUTRO (la referencia es Gmail dark), nunca negro puro ni
-   azulado. El azul de la marca se aclara para leerse sobre fondo oscuro. */
-:root[data-theme="dark"] {
-  --background: #1b1d21;
-  --foreground: #e8eaed;
-  --card: #25272c;
-  --card-foreground: #e8eaed;
-  --popover: #25272c;
-  --popover-foreground: #e8eaed;
-  --primary: #7c9aff;
-  --primary-foreground: #10131c;
-  --secondary: #2c2f35;
-  --secondary-foreground: #e8eaed;
-  --muted: #2c2f35;
-  --muted-foreground: #a2a7ae;
-  --accent: #2c2f35;
-  --accent-foreground: #7c9aff;
-  --destructive: #f47c7c;
-  --destructive-foreground: #1b1d21;
-  --border: #383b42;
-  --input: #33363d;
-  --ring: #7c9aff;
-  --radius: 0.5rem;
-  --chart-1: #7c9aff;
-  --chart-2: #57d98a;
-  --chart-3: #e7b350;
-  --chart-4: #c79aef;
-  --chart-5: #6fd0d8;
-  --sidebar: #25272c;
-  --sidebar-foreground: #e8eaed;
-  --sidebar-primary: #7c9aff;
-  --sidebar-primary-foreground: #10131c;
-  --sidebar-accent: #2f3a55;
-  --sidebar-accent-foreground: #b9c8ff;
-  --sidebar-border: #383b42;
-  --sidebar-ring: #7c9aff;
-  --sidebar-section: #a2a7ae;
-}
-
-/* =========================== TEMA: UVA «Bitono» ============================
-   El menú lateral en uva profunda y el contenido claro y neutro — el patrón
-   clásico de los SaaS. El primario es el tono exacto de la muestra de
-   Carlos (#5d5468). */
-:root[data-theme="grape"] {
-  --background: #f8f7fa;
-  --foreground: #2e2a36;
+  color-scheme: light;
+  accent-color: #2846e8;
+  --background: #f1f4f9;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --card-foreground: #2e2a36;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #2e2a36;
-  --primary: #5d5468;
+  --popover-foreground: #0f172a;
+  --primary: #2846e8;
   --primary-foreground: #ffffff;
-  --secondary: #eceaef;
-  --secondary-foreground: #2e2a36;
-  --muted: #eceaef;
-  --muted-foreground: #6e6879;
-  --accent: #eceaef;
-  --accent-foreground: #5d5468;
-  --destructive: #c44f5c;
+  --secondary: #eef1f7;
+  --secondary-foreground: #0f172a;
+  --muted: #eef1f7;
+  --muted-foreground: #5b6779;
+  --accent: #eef2ff;
+  --accent-foreground: #1a2fb0;
+  --destructive: #c8302a;
   --destructive-foreground: #ffffff;
-  --border: #e4e1ea;
-  --input: #e4e1ea;
-  --ring: #5d5468;
-  --radius: 0.5rem;
-  --chart-1: #5d5468;
-  --chart-2: oklch(0.5861 0.1343 156.58);
-  --chart-3: oklch(0.6264 0.1248 70.45);
-  --chart-4: #8f7fb0;
-  --chart-5: #4d7c94;
-  --sidebar: #453d52;
-  --sidebar-foreground: #d9d3e2;
-  --sidebar-primary: #cbbfe0;
-  --sidebar-primary-foreground: #453d52;
-  --sidebar-accent: #5a5069;
-  --sidebar-accent-foreground: #f3eff9;
-  --sidebar-border: #59506680;
-  --sidebar-ring: #cbbfe0;
-  --sidebar-section: #6e6879;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2846e8;
+  --radius: 0.75rem;
+  --chart-1: #2846e8;
+  --chart-2: #16a06d;
+  --chart-3: #e8a23b;
+  --chart-4: #ff7a3d;
+  --chart-5: #7c5cff;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: #2846e8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2ff;
+  --sidebar-accent-foreground: #1a2fb0;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #2846e8;
+  --sidebar-section: #64748b;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 0% 0%, rgba(40, 70, 232, 0.11), rgba(40, 70, 232, 0) 60%),
+    radial-gradient(760px 520px at 100% 100%, rgba(255, 122, 61, 0.08), rgba(255, 122, 61, 0) 60%);
+  --skin-text-weight: 500;
+  /* 750 y -0.01em, no los 800 y -0.03em del lienzo: el espacio de Plus
+     Jakarta Sans es angosto y a 14 px los títulos de tarjeta se leían
+     pegados («Másvendidos»; visto en el Panel, 2026-10-22). */
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
+  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
+     valores de siempre: este tema no cambia. */
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: var(--primary);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-numbers-font: var(--app-font-mono);
+  /* DM Mono no tiene seminegrita: sin esto, el navegador engorda a mano la
+     de 500 y las cifras quedan manchadas. Mejor la 500 limpia. */
+  --skin-numbers-synthesis: none;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-glass: rgba(255, 255, 255, 0.82);
+  --skin-glass-hover: rgba(40, 70, 232, 0.06);
+  --skin-glass-thumb: #eef1f7;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-well: #f4f6fb;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e2e8f0;
+  --skin-hair-strong: #cbd5e1;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  /* El aro blanco de la porcelana: tapa el borde gris de la tarjeta. */
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95));
+  --skin-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05), 0 18px 40px -22px rgba(30, 41, 90, 0.28),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --skin-overlay-shadow: 0 2px 4px rgba(15, 23, 42, 0.04), 0 24px 48px -20px rgba(30, 41, 90, 0.35);
+  --skin-scrim: rgba(15, 23, 42, 0.32);
+  --skin-accent-wash: rgba(40, 70, 232, 0.14);
+  --skin-accent-line: rgba(40, 70, 232, 0.3);
+  --skin-accent-ring: #2846e8;
+  --skin-glow: rgba(40, 70, 232, 0.55);
+  /* Un brillo BLANCO sobre el color del botón, no un cobalto fijo: sobre el
+     primario da el #3a57f0 → #2846e8 del diseño, y un botón que traiga su
+     propio color (verde, rojo) lo conserva. */
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 12px 24px -10px rgba(40, 70, 232, 0.65);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(15, 23, 42, 0.05);
+  --skin-nav-active-bg: #2846e8;
+  --skin-nav-active-color: #ffffff;
+  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 22px -10px rgba(40, 70, 232, 0.75);
+  --skin-check-shadow: 0 4px 10px -4px rgba(40, 70, 232, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #eef2f8;
+  --skin-table-head-line: #dce3ee;
+  --skin-table-head-color: #334155;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #eef2f7;
+  --skin-table-row-hover: #f5f7ff;
+}
+
+/* ============================ TEMA: OSCURO (dark) ===========================
+   Desde el 2026-10-22 (Carlos) Oscuro lleva el estilo de «Grafito Líquido»,
+   que deja de existir aparte: grafito NEUTRO (R≈G≈B) —el azul nunca es fondo,
+   solo luz o acento—, vidrio ahumado con aro especular y celeste con brillo,
+   en Manrope con IBM Plex Mono para cifras y etiquetas. `.dark` lo acompaña,
+   pero trae sus propios semánticos, más vivos sobre el grafito. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  accent-color: #7fd4f6;
+  --background: #141517;
+  --foreground: #f2f4f5;
+  --card: #1d1f22;
+  --card-foreground: #f2f4f5;
+  --popover: #1c1e21;
+  --popover-foreground: #f2f4f5;
+  --primary: #7fd4f6;
+  --primary-foreground: #0e1b24;
+  --secondary: #26282b;
+  --secondary-foreground: #f2f4f5;
+  --muted: #212326;
+  --muted-foreground: #8c9298;
+  --accent: #24272a;
+  --accent-foreground: #7fd4f6;
+  --destructive: #f28b82;
+  --destructive-foreground: #141517;
+  --border: #2c2f33;
+  --input: #2c2f33;
+  --ring: #7fd4f6;
+  --radius: 0.875rem;
+  --chart-1: #7fd4f6;
+  --chart-2: #4cc38a;
+  --chart-3: #f2c14e;
+  --chart-4: #b79cff;
+  --chart-5: #26a9e0;
+  --sidebar: #17191c;
+  --sidebar-foreground: #b9bec3;
+  --sidebar-primary: #7fd4f6;
+  --sidebar-primary-foreground: #0e1b24;
+  --sidebar-accent: #20292f;
+  --sidebar-accent-foreground: #7fd4f6;
+  --sidebar-border: #26292d;
+  --sidebar-ring: #7fd4f6;
+  --sidebar-section: #8c9298;
+  --success: #4cc38a;
+  --success-foreground: #0b1f15;
+  --success-soft: rgba(76, 195, 138, 0.14);
+  --warning: #f2c14e;
+  --warning-foreground: #241a03;
+  --warning-soft: rgba(242, 193, 78, 0.14);
+  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  /* La piel: un token por cosa que se viste. */
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 88% -8%, rgba(38, 169, 224, 0.16), rgba(38, 169, 224, 0) 62%),
+    radial-gradient(760px 560px at 8% 102%, rgba(38, 169, 224, 0.07), rgba(38, 169, 224, 0) 60%),
+    linear-gradient(180deg, #141517 0%, #1a1c1f 58%, #141517 100%);
+  --skin-text-weight: 500;
+  --skin-heading-weight: 800;
+  --skin-heading-tracking: -0.03em;
+  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
+     valores de siempre: este tema no cambia. */
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: var(--primary);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-glass: rgba(255, 255, 255, 0.045);
+  --skin-glass-hover: rgba(255, 255, 255, 0.08);
+  --skin-glass-thumb: rgba(255, 255, 255, 0.14);
+  --skin-glass-strong: rgba(26, 28, 31, 0.84);
+  --skin-blur: blur(24px) saturate(150%);
+  --skin-well: rgba(0, 0, 0, 0.28);
+  --skin-well-focus: var(--skin-well);
+  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --skin-hair: rgba(255, 255, 255, 0.08);
+  --skin-hair-strong: rgba(255, 255, 255, 0.2);
+  --skin-highlight: rgba(255, 255, 255, 0.1);
+  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 46%);
+  --skin-rim: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.04) 34%,
+    rgba(255, 255, 255, 0.04) 66%,
+    rgba(255, 255, 255, 0.1)
+  );
+  --skin-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.65);
+  --skin-overlay-shadow: 0 28px 60px -10px rgba(0, 0, 0, 0.7);
+  --skin-scrim: rgba(0, 0, 0, 0.55);
+  --skin-accent-wash: rgba(127, 212, 246, 0.1);
+  --skin-accent-line: rgba(127, 212, 246, 0.34);
+  --skin-accent-ring: rgba(127, 212, 246, 0.62);
+  --skin-glow: rgba(38, 169, 224, 0.45);
+  --skin-primary-fill: none;
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 30px -8px rgba(38, 169, 224, 0.55);
+  --skin-button-soft-bg: var(--skin-glass-hover);
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), inset 0 1px 0 var(--skin-highlight);
+  --skin-nav-active-bg: var(--skin-accent-wash);
+  --skin-nav-active-color: var(--primary);
+  --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
+  --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
+  --skin-badge-font: var(--skin-label-font);
+  --skin-badge-size: var(--skin-label-size);
+  --skin-badge-tracking: 0.08em;
+  --skin-badge-transform: uppercase;
+  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 22px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 999px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 6px;
+  /* Encabezado de tabla «banda de vidrio» (Carlos, 2026-10-22, propuesta A). */
+  --skin-table-head-bg: rgba(255, 255, 255, 0.07);
+  --skin-table-head-line: rgba(255, 255, 255, 0.16);
+  --skin-table-head-color: #d3d7db;
+  --skin-table-head-font: var(--skin-label-font);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: var(--skin-hair);
+  --skin-table-row-hover: var(--skin-glass);
 }
 
 /* ========================= TEMA: CLARO «Arena» =============================
@@ -211,7 +363,7 @@
    el café tostado de la Arena de antes, ahora con PIEL. Tarjetas de porcelana
    crema con sombra cálida, el menú activo RELLENO de café, títulos de tabla
    en minúsculas sobre una franja arena y un rescoldo salvia abajo. Plus
-   Jakarta Sans con DM Mono para las cifras, como Niebla Cobalto.
+   Jakarta Sans con DM Mono para las cifras, como Claro.
 
    El café sube de #a9714b a #9a6340: con letra blanca, el de antes daba
    4.1:1 y el botón no llegaba al 4.5 mínimo. Como texto (enlaces) va el
@@ -335,7 +487,7 @@
 
 /* ===================== TEMA: CLARO «Café Expreso» ==========================
    F10-THEME-05 (Carlos, 2026-10-22, «Arena C · Arena Espresso»): bitono. El
-   menú en café espresso con la luz caramelo de Grafito Líquido —activo con
+   menú en café espresso con la luz caramelo de Oscuro —activo con
    aro y brillo— y el contenido en crema. Los títulos de tabla son una banda
    ESPRESSO con letra mono clara, el contraste más alto del catálogo. El
    primario es el mismo espresso del menú; el caramelo queda para el foco.
@@ -457,50 +609,9 @@
   --skin-table-row-hover: #fbf5ec;
 }
 
-/* ========================= TEMA: ESMERALDA «Hoja» ==========================
-   Verde botánico claro (eco, bienestar, orgánico): velo verde-crema con la
-   esmeralda profunda como primario — más azulada y honda que el verde de
-   «Activo» para que primario y estado nunca se confundan. */
-:root[data-theme="emerald"] {
-  --background: #f2f6f0;
-  --foreground: #24332a;
-  --card: #ffffff;
-  --card-foreground: #24332a;
-  --popover: #ffffff;
-  --popover-foreground: #24332a;
-  --primary: #2e7d5b;
-  --primary-foreground: #ffffff;
-  --secondary: #e7eee4;
-  --secondary-foreground: #24332a;
-  --muted: #e7eee4;
-  --muted-foreground: #63705f;
-  --accent: #e7eee4;
-  --accent-foreground: #24634a;
-  --destructive: #c34f4f;
-  --destructive-foreground: #ffffff;
-  --border: #dde8da;
-  --input: #dde8da;
-  --ring: #2e7d5b;
-  --radius: 0.5rem;
-  --chart-1: #2e7d5b;
-  --chart-2: oklch(0.5164 0.2229 264.63);
-  --chart-3: oklch(0.6264 0.1248 70.45);
-  --chart-4: #6f9450;
-  --chart-5: #4d7c94;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #24332a;
-  --sidebar-primary: #2e7d5b;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e0efe4;
-  --sidebar-accent-foreground: #24634a;
-  --sidebar-border: #dde8da;
-  --sidebar-ring: #2e7d5b;
-  --sidebar-section: #63705f;
-}
-
 /* ====================== TEMA: CLARO «Esmeralda Jade» =======================
    F10-THEME-05 (Carlos, 2026-10-22, «Esmeralda A · Esmeralda Jade»): la
-   esmeralda #2e7d5b de siempre con la forma de Niebla Cobalto —porcelana,
+   esmeralda #2e7d5b de siempre con la forma de Claro —porcelana,
    menú activo relleno, títulos de tabla en minúsculas sobre una franja verde
    muy clara— y un rescoldo ámbar abajo. El verde de «Cobrada» es distinto del
    de los botones: un estado no se confunde con una acción. Claro. */
@@ -623,9 +734,9 @@
 
 /* ===================== TEMA: CLARO «Esmeralda Bosque» ======================
    F10-THEME-05 (Carlos, 2026-10-22, «Esmeralda C · Esmeralda Bosque»):
-   bitono. El menú en verde bosque casi negro con la luz menta de Grafito
-   Líquido y el contenido claro; la banda de los títulos de tabla es del
-   mismo bosque. Geist con Geist Mono, la letra de Claro. Claro. */
+   bitono. El menú en verde bosque casi negro con la luz menta de Oscuro y el
+   contenido claro; la banda de los títulos de tabla es del mismo bosque.
+   Geist con Geist Mono. Claro. */
 :root[data-theme="forest"] {
   color-scheme: light;
   accent-color: #2e9e6e;
@@ -745,13 +856,13 @@
 
 /* ========================= TEMA: OSCURO «Cabina» ===========================
    F10-THEME-05 (Carlos, 2026-10-22, «Cabina B · Cabina Líquida»): el negocio
-   de autos con la piel de Grafito Líquido —vidrio ahumado, píldoras, rótulos
+   de autos con la piel de Oscuro —vidrio ahumado, píldoras, rótulos
    mono— y el rojo racing #d92d3f en vez del celeste, con letra blanca (4.8:1).
    Como TEXTO el rojo no se lee sobre el grafito (3.5:1): enlaces y activos van
    en el rosa claro #ff8b96. «Cancelada» y «Eliminar» van en durazno #ffa585 A
    PROPÓSITO: el salmón de la Cabina de antes era casi el mismo rosa del menú,
    y una alerta no puede parecerse a la marca. Oscuro: `.dark` lo acompaña y
-   trae sus propios semánticos, como Grafito Líquido. */
+   trae sus propios semánticos, como Oscuro. */
 :root[data-theme="cabin"] {
   color-scheme: dark;
   accent-color: #ff5a68;
@@ -882,10 +993,10 @@
 
 /* ========================= TEMA: CLARO «Algodón» ===========================
    F10-THEME-05 (Carlos, 2026-10-22, «Algodón B · Algodón Líquido»): el gemelo
-   claro de Grafito Líquido en rosa —vidrio con aro blanco, píldoras, rótulos
+   claro de Oscuro en rosa —vidrio con aro blanco, píldoras, rótulos
    mono y brillo rosa—. Conserva el rosa #e37e9e de siempre, pero con letra
    CIRUELA casi negra encima (6.1:1): con letra blanca daba 2.7:1 y «Cobrar»
-   no se leía. Es el mismo truco de Grafito Líquido, tinta oscura sobre un
+   no se leía. Es el mismo truco de Oscuro, tinta oscura sobre un
    relleno claro. Como texto el rosa tampoco se lee: enlaces en frambuesa.
    «Eliminar» sigue en rojo franco, separado del rosa. Claro. */
 :root[data-theme="cotton"] {
@@ -1155,321 +1266,6 @@
   --skin-table-row-hover: rgba(236, 239, 255, 0.04);
 }
 
-/* ======================== TEMA: OSCURO «Carbón» ============================
-   Negro cálido con acento cobre: el azul desaparece y el sistema toma una
-   identidad de noche cálida. Tema oscuro: `.dark` lo acompaña. */
-:root[data-theme="charcoal"] {
-  --background: #161311;
-  --foreground: #ece5da;
-  --card: #201c18;
-  --card-foreground: #ece5da;
-  --popover: #201c18;
-  --popover-foreground: #ece5da;
-  --primary: #d9954a;
-  --primary-foreground: #241505;
-  --secondary: #272220;
-  --secondary-foreground: #ece5da;
-  --muted: #272220;
-  --muted-foreground: #a89e91;
-  --accent: #272220;
-  --accent-foreground: #eebd7f;
-  --destructive: #ef8577;
-  --destructive-foreground: #161311;
-  --border: #383129;
-  --input: #2d2723;
-  --ring: #d9954a;
-  --radius: 0.5rem;
-  --chart-1: #d9954a;
-  --chart-2: #6fce8e;
-  --chart-3: #e2b23c;
-  --chart-4: #c79aef;
-  --chart-5: #6fd0d8;
-  --sidebar: #201c18;
-  --sidebar-foreground: #ece5da;
-  --sidebar-primary: #d9954a;
-  --sidebar-primary-foreground: #241505;
-  --sidebar-accent: #3a2d1d;
-  --sidebar-accent-foreground: #eebd7f;
-  --sidebar-border: #383129;
-  --sidebar-ring: #d9954a;
-  --sidebar-section: #a89e91;
-}
-
-/* ===================== TEMA: OSCURO «Grafito Líquido» ======================
-   F10-THEME-05 (Carlos, 2026-10-22, del artefacto «Temas modernos
-   SellPointy»): grafito NEUTRO (R≈G≈B) —el azul nunca es fondo, solo luz o
-   acento—, vidrio ahumado con aro especular y celeste con brillo, en Manrope
-   con IBM Plex Mono para cifras y etiquetas. Es el primer tema con PIEL:
-   además de los colores trae los tokens `--skin-*` con que se viste cada
-   tipo de elemento (ver «LA PIEL», al final). Oscuro: `.dark` lo acompaña,
-   pero trae sus propios semánticos, más vivos sobre el grafito. */
-:root[data-theme="liquid"] {
-  color-scheme: dark;
-  accent-color: #7fd4f6;
-  --background: #141517;
-  --foreground: #f2f4f5;
-  --card: #1d1f22;
-  --card-foreground: #f2f4f5;
-  --popover: #1c1e21;
-  --popover-foreground: #f2f4f5;
-  --primary: #7fd4f6;
-  --primary-foreground: #0e1b24;
-  --secondary: #26282b;
-  --secondary-foreground: #f2f4f5;
-  --muted: #212326;
-  --muted-foreground: #8c9298;
-  --accent: #24272a;
-  --accent-foreground: #7fd4f6;
-  --destructive: #f28b82;
-  --destructive-foreground: #141517;
-  --border: #2c2f33;
-  --input: #2c2f33;
-  --ring: #7fd4f6;
-  --radius: 0.875rem;
-  --chart-1: #7fd4f6;
-  --chart-2: #4cc38a;
-  --chart-3: #f2c14e;
-  --chart-4: #b79cff;
-  --chart-5: #26a9e0;
-  --sidebar: #17191c;
-  --sidebar-foreground: #b9bec3;
-  --sidebar-primary: #7fd4f6;
-  --sidebar-primary-foreground: #0e1b24;
-  --sidebar-accent: #20292f;
-  --sidebar-accent-foreground: #7fd4f6;
-  --sidebar-border: #26292d;
-  --sidebar-ring: #7fd4f6;
-  --sidebar-section: #8c9298;
-  --success: #4cc38a;
-  --success-foreground: #0b1f15;
-  --success-soft: rgba(76, 195, 138, 0.14);
-  --warning: #f2c14e;
-  --warning-foreground: #241a03;
-  --warning-soft: rgba(242, 193, 78, 0.14);
-  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
-  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  /* La piel: un token por cosa que se viste. */
-  --skin-app-backdrop:
-    radial-gradient(900px 620px at 88% -8%, rgba(38, 169, 224, 0.16), rgba(38, 169, 224, 0) 62%),
-    radial-gradient(760px 560px at 8% 102%, rgba(38, 169, 224, 0.07), rgba(38, 169, 224, 0) 60%),
-    linear-gradient(180deg, #141517 0%, #1a1c1f 58%, #141517 100%);
-  --skin-text-weight: 500;
-  --skin-heading-weight: 800;
-  --skin-heading-tracking: -0.03em;
-  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
-     valores de siempre: este tema no cambia. */
-  --skin-heading-font: inherit;
-  --skin-title-dot: transparent;
-  --skin-title-dot-display: none;
-  --skin-primary-text: var(--primary);
-  --skin-sidebar-bg: var(--skin-glass-strong);
-  --skin-sidebar-line: var(--skin-hair);
-  --skin-nav-hover-bg: var(--skin-glass-hover);
-  --skin-nav-hover-color: var(--foreground);
-  --skin-charge-bg: var(--primary);
-  --skin-charge-color: var(--primary-foreground);
-  --skin-charge-shadow: var(--skin-primary-shadow);
-  --skin-numbers-font: var(--app-font-mono);
-  --skin-numbers-synthesis: auto;
-  --skin-label-font: var(--app-font-mono);
-  --skin-label-size: 10.5px;
-  --skin-label-weight: 500;
-  --skin-label-tracking: 0.14em;
-  --skin-glass: rgba(255, 255, 255, 0.045);
-  --skin-glass-hover: rgba(255, 255, 255, 0.08);
-  --skin-glass-thumb: rgba(255, 255, 255, 0.14);
-  --skin-glass-strong: rgba(26, 28, 31, 0.84);
-  --skin-blur: blur(24px) saturate(150%);
-  --skin-well: rgba(0, 0, 0, 0.28);
-  --skin-well-focus: var(--skin-well);
-  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-  --skin-hair: rgba(255, 255, 255, 0.08);
-  --skin-hair-strong: rgba(255, 255, 255, 0.2);
-  --skin-highlight: rgba(255, 255, 255, 0.1);
-  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 46%);
-  --skin-rim: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.22),
-    rgba(255, 255, 255, 0.04) 34%,
-    rgba(255, 255, 255, 0.04) 66%,
-    rgba(255, 255, 255, 0.1)
-  );
-  --skin-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.65);
-  --skin-overlay-shadow: 0 28px 60px -10px rgba(0, 0, 0, 0.7);
-  --skin-scrim: rgba(0, 0, 0, 0.55);
-  --skin-accent-wash: rgba(127, 212, 246, 0.1);
-  --skin-accent-line: rgba(127, 212, 246, 0.34);
-  --skin-accent-ring: rgba(127, 212, 246, 0.62);
-  --skin-glow: rgba(38, 169, 224, 0.45);
-  --skin-primary-fill: none;
-  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 30px -8px rgba(38, 169, 224, 0.55);
-  --skin-button-soft-bg: var(--skin-glass-hover);
-  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), inset 0 1px 0 var(--skin-highlight);
-  --skin-nav-active-bg: var(--skin-accent-wash);
-  --skin-nav-active-color: var(--primary);
-  --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
-  --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
-  --skin-badge-font: var(--skin-label-font);
-  --skin-badge-size: var(--skin-label-size);
-  --skin-badge-tracking: 0.08em;
-  --skin-badge-transform: uppercase;
-  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
-  --skin-card-radius: 20px;
-  --skin-overlay-radius: 22px;
-  --skin-control-radius: 12px;
-  --skin-button-radius: 999px;
-  --skin-nav-item-radius: 999px;
-  --skin-badge-radius: 999px;
-  --skin-checkbox-radius: 6px;
-  /* Encabezado de tabla «banda de vidrio» (Carlos, 2026-10-22, propuesta A). */
-  --skin-table-head-bg: rgba(255, 255, 255, 0.07);
-  --skin-table-head-line: rgba(255, 255, 255, 0.16);
-  --skin-table-head-color: #d3d7db;
-  --skin-table-head-font: var(--skin-label-font);
-  --skin-table-head-size: 11.5px;
-  --skin-table-head-weight: 600;
-  --skin-table-head-tracking: 0.1em;
-  --skin-table-head-transform: uppercase;
-  --skin-table-head-padding-block: 11px;
-  --skin-table-row-line: var(--skin-hair);
-  --skin-table-row-hover: var(--skin-glass);
-}
-
-/* ======================= TEMA: CLARO «Niebla Cobalto» ======================
-   F10-THEME-05 (Carlos, 2026-10-22, «Claro A» del artefacto «Temas modernos
-   SellPointy»): el claro con piel. Niebla fría con luz cobalto arriba y un
-   rescoldo coral abajo, tarjetas de porcelana con sombra azulada, el menú
-   activo RELLENO de cobalto y títulos de tabla en minúsculas sobre una banda
-   gris azulada. Plus Jakarta Sans, con DM Mono para las cifras. Claro: usa
-   los semánticos de `:root` (éxito y alerta son universales). */
-:root[data-theme="cobalt"] {
-  color-scheme: light;
-  accent-color: #2846e8;
-  --background: #f1f4f9;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #2846e8;
-  --primary-foreground: #ffffff;
-  --secondary: #eef1f7;
-  --secondary-foreground: #0f172a;
-  --muted: #eef1f7;
-  --muted-foreground: #5b6779;
-  --accent: #eef2ff;
-  --accent-foreground: #1a2fb0;
-  --destructive: #c8302a;
-  --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2846e8;
-  --radius: 0.75rem;
-  --chart-1: #2846e8;
-  --chart-2: #16a06d;
-  --chart-3: #e8a23b;
-  --chart-4: #ff7a3d;
-  --chart-5: #7c5cff;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #334155;
-  --sidebar-primary: #2846e8;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef2ff;
-  --sidebar-accent-foreground: #1a2fb0;
-  --sidebar-border: #e2e8f0;
-  --sidebar-ring: #2846e8;
-  --sidebar-section: #64748b;
-  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
-  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
-  --skin-app-backdrop:
-    radial-gradient(900px 620px at 0% 0%, rgba(40, 70, 232, 0.11), rgba(40, 70, 232, 0) 60%),
-    radial-gradient(760px 520px at 100% 100%, rgba(255, 122, 61, 0.08), rgba(255, 122, 61, 0) 60%);
-  --skin-text-weight: 500;
-  /* 750 y -0.01em, no los 800 y -0.03em del lienzo: el espacio de Plus
-     Jakarta Sans es angosto y a 14 px los títulos de tarjeta se leían
-     pegados («Másvendidos»; visto en el Panel, 2026-10-22). */
-  --skin-heading-weight: 750;
-  --skin-heading-tracking: -0.01em;
-  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
-     valores de siempre: este tema no cambia. */
-  --skin-heading-font: inherit;
-  --skin-title-dot: transparent;
-  --skin-title-dot-display: none;
-  --skin-primary-text: var(--primary);
-  --skin-sidebar-bg: var(--skin-glass-strong);
-  --skin-sidebar-line: var(--skin-hair);
-  --skin-nav-hover-bg: var(--skin-glass-hover);
-  --skin-nav-hover-color: var(--foreground);
-  --skin-charge-bg: var(--primary);
-  --skin-charge-color: var(--primary-foreground);
-  --skin-charge-shadow: var(--skin-primary-shadow);
-  --skin-numbers-font: var(--app-font-mono);
-  /* DM Mono no tiene seminegrita: sin esto, el navegador engorda a mano la
-     de 500 y las cifras quedan manchadas. Mejor la 500 limpia. */
-  --skin-numbers-synthesis: none;
-  --skin-label-font: var(--app-font-sans);
-  --skin-label-size: 11px;
-  --skin-label-weight: 700;
-  --skin-label-tracking: 0.08em;
-  --skin-glass: rgba(255, 255, 255, 0.82);
-  --skin-glass-hover: rgba(40, 70, 232, 0.06);
-  --skin-glass-thumb: #eef1f7;
-  --skin-glass-strong: rgba(255, 255, 255, 0.92);
-  --skin-blur: blur(20px) saturate(160%);
-  --skin-well: #f4f6fb;
-  --skin-well-focus: #ffffff;
-  --skin-well-shadow: 0 0 transparent;
-  --skin-hair: #e2e8f0;
-  --skin-hair-strong: #cbd5e1;
-  --skin-highlight: rgba(255, 255, 255, 0.9);
-  --skin-sheen: none;
-  /* El aro blanco de la porcelana: tapa el borde gris de la tarjeta. */
-  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95));
-  --skin-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.05), 0 18px 40px -22px rgba(30, 41, 90, 0.28),
-    inset 0 0 0 1px rgba(15, 23, 42, 0.04);
-  --skin-overlay-shadow: 0 2px 4px rgba(15, 23, 42, 0.04), 0 24px 48px -20px rgba(30, 41, 90, 0.35);
-  --skin-scrim: rgba(15, 23, 42, 0.32);
-  --skin-accent-wash: rgba(40, 70, 232, 0.14);
-  --skin-accent-line: rgba(40, 70, 232, 0.3);
-  --skin-accent-ring: #2846e8;
-  --skin-glow: rgba(40, 70, 232, 0.55);
-  /* Un brillo BLANCO sobre el color del botón, no un cobalto fijo: sobre el
-     primario da el #3a57f0 → #2846e8 del diseño, y un botón que traiga su
-     propio color (verde, rojo) lo conserva. */
-  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
-  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 12px 24px -10px rgba(40, 70, 232, 0.65);
-  --skin-button-soft-bg: #ffffff;
-  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(15, 23, 42, 0.05);
-  --skin-nav-active-bg: #2846e8;
-  --skin-nav-active-color: #ffffff;
-  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 22px -10px rgba(40, 70, 232, 0.75);
-  --skin-check-shadow: 0 4px 10px -4px rgba(40, 70, 232, 0.7);
-  --skin-badge-font: var(--app-font-sans);
-  --skin-badge-size: 12px;
-  --skin-badge-tracking: 0;
-  --skin-badge-transform: none;
-  --skin-badge-ring: 0 0 transparent;
-  --skin-card-radius: 20px;
-  --skin-overlay-radius: 20px;
-  --skin-control-radius: 12px;
-  --skin-button-radius: 12px;
-  --skin-nav-item-radius: 12px;
-  --skin-badge-radius: 999px;
-  --skin-checkbox-radius: 5px;
-  --skin-table-head-bg: #eef2f8;
-  --skin-table-head-line: #dce3ee;
-  --skin-table-head-color: #334155;
-  --skin-table-head-font: var(--app-font-sans);
-  --skin-table-head-size: 12.5px;
-  --skin-table-head-weight: 700;
-  --skin-table-head-tracking: 0;
-  --skin-table-head-transform: none;
-  --skin-table-head-padding-block: 11px;
-  --skin-table-row-line: #eef2f7;
-  --skin-table-row-hover: #f5f7ff;
-}
-
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--app-font-sans);
@@ -1629,7 +1425,7 @@
 }
 
 /* El menú: renglones con la forma del tema; el activo, con lo que el tema
-   diga (aro y brillo en Grafito Líquido, relleno de cobalto en Niebla). */
+   diga (aro y brillo en Oscuro, relleno de cobalto en Claro). */
 .skinned [data-slot="sidebar"] nav :is(a, button) {
   border-radius: var(--skin-nav-item-radius);
   font-weight: 600;
@@ -1684,7 +1480,7 @@
 }
 
 /* Botones: el primario con luz propia; los demás, «suaves» (de vidrio en
-   Grafito Líquido, blancos con filo en Niebla Cobalto). */
+   Oscuro, blancos con filo en Claro). */
 .skinned [data-slot="button"] {
   border-radius: var(--skin-button-radius);
   font-weight: 700;
@@ -1795,7 +1591,7 @@
 }
 
 /* Badges: píldora con la letra del tema (mono en mayúsculas con aro en
-   Grafito Líquido; sans en minúsculas y sin aro en Niebla Cobalto). */
+   Oscuro; sans en minúsculas y sin aro en Claro). */
 .skinned [data-slot="badge"] {
   border-radius: var(--skin-badge-radius);
   font-family: var(--skin-badge-font);

@@ -32,7 +32,7 @@ describe("installTenantThemeSync", () => {
   });
 
   it("un tenant sin tema elegido cae al default, SellPointy", () => {
-    applyTheme("grape");
+    applyTheme("cotton");
     useAuthStore.getState().setAuth("jwt", userWithTheme(null));
 
     expect(document.documentElement.dataset.theme).toBe("sellpointy");
@@ -49,10 +49,10 @@ describe("installTenantThemeSync", () => {
     const user = userWithTheme("sand");
     useAuthStore.getState().setAuth("jwt", user);
     // El wizard/perfil aplican en vivo ANTES del PATCH:
-    applyTheme("grape");
+    applyTheme("cotton");
     // Un resync que trae el MISMO tema no debe revertir la vista previa.
     useAuthStore.getState().setUser({ ...user });
 
-    expect(document.documentElement.dataset.theme).toBe("grape");
+    expect(document.documentElement.dataset.theme).toBe("cotton");
   });
 });

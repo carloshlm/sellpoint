@@ -1,10 +1,12 @@
 /**
  * Catálogo de TEMAS del negocio (Carlos, 2026-08-25/26).
  *
- * El tenant elige UN tema y toda la app se pinta con él. Ocho temas en dos
- * tandas, todos elegidos por Carlos de los artefactos "Temas de SellPoint":
- * la primera (Claro, Grafito, Crema, Bitono) se ofrece en el WIZARD; las dos
- * completas viven en Mi perfil — el paso 3 lo avisa.
+ * El tenant elige UN tema y toda la app se pinta con él. Desde el 2026-10-22
+ * son nueve, todos con piel, elegidos por Carlos de un lienzo de propuestas;
+ * se retiraron Uva, Esmeralda y Carbón, y Niebla Cobalto y Grafito Líquido se
+ * volvieron el estilo de Claro y de Oscuro (migración
+ * `f10_theme_catalog_consolidation`). El WIZARD ofrece cinco; Mi perfil,
+ * todos — el paso 3 lo avisa.
  *
  * PARA AGREGAR UN TEMA NUEVO (3 pasos, en este orden):
  *   1. `index.css`: bloque `:root[data-theme="<id>"]` con TODOS los tokens.
@@ -28,16 +30,11 @@ export const THEME_IDS = [
   "dark",
   "sand",
   "espresso",
-  "grape",
-  "emerald",
   "jade",
   "forest",
   "cabin",
   "cotton",
-  "charcoal",
   "sellpointy",
-  "liquid",
-  "cobalt",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -87,8 +84,23 @@ export interface ThemeOption {
 }
 
 export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
-  light: { id: "light", nameKey: "common.theme.names.light", swatch: "#ffffff", isDark: false },
-  dark: { id: "dark", nameKey: "common.theme.names.dark", swatch: "#1b1d21", isDark: true },
+  // Claro y Oscuro conservan su nombre y su muestra, pero desde el 2026-10-22
+  // (Carlos) visten el estilo de Niebla Cobalto y de Grafito Líquido, que
+  // dejaron de existir aparte: eran el mismo tema con otro nombre.
+  light: {
+    id: "light",
+    nameKey: "common.theme.names.light",
+    swatch: "#ffffff",
+    isDark: false,
+    skinned: true,
+  },
+  dark: {
+    id: "dark",
+    nameKey: "common.theme.names.dark",
+    swatch: "#1b1d21",
+    isDark: true,
+    skinned: true,
+  },
   // Arena, Algodón, Cabina y SellPointy se REEMPLAZARON por su versión con piel
   // el 2026-10-22 (Carlos): mismo id y mismo nombre, así que los negocios que
   // ya los tenían ven el tema nuevo sin migrar nada.
@@ -107,19 +119,10 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     isDark: false,
     skinned: true,
   },
-  grape: { id: "grape", nameKey: "common.theme.names.grape", swatch: "#5d5468", isDark: false },
-  emerald: {
-    id: "emerald",
-    nameKey: "common.theme.names.emerald",
-    swatch: "#2e7d5b",
-    isDark: false,
-  },
-  // Su verde es el mismo de Esmeralda: la muestra toma el jade más claro de
-  // su degradado para que las dos no se vean iguales en el selector.
   jade: {
     id: "jade",
     nameKey: "common.theme.names.jade",
-    swatch: "#4fa37c",
+    swatch: "#2e7d5b",
     isDark: false,
     skinned: true,
   },
@@ -145,12 +148,6 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     isDark: false,
     skinned: true,
   },
-  charcoal: {
-    id: "charcoal",
-    nameKey: "common.theme.names.charcoal",
-    swatch: "#d9954a",
-    isDark: true,
-  },
   // La marca (Carlos, 2026-09-26; en oscuro desde el 2026-10-22, «Punto
   // Azul»): la muestra es el azul del menú, lo que la distingue de un vistazo.
   sellpointy: {
@@ -158,26 +155,6 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     nameKey: "common.theme.names.sellpointy",
     swatch: "#1e3fd8",
     isDark: true,
-    skinned: true,
-  },
-  // F10-THEME-05 (Carlos, 2026-10-22): grafito neutro, vidrio ahumado y luz
-  // celeste. El primero con piel. La muestra es su celeste, como la de los
-  // otros oscuros es su acento: el grafito solo se confundiría con Oscuro.
-  liquid: {
-    id: "liquid",
-    nameKey: "common.theme.names.liquid",
-    swatch: "#7fd4f6",
-    isDark: true,
-    skinned: true,
-  },
-  // F10-THEME-05 (Carlos, 2026-10-22): el claro con piel, niebla fría y
-  // cobalto. La muestra es su cobalto, que no se confunde con el azul profundo
-  // de SellPointy.
-  cobalt: {
-    id: "cobalt",
-    nameKey: "common.theme.names.cobalt",
-    swatch: "#2846e8",
-    isDark: false,
     skinned: true,
   },
 };
