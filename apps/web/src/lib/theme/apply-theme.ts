@@ -12,6 +12,8 @@ import { ROOT_THEME, resolveTheme, THEMES, type ThemeId } from "./themes";
  *   (Grafito, Cabina, Carbón): los tokens los trae su bloque, pero los
  *   semánticos oscuros (success/warning) y las variantes `dark:` de los
  *   componentes shadcn cuelgan de la clase.
+ * - La clase `.skinned` acompaña a los temas con piel (F10-THEME-05): las
+ *   reglas que visten cada tipo de elemento cuelgan de ella.
  */
 export function applyTheme(theme?: string | null): ThemeId {
   const resolved = resolveTheme(theme);
@@ -22,5 +24,7 @@ export function applyTheme(theme?: string | null): ThemeId {
     root.dataset.theme = resolved;
   }
   root.classList.toggle("dark", THEMES[resolved].isDark);
+  // F10-THEME-05: la piel por componente, solo en los temas que la traen.
+  root.classList.toggle("skinned", THEMES[resolved].skinned === true);
   return resolved;
 }

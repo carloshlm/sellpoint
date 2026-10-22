@@ -12,6 +12,11 @@
  *   3. `apps/api`: el id en el enum de `theme` (update-tenant.dto.ts).
  * El test `themes.test.ts` falla si (1) y (2) se desincronizan.
  *
+ * F10-THEME-05 — un tema `skinned` además VISTE cada tipo de elemento
+ * (menú, tarjetas, botones, campos, tablas, badges…): `applyTheme` enciende
+ * la clase `.skinned` y las reglas de la piel en `index.css` leen los tokens
+ * `--skin-*` del bloque del tema. Sin piel, un tema solo cambia colores.
+ *
  * `swatch` NO pinta la app (eso lo hace el CSS): es la muestra que el
  * selector le enseña al usuario para que reconozca cada tema de un vistazo.
  * `isDark` enciende la clase `.dark` junto al atributo: los semánticos
@@ -22,12 +27,17 @@ export const THEME_IDS = [
   "light",
   "dark",
   "sand",
+  "espresso",
   "grape",
   "emerald",
+  "jade",
+  "forest",
   "cabin",
   "cotton",
   "charcoal",
   "sellpointy",
+  "liquid",
+  "cobalt",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -72,12 +82,31 @@ export interface ThemeOption {
   swatch: string;
   /** Enciende `.dark` al aplicarse (semánticos oscuros + variantes de componentes). */
   isDark: boolean;
+  /** F10-THEME-05: enciende `.skinned`, la piel por componente (forma, letra, superficies). */
+  skinned?: boolean;
 }
 
 export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
   light: { id: "light", nameKey: "common.theme.names.light", swatch: "#ffffff", isDark: false },
   dark: { id: "dark", nameKey: "common.theme.names.dark", swatch: "#1b1d21", isDark: true },
-  sand: { id: "sand", nameKey: "common.theme.names.sand", swatch: "#b57f55", isDark: false },
+  // Arena, Algodón, Cabina y SellPointy se REEMPLAZARON por su versión con piel
+  // el 2026-10-22 (Carlos): mismo id y mismo nombre, así que los negocios que
+  // ya los tenían ven el tema nuevo sin migrar nada.
+  sand: {
+    id: "sand",
+    nameKey: "common.theme.names.sand",
+    swatch: "#9a6340",
+    isDark: false,
+    skinned: true,
+  },
+  // Bitono: el menú en espresso, el contenido en crema.
+  espresso: {
+    id: "espresso",
+    nameKey: "common.theme.names.espresso",
+    swatch: "#2a2019",
+    isDark: false,
+    skinned: true,
+  },
   grape: { id: "grape", nameKey: "common.theme.names.grape", swatch: "#5d5468", isDark: false },
   emerald: {
     id: "emerald",
@@ -85,21 +114,71 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     swatch: "#2e7d5b",
     isDark: false,
   },
-  cabin: { id: "cabin", nameKey: "common.theme.names.cabin", swatch: "#d92d3f", isDark: true },
-  cotton: { id: "cotton", nameKey: "common.theme.names.cotton", swatch: "#e37e9e", isDark: false },
+  // Su verde es el mismo de Esmeralda: la muestra toma el jade más claro de
+  // su degradado para que las dos no se vean iguales en el selector.
+  jade: {
+    id: "jade",
+    nameKey: "common.theme.names.jade",
+    swatch: "#4fa37c",
+    isDark: false,
+    skinned: true,
+  },
+  // Bitono: el menú en verde bosque, el contenido claro.
+  forest: {
+    id: "forest",
+    nameKey: "common.theme.names.forest",
+    swatch: "#12291f",
+    isDark: false,
+    skinned: true,
+  },
+  cabin: {
+    id: "cabin",
+    nameKey: "common.theme.names.cabin",
+    swatch: "#d92d3f",
+    isDark: true,
+    skinned: true,
+  },
+  cotton: {
+    id: "cotton",
+    nameKey: "common.theme.names.cotton",
+    swatch: "#e37e9e",
+    isDark: false,
+    skinned: true,
+  },
   charcoal: {
     id: "charcoal",
     nameKey: "common.theme.names.charcoal",
     swatch: "#d9954a",
     isDark: true,
   },
-  // La marca (Carlos, 2026-09-26): la muestra es el azul profundo del menú,
-  // que es lo que distingue este tema del Claro de un vistazo.
+  // La marca (Carlos, 2026-09-26; en oscuro desde el 2026-10-22, «Punto
+  // Azul»): la muestra es el azul del menú, lo que la distingue de un vistazo.
   sellpointy: {
     id: "sellpointy",
     nameKey: "common.theme.names.sellpointy",
-    swatch: "#15309f",
+    swatch: "#1e3fd8",
+    isDark: true,
+    skinned: true,
+  },
+  // F10-THEME-05 (Carlos, 2026-10-22): grafito neutro, vidrio ahumado y luz
+  // celeste. El primero con piel. La muestra es su celeste, como la de los
+  // otros oscuros es su acento: el grafito solo se confundiría con Oscuro.
+  liquid: {
+    id: "liquid",
+    nameKey: "common.theme.names.liquid",
+    swatch: "#7fd4f6",
+    isDark: true,
+    skinned: true,
+  },
+  // F10-THEME-05 (Carlos, 2026-10-22): el claro con piel, niebla fría y
+  // cobalto. La muestra es su cobalto, que no se confunde con el azul profundo
+  // de SellPointy.
+  cobalt: {
+    id: "cobalt",
+    nameKey: "common.theme.names.cobalt",
+    swatch: "#2846e8",
     isDark: false,
+    skinned: true,
   },
 };
 

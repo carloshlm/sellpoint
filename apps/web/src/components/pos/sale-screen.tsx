@@ -112,6 +112,9 @@ export function SaleScreen({ session }: SaleScreenProps) {
 
           {!cobrando && (
             <Button
+              // `data-skin="charge"`: el tema de la marca pinta «Cobrar» de
+              // amarillo (F10-THEME-05). En los demás es un primario más.
+              data-skin="charge"
               className="h-14 text-lg"
               // Sin líneas no hay nada que cobrar. Es lo único que bloquea el
               // botón acá: el resto de las condiciones —cuánto se recibió, qué

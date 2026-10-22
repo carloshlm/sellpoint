@@ -7,6 +7,22 @@
    resto de la aplicación sigue en Geist. `wght.css` trae un solo eje; el
    navegador baja únicamente el tramo latino que usa la palabra. */
 @import "@fontsource-variable/bricolage-grotesque/wght.css";
+/* Las letras de Grafito Líquido (F10-THEME-05). Declararlas no cuesta: el
+   navegador baja un archivo de letra solo cuando algo en pantalla la usa, y
+   solo ese tema la usa. */
+@import "@fontsource-variable/manrope/wght.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+/* Las de Niebla Cobalto: Plus Jakarta Sans y DM Mono para las cifras. */
+@import "@fontsource-variable/plus-jakarta-sans/wght.css";
+@import "@fontsource/dm-mono/400.css";
+@import "@fontsource/dm-mono/500.css";
+/* Las de la marca (SellPointy y Café Expreso), las mismas de sellpointy.com:
+   Instrument Sans y JetBrains Mono. Y la mono de Geist, para Esmeralda Bosque. */
+@import "@fontsource-variable/instrument-sans/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -56,6 +72,17 @@
   --warning: oklch(0.78 0.14 76);
   --warning-foreground: oklch(0.2 0.04 70);
   --warning-soft: oklch(0.3 0.05 72);
+}
+
+/* --- LETRAS como tokens (F10-THEME-05) ------------------------------------
+   `font-sans` y `font-mono` leen estas variables, así que un tema puede traer
+   su propia letra. Los valores de aquí son EXACTAMENTE los de antes (Geist y
+   la pila mono de Tailwind): los temas que no las redefinen no cambian. */
+:root {
+  --app-font-sans: 'Geist Variable', sans-serif;
+  --app-font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
 }
 
 /* ============================ TEMA: CLARO (default) ========================
@@ -179,44 +206,255 @@
   --sidebar-section: #6e6879;
 }
 
-/* =========================== TEMA: ARENA «Crema» ===========================
-   Cremas cálidas y café tostado (la referencia es una cafetería): tranquilo
-   para jornadas largas de mostrador. */
+/* ========================= TEMA: CLARO «Arena» =============================
+   F10-THEME-05 (Carlos, 2026-10-22, «Arena A · Arena Tostada»): las cremas y
+   el café tostado de la Arena de antes, ahora con PIEL. Tarjetas de porcelana
+   crema con sombra cálida, el menú activo RELLENO de café, títulos de tabla
+   en minúsculas sobre una franja arena y un rescoldo salvia abajo. Plus
+   Jakarta Sans con DM Mono para las cifras, como Niebla Cobalto.
+
+   El café sube de #a9714b a #9a6340: con letra blanca, el de antes daba
+   4.1:1 y el botón no llegaba al 4.5 mínimo. Como texto (enlaces) va el
+   #8a5730, que sobre la crema sí se lee. Claro: usa los semánticos de :root. */
 :root[data-theme="sand"] {
-  --background: #f7efe2;
-  --foreground: #3d2f23;
-  --card: #fffdf7;
-  --card-foreground: #3d2f23;
-  --popover: #fffdf7;
-  --popover-foreground: #3d2f23;
-  --primary: #a9714b;
+  color-scheme: light;
+  accent-color: #9a6340;
+  --background: #f6eee2;
+  --foreground: #3b2d21;
+  --card: #fffcf6;
+  --card-foreground: #3b2d21;
+  --popover: #fffcf6;
+  --popover-foreground: #3b2d21;
+  --primary: #9a6340;
   --primary-foreground: #fff8ef;
-  --secondary: #eee4d1;
-  --secondary-foreground: #3d2f23;
-  --muted: #eee4d1;
-  --muted-foreground: #857664;
-  --accent: #eee4d1;
+  --secondary: #efe5d5;
+  --secondary-foreground: #3b2d21;
+  --muted: #efe5d5;
+  --muted-foreground: #76675a;
+  --accent: #f3e9da;
   --accent-foreground: #8a5730;
-  --destructive: #c05744;
+  --destructive: #b44d3b;
   --destructive-foreground: #fff8ef;
   --border: #e7d8bf;
   --input: #e7d8bf;
-  --ring: #a9714b;
-  --radius: 0.5rem;
-  --chart-1: #a9714b;
-  --chart-2: oklch(0.5861 0.1343 156.58);
-  --chart-3: oklch(0.6264 0.1248 70.45);
-  --chart-4: #b08d3c;
-  --chart-5: #7c886b;
-  --sidebar: #fffdf7;
-  --sidebar-foreground: #3d2f23;
-  --sidebar-primary: #a9714b;
+  --ring: #9a6340;
+  --radius: 0.75rem;
+  --chart-1: #9a6340;
+  --chart-2: #3f8f5f;
+  --chart-3: #c99118;
+  --chart-4: #7c886b;
+  --chart-5: #c08a5c;
+  --sidebar: #fffcf6;
+  --sidebar-foreground: #5e4e3f;
+  --sidebar-primary: #9a6340;
   --sidebar-primary-foreground: #fff8ef;
-  --sidebar-accent: #f0e0c8;
+  --sidebar-accent: #f3e9da;
   --sidebar-accent-foreground: #8a5730;
   --sidebar-border: #e7d8bf;
-  --sidebar-ring: #a9714b;
-  --sidebar-section: #857664;
+  --sidebar-ring: #9a6340;
+  --sidebar-section: #76675a;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 0% 0%, rgba(201, 138, 79, 0.16), rgba(201, 138, 79, 0) 60%),
+    radial-gradient(760px 520px at 100% 100%, rgba(124, 136, 107, 0.13), rgba(124, 136, 107, 0) 60%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: none;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-primary-text: #8a5730;
+  --skin-glass: rgba(255, 252, 246, 0.86);
+  --skin-glass-hover: rgba(154, 99, 64, 0.07);
+  --skin-glass-thumb: #f3e9da;
+  --skin-glass-strong: rgba(255, 252, 246, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-well: #faf4ea;
+  --skin-well-focus: #fffcf6;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e7d8bf;
+  --skin-hair-strong: #d8c6a9;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92));
+  --skin-shadow:
+    0 1px 2px rgba(59, 45, 33, 0.05), 0 18px 40px -22px rgba(90, 60, 30, 0.28),
+    inset 0 0 0 1px rgba(59, 45, 33, 0.05);
+  --skin-overlay-shadow: 0 2px 4px rgba(59, 45, 33, 0.04), 0 24px 48px -20px rgba(90, 60, 30, 0.35);
+  --skin-scrim: rgba(59, 45, 33, 0.32);
+  --skin-accent-wash: rgba(154, 99, 64, 0.16);
+  --skin-accent-line: rgba(154, 99, 64, 0.3);
+  --skin-accent-ring: #9a6340;
+  --skin-glow: rgba(154, 99, 64, 0.55);
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -10px rgba(154, 99, 64, 0.6);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #fffcf6;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(59, 45, 33, 0.05);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: #9a6340;
+  --skin-nav-active-color: #fff8ef;
+  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 22px -10px rgba(154, 99, 64, 0.75);
+  --skin-check-shadow: 0 4px 10px -4px rgba(154, 99, 64, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #f1e6d3;
+  --skin-table-head-line: #e2d2b8;
+  --skin-table-head-color: #4a3a2c;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #f1e8da;
+  --skin-table-row-hover: #fbf3e7;
+}
+
+/* ===================== TEMA: CLARO «Café Expreso» ==========================
+   F10-THEME-05 (Carlos, 2026-10-22, «Arena C · Arena Espresso»): bitono. El
+   menú en café espresso con la luz caramelo de Grafito Líquido —activo con
+   aro y brillo— y el contenido en crema. Los títulos de tabla son una banda
+   ESPRESSO con letra mono clara, el contraste más alto del catálogo. El
+   primario es el mismo espresso del menú; el caramelo queda para el foco.
+   Instrument Sans con JetBrains Mono. Claro: semánticos de :root. */
+:root[data-theme="espresso"] {
+  color-scheme: light;
+  accent-color: #c8874f;
+  --background: #f5ede1;
+  --foreground: #2a2019;
+  --card: #fffdf9;
+  --card-foreground: #2a2019;
+  --popover: #fffdf9;
+  --popover-foreground: #2a2019;
+  --primary: #2a2019;
+  --primary-foreground: #fbefe0;
+  --secondary: #f1e7d8;
+  --secondary-foreground: #2a2019;
+  --muted: #f1e7d8;
+  --muted-foreground: #6e5d4d;
+  --accent: #f3e6d4;
+  --accent-foreground: #8a5730;
+  --destructive: #b44d3b;
+  --destructive-foreground: #fff8ef;
+  --border: #eadcc6;
+  --input: #e2d2ba;
+  --ring: #c8874f;
+  --radius: 0.625rem;
+  --chart-1: #2a2019;
+  --chart-2: #3f8f5f;
+  --chart-3: #c99118;
+  --chart-4: #c8874f;
+  --chart-5: #7c886b;
+  --sidebar: #211913;
+  --sidebar-foreground: #cdbdab;
+  --sidebar-primary: #e0a46b;
+  --sidebar-primary-foreground: #24160b;
+  --sidebar-accent: #3a2c22;
+  --sidebar-accent-foreground: #f0b47a;
+  --sidebar-border: #2f241c;
+  --sidebar-ring: #e0a46b;
+  --sidebar-section: #9c8b79;
+  --app-font-sans: 'Instrument Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 600px at 100% 0%, rgba(224, 164, 107, 0.16), rgba(224, 164, 107, 0) 60%),
+    linear-gradient(180deg, #f7f0e5 0%, #f3eadd 100%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 700;
+  --skin-heading-tracking: -0.02em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-primary-text: #8a5730;
+  --skin-glass: #fffdf9;
+  --skin-glass-hover: rgba(255, 255, 255, 0.06);
+  --skin-glass-thumb: #f1e7d8;
+  --skin-glass-strong: rgba(255, 253, 249, 0.94);
+  --skin-blur: blur(20px) saturate(150%);
+  --skin-sidebar-bg:
+    radial-gradient(420px 320px at 0% 0%, rgba(224, 164, 107, 0.2), rgba(224, 164, 107, 0) 70%),
+    linear-gradient(180deg, #2a2019 0%, #211913 100%);
+  --skin-sidebar-line: #2f241c;
+  --skin-well: #fffdf9;
+  --skin-well-focus: #fffdf9;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #eadcc6;
+  --skin-hair-strong: #cdb99c;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(#eadcc6, #eadcc6);
+  --skin-shadow: 0 1px 0 rgba(42, 32, 25, 0.04), 0 12px 28px -20px rgba(42, 32, 25, 0.35);
+  --skin-overlay-shadow: 0 24px 50px -24px rgba(42, 32, 25, 0.45);
+  --skin-scrim: rgba(33, 25, 19, 0.45);
+  --skin-accent-wash: rgba(200, 135, 79, 0.18);
+  --skin-accent-line: rgba(200, 135, 79, 0.4);
+  --skin-accent-ring: #c8874f;
+  --skin-glow: rgba(224, 164, 107, 0.5);
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 22px -12px rgba(42, 32, 25, 0.7);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #fffdf9;
+  --skin-button-soft-shadow: inset 0 0 0 1px #e2d2ba;
+  --skin-nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --skin-nav-hover-color: #f6ebdd;
+  --skin-nav-active-bg: rgba(224, 164, 107, 0.14);
+  --skin-nav-active-color: #f0b47a;
+  --skin-nav-active-shadow: inset 0 0 0 1px rgba(224, 164, 107, 0.4), 0 0 24px -8px rgba(224, 164, 107, 0.55);
+  --skin-check-shadow: 0 0 transparent;
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 18px;
+  --skin-overlay-radius: 18px;
+  --skin-control-radius: 10px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 6px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #2a2019;
+  --skin-table-head-line: #2a2019;
+  --skin-table-head-color: #ead9c4;
+  --skin-table-head-font: var(--app-font-mono);
+  --skin-table-head-size: 11px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 12px;
+  --skin-table-row-line: #f0e5d5;
+  --skin-table-row-hover: #fbf5ec;
 }
 
 /* ========================= TEMA: ESMERALDA «Hoja» ==========================
@@ -260,137 +498,661 @@
   --sidebar-section: #63705f;
 }
 
-/* ========================== TEMA: MOTOR «Cabina» ===========================
-   El oscuro con rojo del negocio de autos: sidebar negro profundo (cockpit)
-   con contenido carbón y el rojo racing como primario. «Eliminar» va en
-   salmón claro A PROPÓSITO — sobre fondo oscuro se lee como alerta, y un
-   botón de marca jamás debe vestirse de advertencia. Tema oscuro: la clase
-   `.dark` lo acompaña (ver applyTheme). */
+/* ====================== TEMA: CLARO «Esmeralda Jade» =======================
+   F10-THEME-05 (Carlos, 2026-10-22, «Esmeralda A · Esmeralda Jade»): la
+   esmeralda #2e7d5b de siempre con la forma de Niebla Cobalto —porcelana,
+   menú activo relleno, títulos de tabla en minúsculas sobre una franja verde
+   muy clara— y un rescoldo ámbar abajo. El verde de «Cobrada» es distinto del
+   de los botones: un estado no se confunde con una acción. Claro. */
+:root[data-theme="jade"] {
+  color-scheme: light;
+  accent-color: #2e7d5b;
+  --background: #f1f6f1;
+  --foreground: #1f2e26;
+  --card: #ffffff;
+  --card-foreground: #1f2e26;
+  --popover: #ffffff;
+  --popover-foreground: #1f2e26;
+  --primary: #2e7d5b;
+  --primary-foreground: #ffffff;
+  --secondary: #e6efe7;
+  --secondary-foreground: #1f2e26;
+  --muted: #e6efe7;
+  --muted-foreground: #5e6e63;
+  --accent: #eaf2ea;
+  --accent-foreground: #24634a;
+  --destructive: #b23f3f;
+  --destructive-foreground: #ffffff;
+  --border: #dce7dc;
+  --input: #dce7dc;
+  --ring: #2e7d5b;
+  --radius: 0.75rem;
+  --chart-1: #2e7d5b;
+  --chart-2: #4d7c94;
+  --chart-3: #c99118;
+  --chart-4: #6f9450;
+  --chart-5: #e8aa5a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #485a4f;
+  --sidebar-primary: #2e7d5b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf2ea;
+  --sidebar-accent-foreground: #24634a;
+  --sidebar-border: #dce7dc;
+  --sidebar-ring: #2e7d5b;
+  --sidebar-section: #5e6e63;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 0% 0%, rgba(46, 125, 91, 0.14), rgba(46, 125, 91, 0) 60%),
+    radial-gradient(760px 520px at 100% 100%, rgba(232, 170, 90, 0.12), rgba(232, 170, 90, 0) 60%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: none;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-primary-text: #24634a;
+  --skin-glass: rgba(255, 255, 255, 0.86);
+  --skin-glass-hover: rgba(46, 125, 91, 0.07);
+  --skin-glass-thumb: #eaf2ea;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-well: #f6faf5;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #dce7dc;
+  --skin-hair-strong: #c5d6c8;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92));
+  --skin-shadow:
+    0 1px 2px rgba(31, 46, 38, 0.05), 0 18px 40px -22px rgba(20, 60, 40, 0.28),
+    inset 0 0 0 1px rgba(31, 46, 38, 0.05);
+  --skin-overlay-shadow: 0 2px 4px rgba(31, 46, 38, 0.04), 0 24px 48px -20px rgba(20, 60, 40, 0.35);
+  --skin-scrim: rgba(31, 46, 38, 0.32);
+  --skin-accent-wash: rgba(46, 125, 91, 0.16);
+  --skin-accent-line: rgba(46, 125, 91, 0.3);
+  --skin-accent-ring: #2e7d5b;
+  --skin-glow: rgba(46, 125, 91, 0.55);
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -10px rgba(46, 125, 91, 0.6);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(31, 46, 38, 0.05);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: #2e7d5b;
+  --skin-nav-active-color: #ffffff;
+  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 22px -10px rgba(46, 125, 91, 0.75);
+  --skin-check-shadow: 0 4px 10px -4px rgba(46, 125, 91, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #e7f0e8;
+  --skin-table-head-line: #d3e2d5;
+  --skin-table-head-color: #2f4237;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #eaf1ea;
+  --skin-table-row-hover: #f4f9f4;
+}
+
+/* ===================== TEMA: CLARO «Esmeralda Bosque» ======================
+   F10-THEME-05 (Carlos, 2026-10-22, «Esmeralda C · Esmeralda Bosque»):
+   bitono. El menú en verde bosque casi negro con la luz menta de Grafito
+   Líquido y el contenido claro; la banda de los títulos de tabla es del
+   mismo bosque. Geist con Geist Mono, la letra de Claro. Claro. */
+:root[data-theme="forest"] {
+  color-scheme: light;
+  accent-color: #2e9e6e;
+  --background: #f1f5ef;
+  --foreground: #12291f;
+  --card: #ffffff;
+  --card-foreground: #12291f;
+  --popover: #ffffff;
+  --popover-foreground: #12291f;
+  --primary: #12291f;
+  --primary-foreground: #eaf7ef;
+  --secondary: #e6efe7;
+  --secondary-foreground: #12291f;
+  --muted: #e6efe7;
+  --muted-foreground: #5c6c62;
+  --accent: #e3efe6;
+  --accent-foreground: #1f6b4d;
+  --destructive: #b23f3f;
+  --destructive-foreground: #ffffff;
+  --border: #e0eae1;
+  --input: #d6e2d8;
+  --ring: #2e9e6e;
+  --radius: 0.625rem;
+  --chart-1: #2e9e6e;
+  --chart-2: #4d7c94;
+  --chart-3: #c99118;
+  --chart-4: #6f9450;
+  --chart-5: #12291f;
+  --sidebar: #0b1c15;
+  --sidebar-foreground: #bcd0c4;
+  --sidebar-primary: #4cd698;
+  --sidebar-primary-foreground: #062016;
+  --sidebar-accent: #173a2b;
+  --sidebar-accent-foreground: #6fe0ae;
+  --sidebar-border: #173126;
+  --sidebar-ring: #4cd698;
+  --sidebar-section: #7f978a;
+  --app-font-sans: 'Geist Variable', sans-serif;
+  --app-font-mono: 'Geist Mono Variable', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 600px at 100% 0%, rgba(76, 214, 152, 0.14), rgba(76, 214, 152, 0) 60%),
+    linear-gradient(180deg, #f4f8f3 0%, #eef3ec 100%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 700;
+  --skin-heading-tracking: -0.02em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-primary-text: #1f6b4d;
+  --skin-glass: #ffffff;
+  --skin-glass-hover: rgba(255, 255, 255, 0.06);
+  --skin-glass-thumb: #e6efe7;
+  --skin-glass-strong: rgba(255, 255, 255, 0.94);
+  --skin-blur: blur(20px) saturate(150%);
+  --skin-sidebar-bg:
+    radial-gradient(420px 320px at 0% 0%, rgba(76, 214, 152, 0.18), rgba(76, 214, 152, 0) 70%),
+    linear-gradient(180deg, #12291f 0%, #0b1c15 100%);
+  --skin-sidebar-line: #173126;
+  --skin-well: #ffffff;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e0eae1;
+  --skin-hair-strong: #bfd1c4;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(#e0eae1, #e0eae1);
+  --skin-shadow: 0 1px 0 rgba(12, 30, 22, 0.04), 0 12px 28px -20px rgba(12, 30, 22, 0.35);
+  --skin-overlay-shadow: 0 24px 50px -24px rgba(12, 30, 22, 0.45);
+  --skin-scrim: rgba(11, 28, 21, 0.45);
+  --skin-accent-wash: rgba(46, 158, 110, 0.18);
+  --skin-accent-line: rgba(46, 158, 110, 0.4);
+  --skin-accent-ring: #2e9e6e;
+  --skin-glow: rgba(76, 214, 152, 0.5);
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 22px -12px rgba(12, 30, 22, 0.7);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px #d6e2d8;
+  --skin-nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --skin-nav-hover-color: #e6f2eb;
+  --skin-nav-active-bg: rgba(76, 214, 152, 0.13);
+  --skin-nav-active-color: #6fe0ae;
+  --skin-nav-active-shadow: inset 0 0 0 1px rgba(76, 214, 152, 0.4), 0 0 24px -8px rgba(76, 214, 152, 0.5);
+  --skin-check-shadow: 0 0 transparent;
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 18px;
+  --skin-overlay-radius: 18px;
+  --skin-control-radius: 10px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 6px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #12291f;
+  --skin-table-head-line: #12291f;
+  --skin-table-head-color: #cde8d9;
+  --skin-table-head-font: var(--app-font-mono);
+  --skin-table-head-size: 11px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 12px;
+  --skin-table-row-line: #eaf1ea;
+  --skin-table-row-hover: #f4f9f4;
+}
+
+/* ========================= TEMA: OSCURO «Cabina» ===========================
+   F10-THEME-05 (Carlos, 2026-10-22, «Cabina B · Cabina Líquida»): el negocio
+   de autos con la piel de Grafito Líquido —vidrio ahumado, píldoras, rótulos
+   mono— y el rojo racing #d92d3f en vez del celeste, con letra blanca (4.8:1).
+   Como TEXTO el rojo no se lee sobre el grafito (3.5:1): enlaces y activos van
+   en el rosa claro #ff8b96. «Cancelada» y «Eliminar» van en durazno #ffa585 A
+   PROPÓSITO: el salmón de la Cabina de antes era casi el mismo rosa del menú,
+   y una alerta no puede parecerse a la marca. Oscuro: `.dark` lo acompaña y
+   trae sus propios semánticos, como Grafito Líquido. */
 :root[data-theme="cabin"] {
-  --background: #1d1f24;
-  --foreground: #e8e9ed;
-  --card: #26282e;
-  --card-foreground: #e8e9ed;
-  --popover: #26282e;
-  --popover-foreground: #e8e9ed;
+  color-scheme: dark;
+  accent-color: #ff5a68;
+  --background: #121316;
+  --foreground: #ecedf0;
+  --card: #1b1c20;
+  --card-foreground: #ecedf0;
+  --popover: #1a1b1f;
+  --popover-foreground: #ecedf0;
   --primary: #d92d3f;
   --primary-foreground: #ffffff;
-  --secondary: #2e3037;
-  --secondary-foreground: #e8e9ed;
-  --muted: #2e3037;
-  --muted-foreground: #a0a4ac;
-  --accent: #2e3037;
+  --secondary: #25262b;
+  --secondary-foreground: #ecedf0;
+  --muted: #202125;
+  --muted-foreground: #9a9ea6;
+  --accent: #2a1c1f;
   --accent-foreground: #ff8b96;
-  --destructive: #ff8f85;
-  --destructive-foreground: #1d1f24;
-  --border: #393c43;
-  --input: #34363d;
-  --ring: #d92d3f;
-  --radius: 0.5rem;
-  --chart-1: #d92d3f;
-  --chart-2: #4cd08a;
-  --chart-3: #e3b452;
+  --destructive: #ffa585;
+  --destructive-foreground: #121316;
+  --border: #2c2e33;
+  --input: #2c2e33;
+  --ring: #ff5a68;
+  --radius: 0.875rem;
+  --chart-1: #ff5a68;
+  --chart-2: #4cc38a;
+  --chart-3: #f2c14e;
   --chart-4: #7c9aff;
   --chart-5: #6fd0d8;
   --sidebar: #0e0f12;
   --sidebar-foreground: #c9cbd2;
   --sidebar-primary: #ff5a68;
   --sidebar-primary-foreground: #0e0f12;
-  --sidebar-accent: #331b20;
+  --sidebar-accent: #2a1a1e;
   --sidebar-accent-foreground: #ff8b96;
-  --sidebar-border: #26282e;
+  --sidebar-border: #232428;
   --sidebar-ring: #ff5a68;
-  --sidebar-section: #a0a4ac;
+  --sidebar-section: #9a9ea6;
+  --success: #4cc38a;
+  --success-foreground: #0b1f15;
+  --success-soft: rgba(76, 195, 138, 0.14);
+  --warning: #f2c14e;
+  --warning-foreground: #241a03;
+  --warning-soft: rgba(242, 193, 78, 0.14);
+  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 88% -8%, rgba(255, 58, 82, 0.16), rgba(255, 58, 82, 0) 62%),
+    radial-gradient(760px 560px at 8% 102%, rgba(255, 58, 82, 0.07), rgba(255, 58, 82, 0) 60%),
+    linear-gradient(180deg, #121316 0%, #18191d 58%, #121316 100%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 800;
+  --skin-heading-tracking: -0.03em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-primary-text: #ff8b96;
+  --skin-glass: rgba(255, 255, 255, 0.045);
+  --skin-glass-hover: rgba(255, 255, 255, 0.08);
+  --skin-glass-thumb: rgba(255, 255, 255, 0.14);
+  --skin-glass-strong: rgba(24, 25, 29, 0.86);
+  --skin-blur: blur(24px) saturate(150%);
+  --skin-sidebar-bg: rgba(14, 15, 18, 0.86);
+  --skin-sidebar-line: rgba(255, 255, 255, 0.08);
+  --skin-well: rgba(0, 0, 0, 0.3);
+  --skin-well-focus: var(--skin-well);
+  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --skin-hair: rgba(255, 255, 255, 0.08);
+  --skin-hair-strong: rgba(255, 255, 255, 0.2);
+  --skin-highlight: rgba(255, 255, 255, 0.1);
+  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 46%);
+  --skin-rim: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.04) 34%,
+    rgba(255, 255, 255, 0.04) 66%,
+    rgba(255, 255, 255, 0.1)
+  );
+  --skin-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.65);
+  --skin-overlay-shadow: 0 28px 60px -10px rgba(0, 0, 0, 0.7);
+  --skin-scrim: rgba(0, 0, 0, 0.55);
+  --skin-accent-wash: rgba(255, 90, 104, 0.1);
+  --skin-accent-line: rgba(255, 90, 104, 0.34);
+  --skin-accent-ring: rgba(255, 90, 104, 0.62);
+  --skin-glow: rgba(255, 58, 82, 0.45);
+  --skin-primary-fill: none;
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 10px 30px -8px rgba(255, 58, 82, 0.55);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: var(--skin-glass-hover);
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), inset 0 1px 0 var(--skin-highlight);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: var(--skin-accent-wash);
+  --skin-nav-active-color: #ff8b96;
+  --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
+  --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
+  --skin-badge-font: var(--skin-label-font);
+  --skin-badge-size: var(--skin-label-size);
+  --skin-badge-tracking: 0.08em;
+  --skin-badge-transform: uppercase;
+  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 22px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 999px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 6px;
+  --skin-table-head-bg: rgba(255, 255, 255, 0.07);
+  --skin-table-head-line: rgba(255, 255, 255, 0.16);
+  --skin-table-head-color: #d5d7dc;
+  --skin-table-head-font: var(--skin-label-font);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: var(--skin-hair);
+  --skin-table-row-hover: var(--skin-glass);
 }
 
-/* ======================== TEMA: PASTEL «Algodón» ===========================
-   Rosa pastel (cosmética, spa, boutique): fondo rosa muy pálido y un rosa
-   medio dulce como primario — el fondo es el pastel, el primario sube medio
-   tono para leerse. «Eliminar» va en rojo franco, separado del rosa. */
+/* ========================= TEMA: CLARO «Algodón» ===========================
+   F10-THEME-05 (Carlos, 2026-10-22, «Algodón B · Algodón Líquido»): el gemelo
+   claro de Grafito Líquido en rosa —vidrio con aro blanco, píldoras, rótulos
+   mono y brillo rosa—. Conserva el rosa #e37e9e de siempre, pero con letra
+   CIRUELA casi negra encima (6.1:1): con letra blanca daba 2.7:1 y «Cobrar»
+   no se leía. Es el mismo truco de Grafito Líquido, tinta oscura sobre un
+   relleno claro. Como texto el rosa tampoco se lee: enlaces en frambuesa.
+   «Eliminar» sigue en rojo franco, separado del rosa. Claro. */
 :root[data-theme="cotton"] {
-  --background: #fdf2f5;
-  --foreground: #43323a;
+  color-scheme: light;
+  accent-color: #e37e9e;
+  --background: #fbeff3;
+  --foreground: #3a2830;
   --card: #ffffff;
-  --card-foreground: #43323a;
+  --card-foreground: #3a2830;
   --popover: #ffffff;
-  --popover-foreground: #43323a;
+  --popover-foreground: #3a2830;
   --primary: #e37e9e;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #3a0f1f;
   --secondary: #f6e6ea;
-  --secondary-foreground: #43323a;
+  --secondary-foreground: #3a2830;
   --muted: #f6e6ea;
-  --muted-foreground: #8a7078;
-  --accent: #f6e6ea;
-  --accent-foreground: #c25a7b;
-  --destructive: #c2404d;
+  --muted-foreground: #77616a;
+  --accent: #fbe3ea;
+  --accent-foreground: #a8355f;
+  --destructive: #b42318;
   --destructive-foreground: #ffffff;
   --border: #f3dbe2;
-  --input: #f3dbe2;
+  --input: #f0d3dd;
   --ring: #e37e9e;
-  --radius: 0.5rem;
+  --radius: 0.875rem;
   --chart-1: #e37e9e;
-  --chart-2: oklch(0.5861 0.1343 156.58);
-  --chart-3: oklch(0.6264 0.1248 70.45);
+  --chart-2: #2f6b47;
+  --chart-3: #c99118;
   --chart-4: #b08cc9;
   --chart-5: #7ba6c9;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #43323a;
+  --sidebar: #fdf4f7;
+  --sidebar-foreground: #5a4650;
   --sidebar-primary: #e37e9e;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary-foreground: #3a0f1f;
   --sidebar-accent: #fbe3ea;
-  --sidebar-accent-foreground: #c25a7b;
+  --sidebar-accent-foreground: #a8355f;
   --sidebar-border: #f3dbe2;
   --sidebar-ring: #e37e9e;
-  --sidebar-section: #8a7078;
+  --sidebar-section: #77616a;
+  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 88% -8%, rgba(227, 126, 158, 0.24), rgba(227, 126, 158, 0) 62%),
+    radial-gradient(760px 560px at 8% 102%, rgba(227, 126, 158, 0.11), rgba(227, 126, 158, 0) 60%),
+    linear-gradient(180deg, #fdf4f7 0%, #f9eaef 58%, #fbeff3 100%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 800;
+  --skin-heading-tracking: -0.03em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-primary-text: #a8355f;
+  --skin-glass: rgba(255, 255, 255, 0.62);
+  --skin-glass-hover: rgba(255, 255, 255, 0.55);
+  --skin-glass-thumb: rgba(255, 255, 255, 0.85);
+  --skin-glass-strong: rgba(255, 255, 255, 0.86);
+  --skin-blur: blur(24px) saturate(150%);
+  --skin-sidebar-bg: rgba(255, 251, 253, 0.6);
+  --skin-sidebar-line: rgba(67, 50, 58, 0.08);
+  --skin-well: rgba(67, 50, 58, 0.045);
+  --skin-well-focus: rgba(255, 255, 255, 0.75);
+  --skin-well-shadow: inset 0 1px 2px rgba(67, 50, 58, 0.06);
+  --skin-hair: rgba(67, 50, 58, 0.1);
+  --skin-hair-strong: rgba(67, 50, 58, 0.28);
+  --skin-highlight: rgba(255, 255, 255, 0.95);
+  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 46%);
+  --skin-rim: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.5) 34%,
+    rgba(255, 255, 255, 0.5) 66%,
+    rgba(255, 255, 255, 0.85)
+  );
+  --skin-shadow: 0 24px 50px -28px rgba(110, 40, 70, 0.35);
+  --skin-overlay-shadow: 0 28px 56px -28px rgba(110, 40, 70, 0.42);
+  --skin-scrim: rgba(58, 40, 48, 0.35);
+  --skin-accent-wash: rgba(227, 126, 158, 0.14);
+  --skin-accent-line: rgba(227, 126, 158, 0.45);
+  --skin-accent-ring: rgba(227, 126, 158, 0.75);
+  --skin-glow: rgba(227, 126, 158, 0.6);
+  --skin-primary-fill: none;
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 28px -8px rgba(227, 126, 158, 0.6);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: rgba(255, 255, 255, 0.55);
+  --skin-button-soft-shadow: inset 0 0 0 1px rgba(67, 50, 58, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --skin-nav-hover-bg: rgba(255, 255, 255, 0.55);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: var(--skin-accent-wash);
+  --skin-nav-active-color: #a8355f;
+  --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
+  --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
+  --skin-badge-font: var(--skin-label-font);
+  --skin-badge-size: var(--skin-label-size);
+  --skin-badge-tracking: 0.08em;
+  --skin-badge-transform: uppercase;
+  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 22px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 999px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 6px;
+  --skin-table-head-bg: rgba(67, 50, 58, 0.055);
+  --skin-table-head-line: rgba(67, 50, 58, 0.13);
+  --skin-table-head-color: #4a3540;
+  --skin-table-head-font: var(--skin-label-font);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: rgba(67, 50, 58, 0.07);
+  --skin-table-row-hover: rgba(255, 255, 255, 0.45);
 }
 
 /* ===================== TEMA: LA MARCA «SellPointy» =========================
-   Los colores de sellpointy.com, tal cual (apps/site/src/styles/tokens.css):
-   el fondo gris azulado del sitio, el azul #1e3fd8 como primario y el menú
-   lateral en el azul profundo #15309f, como la portada. Carlos lo eligió
-   entre tres propuestas el 2026-09-26 («Cobalto»). El contenido sigue CLARO
-   a propósito: un cajero pasa ocho horas frente a la pantalla de venta.
+   F10-THEME-05 (Carlos, 2026-10-22, «Marca A · Punto Azul»): la marca en
+   OSCURO, con la guía «El Punto» del sitio (SITIO-WEB-DISENO.md §2–§4 y
+   apps/site/src/styles/tokens.css, su modo oscuro): fondo #090c1f,
+   superficie #121735, azul #2747e0 con letra blanca (6.9:1) y el menú lateral
+   AZUL a sangre con el círculo hondo #15309f del hero asomando. Bricolage
+   Grotesque en los titulares, Instrument Sans en el texto y JetBrains Mono en
+   las cifras, como el sitio.
 
-   El amarillo #ffc42e del logotipo es ACENTO, no color de botón: con texto
-   blanco no se lee, y con texto oscuro se confunde con las advertencias, que
-   también son amarillas. Va en el anillo de foco (`--ring`), donde se nota
-   sin competir con nada. Tema claro: no enciende `.dark`, y los semánticos
-   (éxito, advertencia) son los de :root, como en todos los claros. */
+   Antes era claro «porque un cajero pasa ocho horas frente a la caja»; Carlos
+   lo quiso oscuro el 2026-10-22, y es el tema por defecto: el inicio de
+   sesión, el registro y el wizard ya se ven así.
+
+   El amarillo #ffc42e es ESCASO, como manda la guía: el punto que cierra cada
+   título (h1), el botón «Cobrar» —la acción más importante de la caja— y el
+   punto del logotipo. Como el amarillo es la marca, la ADVERTENCIA no puede
+   ser amarilla: va en naranja #ffa057. Y el azul no se lee como TEXTO sobre el
+   fondo noche (2.8:1): enlaces y activos van en #9db0ff. Oscuro: `.dark` lo
+   acompaña y trae sus propios semánticos. */
 :root[data-theme="sellpointy"] {
-  --background: #f4f5fa;
-  --foreground: #0d1233;
-  --card: #ffffff;
-  --card-foreground: #0d1233;
-  --popover: #ffffff;
-  --popover-foreground: #0d1233;
-  --primary: #1e3fd8;
+  color-scheme: dark;
+  accent-color: #2747e0;
+  --background: #090c1f;
+  --foreground: #ecefff;
+  --card: #121735;
+  --card-foreground: #ecefff;
+  --popover: #121735;
+  --popover-foreground: #ecefff;
+  --primary: #2747e0;
   --primary-foreground: #ffffff;
-  --secondary: #edf0fb;
-  --secondary-foreground: #0d1233;
-  --muted: #edf0fb;
-  --muted-foreground: #565d80;
-  --accent: #edf0fb;
-  --accent-foreground: #15309f;
-  --destructive: #d23f3f;
-  --destructive-foreground: #ffffff;
-  --border: #dfe2ee;
-  --input: #dfe2ee;
-  --ring: #ffc42e;
-  --radius: 0.5rem;
-  --chart-1: #1e3fd8;
-  --chart-2: oklch(0.5861 0.1343 156.58);
+  --secondary: #1a2046;
+  --secondary-foreground: #ecefff;
+  --muted: #161c40;
+  --muted-foreground: #a3a9cc;
+  --accent: #1b2350;
+  --accent-foreground: #9db0ff;
+  --destructive: #ff8f85;
+  --destructive-foreground: #090c1f;
+  --border: #262d55;
+  --input: #262d55;
+  --ring: #7a92ff;
+  --radius: 0.75rem;
+  --chart-1: #2747e0;
+  --chart-2: #4cc38a;
   --chart-3: #ffc42e;
-  --chart-4: #15309f;
-  --chart-5: #7c8ee6;
-  --sidebar: #15309f;
-  --sidebar-foreground: #e6eaff;
-  --sidebar-primary: #ffc42e;
-  --sidebar-primary-foreground: #0d1233;
-  --sidebar-accent: #1e3fd8;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2747e0;
+  --chart-4: #9db0ff;
+  --chart-5: #6fd0d8;
+  --sidebar: #1e3fd8;
+  --sidebar-foreground: #dfe4fb;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #1e3fd8;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #1e3fd8;
+  --sidebar-border: #3a57e8;
   --sidebar-ring: #ffc42e;
-  --sidebar-section: #ffc42e;
+  --sidebar-section: #ccd5f8;
+  --success: #4cc38a;
+  --success-foreground: #0b1f15;
+  --success-soft: rgba(76, 195, 138, 0.14);
+  --warning: #ffa057;
+  --warning-foreground: #2a1503;
+  --warning-soft: rgba(255, 160, 87, 0.14);
+  --app-font-sans: 'Instrument Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 88% -8%, rgba(39, 71, 224, 0.22), rgba(39, 71, 224, 0) 62%),
+    radial-gradient(760px 560px at 8% 102%, rgba(39, 71, 224, 0.08), rgba(39, 71, 224, 0) 60%),
+    linear-gradient(180deg, #090c1f 0%, #0d1129 58%, #090c1f 100%);
+  --skin-text-weight: 500;
+  --skin-heading-font: 'Bricolage Grotesque Variable', 'Instrument Sans Variable', sans-serif;
+  --skin-heading-weight: 700;
+  --skin-heading-tracking: -0.03em;
+  --skin-title-dot: #ffc42e;
+  --skin-title-dot-display: inline-block;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-primary-text: #9db0ff;
+  --skin-glass: #121735;
+  --skin-glass-hover: rgba(236, 239, 255, 0.08);
+  --skin-glass-thumb: rgba(236, 239, 255, 0.14);
+  --skin-glass-strong: rgba(18, 23, 53, 0.9);
+  --skin-blur: blur(24px) saturate(150%);
+  /* El círculo va en PÍXELES desde la esquina: el menú mide lo que mida su
+     lista (1790 px con el backoffice) y en porcentajes se iba fuera de vista. */
+  --skin-sidebar-bg:
+    radial-gradient(circle at calc(100% + 70px) -70px, #15309f 0 190px, rgba(21, 48, 159, 0) 190.5px),
+    linear-gradient(180deg, #1e3fd8 0%, #1a37c2 100%);
+  --skin-sidebar-line: rgba(255, 255, 255, 0.12);
+  --skin-well: rgba(3, 6, 22, 0.5);
+  --skin-well-focus: var(--skin-well);
+  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --skin-hair: rgba(236, 239, 255, 0.12);
+  --skin-hair-strong: rgba(236, 239, 255, 0.24);
+  --skin-highlight: rgba(255, 255, 255, 0.06);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(rgba(236, 239, 255, 0.12), rgba(236, 239, 255, 0.12));
+  --skin-shadow: 0 24px 50px -30px rgba(3, 8, 40, 0.9);
+  --skin-overlay-shadow: 0 28px 60px -10px rgba(3, 8, 40, 0.85);
+  --skin-scrim: rgba(3, 6, 22, 0.6);
+  --skin-accent-wash: rgba(122, 146, 255, 0.14);
+  --skin-accent-line: rgba(122, 146, 255, 0.4);
+  --skin-accent-ring: #7a92ff;
+  --skin-glow: rgba(39, 71, 224, 0.6);
+  --skin-primary-fill: none;
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 26px -10px rgba(39, 71, 224, 0.7);
+  --skin-charge-bg: #ffc42e;
+  --skin-charge-color: #0d1233;
+  --skin-charge-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 14px 36px -12px rgba(255, 196, 46, 0.55);
+  --skin-button-soft-bg: rgba(236, 239, 255, 0.08);
+  --skin-button-soft-shadow: inset 0 0 0 1px rgba(236, 239, 255, 0.12);
+  --skin-nav-hover-bg: rgba(255, 255, 255, 0.12);
+  --skin-nav-hover-color: #ffffff;
+  --skin-nav-active-bg: #ffffff;
+  --skin-nav-active-color: #1e3fd8;
+  --skin-nav-active-shadow: 0 8px 20px -10px rgba(3, 8, 40, 0.7);
+  --skin-check-shadow: 0 0 12px -2px rgba(39, 71, 224, 0.7);
+  --skin-badge-font: var(--skin-label-font);
+  --skin-badge-size: var(--skin-label-size);
+  --skin-badge-tracking: 0.08em;
+  --skin-badge-transform: uppercase;
+  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
+  --skin-card-radius: 22px;
+  --skin-overlay-radius: 22px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 999px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 6px;
+  --skin-table-head-bg: rgba(236, 239, 255, 0.05);
+  --skin-table-head-line: rgba(236, 239, 255, 0.16);
+  --skin-table-head-color: #c5cae6;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.14em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: rgba(236, 239, 255, 0.08);
+  --skin-table-row-hover: rgba(236, 239, 255, 0.04);
 }
 
 /* ======================== TEMA: OSCURO «Carbón» ============================
@@ -433,9 +1195,285 @@
   --sidebar-section: #a89e91;
 }
 
+/* ===================== TEMA: OSCURO «Grafito Líquido» ======================
+   F10-THEME-05 (Carlos, 2026-10-22, del artefacto «Temas modernos
+   SellPointy»): grafito NEUTRO (R≈G≈B) —el azul nunca es fondo, solo luz o
+   acento—, vidrio ahumado con aro especular y celeste con brillo, en Manrope
+   con IBM Plex Mono para cifras y etiquetas. Es el primer tema con PIEL:
+   además de los colores trae los tokens `--skin-*` con que se viste cada
+   tipo de elemento (ver «LA PIEL», al final). Oscuro: `.dark` lo acompaña,
+   pero trae sus propios semánticos, más vivos sobre el grafito. */
+:root[data-theme="liquid"] {
+  color-scheme: dark;
+  accent-color: #7fd4f6;
+  --background: #141517;
+  --foreground: #f2f4f5;
+  --card: #1d1f22;
+  --card-foreground: #f2f4f5;
+  --popover: #1c1e21;
+  --popover-foreground: #f2f4f5;
+  --primary: #7fd4f6;
+  --primary-foreground: #0e1b24;
+  --secondary: #26282b;
+  --secondary-foreground: #f2f4f5;
+  --muted: #212326;
+  --muted-foreground: #8c9298;
+  --accent: #24272a;
+  --accent-foreground: #7fd4f6;
+  --destructive: #f28b82;
+  --destructive-foreground: #141517;
+  --border: #2c2f33;
+  --input: #2c2f33;
+  --ring: #7fd4f6;
+  --radius: 0.875rem;
+  --chart-1: #7fd4f6;
+  --chart-2: #4cc38a;
+  --chart-3: #f2c14e;
+  --chart-4: #b79cff;
+  --chart-5: #26a9e0;
+  --sidebar: #17191c;
+  --sidebar-foreground: #b9bec3;
+  --sidebar-primary: #7fd4f6;
+  --sidebar-primary-foreground: #0e1b24;
+  --sidebar-accent: #20292f;
+  --sidebar-accent-foreground: #7fd4f6;
+  --sidebar-border: #26292d;
+  --sidebar-ring: #7fd4f6;
+  --sidebar-section: #8c9298;
+  --success: #4cc38a;
+  --success-foreground: #0b1f15;
+  --success-soft: rgba(76, 195, 138, 0.14);
+  --warning: #f2c14e;
+  --warning-foreground: #241a03;
+  --warning-soft: rgba(242, 193, 78, 0.14);
+  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  /* La piel: un token por cosa que se viste. */
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 88% -8%, rgba(38, 169, 224, 0.16), rgba(38, 169, 224, 0) 62%),
+    radial-gradient(760px 560px at 8% 102%, rgba(38, 169, 224, 0.07), rgba(38, 169, 224, 0) 60%),
+    linear-gradient(180deg, #141517 0%, #1a1c1f 58%, #141517 100%);
+  --skin-text-weight: 500;
+  --skin-heading-weight: 800;
+  --skin-heading-tracking: -0.03em;
+  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
+     valores de siempre: este tema no cambia. */
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: var(--primary);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-glass: rgba(255, 255, 255, 0.045);
+  --skin-glass-hover: rgba(255, 255, 255, 0.08);
+  --skin-glass-thumb: rgba(255, 255, 255, 0.14);
+  --skin-glass-strong: rgba(26, 28, 31, 0.84);
+  --skin-blur: blur(24px) saturate(150%);
+  --skin-well: rgba(0, 0, 0, 0.28);
+  --skin-well-focus: var(--skin-well);
+  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --skin-hair: rgba(255, 255, 255, 0.08);
+  --skin-hair-strong: rgba(255, 255, 255, 0.2);
+  --skin-highlight: rgba(255, 255, 255, 0.1);
+  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 46%);
+  --skin-rim: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.04) 34%,
+    rgba(255, 255, 255, 0.04) 66%,
+    rgba(255, 255, 255, 0.1)
+  );
+  --skin-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.65);
+  --skin-overlay-shadow: 0 28px 60px -10px rgba(0, 0, 0, 0.7);
+  --skin-scrim: rgba(0, 0, 0, 0.55);
+  --skin-accent-wash: rgba(127, 212, 246, 0.1);
+  --skin-accent-line: rgba(127, 212, 246, 0.34);
+  --skin-accent-ring: rgba(127, 212, 246, 0.62);
+  --skin-glow: rgba(38, 169, 224, 0.45);
+  --skin-primary-fill: none;
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 30px -8px rgba(38, 169, 224, 0.55);
+  --skin-button-soft-bg: var(--skin-glass-hover);
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), inset 0 1px 0 var(--skin-highlight);
+  --skin-nav-active-bg: var(--skin-accent-wash);
+  --skin-nav-active-color: var(--primary);
+  --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
+  --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
+  --skin-badge-font: var(--skin-label-font);
+  --skin-badge-size: var(--skin-label-size);
+  --skin-badge-tracking: 0.08em;
+  --skin-badge-transform: uppercase;
+  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 22px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 999px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 6px;
+  /* Encabezado de tabla «banda de vidrio» (Carlos, 2026-10-22, propuesta A). */
+  --skin-table-head-bg: rgba(255, 255, 255, 0.07);
+  --skin-table-head-line: rgba(255, 255, 255, 0.16);
+  --skin-table-head-color: #d3d7db;
+  --skin-table-head-font: var(--skin-label-font);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: var(--skin-hair);
+  --skin-table-row-hover: var(--skin-glass);
+}
+
+/* ======================= TEMA: CLARO «Niebla Cobalto» ======================
+   F10-THEME-05 (Carlos, 2026-10-22, «Claro A» del artefacto «Temas modernos
+   SellPointy»): el claro con piel. Niebla fría con luz cobalto arriba y un
+   rescoldo coral abajo, tarjetas de porcelana con sombra azulada, el menú
+   activo RELLENO de cobalto y títulos de tabla en minúsculas sobre una banda
+   gris azulada. Plus Jakarta Sans, con DM Mono para las cifras. Claro: usa
+   los semánticos de `:root` (éxito y alerta son universales). */
+:root[data-theme="cobalt"] {
+  color-scheme: light;
+  accent-color: #2846e8;
+  --background: #f1f4f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2846e8;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f7;
+  --secondary-foreground: #0f172a;
+  --muted: #eef1f7;
+  --muted-foreground: #5b6779;
+  --accent: #eef2ff;
+  --accent-foreground: #1a2fb0;
+  --destructive: #c8302a;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2846e8;
+  --radius: 0.75rem;
+  --chart-1: #2846e8;
+  --chart-2: #16a06d;
+  --chart-3: #e8a23b;
+  --chart-4: #ff7a3d;
+  --chart-5: #7c5cff;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: #2846e8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2ff;
+  --sidebar-accent-foreground: #1a2fb0;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #2846e8;
+  --sidebar-section: #64748b;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 0% 0%, rgba(40, 70, 232, 0.11), rgba(40, 70, 232, 0) 60%),
+    radial-gradient(760px 520px at 100% 100%, rgba(255, 122, 61, 0.08), rgba(255, 122, 61, 0) 60%);
+  --skin-text-weight: 500;
+  /* 750 y -0.01em, no los 800 y -0.03em del lienzo: el espacio de Plus
+     Jakarta Sans es angosto y a 14 px los títulos de tarjeta se leían
+     pegados («Másvendidos»; visto en el Panel, 2026-10-22). */
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
+  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
+     valores de siempre: este tema no cambia. */
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: var(--primary);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-numbers-font: var(--app-font-mono);
+  /* DM Mono no tiene seminegrita: sin esto, el navegador engorda a mano la
+     de 500 y las cifras quedan manchadas. Mejor la 500 limpia. */
+  --skin-numbers-synthesis: none;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-glass: rgba(255, 255, 255, 0.82);
+  --skin-glass-hover: rgba(40, 70, 232, 0.06);
+  --skin-glass-thumb: #eef1f7;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-well: #f4f6fb;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e2e8f0;
+  --skin-hair-strong: #cbd5e1;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  /* El aro blanco de la porcelana: tapa el borde gris de la tarjeta. */
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95));
+  --skin-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05), 0 18px 40px -22px rgba(30, 41, 90, 0.28),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --skin-overlay-shadow: 0 2px 4px rgba(15, 23, 42, 0.04), 0 24px 48px -20px rgba(30, 41, 90, 0.35);
+  --skin-scrim: rgba(15, 23, 42, 0.32);
+  --skin-accent-wash: rgba(40, 70, 232, 0.14);
+  --skin-accent-line: rgba(40, 70, 232, 0.3);
+  --skin-accent-ring: #2846e8;
+  --skin-glow: rgba(40, 70, 232, 0.55);
+  /* Un brillo BLANCO sobre el color del botón, no un cobalto fijo: sobre el
+     primario da el #3a57f0 → #2846e8 del diseño, y un botón que traiga su
+     propio color (verde, rojo) lo conserva. */
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 12px 24px -10px rgba(40, 70, 232, 0.65);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(15, 23, 42, 0.05);
+  --skin-nav-active-bg: #2846e8;
+  --skin-nav-active-color: #ffffff;
+  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 22px -10px rgba(40, 70, 232, 0.75);
+  --skin-check-shadow: 0 4px 10px -4px rgba(40, 70, 232, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #eef2f8;
+  --skin-table-head-line: #dce3ee;
+  --skin-table-head-color: #334155;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #eef2f7;
+  --skin-table-row-hover: #f5f7ff;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
   --font-brand: 'Bricolage Grotesque Variable', 'Geist Variable', sans-serif;
   /* El azul de la MARCA, fijo: no cambia con el tema del negocio (a
      diferencia de --primary, que un negocio pinta de terracota o de verde). */
@@ -508,4 +1546,309 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+}
+
+/* ============================================================================
+   LA PIEL — cada tipo de elemento con el estilo de su tema (F10-THEME-05)
+   ============================================================================
+   Carlos, 2026-10-22: «que cada tipo de elemento (menú, tablas, cards,
+   buscadores, letra, selectores, radios, checkbox, campos…) tenga su propio
+   estilo definido por el tema». Hasta aquí un tema solo cambiaba COLORES: la
+   forma, la letra, las sombras y las superficies estaban escritas en cada
+   componente, y por eso todos se veían iguales con otro color.
+
+   - Solo corre con `.skinned`, que `applyTheme` enciende en los temas que el
+     catálogo marca `skinned`. Los demás quedan EXACTAMENTE como estaban, y con
+     ellos las capturas del manual.
+   - Va FUERA de las capas de Tailwind a propósito: una regla sin capa le gana
+     a cualquier utilidad, así que la piel manda sin tocar las clases de cada
+     componente.
+   - Encuentra cada cosa por su `data-slot` (los de shadcn y los que se
+     agregaron al menú, la barra y el diálogo) o por su elemento HTML (`th`,
+     `input`, `select`, `textarea`): nunca por una clase de utilidad.
+   - Cada valor sale de un token `--skin-*` del bloque del tema: otro tema con
+     piel solo define los suyos. `themes.test.ts` exige que estén todos. */
+
+/* Letra: el texto, los títulos y las cifras. */
+.skinned body {
+  font-weight: var(--skin-text-weight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.skinned :is(h1, h2, [data-slot="card-title"]) {
+  font-family: var(--skin-heading-font);
+  font-weight: var(--skin-heading-weight);
+  letter-spacing: var(--skin-heading-tracking);
+}
+/* El punto que cierra el título de cada pantalla, como el titular de
+   sellpointy.com («Tus ventas son el punto●»). Solo lo enciende el tema de la
+   marca; en los demás, `display: none`. */
+.skinned h1::after {
+  content: "";
+  display: var(--skin-title-dot-display);
+  width: 0.22em;
+  height: 0.22em;
+  margin-left: 0.08em;
+  border-radius: 50%;
+  background-color: var(--skin-title-dot);
+}
+.skinned :is(.tabular-nums, kbd) {
+  font-family: var(--skin-numbers-font);
+  font-synthesis-weight: var(--skin-numbers-synthesis);
+}
+/* El primario como TEXTO (enlaces, «Ver», avisos). Un primario oscuro o
+   saturado que con letra blanca es un buen botón —el azul de la marca, el rojo
+   de Cabina— no se lee como letra sobre su fondo; y el rosa de Algodón,
+   claro, tampoco sobre el suyo. Cada tema dice con qué color se escribe. Es
+   la única regla de la piel que busca una clase de utilidad: el primario como
+   texto no tiene `data-slot`, y son decenas de lugares. */
+.skinned :is(.text-primary, .hover\:text-primary:hover) {
+  color: var(--skin-primary-text);
+}
+
+/* El marco de la app: el fondo con luz, el menú y la barra de vidrio. */
+.skinned [data-slot="app-shell"] {
+  background-color: var(--background);
+  background-image: var(--skin-app-backdrop);
+  background-attachment: fixed;
+}
+.skinned :is([data-slot="sidebar"], [data-slot="topbar"]) {
+  -webkit-backdrop-filter: var(--skin-blur);
+  backdrop-filter: var(--skin-blur);
+}
+/* El menú tiene su propio fondo: en los bitono (Café Expreso, Esmeralda
+   Bosque, SellPointy) es oscuro o azul aunque el contenido no lo sea. */
+.skinned [data-slot="sidebar"] {
+  border-color: var(--skin-sidebar-line);
+  background: var(--skin-sidebar-bg);
+}
+.skinned [data-slot="topbar"] {
+  border-color: var(--skin-hair);
+  background-color: var(--skin-glass-strong);
+  box-shadow: inset 0 1px 0 var(--skin-highlight);
+}
+
+/* El menú: renglones con la forma del tema; el activo, con lo que el tema
+   diga (aro y brillo en Grafito Líquido, relleno de cobalto en Niebla). */
+.skinned [data-slot="sidebar"] nav :is(a, button) {
+  border-radius: var(--skin-nav-item-radius);
+  font-weight: 600;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+.skinned [data-slot="sidebar"] nav :is(a, button):hover {
+  background-color: var(--skin-nav-hover-bg);
+  color: var(--skin-nav-hover-color);
+}
+.skinned [data-slot="sidebar"] nav a:is(.active, [aria-current="page"]) {
+  background-color: var(--skin-nav-active-bg);
+  color: var(--skin-nav-active-color);
+  font-weight: 700;
+  box-shadow: var(--skin-nav-active-shadow);
+}
+.skinned [data-slot="nav-section"] {
+  font-family: var(--skin-label-font);
+  font-size: var(--skin-label-size);
+  font-weight: var(--skin-label-weight);
+  letter-spacing: var(--skin-label-tracking);
+}
+
+/* Tarjetas: vidrio con brillo arriba y el aro especular de 1 px. */
+.skinned [data-slot="card"] {
+  position: relative;
+  border-color: var(--skin-hair);
+  border-radius: var(--skin-card-radius);
+  background: var(--skin-sheen), var(--skin-glass);
+  box-shadow:
+    inset 0 1px 0 var(--skin-highlight),
+    var(--skin-shadow);
+}
+.skinned [data-slot="card"]::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--skin-rim);
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* Botones: el primario con luz propia; los demás, «suaves» (de vidrio en
+   Grafito Líquido, blancos con filo en Niebla Cobalto). */
+.skinned [data-slot="button"] {
+  border-radius: var(--skin-button-radius);
+  font-weight: 700;
+}
+.skinned [data-slot="button"][data-variant="default"] {
+  background-image: var(--skin-primary-fill);
+  box-shadow: var(--skin-primary-shadow);
+}
+.skinned [data-slot="button"][data-variant="default"]:hover:not(:disabled) {
+  background-color: var(--primary);
+  filter: brightness(1.08);
+}
+/* Deshabilitado no brilla: con el resplandor, un botón apagado parecía
+   prendido a medias (visto en Mi perfil, 2026-10-22). */
+.skinned [data-slot="button"]:disabled {
+  box-shadow: none;
+}
+/* «Cobrar», la acción más importante de la caja (`data-skin="charge"`). En
+   casi todos los temas es un primario más; en el de la marca es el botón
+   AMARILLO del sitio, el único que lleva ese color. */
+.skinned [data-slot="button"][data-skin="charge"] {
+  background-color: var(--skin-charge-bg);
+  color: var(--skin-charge-color);
+}
+.skinned [data-slot="button"][data-skin="charge"]:not(:disabled) {
+  box-shadow: var(--skin-charge-shadow);
+}
+.skinned [data-slot="button"][data-skin="charge"]:hover:not(:disabled) {
+  background-color: var(--skin-charge-bg);
+}
+.skinned [data-slot="button"]:is([data-variant="outline"], [data-variant="secondary"]) {
+  border-color: transparent;
+  background-color: var(--skin-button-soft-bg);
+  box-shadow: var(--skin-button-soft-shadow);
+}
+.skinned
+  [data-slot="button"]:is(
+    [data-variant="outline"],
+    [data-variant="secondary"],
+    [data-variant="ghost"]
+  ):hover:not(:disabled) {
+  background-color: var(--skin-glass-thumb);
+  color: var(--foreground);
+}
+
+/* Campos (texto, buscadores, selectores, áreas de texto): un «pozo» hundido;
+   al enfocarlos, el aro del acento. Un campo COMPUESTO (precio con «$» y
+   «MXN», cantidad) es un contenedor `input-group` que hace de campo con un
+   `input-bare` transparente adentro: el pozo es el contenedor, nunca el input
+   de adentro (si no, quedaba un campo dentro de otro). */
+.skinned
+  :is(
+    input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="file"],
+      [type="color"],
+      [data-slot="input-bare"]
+    ),
+    select,
+    textarea,
+    [data-slot="input-group"]
+  ) {
+  border-color: var(--skin-hair);
+  border-radius: var(--skin-control-radius);
+  background-color: var(--skin-well);
+  box-shadow: var(--skin-well-shadow);
+}
+.skinned
+  :is(
+    input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="file"],
+      [type="color"],
+      [data-slot="input-bare"]
+    ):focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    [data-slot="input-group"]:focus-within
+  ) {
+  border-color: var(--skin-accent-ring);
+  outline: none;
+  background-color: var(--skin-well-focus);
+  box-shadow:
+    0 0 0 4px var(--skin-accent-wash),
+    var(--skin-well-shadow);
+}
+.skinned :is(input, select, textarea)[aria-invalid="true"],
+.skinned [data-slot="input-group"]:has([aria-invalid="true"]) {
+  border-color: var(--destructive);
+}
+
+/* Casillas y radios: hundidos sin marcar; con brillo al marcarlos. */
+.skinned [data-slot="checkbox"] {
+  border-color: var(--skin-hair-strong);
+  border-radius: var(--skin-checkbox-radius);
+  background-color: var(--skin-well);
+}
+.skinned :is([data-slot="checkbox"], [data-slot="radio-group-item"])[data-state="checked"] {
+  border-color: var(--primary);
+  box-shadow: var(--skin-check-shadow);
+}
+.skinned [data-slot="checkbox"][data-state="checked"] {
+  background-color: var(--primary);
+}
+
+/* Badges: píldora con la letra del tema (mono en mayúsculas con aro en
+   Grafito Líquido; sans en minúsculas y sin aro en Niebla Cobalto). */
+.skinned [data-slot="badge"] {
+  border-radius: var(--skin-badge-radius);
+  font-family: var(--skin-badge-font);
+  font-size: var(--skin-badge-size);
+  font-weight: 600;
+  letter-spacing: var(--skin-badge-tracking);
+  text-transform: var(--skin-badge-transform);
+  box-shadow: var(--skin-badge-ring);
+}
+
+/* Tablas: el encabezado es una «banda de vidrio» —una franja más clara que
+   las filas, con su línea abajo y la letra mono clara— (Carlos, 2026-10-22,
+   propuesta A: el de antes, mono chico y gris sobre nada, no hacía contraste).
+   Vale para TODAS las tablas, backoffice incluido: todas ponen su fila de
+   títulos en `<thead>`. El relleno vertical lo fija el tema porque algunas
+   lo escribían de 4 px (`py-1`) y la banda quedaba como una tira apretada. */
+.skinned thead tr {
+  border-color: var(--skin-table-head-line);
+  background-color: var(--skin-table-head-bg);
+}
+.skinned thead th {
+  padding-block: var(--skin-table-head-padding-block);
+  border-bottom: 1px solid var(--skin-table-head-line);
+  color: var(--skin-table-head-color);
+  font-family: var(--skin-table-head-font);
+  font-size: var(--skin-table-head-size);
+  font-weight: var(--skin-table-head-weight);
+  letter-spacing: var(--skin-table-head-tracking);
+  text-transform: var(--skin-table-head-transform);
+}
+.skinned tbody tr {
+  border-color: var(--skin-table-row-line);
+}
+.skinned tbody tr:hover {
+  background-color: var(--skin-table-row-hover);
+}
+
+/* Lo que flota (menús desplegables y diálogos): vidrio ahumado y desenfoque. */
+.skinned :is([data-slot="dropdown-menu-content"], [data-slot="dialog-content"]) {
+  border-color: var(--skin-hair);
+  border-radius: var(--skin-overlay-radius);
+  background: var(--skin-sheen), var(--skin-glass-strong);
+  -webkit-backdrop-filter: var(--skin-blur);
+  backdrop-filter: var(--skin-blur);
+  box-shadow:
+    inset 0 1px 0 var(--skin-highlight),
+    var(--skin-overlay-shadow);
+}
+.skinned [data-slot="dropdown-menu-item"] {
+  border-radius: var(--skin-control-radius);
+}
+.skinned [data-slot="dialog-overlay"] {
+  background-color: var(--skin-scrim);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }

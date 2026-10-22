@@ -72,6 +72,7 @@ function MoneyInput({
 
   return (
     <div
+      data-slot="input-group"
       className={cn(
         // Las mismas clases de `Input`, en el contenedor: el borde y el anillo
         // de foco abrazan prefijo, número y sufijo como una sola pieza.
@@ -91,6 +92,7 @@ function MoneyInput({
         type="text"
         inputMode="decimal"
         autoComplete="off"
+        data-slot="input-bare"
         className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
         value={value}
         disabled={disabled}

@@ -63,6 +63,7 @@ function NumberField({
     <div className={cn("flex flex-col gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
       <div
+        data-slot="input-group"
         className={cn(
           "flex h-9 w-full min-w-0 items-center gap-2 rounded-md border border-input bg-background px-3 py-1 text-base transition-[color,box-shadow] md:text-sm",
           "focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
@@ -75,6 +76,7 @@ function NumberField({
           type="text"
           inputMode={decimals > 0 ? "decimal" : "numeric"}
           autoComplete="off"
+          data-slot="input-bare"
           className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           value={value}
           disabled={disabled}

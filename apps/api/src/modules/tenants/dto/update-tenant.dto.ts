@@ -73,8 +73,8 @@ export const updateTenantSchema = z
     region: z.string().trim().min(1).max(8).nullable().optional(),
     // El tema del negocio (2026-08-25/26): catálogo cerrado, sin CHECK SQL —
     // mismo criterio que currency/country. Cinco se ofrecen en el wizard; los
-    // nueve, desde Mi perfil. Un negocio nuevo nace con 'sellpointy' (DEFAULT
-    // de la columna, F10-THEME-04).
+    // diez, desde Mi perfil (Grafito Líquido, F10-THEME-05, es el décimo).
+    // Un negocio nuevo nace con 'sellpointy' (DEFAULT de la columna, F10-THEME-04).
     theme: z
       .enum([
         "light",
@@ -86,6 +86,11 @@ export const updateTenantSchema = z
         "cotton",
         "charcoal",
         "sellpointy",
+        "liquid",
+        "cobalt",
+        "espresso",
+        "jade",
+        "forest",
       ])
       .optional(),
     // F7-POS-05: "Vender sin existencias". En planes CON control de stock lo

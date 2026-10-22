@@ -363,6 +363,8 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
       <div className="flex gap-2">
         <Button
           type="button"
+          // El mismo «Cobrar» de la caja: el tema de la marca lo pinta de amarillo.
+          data-skin="charge"
           className="h-12 flex-1"
           // `isPending` bloquea el segundo clic. Es la primera red, no la
           // única: la que de verdad impide el doble cobro es la clave de

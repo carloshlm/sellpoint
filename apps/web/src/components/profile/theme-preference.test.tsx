@@ -57,13 +57,44 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
   });
 
   /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: las dos tandas y el de la marca (2026-09-26). */
-  it("ofrece los NUEVE temas, segunda tanda y marca incluidas", () => {
+  it("ofrece los CATORCE temas, segunda tanda, marca y los nuevos con piel incluidos", () => {
     renderCard(demoUser(["tenants:manage"]));
 
-    expect(screen.getAllByRole("radio")).toHaveLength(9);
-    for (const nombre of ["Esmeralda", "Cabina", "Algodón", "Carbón", "SellPointy"]) {
+    expect(screen.getAllByRole("radio")).toHaveLength(14);
+    for (const nombre of [
+      "Esmeralda",
+      "Cabina",
+      "Algodón",
+      "Carbón",
+      "SellPointy",
+      "Grafito Líquido",
+      "Niebla Cobalto",
+      "Café Expreso",
+      "Esmeralda Jade",
+      "Esmeralda Bosque",
+    ]) {
       expect(screen.getByRole("radio", { name: nombre })).toBeInTheDocument();
     }
+  });
+
+  /**
+   * F10-THEME-05 — Grafito Líquido es oscuro y además trae PIEL: elegirlo
+   * enciende las dos clases, y se guarda como cualquier otro.
+   */
+  it("elegir Grafito Líquido enciende el oscuro y la piel, y lo guarda", async () => {
+    const user = userEvent.setup();
+    const actor = demoUser(["tenants:manage"]);
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, theme: "liquid" });
+    renderCard(actor);
+
+    await user.click(screen.getByRole("radio", { name: "Grafito Líquido" }));
+
+    expect(document.documentElement.dataset.theme).toBe("liquid");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(document.documentElement.classList.contains("skinned")).toBe(true);
+    await waitFor(() => {
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ theme: "liquid" });
+    });
   });
 
   it("elegir uno de la segunda tanda re-pinta y persiste igual que los básicos", async () => {

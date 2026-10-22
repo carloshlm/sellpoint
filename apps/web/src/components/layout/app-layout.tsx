@@ -167,7 +167,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isPlatformAdmin = useAuthStore((state) => state.user?.isPlatformAdmin === true);
 
   return (
-    <div className="flex min-h-dvh bg-background text-foreground">
+    <div data-slot="app-shell" className="flex min-h-dvh bg-background text-foreground">
       {expanded && (
         <button
           type="button"
@@ -179,6 +179,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
       <aside
         id="app-sidebar"
+        data-slot="sidebar"
         className={
           expanded
             ? "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:static"
@@ -235,6 +236,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("common.layout.nav.backoffice")}
@@ -285,6 +287,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("pos.title")}
@@ -348,6 +351,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("catalogs.nav.group")}
@@ -403,6 +407,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("catalogs.nav.customGroup")}
@@ -445,6 +450,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("inventory.nav.group")}
@@ -490,6 +496,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("reports.nav.group")}
@@ -518,6 +525,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {grupo.label}
@@ -551,6 +559,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && (
                 <span
                   aria-hidden="true"
+                  data-slot="nav-section"
                   className="px-3 pt-2 text-xs font-semibold text-sidebar-section uppercase"
                 >
                   {t("common.layout.nav.system")}
@@ -612,7 +621,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             es qué no se puede hacer, antes de intentarlo. */}
         <OfflineBanner />
 
-        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4">
+        <header
+          data-slot="topbar"
+          className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4"
+        >
           <button
             type="button"
             aria-label={t("common.layout.sidebarToggle")}

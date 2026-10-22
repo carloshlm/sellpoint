@@ -151,6 +151,7 @@ export function Dialog({
     // biome-ignore lint/a11y/useKeyWithClickEvents: el teclado ya cierra por Escape (listener global de este componente); duplicar un keydown en el backdrop no aporta accesibilidad
     <div
       data-testid="dialog-backdrop"
+      data-slot="dialog-overlay"
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
       onClick={(event) => {
         // Solo el click DIRECTO al fondo cierra: un click dentro del panel
@@ -166,6 +167,7 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        data-slot="dialog-content"
         className="max-h-full w-full max-w-3xl overflow-y-auto rounded-lg border bg-background p-6 shadow-lg outline-none"
       >
         <div className="mb-4 flex items-start justify-between gap-4">

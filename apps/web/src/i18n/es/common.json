@@ -269,7 +269,12 @@
       "cabin": "Cabina",
       "cotton": "Algodón",
       "charcoal": "Carbón",
-      "sellpointy": "SellPointy"
+      "sellpointy": "SellPointy",
+      "liquid": "Grafito Líquido",
+      "cobalt": "Niebla Cobalto",
+      "espresso": "Café Expreso",
+      "jade": "Esmeralda Jade",
+      "forest": "Esmeralda Bosque"
     }
   },
   "welcome": "Bienvenido a SellPointy",
