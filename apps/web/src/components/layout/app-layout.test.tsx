@@ -212,3 +212,38 @@ describe("el logotipo del sidebar", () => {
     expect(oscuro?.className).toContain("dark:block");
   });
 });
+
+/**
+ * El menú de usuario (Carlos, 2026-10-22).
+ *
+ * Con la piel de los temas, la barra superior lleva `backdrop-filter` y se
+ * vuelve su propio contexto de apilamiento: el `z-50` del menú solo valía
+ * DENTRO de ella, y las tarjetas del contenido (`position: relative`) lo
+ * tapaban — «Cerrar sesión» incluido, en producción. jsdom no calcula capas:
+ * la barrera fija la causa (la barra va por encima del contenido) y el
+ * navegador verificó el efecto.
+ */
+describe("el menú de usuario", () => {
+  it("la barra superior va por encima del contenido: si no, las tarjetas tapan el menú", () => {
+    const lineas = readFileSync(LAYOUT, "utf-8").split("\n");
+    const barra = lineas.findIndex((linea) => linea.includes('data-slot="topbar"'));
+    const clases = lineas.slice(barra).find((linea) => linea.includes("className="));
+
+    expect(barra).toBeGreaterThan(-1);
+    expect(clases).toContain("relative");
+    expect(clases).toContain("z-30");
+  });
+
+  it("el botón se llama por el nombre y el menú abre con el nombre completo y el correo", async () => {
+    const user = userEvent.setup();
+    await renderLayout();
+
+    // El ícono de perfil y la flecha son decoración: el nombre accesible sigue siendo «Ana».
+    await user.click(screen.getByRole("button", { name: "Ana" }));
+
+    const menu = screen.getByRole("menu", { name: "Menú de usuario" });
+    expect(within(menu).getByText("Ana Pérez")).toBeInTheDocument();
+    expect(within(menu).getByText("ana@acme.mx")).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Cerrar sesión" })).toBeInTheDocument();
+  });
+});

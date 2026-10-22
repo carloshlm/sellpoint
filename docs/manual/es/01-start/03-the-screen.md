@@ -55,8 +55,8 @@ completo.
 ## La barra de arriba
 
 - A la izquierda, el botón de las tres rayas, que abre y cierra el menú.
-- A la derecha, tu nombre. Al presionarlo ves tu correo, **Mi perfil** y
-  **Cerrar sesión** (capítulo 2).
+- A la derecha, tu nombre, con el ícono de una persona. Al presionarlo ves tu
+  nombre completo y tu correo, **Mi perfil** y **Cerrar sesión** (capítulo 2).
 - Debajo de la barra puede aparecer un aviso de tu plan: durante la prueba
   gratis, los días que te quedan (capítulo 1); si tu pago venció, los días de
   gracia que te quedan (capítulo 34). Presiónalo para ver los planes.

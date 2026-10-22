@@ -7,6 +7,7 @@ import {
   Building2,
   Calculator,
   CalendarClock,
+  ChevronDown,
   ClipboardList,
   CreditCard,
   FileText,
@@ -22,6 +23,7 @@ import {
   Shield,
   ShoppingCart,
   User,
+  UserRound,
   Warehouse,
   Wrench,
 } from "lucide-react";
@@ -623,7 +625,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
         <header
           data-slot="topbar"
-          className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4"
+          // `relative z-30`: la barra va POR ENCIMA del contenido. Con la piel
+          // de los temas lleva `backdrop-filter`, que la vuelve su propio
+          // contexto de apilamiento: el `z-50` del menú de usuario solo valía
+          // dentro de ella y las tarjetas (`position: relative`) lo tapaban,
+          // «Cerrar sesión» incluido (Carlos, 2026-10-22). Queda debajo del
+          // velo del menú en celular (`z-40`).
+          className="relative z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4"
         >
           <button
             type="button"
@@ -685,37 +693,62 @@ function UserMenu() {
 
   // Fallback si el user aún no llegó (bootstrap a medias): label genérico.
   const displayName = user?.firstName ?? user?.email ?? t("common.layout.userMenu.label");
+  const fullName = user ? `${user.firstName} ${user.lastName}`.trim() : displayName;
 
   return (
     <div className="relative">
+      {/* La persona de perfil a la izquierda del nombre (Carlos, 2026-10-22).
+          El ícono y la flecha son `aria-hidden`: el botón se sigue llamando
+          por el nombre, que es lo que lee un lector de pantalla. */}
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex max-w-48 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex max-w-56 items-center gap-2 rounded-full border border-border py-1 pr-2.5 pl-1 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
       >
+        <span
+          aria-hidden="true"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"
+        >
+          <UserRound className="size-4" />
+        </span>
         <span className="truncate">{displayName}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
       {open && (
         <div
           role="menu"
+          data-slot="user-menu"
           aria-label={t("common.layout.userMenu.label")}
           onKeyDown={(event) => {
             if (event.key === "Escape") setOpen(false);
           }}
-          className="absolute right-0 z-50 mt-2 w-56 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
+          className="absolute right-0 z-50 mt-2 w-64 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md"
         >
           {user && (
-            <p className="truncate border-b border-border px-2 py-1.5 text-xs text-muted-foreground">
-              {user.email}
-            </p>
+            <div className="flex items-center gap-3 border-b border-border px-2 pt-1.5 pb-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"
+              >
+                <UserRound className="size-5" />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-semibold">{fullName}</span>
+                <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+              </span>
+            </div>
           )}
           <Link
             to="/profile"
             role="menuitem"
+            data-slot="user-menu-item"
             onClick={() => setOpen(false)}
-            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring"
           >
             <User className="size-4" aria-hidden="true" />
             {t("common.layout.userMenu.profile")}
@@ -723,6 +756,7 @@ function UserMenu() {
           <button
             type="button"
             role="menuitem"
+            data-slot="user-menu-item"
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
             className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring"

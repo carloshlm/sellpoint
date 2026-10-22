@@ -1834,7 +1834,8 @@
 }
 
 /* Lo que flota (menús desplegables y diálogos): vidrio ahumado y desenfoque. */
-.skinned :is([data-slot="dropdown-menu-content"], [data-slot="dialog-content"]) {
+.skinned
+  :is([data-slot="dropdown-menu-content"], [data-slot="dialog-content"], [data-slot="user-menu"]) {
   border-color: var(--skin-hair);
   border-radius: var(--skin-overlay-radius);
   background: var(--skin-sheen), var(--skin-glass-strong);
@@ -1844,7 +1845,7 @@
     inset 0 1px 0 var(--skin-highlight),
     var(--skin-overlay-shadow);
 }
-.skinned [data-slot="dropdown-menu-item"] {
+.skinned :is([data-slot="dropdown-menu-item"], [data-slot="user-menu-item"]) {
   border-radius: var(--skin-control-radius);
 }
 .skinned [data-slot="dialog-overlay"] {
