@@ -269,7 +269,12 @@
       "sellpointy": "SellPointy",
       "espresso": "Café Expreso",
       "jade": "Esmeralda Jade",
-      "forest": "Esmeralda Bosque"
+      "forest": "Esmeralda Bosque",
+      "cotton-night": "Algodón Noche",
+      "violet": "Violeta",
+      "amethyst": "Amatista",
+      "sky": "Cielo",
+      "marine": "Marino"
     }
   },
   "welcome": "Bienvenido a SellPointy",

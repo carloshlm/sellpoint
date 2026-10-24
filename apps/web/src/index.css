@@ -30,8 +30,8 @@
    SISTEMA DE TEMAS — UN SOLO EJE: `tenant.theme`
    ============================================================================
    El TENANT elige su tema (wizard paso 3, o Mi perfil) y toda la app se
-   pinta con él. Desde el 2026-10-22 son nueve, todos con PIEL (ver «LA
-   PIEL», al final), elegidos por Carlos de un lienzo de propuestas:
+   pinta con él. Desde el 2026-10-24 son catorce, todos con PIEL (ver «LA
+   PIEL», al final), elegidos por Carlos de lienzos de propuestas:
 
      light  (Claro)            -> `:root` a secas: la red de seguridad.
      dark   (Oscuro)           -> `:root[data-theme="dark"]` + `.dark`.
@@ -40,7 +40,12 @@
      jade   (Esmeralda Jade)   -> claro, verde.
      forest (Esmeralda Bosque) -> claro, bitono: menú verde bosque.
      cabin  (Cabina)           -> oscuro, rojo racing.
-     cotton (Algodón)          -> claro, rosa con vidrio.
+     cotton (Algodón)          -> claro, rosa chicle.
+     cotton-night (Algodón Noche) -> oscuro, rosa neón con vidrio.
+     violet (Violeta)          -> claro, violeta.
+     amethyst (Amatista)       -> oscuro, violeta con vidrio.
+     sky    (Cielo)            -> claro, azul tipo Salesforce, nítido.
+     marine (Marino)           -> claro, bitono: menú azul marino.
      sellpointy (SellPointy)   -> oscuro, la marca y el tema por defecto.
 
    Cada tema define también sus LETRAS (`--app-font-sans`/`--app-font-mono`),
@@ -992,108 +997,223 @@
 }
 
 /* ========================= TEMA: CLARO «Algodón» ===========================
-   F10-THEME-05 (Carlos, 2026-10-22, «Algodón B · Algodón Líquido»): el gemelo
-   claro de Oscuro en rosa —vidrio con aro blanco, píldoras, rótulos
-   mono y brillo rosa—. Conserva el rosa #e37e9e de siempre, pero con letra
-   CIRUELA casi negra encima (6.1:1): con letra blanca daba 2.7:1 y «Cobrar»
-   no se leía. Es el mismo truco de Oscuro, tinta oscura sobre un
-   relleno claro. Como texto el rosa tampoco se lee: enlaces en frambuesa.
-   «Eliminar» sigue en rojo franco, separado del rosa. Claro. */
+   F10-THEME-05 (Carlos, 2026-10-24, «A · Algodón Chicle»): rosa chicle vivo
+   #d12f70 con letra BLANCA (4.8:1) en vez del rosa pálido con tinta oscura de
+   antes, que se veía deslavado. Tarjetas blancas, el menú activo relleno de
+   rosa, títulos de tabla en minúsculas sobre una franja rosa y un rescoldo
+   durazno abajo. Plus Jakarta Sans con DM Mono. Como texto, el rosa va en
+   #b0245e. «Eliminar» sigue en rojo franco, separado del rosa. Claro. */
 :root[data-theme="cotton"] {
   color-scheme: light;
-  accent-color: #e37e9e;
-  --background: #fbeff3;
-  --foreground: #3a2830;
+  accent-color: #d12f70;
+  --background: #fff4f8;
+  --foreground: #2b1520;
   --card: #ffffff;
-  --card-foreground: #3a2830;
+  --card-foreground: #2b1520;
   --popover: #ffffff;
-  --popover-foreground: #3a2830;
-  --primary: #e37e9e;
-  --primary-foreground: #3a0f1f;
-  --secondary: #f6e6ea;
-  --secondary-foreground: #3a2830;
-  --muted: #f6e6ea;
-  --muted-foreground: #77616a;
-  --accent: #fbe3ea;
-  --accent-foreground: #a8355f;
+  --popover-foreground: #2b1520;
+  --primary: #d12f70;
+  --primary-foreground: #ffffff;
+  --secondary: #fdeaf1;
+  --secondary-foreground: #2b1520;
+  --muted: #fdeaf1;
+  --muted-foreground: #7a5867;
+  --accent: #fdeaf1;
+  --accent-foreground: #b0245e;
   --destructive: #b42318;
   --destructive-foreground: #ffffff;
-  --border: #f3dbe2;
-  --input: #f0d3dd;
-  --ring: #e37e9e;
-  --radius: 0.875rem;
-  --chart-1: #e37e9e;
-  --chart-2: #2f6b47;
+  --border: #f6d5e2;
+  --input: #f6d5e2;
+  --ring: #d12f70;
+  --radius: 0.75rem;
+  --chart-1: #d12f70;
+  --chart-2: #1f9a62;
   --chart-3: #c99118;
   --chart-4: #b08cc9;
-  --chart-5: #7ba6c9;
-  --sidebar: #fdf4f7;
-  --sidebar-foreground: #5a4650;
-  --sidebar-primary: #e37e9e;
-  --sidebar-primary-foreground: #3a0f1f;
-  --sidebar-accent: #fbe3ea;
-  --sidebar-accent-foreground: #a8355f;
-  --sidebar-border: #f3dbe2;
-  --sidebar-ring: #e37e9e;
-  --sidebar-section: #77616a;
-  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
-  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  --skin-app-backdrop:
-    radial-gradient(900px 620px at 88% -8%, rgba(227, 126, 158, 0.24), rgba(227, 126, 158, 0) 62%),
-    radial-gradient(760px 560px at 8% 102%, rgba(227, 126, 158, 0.11), rgba(227, 126, 158, 0) 60%),
-    linear-gradient(180deg, #fdf4f7 0%, #f9eaef 58%, #fbeff3 100%);
+  --chart-5: #ff9a76;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #5b3a4a;
+  --sidebar-primary: #d12f70;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fdeaf1;
+  --sidebar-accent-foreground: #b0245e;
+  --sidebar-border: #f6d5e2;
+  --sidebar-ring: #d12f70;
+  --sidebar-section: #7a5867;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop: radial-gradient(900px 620px at 0% 0%, rgba(209, 47, 112, 0.14), rgba(209, 47, 112, 0) 60%), radial-gradient(760px 520px at 100% 100%, rgba(255, 154, 118, 0.16), rgba(255, 154, 118, 0) 60%);
   --skin-text-weight: 500;
   --skin-heading-font: inherit;
-  --skin-heading-weight: 800;
-  --skin-heading-tracking: -0.03em;
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
   --skin-title-dot: transparent;
   --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: none;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-primary-text: #b0245e;
+  --skin-glass: rgba(255, 255, 255, 0.86);
+  --skin-glass-hover: rgba(209, 47, 112, 0.07);
+  --skin-glass-thumb: #fdeaf1;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-well: #fff8fb;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #f6d5e2;
+  --skin-hair-strong: #e9b9cc;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92));
+  --skin-shadow: 0 1px 2px rgba(43, 21, 32, 0.05), 0 18px 40px -22px rgba(120, 20, 70, 0.28), inset 0 0 0 1px rgba(43, 21, 32, 0.05);
+  --skin-overlay-shadow: 0 2px 4px rgba(43, 21, 32, 0.04), 0 24px 48px -20px rgba(120, 20, 70, 0.35);
+  --skin-scrim: rgba(43, 21, 32, 0.32);
+  --skin-accent-wash: rgba(209, 47, 112, 0.14);
+  --skin-accent-line: rgba(209, 47, 112, 0.3);
+  --skin-accent-ring: #d12f70;
+  --skin-glow: rgba(209, 47, 112, 0.55);
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -10px rgba(209, 47, 112, 0.6);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(43, 21, 32, 0.05);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: #d12f70;
+  --skin-nav-active-color: #ffffff;
+  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 22px -10px rgba(209, 47, 112, 0.75);
+  --skin-check-shadow: 0 4px 10px -4px rgba(209, 47, 112, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #fde7f0;
+  --skin-table-head-line: #f4ccdc;
+  --skin-table-head-color: #5b1f3b;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #fbe6ee;
+  --skin-table-row-hover: #fff7fa;
+}
+
+/* ====================== TEMA: OSCURO «Algodón Noche» =======================
+   F10-THEME-05 (Carlos, 2026-10-24, «C · Algodón Noche»): la piel de Oscuro
+   en rosa neón: ciruela casi negra, vidrio ahumado y brillo rosa. El relleno
+   rosa #ff6fa5 lleva tinta ciruela encima (7:1), el mismo truco de Oscuro con
+   su celeste. «Cancelada» en durazno, lejos del rosa. Oscuro: `.dark` lo
+   acompaña y trae sus propios semánticos. */
+:root[data-theme="cotton-night"] {
+  color-scheme: dark;
+  accent-color: #ff6fa5;
+  --background: #150d12;
+  --foreground: #f8eef3;
+  --card: #21161c;
+  --card-foreground: #f8eef3;
+  --popover: #1f141a;
+  --popover-foreground: #f8eef3;
+  --primary: #ff6fa5;
+  --primary-foreground: #2a0716;
+  --secondary: #2a1c23;
+  --secondary-foreground: #f8eef3;
+  --muted: #241820;
+  --muted-foreground: #a88e9b;
+  --accent: #2c1a24;
+  --accent-foreground: #ff8dba;
+  --destructive: #ffa585;
+  --destructive-foreground: #150d12;
+  --border: #33242c;
+  --input: #33242c;
+  --ring: #ff6fa5;
+  --radius: 0.875rem;
+  --chart-1: #ff6fa5;
+  --chart-2: #4cc38a;
+  --chart-3: #f2c14e;
+  --chart-4: #b79cff;
+  --chart-5: #7fd4f6;
+  --sidebar: #140c11;
+  --sidebar-foreground: #d4bfc9;
+  --sidebar-primary: #ff6fa5;
+  --sidebar-primary-foreground: #2a0716;
+  --sidebar-accent: #2c1a24;
+  --sidebar-accent-foreground: #ff8dba;
+  --sidebar-border: #2a1d24;
+  --sidebar-ring: #ff6fa5;
+  --sidebar-section: #a88e9b;
+  --success: #4cc38a;
+  --success-foreground: #0b1f15;
+  --success-soft: rgba(76, 195, 138, 0.14);
+  --warning: #f2c14e;
+  --warning-foreground: #241a03;
+  --warning-soft: rgba(242, 193, 78, 0.14);
+  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop: radial-gradient(900px 620px at 88% -8%, rgba(255, 92, 154, 0.22), rgba(255, 92, 154, 0) 62%), radial-gradient(760px 560px at 8% 102%, rgba(176, 92, 255, 0.1), rgba(176, 92, 255, 0) 60%), linear-gradient(180deg, #150d12 0%, #1c1118 58%, #150d12 100%);
+  --skin-text-weight: 500;
+  --skin-heading-weight: 800;
+  --skin-heading-tracking: -0.03em;
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: #ff8dba;
+  --skin-sidebar-bg: rgba(30, 20, 26, 0.86);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
   --skin-numbers-font: var(--app-font-mono);
   --skin-numbers-synthesis: auto;
   --skin-label-font: var(--app-font-mono);
   --skin-label-size: 10.5px;
   --skin-label-weight: 500;
   --skin-label-tracking: 0.14em;
-  --skin-primary-text: #a8355f;
-  --skin-glass: rgba(255, 255, 255, 0.62);
-  --skin-glass-hover: rgba(255, 255, 255, 0.55);
-  --skin-glass-thumb: rgba(255, 255, 255, 0.85);
-  --skin-glass-strong: rgba(255, 255, 255, 0.86);
+  --skin-glass: rgba(255, 255, 255, 0.045);
+  --skin-glass-hover: rgba(255, 255, 255, 0.08);
+  --skin-glass-thumb: rgba(255, 255, 255, 0.14);
+  --skin-glass-strong: rgba(30, 20, 26, 0.86);
   --skin-blur: blur(24px) saturate(150%);
-  --skin-sidebar-bg: rgba(255, 251, 253, 0.6);
-  --skin-sidebar-line: rgba(67, 50, 58, 0.08);
-  --skin-well: rgba(67, 50, 58, 0.045);
-  --skin-well-focus: rgba(255, 255, 255, 0.75);
-  --skin-well-shadow: inset 0 1px 2px rgba(67, 50, 58, 0.06);
-  --skin-hair: rgba(67, 50, 58, 0.1);
-  --skin-hair-strong: rgba(67, 50, 58, 0.28);
-  --skin-highlight: rgba(255, 255, 255, 0.95);
-  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 46%);
-  --skin-rim: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.95),
-    rgba(255, 255, 255, 0.5) 34%,
-    rgba(255, 255, 255, 0.5) 66%,
-    rgba(255, 255, 255, 0.85)
-  );
-  --skin-shadow: 0 24px 50px -28px rgba(110, 40, 70, 0.35);
-  --skin-overlay-shadow: 0 28px 56px -28px rgba(110, 40, 70, 0.42);
-  --skin-scrim: rgba(58, 40, 48, 0.35);
-  --skin-accent-wash: rgba(227, 126, 158, 0.14);
-  --skin-accent-line: rgba(227, 126, 158, 0.45);
-  --skin-accent-ring: rgba(227, 126, 158, 0.75);
-  --skin-glow: rgba(227, 126, 158, 0.6);
+  --skin-well: rgba(0, 0, 0, 0.28);
+  --skin-well-focus: var(--skin-well);
+  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --skin-hair: rgba(255, 255, 255, 0.08);
+  --skin-hair-strong: rgba(255, 255, 255, 0.2);
+  --skin-highlight: rgba(255, 255, 255, 0.1);
+  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 46%);
+  --skin-rim: linear-gradient( 150deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04) 34%, rgba(255, 255, 255, 0.04) 66%, rgba(255, 255, 255, 0.1) );
+  --skin-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.65);
+  --skin-overlay-shadow: 0 28px 60px -10px rgba(0, 0, 0, 0.7);
+  --skin-scrim: rgba(0, 0, 0, 0.55);
+  --skin-accent-wash: rgba(255, 111, 165, 0.12);
+  --skin-accent-line: rgba(255, 111, 165, 0.4);
+  --skin-accent-ring: rgba(255, 111, 165, 0.65);
+  --skin-glow: rgba(255, 92, 154, 0.5);
   --skin-primary-fill: none;
-  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 28px -8px rgba(227, 126, 158, 0.6);
-  --skin-charge-bg: var(--primary);
-  --skin-charge-color: var(--primary-foreground);
-  --skin-charge-shadow: var(--skin-primary-shadow);
-  --skin-button-soft-bg: rgba(255, 255, 255, 0.55);
-  --skin-button-soft-shadow: inset 0 0 0 1px rgba(67, 50, 58, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --skin-nav-hover-bg: rgba(255, 255, 255, 0.55);
-  --skin-nav-hover-color: var(--foreground);
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 10px 30px -8px rgba(255, 92, 154, 0.55);
+  --skin-button-soft-bg: var(--skin-glass-hover);
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), inset 0 1px 0 var(--skin-highlight);
   --skin-nav-active-bg: var(--skin-accent-wash);
-  --skin-nav-active-color: #a8355f;
+  --skin-nav-active-color: #ff8dba;
   --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
   --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
   --skin-badge-font: var(--skin-label-font);
@@ -1108,17 +1228,495 @@
   --skin-nav-item-radius: 999px;
   --skin-badge-radius: 999px;
   --skin-checkbox-radius: 6px;
-  --skin-table-head-bg: rgba(67, 50, 58, 0.055);
-  --skin-table-head-line: rgba(67, 50, 58, 0.13);
-  --skin-table-head-color: #4a3540;
+  --skin-table-head-bg: rgba(255, 255, 255, 0.07);
+  --skin-table-head-line: rgba(255, 255, 255, 0.16);
+  --skin-table-head-color: #e5d3dc;
   --skin-table-head-font: var(--skin-label-font);
   --skin-table-head-size: 11.5px;
   --skin-table-head-weight: 600;
   --skin-table-head-tracking: 0.1em;
   --skin-table-head-transform: uppercase;
   --skin-table-head-padding-block: 11px;
-  --skin-table-row-line: rgba(67, 50, 58, 0.07);
-  --skin-table-row-hover: rgba(255, 255, 255, 0.45);
+  --skin-table-row-line: var(--skin-hair);
+  --skin-table-row-hover: var(--skin-glass);
+}
+
+/* =========================== TEMA: CLARO «Violeta» ==========================
+   F10-THEME-05 (Carlos, 2026-10-24, «Morado A · Violeta»): la forma de Algodón
+   en violeta #6d3fd6 con letra blanca (6.3:1), sobre lavanda con un rescoldo
+   durazno. Como texto, #5b34c2. Claro. */
+:root[data-theme="violet"] {
+  color-scheme: light;
+  accent-color: #6d3fd6;
+  --background: #f6f4fd;
+  --foreground: #1e1633;
+  --card: #ffffff;
+  --card-foreground: #1e1633;
+  --popover: #ffffff;
+  --popover-foreground: #1e1633;
+  --primary: #6d3fd6;
+  --primary-foreground: #ffffff;
+  --secondary: #efebfc;
+  --secondary-foreground: #1e1633;
+  --muted: #efebfc;
+  --muted-foreground: #6b6385;
+  --accent: #efebfc;
+  --accent-foreground: #5b34c2;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: #e5dff8;
+  --input: #e5dff8;
+  --ring: #6d3fd6;
+  --radius: 0.75rem;
+  --chart-1: #6d3fd6;
+  --chart-2: #1f9a62;
+  --chart-3: #c99118;
+  --chart-4: #ff9a76;
+  --chart-5: #38bdf8;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4a4163;
+  --sidebar-primary: #6d3fd6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efebfc;
+  --sidebar-accent-foreground: #5b34c2;
+  --sidebar-border: #e5dff8;
+  --sidebar-ring: #6d3fd6;
+  --sidebar-section: #6b6385;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop: radial-gradient(900px 620px at 0% 0%, rgba(109, 63, 214, 0.14), rgba(109, 63, 214, 0) 60%), radial-gradient(760px 520px at 100% 100%, rgba(255, 170, 140, 0.16), rgba(255, 170, 140, 0) 60%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: none;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-primary-text: #5b34c2;
+  --skin-glass: rgba(255, 255, 255, 0.86);
+  --skin-glass-hover: rgba(109, 63, 214, 0.07);
+  --skin-glass-thumb: #efebfc;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-sidebar-bg: var(--skin-glass-strong);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-well: #faf9fe;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e5dff8;
+  --skin-hair-strong: #cbbef2;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92));
+  --skin-shadow: 0 1px 2px rgba(30, 22, 51, 0.05), 0 18px 40px -22px rgba(60, 30, 140, 0.28), inset 0 0 0 1px rgba(30, 22, 51, 0.05);
+  --skin-overlay-shadow: 0 2px 4px rgba(30, 22, 51, 0.04), 0 24px 48px -20px rgba(60, 30, 140, 0.35);
+  --skin-scrim: rgba(30, 22, 51, 0.32);
+  --skin-accent-wash: rgba(109, 63, 214, 0.14);
+  --skin-accent-line: rgba(109, 63, 214, 0.3);
+  --skin-accent-ring: #6d3fd6;
+  --skin-glow: rgba(109, 63, 214, 0.55);
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -10px rgba(109, 63, 214, 0.6);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(30, 22, 51, 0.05);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: #6d3fd6;
+  --skin-nav-active-color: #ffffff;
+  --skin-nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 22px -10px rgba(109, 63, 214, 0.75);
+  --skin-check-shadow: 0 4px 10px -4px rgba(109, 63, 214, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #eeeafb;
+  --skin-table-head-line: #ddd5f6;
+  --skin-table-head-color: #3b2580;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #f1eefb;
+  --skin-table-row-hover: #f9f7ff;
+}
+
+/* ========================== TEMA: OSCURO «Amatista» ==========================
+   F10-THEME-05 (Carlos, 2026-10-24, «Morado C · Amatista»): la piel de Oscuro
+   en violeta: casi negro con brillo violeta y un toque cian. El relleno
+   lavanda #a78bfa lleva tinta oscura (6.6:1). Oscuro. */
+:root[data-theme="amethyst"] {
+  color-scheme: dark;
+  accent-color: #a78bfa;
+  --background: #0f0d18;
+  --foreground: #f1eefa;
+  --card: #1a1726;
+  --card-foreground: #f1eefa;
+  --popover: #191624;
+  --popover-foreground: #f1eefa;
+  --primary: #a78bfa;
+  --primary-foreground: #1a0f3a;
+  --secondary: #221e31;
+  --secondary-foreground: #f1eefa;
+  --muted: #1e1a2c;
+  --muted-foreground: #9c94b5;
+  --accent: #221c38;
+  --accent-foreground: #c4b5fd;
+  --destructive: #ffa585;
+  --destructive-foreground: #0f0d18;
+  --border: #2c2840;
+  --input: #2c2840;
+  --ring: #a78bfa;
+  --radius: 0.875rem;
+  --chart-1: #a78bfa;
+  --chart-2: #4cc38a;
+  --chart-3: #f2c14e;
+  --chart-4: #38bdf8;
+  --chart-5: #ff8dba;
+  --sidebar: #0e0c16;
+  --sidebar-foreground: #cbc4de;
+  --sidebar-primary: #a78bfa;
+  --sidebar-primary-foreground: #1a0f3a;
+  --sidebar-accent: #221c38;
+  --sidebar-accent-foreground: #c4b5fd;
+  --sidebar-border: #241f35;
+  --sidebar-ring: #a78bfa;
+  --sidebar-section: #9c94b5;
+  --success: #4cc38a;
+  --success-foreground: #0b1f15;
+  --success-soft: rgba(76, 195, 138, 0.14);
+  --warning: #f2c14e;
+  --warning-foreground: #241a03;
+  --warning-soft: rgba(242, 193, 78, 0.14);
+  --app-font-sans: 'Manrope Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop: radial-gradient(900px 620px at 88% -8%, rgba(139, 92, 246, 0.22), rgba(139, 92, 246, 0) 62%), radial-gradient(760px 560px at 8% 102%, rgba(56, 189, 248, 0.1), rgba(56, 189, 248, 0) 60%), linear-gradient(180deg, #0f0d18 0%, #15121f 58%, #0f0d18 100%);
+  --skin-text-weight: 500;
+  --skin-heading-weight: 800;
+  --skin-heading-tracking: -0.03em;
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: #c4b5fd;
+  --skin-sidebar-bg: rgba(24, 20, 36, 0.86);
+  --skin-sidebar-line: var(--skin-hair);
+  --skin-nav-hover-bg: var(--skin-glass-hover);
+  --skin-nav-hover-color: var(--foreground);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-glass: rgba(255, 255, 255, 0.045);
+  --skin-glass-hover: rgba(255, 255, 255, 0.08);
+  --skin-glass-thumb: rgba(255, 255, 255, 0.14);
+  --skin-glass-strong: rgba(24, 20, 36, 0.86);
+  --skin-blur: blur(24px) saturate(150%);
+  --skin-well: rgba(0, 0, 0, 0.28);
+  --skin-well-focus: var(--skin-well);
+  --skin-well-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --skin-hair: rgba(255, 255, 255, 0.08);
+  --skin-hair-strong: rgba(255, 255, 255, 0.2);
+  --skin-highlight: rgba(255, 255, 255, 0.1);
+  --skin-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 46%);
+  --skin-rim: linear-gradient( 150deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04) 34%, rgba(255, 255, 255, 0.04) 66%, rgba(255, 255, 255, 0.1) );
+  --skin-shadow: 0 24px 50px -26px rgba(0, 0, 0, 0.65);
+  --skin-overlay-shadow: 0 28px 60px -10px rgba(0, 0, 0, 0.7);
+  --skin-scrim: rgba(0, 0, 0, 0.55);
+  --skin-accent-wash: rgba(167, 139, 250, 0.12);
+  --skin-accent-line: rgba(167, 139, 250, 0.4);
+  --skin-accent-ring: rgba(167, 139, 250, 0.65);
+  --skin-glow: rgba(139, 92, 246, 0.5);
+  --skin-primary-fill: none;
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 10px 30px -8px rgba(139, 92, 246, 0.55);
+  --skin-button-soft-bg: var(--skin-glass-hover);
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), inset 0 1px 0 var(--skin-highlight);
+  --skin-nav-active-bg: var(--skin-accent-wash);
+  --skin-nav-active-color: #c4b5fd;
+  --skin-nav-active-shadow: inset 0 0 0 1px var(--skin-accent-line), 0 0 24px -8px var(--skin-glow);
+  --skin-check-shadow: 0 0 12px -2px var(--skin-glow);
+  --skin-badge-font: var(--skin-label-font);
+  --skin-badge-size: var(--skin-label-size);
+  --skin-badge-tracking: 0.08em;
+  --skin-badge-transform: uppercase;
+  --skin-badge-ring: inset 0 0 0 1px color-mix(in srgb, currentColor 32%, transparent);
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 22px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 999px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 6px;
+  --skin-table-head-bg: rgba(255, 255, 255, 0.07);
+  --skin-table-head-line: rgba(255, 255, 255, 0.16);
+  --skin-table-head-color: #dcd5f0;
+  --skin-table-head-font: var(--skin-label-font);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: var(--skin-hair);
+  --skin-table-row-hover: var(--skin-glass);
+}
+
+/* ============================ TEMA: CLARO «Cielo» =============================
+   F10-THEME-05 (Carlos, 2026-10-24, «Azul A · Cielo»): el azul tipo Salesforce
+   #0176d3, nítido y sobrio: barra lateral blanca entera, el activo con una
+   barra azul a la izquierda (sin relleno), esquinas chicas, títulos de tabla
+   en versalitas sobre gris y Geist. Ese azul con letra blanca apenas da 4.6:1:
+   el degradado de los botones solo oscurece, y como texto va #0b5cab. Claro. */
+:root[data-theme="sky"] {
+  color-scheme: light;
+  accent-color: #0176d3;
+  --background: #f3f6f9;
+  --foreground: #181b20;
+  --card: #ffffff;
+  --card-foreground: #181b20;
+  --popover: #ffffff;
+  --popover-foreground: #181b20;
+  --primary: #0176d3;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f7;
+  --secondary-foreground: #181b20;
+  --muted: #eef2f7;
+  --muted-foreground: #5f6876;
+  --accent: #eaf3fd;
+  --accent-foreground: #0b5cab;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: #e1e6ed;
+  --input: #e1e6ed;
+  --ring: #0176d3;
+  --radius: 0.5rem;
+  --chart-1: #0176d3;
+  --chart-2: #1f9a62;
+  --chart-3: #c99118;
+  --chart-4: #ff9a76;
+  --chart-5: #032d60;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #444c57;
+  --sidebar-primary: #0176d3;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf3fd;
+  --sidebar-accent-foreground: #0b5cab;
+  --sidebar-border: #e1e6ed;
+  --sidebar-ring: #0176d3;
+  --sidebar-section: #5f6876;
+  --app-font-sans: 'Geist Variable', sans-serif;
+  --app-font-mono: 'Geist Mono Variable', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop: radial-gradient(900px 620px at 0% 0%, rgba(1, 118, 211, 0.14), rgba(1, 118, 211, 0) 60%), radial-gradient(760px 520px at 100% 100%, rgba(27, 150, 255, 0.16), rgba(27, 150, 255, 0) 60%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 700;
+  --skin-heading-tracking: -0.02em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-sans);
+  --skin-label-size: 11px;
+  --skin-label-weight: 700;
+  --skin-label-tracking: 0.08em;
+  --skin-primary-text: #0b5cab;
+  --skin-glass: #ffffff;
+  --skin-glass-hover: rgba(1, 118, 211, 0.06);
+  --skin-glass-thumb: #eef2f7;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-sidebar-bg: #ffffff;
+  --skin-sidebar-line: #e1e6ed;
+  --skin-well: #f8fafc;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e1e6ed;
+  --skin-hair-strong: #c3ccd8;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(#e1e6ed, #e1e6ed);
+  --skin-shadow: 0 1px 2px rgba(24, 27, 32, 0.06), 0 10px 24px -18px rgba(20, 50, 90, 0.3);
+  --skin-overlay-shadow: 0 2px 4px rgba(24, 27, 32, 0.05), 0 20px 40px -18px rgba(20, 50, 90, 0.35);
+  --skin-scrim: rgba(24, 27, 32, 0.32);
+  --skin-accent-wash: rgba(1, 118, 211, 0.12);
+  --skin-accent-line: rgba(1, 118, 211, 0.3);
+  --skin-accent-ring: #0176d3;
+  --skin-glow: rgba(1, 118, 211, 0.4);
+  --skin-primary-fill: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.06));
+  --skin-primary-shadow: 0 1px 2px rgba(1, 70, 140, 0.3);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px #c9d2dd;
+  --skin-nav-hover-bg: #f3f6f9;
+  --skin-nav-hover-color: var(--foreground);
+  --skin-nav-active-bg: #eaf3fd;
+  --skin-nav-active-color: #0b5cab;
+  --skin-nav-active-shadow: inset 3px 0 0 #0176d3;
+  --skin-check-shadow: 0 0 transparent;
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 12px;
+  --skin-overlay-radius: 12px;
+  --skin-control-radius: 8px;
+  --skin-button-radius: 8px;
+  --skin-nav-item-radius: 8px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 4px;
+  --skin-table-head-bg: #f3f6f9;
+  --skin-table-head-line: #dde3ea;
+  --skin-table-head-color: #444e5c;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 11.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0.06em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 10px;
+  --skin-table-row-line: #eef1f5;
+  --skin-table-row-hover: #f6f9fd;
+}
+
+/* ============================ TEMA: CLARO «Marino» ============================
+   F10-THEME-05 (Carlos, 2026-10-24, «Azul B · Marino»): bitono. El menú en
+   azul marino profundo con luz azul y el contenido gris claro; la banda de
+   los títulos de tabla es del mismo marino. Botones en el azul tipo
+   Salesforce #0176d3 con letra blanca (el degradado solo oscurece). Instrument
+   Sans con JetBrains Mono. Claro. */
+:root[data-theme="marine"] {
+  color-scheme: light;
+  accent-color: #0176d3;
+  --background: #f3f6f9;
+  --foreground: #181b20;
+  --card: #ffffff;
+  --card-foreground: #181b20;
+  --popover: #ffffff;
+  --popover-foreground: #181b20;
+  --primary: #0176d3;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f7;
+  --secondary-foreground: #181b20;
+  --muted: #eef2f7;
+  --muted-foreground: #5f6876;
+  --accent: #eaf3fd;
+  --accent-foreground: #0b5cab;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --border: #e1e6ed;
+  --input: #dde3ea;
+  --ring: #0176d3;
+  --radius: 0.625rem;
+  --chart-1: #0176d3;
+  --chart-2: #1f9a62;
+  --chart-3: #c99118;
+  --chart-4: #ff9a76;
+  --chart-5: #032d60;
+  --sidebar: #021f44;
+  --sidebar-foreground: #c9d7ea;
+  --sidebar-primary: #1b96ff;
+  --sidebar-primary-foreground: #021f44;
+  --sidebar-accent: #0a3a72;
+  --sidebar-accent-foreground: #7cc4ff;
+  --sidebar-border: #0a2f5c;
+  --sidebar-ring: #1b96ff;
+  --sidebar-section: #8fa8c8;
+  --app-font-sans: 'Instrument Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop: radial-gradient(900px 600px at 100% 0%, rgba(27, 150, 255, 0.14), rgba(27, 150, 255, 0) 60%), linear-gradient(180deg, #f6f9fc 0%, #eef2f7 100%);
+  --skin-text-weight: 500;
+  --skin-heading-font: inherit;
+  --skin-heading-weight: 700;
+  --skin-heading-tracking: -0.02em;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-numbers-font: var(--app-font-mono);
+  --skin-numbers-synthesis: auto;
+  --skin-label-font: var(--app-font-mono);
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-primary-text: #0b5cab;
+  --skin-glass: #ffffff;
+  --skin-glass-hover: rgba(255, 255, 255, 0.06);
+  --skin-glass-thumb: #eef2f7;
+  --skin-glass-strong: rgba(255, 255, 255, 0.94);
+  --skin-blur: blur(20px) saturate(150%);
+  --skin-sidebar-bg: radial-gradient(420px 320px at 0% 0%, rgba(27, 150, 255, 0.26), rgba(27, 150, 255, 0) 70%), linear-gradient(180deg, #032d60 0%, #021f44 100%);
+  --skin-sidebar-line: #0a2f5c;
+  --skin-well: #ffffff;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e1e6ed;
+  --skin-hair-strong: #c3ccd8;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  --skin-rim: linear-gradient(#e1e6ed, #e1e6ed);
+  --skin-shadow: 0 1px 0 rgba(24, 27, 32, 0.04), 0 12px 28px -20px rgba(3, 45, 96, 0.4);
+  --skin-overlay-shadow: 0 24px 50px -24px rgba(3, 45, 96, 0.45);
+  --skin-scrim: rgba(2, 31, 68, 0.45);
+  --skin-accent-wash: rgba(1, 118, 211, 0.14);
+  --skin-accent-line: rgba(1, 118, 211, 0.4);
+  --skin-accent-ring: #0176d3;
+  --skin-glow: rgba(27, 150, 255, 0.5);
+  --skin-primary-fill: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.06));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 22px -12px rgba(1, 118, 211, 0.75);
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px #dde3ea;
+  --skin-nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --skin-nav-hover-color: #f2f7fd;
+  --skin-nav-active-bg: rgba(27, 150, 255, 0.16);
+  --skin-nav-active-color: #7cc4ff;
+  --skin-nav-active-shadow: inset 0 0 0 1px rgba(27, 150, 255, 0.45), 0 0 24px -8px rgba(27, 150, 255, 0.6);
+  --skin-check-shadow: 0 0 transparent;
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 18px;
+  --skin-overlay-radius: 18px;
+  --skin-control-radius: 10px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 12px;
+  --skin-badge-radius: 6px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #032d60;
+  --skin-table-head-line: #032d60;
+  --skin-table-head-color: #d6e6f7;
+  --skin-table-head-font: var(--app-font-mono);
+  --skin-table-head-size: 11px;
+  --skin-table-head-weight: 600;
+  --skin-table-head-tracking: 0.1em;
+  --skin-table-head-transform: uppercase;
+  --skin-table-head-padding-block: 12px;
+  --skin-table-row-line: #eef1f5;
+  --skin-table-row-hover: #f6f9fd;
 }
 
 /* ===================== TEMA: LA MARCA «SellPointy» =========================

@@ -86,6 +86,11 @@ export const updateTenantSchema = z
         "espresso",
         "jade",
         "forest",
+        "cotton-night",
+        "violet",
+        "amethyst",
+        "sky",
+        "marine",
       ])
       .optional(),
     // F7-POS-05: "Vender sin existencias". En planes CON control de stock lo

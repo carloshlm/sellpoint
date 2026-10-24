@@ -45,15 +45,20 @@ describe("catálogo de temas", () => {
     // Si esto falla, el selector ofrece un tema que el PATCH rechaza con 400
     // — o el API acepta uno que la app no sabe pintar.
     expect([...THEME_IDS].sort()).toEqual([
+      "amethyst",
       "cabin",
       "cotton",
+      "cotton-night",
       "dark",
       "espresso",
       "forest",
       "jade",
       "light",
+      "marine",
       "sand",
       "sellpointy",
+      "sky",
+      "violet",
     ]);
   });
 
@@ -115,7 +120,16 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
     // Que un tenant elija su tema no puede volver indistinguible un error de
     // un éxito. Los temas CLAROS usan los semánticos de :root; los oscuros
     // usan los de `.dark` — por eso `applyTheme` los acompaña con la clase.
-    for (const id of ["sand", "espresso", "jade", "forest", "cotton"] as const) {
+    for (const id of [
+      "sand",
+      "espresso",
+      "jade",
+      "forest",
+      "cotton",
+      "violet",
+      "sky",
+      "marine",
+    ] as const) {
       const block =
         css.match(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
       expect(block).not.toContain("--success:");
@@ -202,13 +216,21 @@ describe("la piel por componente (temas skinned)", () => {
     ...new Set([...css.matchAll(/var\((--skin-[a-z0-9-]+)\)/g)].map((m) => m[1] as string)),
   ];
 
-  it("los nueve temas tienen piel, claros y oscuros", () => {
+  it("todos los temas tienen piel, claros y oscuros", () => {
     // Carlos, 2026-10-22: Arena, Algodón, Cabina y SellPointy se reemplazaron
     // por su versión con piel (mismo id); Claro y Oscuro tomaron el estilo de
     // Niebla Cobalto y Grafito Líquido; se sumaron Café Expreso, Esmeralda
     // Jade y Esmeralda Bosque, y se retiraron Uva, Esmeralda y Carbón.
     expect(SKINNED).toEqual([...THEME_IDS]);
-    expect(SKINNED.filter((id) => THEMES[id].isDark)).toEqual(["dark", "cabin", "sellpointy"]);
+    // Carlos, 2026-10-24: se sumaron Algodón Noche, Violeta, Amatista, Cielo y
+    // Marino, y Algodón tomó el rosa chicle.
+    expect(SKINNED.filter((id) => THEMES[id].isDark)).toEqual([
+      "dark",
+      "cabin",
+      "cotton-night",
+      "amethyst",
+      "sellpointy",
+    ]);
   });
 
   it("el tema de la marca no usa amarillo para advertir: el amarillo es el punto", () => {

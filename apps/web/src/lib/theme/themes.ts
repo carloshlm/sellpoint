@@ -1,8 +1,8 @@
 /**
  * Catálogo de TEMAS del negocio (Carlos, 2026-08-25/26).
  *
- * El tenant elige UN tema y toda la app se pinta con él. Desde el 2026-10-22
- * son nueve, todos con piel, elegidos por Carlos de un lienzo de propuestas;
+ * El tenant elige UN tema y toda la app se pinta con él. Desde el 2026-10-24
+ * son catorce, todos con piel, elegidos por Carlos de un lienzo de propuestas;
  * se retiraron Uva, Esmeralda y Carbón, y Niebla Cobalto y Grafito Líquido se
  * volvieron el estilo de Claro y de Oscuro (migración
  * `f10_theme_catalog_consolidation`). El WIZARD ofrece cinco; Mi perfil,
@@ -34,6 +34,11 @@ export const THEME_IDS = [
   "forest",
   "cabin",
   "cotton",
+  "cotton-night",
+  "violet",
+  "amethyst",
+  "sky",
+  "marine",
   "sellpointy",
 ] as const;
 
@@ -141,10 +146,49 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     isDark: true,
     skinned: true,
   },
+  // Algodón se reemplazó otra vez el 2026-10-24 (Carlos): rosa chicle con letra blanca.
   cotton: {
     id: "cotton",
     nameKey: "common.theme.names.cotton",
-    swatch: "#e37e9e",
+    swatch: "#d12f70",
+    isDark: false,
+    skinned: true,
+  },
+  // La tanda del 2026-10-24 (Carlos): los oscuros llevan de muestra su acento,
+  // como Cabina; el ciruela o el casi negro solo se confundirían con Oscuro.
+  "cotton-night": {
+    id: "cotton-night",
+    nameKey: "common.theme.names.cotton-night",
+    swatch: "#ff6fa5",
+    isDark: true,
+    skinned: true,
+  },
+  violet: {
+    id: "violet",
+    nameKey: "common.theme.names.violet",
+    swatch: "#6d3fd6",
+    isDark: false,
+    skinned: true,
+  },
+  amethyst: {
+    id: "amethyst",
+    nameKey: "common.theme.names.amethyst",
+    swatch: "#a78bfa",
+    isDark: true,
+    skinned: true,
+  },
+  sky: {
+    id: "sky",
+    nameKey: "common.theme.names.sky",
+    swatch: "#0176d3",
+    isDark: false,
+    skinned: true,
+  },
+  // Bitono: el menú en azul marino, el contenido claro.
+  marine: {
+    id: "marine",
+    nameKey: "common.theme.names.marine",
+    swatch: "#032d60",
     isDark: false,
     skinned: true,
   },

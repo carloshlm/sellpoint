@@ -439,7 +439,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         expect(getResponse.body).toMatchObject({ theme: "sand" });
       });
 
-      it("todos los temas del catálogo (los nueve del 2026-10-22) persisten", async () => {
+      it("todos los temas del catálogo (los catorce del 2026-10-24) persisten", async () => {
         const owner = await registerActiveOwner();
 
         for (const theme of [
@@ -451,6 +451,11 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
           "espresso",
           "jade",
           "forest",
+          "cotton-night",
+          "violet",
+          "amethyst",
+          "sky",
+          "marine",
         ]) {
           const response = await request(app.getHttpServer())
             .patch("/tenants/me")

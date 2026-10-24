@@ -56,11 +56,11 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
     expect(screen.getByRole("radio", { name: "Arena" })).toBeChecked();
   });
 
-  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: los nueve del 2026-10-22. */
-  it("ofrece los NUEVE temas, y ya no los retirados", () => {
+  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: los catorce del 2026-10-24. */
+  it("ofrece los CATORCE temas, y ya no los retirados", () => {
     renderCard(demoUser(["tenants:manage"]));
 
-    expect(screen.getAllByRole("radio")).toHaveLength(9);
+    expect(screen.getAllByRole("radio")).toHaveLength(14);
     for (const nombre of [
       "Claro",
       "Oscuro",
@@ -70,6 +70,11 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
       "Esmeralda Bosque",
       "Cabina",
       "Algodón",
+      "Algodón Noche",
+      "Violeta",
+      "Amatista",
+      "Cielo",
+      "Marino",
       "SellPointy",
     ]) {
       expect(screen.getByRole("radio", { name: nombre })).toBeInTheDocument();
