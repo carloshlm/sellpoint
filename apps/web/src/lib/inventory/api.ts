@@ -129,6 +129,20 @@ export async function printDocumentPdf(id: string, folio: string): Promise<void>
 }
 
 /**
+ * El mismo papel que `printDocumentPdf`, pero como ARCHIVO (Carlos,
+ * 2026-10-30): quien lo quiere mandar por correo o guardarlo en una carpeta
+ * no tiene por qué pasar por el cuadro de impresión. Se llama como el folio
+ * —INV-000002.pdf—, el mismo nombre que pone el API.
+ */
+export async function downloadDocumentPdf(id: string, folio: string): Promise<void> {
+  const { data } = await api.get<Blob>(`/inventory/documents/${id}/pdf`, {
+    responseType: "blob",
+  });
+
+  await descargarBlob(data, `${folio}.pdf`);
+}
+
+/**
  * F5-EXP-01 — los lotes por vencer, con el plazo que la pantalla tiene puesto.
  *
  * Permiso `inventory:read` y no `reports:read`: es la misma lectura que ya se

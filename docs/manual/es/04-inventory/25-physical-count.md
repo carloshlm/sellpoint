@@ -65,3 +65,7 @@ Tres cosas conviene saber:
   borrador queda esperando a que un administrador lo confirme.
 - **Un conteo confirmado ya no se edita.** Si algo quedó mal, corrígelo con una
   entrada o salida con motivo **Ajuste** (capítulo 23, «Entradas y salidas»).
+
+Un conteo confirmado se imprime o se guarda como PDF igual que una entrada o una
+salida (capítulo 23): con **Imprimir** o con **Guardar como PDF**, que baja el
+archivo con su folio por nombre, como `INV-000002.pdf`.

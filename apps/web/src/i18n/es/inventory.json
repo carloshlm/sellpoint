@@ -67,6 +67,7 @@
   },
   "document": {
     "print": "Imprimir",
+    "savePdf": "Guardar como PDF",
     "openedAt": "Abierto {{date}}",
     "postedAt": "Confirmado {{date}}",
     "canceledAt": "Cancelado {{date}}",

@@ -74,8 +74,9 @@ Si te equivocaste, registra un documento nuevo que lo corrija. Por ejemplo, si
 diste salida a 5 piezas y eran 3, registra una **Entrada** con motivo **Ajuste**
 por 2 y explícalo en la nota. Así el kardex cuenta lo que pasó de verdad.
 
-Lo que sí puedes hacer con un documento confirmado es **Imprimir**: baja un PDF
-con sus líneas.
+Lo que sí puedes hacer con un documento confirmado es llevarte su papel, con sus
+líneas: **Imprimir** abre el cuadro de impresión de tu navegador, y **Guardar
+como PDF** baja el archivo con el folio por nombre, como `SAL-000003.pdf`.
 
 Un **Borrador** que ya no necesitas se **Anula**. El folio queda anulado y no se
 vuelve a usar, y sus líneas se pierden.
