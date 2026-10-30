@@ -34,6 +34,7 @@ vi.mock("../lib/inventory/api", () => ({
   cancelDocument: vi.fn(),
   printDocumentPdf: vi.fn(),
   downloadDocumentPdf: vi.fn(),
+  downloadDocumentSpreadsheet: vi.fn(),
   listDocuments: vi.fn(),
   createDocument: vi.fn(),
   addDocumentLine: vi.fn(),
@@ -493,6 +494,7 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
 
       expect(screen.queryByRole("button", { name: /imprimir/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /guardar como pdf/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /descargar excel/i })).not.toBeInTheDocument();
     });
 
     /**
@@ -545,6 +547,38 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       await user.click(screen.getByRole("button", { name: /guardar como pdf/i }));
 
       expect(await screen.findByText(/no se pudo generar el pdf/i)).toBeInTheDocument();
+    });
+
+    /**
+     * Carlos (2026-10-30): además del PDF, el movimiento baja en Excel, con
+     * el folio por nombre: Inventario, Entradas y Salidas.
+     */
+    it("confirmado, «Descargar Excel» baja el movimiento en Excel", async () => {
+      const user = userEvent.setup();
+      mocked.downloadDocumentSpreadsheet.mockResolvedValue(undefined);
+      mocked.getDocument.mockResolvedValue(detalle({ status: "confirmed" }));
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.click(screen.getByRole("button", { name: /descargar excel/i }));
+
+      await waitFor(() => {
+        expect(mocked.downloadDocumentSpreadsheet).toHaveBeenCalledWith("doc-1", "ENT-000042");
+      });
+      expect(mocked.downloadDocumentPdf).not.toHaveBeenCalled();
+    });
+
+    it("si el Excel falla, lo dice nombrando el Excel y no el PDF", async () => {
+      const user = userEvent.setup();
+      mocked.downloadDocumentSpreadsheet.mockRejectedValue(new Error("500"));
+      mocked.getDocument.mockResolvedValue(detalle({ status: "confirmed" }));
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.click(screen.getByRole("button", { name: /descargar excel/i }));
+
+      expect(await screen.findByText(/no se pudo generar el excel/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no se pudo generar el pdf/i)).not.toBeInTheDocument();
     });
   });
 

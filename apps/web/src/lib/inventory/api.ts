@@ -143,6 +143,19 @@ export async function downloadDocumentPdf(id: string, folio: string): Promise<vo
 }
 
 /**
+ * El mismo movimiento en Excel (Carlos, 2026-10-30): las mismas filas que el
+ * papel, con las cantidades como número para poder sumarlas. Se llama como el
+ * folio —INV-000019.xlsx—, igual que el PDF.
+ */
+export async function downloadDocumentSpreadsheet(id: string, folio: string): Promise<void> {
+  const { data } = await api.get<Blob>(`/inventory/documents/${id}/xlsx`, {
+    responseType: "blob",
+  });
+
+  await descargarBlob(data, `${folio}.xlsx`);
+}
+
+/**
  * F5-EXP-01 — los lotes por vencer, con el plazo que la pantalla tiene puesto.
  *
  * Permiso `inventory:read` y no `reports:read`: es la misma lectura que ya se

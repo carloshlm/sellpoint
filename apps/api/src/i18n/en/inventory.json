@@ -5,6 +5,7 @@
   "count_already_open": "There is already an open stock count for this store ({folio}). Cancel or confirm it before starting another.",
   "count_duplicate_row": "This row repeats the lot and location of row {lineNo}: keep only one.",
   "pdf_draft": "A draft has no PDF: confirm it first.",
+  "spreadsheet_draft": "A draft has no Excel file: confirm it first.",
   "count_required": "Row {lineNo} has no count: enter how many units there are (0 if none).",
   "count_negative": "The count on row {lineNo} is negative: there can't be fewer than zero units.",
   "count_invalid": "The count on row {row} is not a number.",

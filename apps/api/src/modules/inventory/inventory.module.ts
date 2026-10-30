@@ -6,6 +6,7 @@ import { CountTemplateService } from "./count-template.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
 import { DocumentPdfService } from "./document-pdf.service";
+import { DocumentSpreadsheetService } from "./document-spreadsheet";
 import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
 import { InventoryExportService } from "./inventory-export.service";
@@ -35,6 +36,7 @@ import { TransfersService } from "./transfers.service";
     ConfirmService,
     InventoryExportService,
     DocumentPdfService,
+    DocumentSpreadsheetService,
     LotsService,
     TransfersService,
     CountTemplateService,

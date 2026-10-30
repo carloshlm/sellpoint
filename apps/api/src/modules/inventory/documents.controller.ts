@@ -28,6 +28,7 @@ import { CountTemplateService } from "./count-template.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
 import { DocumentPdfService } from "./document-pdf.service";
+import { DocumentSpreadsheetService } from "./document-spreadsheet";
 import { DocumentsService } from "./documents.service";
 import {
   type CancelDocumentDto,
@@ -65,6 +66,7 @@ export class DocumentsController {
     private readonly imports: DocumentImportService,
     private readonly confirmService: ConfirmService,
     private readonly pdfService: DocumentPdfService,
+    private readonly spreadsheetService: DocumentSpreadsheetService,
     private readonly i18n: I18nService,
     private readonly countTemplate: CountTemplateService,
   ) {}
@@ -153,6 +155,30 @@ export class DocumentsController {
 
     response
       .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
+  /**
+   * El mismo movimiento en Excel (Carlos, 2026-10-30), con las mismas filas
+   * que el papel y las cantidades como número. Mismo permiso que el PDF:
+   * auditar es leer.
+   */
+  @Get(":id/xlsx")
+  @RequirePermissions("inventory:read")
+  async xlsx(
+    @CurrentUser() user: AuthUser,
+    @UuidParam("id") id: string,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.spreadsheetService.render(user, id, (key) =>
+      this.i18n.translate(key, { lang: locale }),
+    );
+
+    response
+      .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)
       .send(file.body);
   }

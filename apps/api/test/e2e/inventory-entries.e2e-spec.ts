@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import ExcelJS from "exceljs";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -602,6 +603,63 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
         .get(`/inventory/documents/${randomUUID()}/pdf`)
         .set(auth())
         .expect(404);
+    });
+  });
+
+  /**
+   * Carlos (2026-10-30): además del PDF, el movimiento baja en Excel, con el
+   * folio por nombre y las cantidades como NÚMERO, para poder sumarlas.
+   */
+  describe("el Excel (2026-10-30)", () => {
+    const binario = (ruta: string) =>
+      request(app.getHttpServer())
+        .get(ruta)
+        .set(auth())
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        });
+
+    it("baja como xlsx, con el folio de nombre, y la cantidad es un número", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Para Excel" });
+      await agregar(id, { productId, quantity: 4 }).expect(201);
+      await confirmar(id).expect(201);
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      const folio = (detalle.body as { folio: string }).folio;
+
+      const res = await binario(`/inventory/documents/${id}/xlsx`).expect(200);
+
+      expect(res.headers["content-type"]).toContain("spreadsheetml");
+      expect(res.headers["content-disposition"]).toContain(`${folio}.xlsx`);
+      const workbook = new ExcelJS.Workbook();
+      type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(res.body as unknown as XlsxInput);
+      const hoja = workbook.worksheets[0];
+      if (hoja === undefined) {
+        throw new Error("el xlsx no trae hoja");
+      }
+      expect(hoja.name).toBe(folio);
+      const encabezado = (hoja.getRow(1).values as unknown[]).slice(1);
+      expect(encabezado).toEqual(expect.arrayContaining(["Código", "Producto", "Cantidad"]));
+      const columnaCantidad = encabezado.indexOf("Cantidad") + 1;
+      expect(hoja.getRow(2).getCell(columnaCantidad).value).toBe(4);
+    });
+
+    it("un BORRADOR no tiene Excel: 409 y se explica", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Todavía no" });
+      await agregar(id, { productId, quantity: 4 }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}/xlsx`)
+        .set(auth())
+        .expect(409);
+
+      expect((res.body as { message: string }).message).toMatch(/borrador/i);
     });
   });
   /**

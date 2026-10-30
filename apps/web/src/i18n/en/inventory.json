@@ -68,6 +68,8 @@
   "document": {
     "print": "Print",
     "savePdf": "Save as PDF",
+    "downloadExcel": "Download Excel",
+    "excelFailed": "The Excel file couldn't be generated. Please try again.",
     "openedAt": "Opened {{date}}",
     "postedAt": "Confirmed {{date}}",
     "canceledAt": "Canceled {{date}}",

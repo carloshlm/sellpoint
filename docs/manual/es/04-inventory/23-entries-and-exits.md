@@ -77,6 +77,8 @@ por 2 y explícalo en la nota. Así el kardex cuenta lo que pasó de verdad.
 Lo que sí puedes hacer con un documento confirmado es llevarte su papel, con sus
 líneas: **Imprimir** abre el cuadro de impresión de tu navegador, y **Guardar
 como PDF** baja el archivo con el folio por nombre, como `SAL-000003.pdf`.
+**Descargar Excel** baja las mismas líneas en una hoja de cálculo, con las
+cantidades como números para que puedas sumarlas: `SAL-000003.xlsx`.
 
 Un **Borrador** que ya no necesitas se **Anula**. El folio queda anulado y no se
 vuelve a usar, y sus líneas se pierden.

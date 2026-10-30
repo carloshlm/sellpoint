@@ -6,7 +6,11 @@ import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
-import { buildDocumentDefinition, type PdfRow } from "./document-pdf.renderer";
+import {
+  buildDocumentDefinition,
+  type PdfDocumentInput,
+  type PdfRow,
+} from "./document-pdf.renderer";
 
 /**
  * Las fuentes estándar de PDF (Helvetica y familia) vienen dentro de todo
@@ -118,7 +122,34 @@ export class DocumentPdfService {
     documentId: string,
     t: (key: string) => string,
   ): Promise<{ body: Buffer; filename: string }> {
-    const { input, folio } = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+    const { input, folio } = await this.load(user, documentId);
+
+    const definition = buildDocumentDefinition(input, t) as unknown as TDocumentDefinitions;
+    const pdf = this.printer.createPdfKitDocument(definition);
+
+    const body = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
+      pdf.on("end", () => resolve(Buffer.concat(chunks)));
+      pdf.on("error", reject);
+      pdf.end();
+    });
+
+    return { body, filename: `${folio}.pdf` };
+  }
+
+  /**
+   * Lo que dice el papel de un documento: el PDF y el Excel salen de AQUÍ
+   * (Carlos, 2026-10-30), para que el archivo diga lo mismo que la hoja
+   * firmada. `draftMessage` es la explicación del 409 de un borrador, que
+   * nombra el formato que se pidió.
+   */
+  async load(
+    user: AuthUser,
+    documentId: string,
+    draftMessage = "inventory.pdf_draft",
+  ): Promise<{ input: PdfDocumentInput; folio: string }> {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const document = await tx.inventoryDocument.findFirst({
         where: { id: documentId, tenantId: user.tenantId },
         include: {
@@ -150,7 +181,7 @@ export class DocumentPdfService {
       // que pasó, y un borrador todavía no pasó. La marca de agua «BORRADOR» no
       // alcanzaba — el papel igual circulaba.
       if (document.status === "draft") {
-        throw new ConflictException({ message: "inventory.pdf_draft" });
+        throw new ConflictException({ message: draftMessage });
       }
 
       const tenant = await tx.tenant.findUniqueOrThrow({
@@ -191,18 +222,5 @@ export class DocumentPdfService {
         },
       };
     });
-
-    const definition = buildDocumentDefinition(input, t) as unknown as TDocumentDefinitions;
-    const pdf = this.printer.createPdfKitDocument(definition);
-
-    const body = await new Promise<Buffer>((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
-      pdf.on("end", () => resolve(Buffer.concat(chunks)));
-      pdf.on("error", reject);
-      pdf.end();
-    });
-
-    return { body, filename: `${folio}.pdf` };
   }
 }

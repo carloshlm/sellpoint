@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import { descargarBlob, imprimirPdf } from "@/lib/download";
-import { downloadDocumentPdf } from "./api";
+import { downloadDocumentPdf, downloadDocumentSpreadsheet } from "./api";
 
 vi.mock("@/lib/api", () => ({ api: { get: vi.fn() } }));
 vi.mock("@/lib/download", () => ({
@@ -30,5 +30,17 @@ describe("downloadDocumentPdf", () => {
     });
     expect(descargarBlob).toHaveBeenCalledWith(pdf, "INV-000002.pdf");
     expect(imprimirPdf).not.toHaveBeenCalled();
+  });
+
+  it("el Excel se pide aparte y baja como <folio>.xlsx", async () => {
+    const xlsx = new Blob(["PK"]);
+    vi.mocked(api.get).mockResolvedValue({ data: xlsx, headers: {} });
+
+    await downloadDocumentSpreadsheet("doc-1", "INV-000019");
+
+    expect(api.get).toHaveBeenCalledWith("/inventory/documents/doc-1/xlsx", {
+      responseType: "blob",
+    });
+    expect(descargarBlob).toHaveBeenCalledWith(xlsx, "INV-000019.xlsx");
   });
 });

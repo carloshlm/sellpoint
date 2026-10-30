@@ -41,6 +41,46 @@ describe("serializeSpreadsheet", () => {
     });
   });
 
+  /**
+   * Carlos (2026-10-30): el Excel de un movimiento lleva las cantidades como
+   * NÚMERO, para poder sumarlas. Solo en las columnas que se piden: un código
+   * como «0042» tiene que seguir siendo texto, con su cero.
+   */
+  describe("numericColumns", () => {
+    async function hoja(body: Buffer) {
+      const workbook = new ExcelJS.Workbook();
+      type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(body as unknown as XlsxInput);
+      const sheet = workbook.worksheets[0];
+      if (sheet === undefined) {
+        throw new Error("sin hoja");
+      }
+      return sheet;
+    }
+    const CON_CANTIDADES = [
+      ["sku", "cantidad"],
+      ["0042", "1.5"],
+      ["0043", ""],
+    ];
+
+    it("las columnas pedidas se escriben como número; vacío sigue vacío", async () => {
+      const { body } = await serializeSpreadsheet(CON_CANTIDADES, "xlsx", { numericColumns: [1] });
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("B2").value).toBe(1.5);
+      expect(sheet.getCell("A2").value).toBe("0042");
+      expect(sheet.getCell("B3").value).not.toBe(0);
+      expect(sheet.getCell("B1").value).toBe("cantidad");
+    });
+
+    it("sin la opción, todo sigue como texto, igual que antes", async () => {
+      const { body } = await serializeSpreadsheet(CON_CANTIDADES, "xlsx");
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("B2").value).toBe("1.5");
+    });
+  });
+
   describe("con opciones: cada reporte se nombra a sí mismo", () => {
     it("la hoja y el archivo del xlsx toman lo que pide el llamador", async () => {
       const { filename, body } = await serializeSpreadsheet(FILAS, "xlsx", {

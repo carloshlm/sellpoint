@@ -66,6 +66,7 @@ Tres cosas conviene saber:
 - **Un conteo confirmado ya no se edita.** Si algo quedó mal, corrígelo con una
   entrada o salida con motivo **Ajuste** (capítulo 23, «Entradas y salidas»).
 
-Un conteo confirmado se imprime o se guarda como PDF igual que una entrada o una
-salida (capítulo 23): con **Imprimir** o con **Guardar como PDF**, que baja el
-archivo con su folio por nombre, como `INV-000002.pdf`.
+Un conteo confirmado se imprime, se guarda como PDF o se descarga en Excel igual
+que una entrada o una salida (capítulo 23). El Excel trae el teórico, lo contado
+y la diferencia de cada producto como números, y se llama como su folio, por
+ejemplo `INV-000002.xlsx`.

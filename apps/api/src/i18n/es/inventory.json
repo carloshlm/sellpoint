@@ -5,6 +5,7 @@
   "count_already_open": "Ya hay un inventario físico abierto para esta sucursal ({folio}). Cancélalo o confírmalo antes de empezar otro.",
   "count_duplicate_row": "Esta fila repite el lote y la ubicación de la fila {lineNo}: deja una sola.",
   "pdf_draft": "Un borrador no tiene PDF: confírmalo primero.",
+  "spreadsheet_draft": "Un borrador no tiene Excel: confírmalo primero.",
   "count_required": "Falta el contado en la fila {lineNo}: escribe cuántas piezas hay (0 si no hay ninguna).",
   "count_negative": "El contado de la fila {lineNo} es negativo: no puede haber menos de cero piezas.",
   "count_invalid": "El contado de la fila {row} no es un número.",

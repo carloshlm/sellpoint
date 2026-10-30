@@ -32,7 +32,18 @@ export interface SpreadsheetOptions {
   sheetName?: string;
   /** Nombre del archivo SIN extensión: la pone el formato. */
   filenameBase?: string;
+  /**
+   * Columnas (desde 0) que en el xlsx se escriben como NÚMERO cuando la celda
+   * lo es, para que Excel las sume (Carlos, 2026-10-30: el Excel de un
+   * movimiento). Sin la opción todo va como texto, igual que siempre; el
+   * encabezado nunca se toca, y un código como «0042» va en una columna que
+   * no se pide, así que conserva su cero.
+   */
+  numericColumns?: readonly number[];
 }
+
+/** Un número que se puede escribir sin perder nada: «448.8», «-3», «36». */
+const NUMERO = /^-?\d+(\.\d+)?$/;
 
 export async function parseSpreadsheet(
   content: string,
@@ -88,8 +99,15 @@ export async function serializeSpreadsheet(
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet(options.sheetName ?? SHEET_NAME);
 
-  for (const row of rows) {
-    sheet.addRow([...row]);
+  const numericas = new Set(options.numericColumns ?? []);
+  for (const [fila, row] of rows.entries()) {
+    sheet.addRow(
+      fila === 0 || numericas.size === 0
+        ? [...row]
+        : row.map((celda, columna) =>
+            numericas.has(columna) && NUMERO.test(celda) ? Number(celda) : celda,
+          ),
+    );
   }
 
   // El encabezado en negrita y congelado: con cientos de productos, perder de
