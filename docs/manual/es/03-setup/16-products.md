@@ -19,10 +19,12 @@ Para abrir un producto, presiona **Ver** en su renglón.
 
 1. Presiona **Nuevo producto**.
 2. Captura los códigos. Necesitas **al menos uno** de los dos:
-   - **Código de barras**: el que viene impreso en el empaque. Si tienes lector,
-     escanea el producto: SellPointy busca el código en tu catálogo y en un
-     catálogo público de productos, y si lo encuentra te sugiere el nombre. Solo
-     lleva dígitos, de 6 a 14; si tecleas el de un fabricante con un número
+   - **Código de barras**: el que viene impreso en el empaque. Escanéalo con
+     el lector, o tecléalo y presiona Enter: SellPointy busca el código en tu
+     catálogo y en un catálogo público de productos, y si lo encuentra te
+     sugiere el nombre. Si en lugar de Enter pasas al siguiente campo, también
+     te lo sugiere, siempre que todavía no hayas escrito uno. Solo lleva
+     dígitos, de 6 a 14; si tecleas el de un fabricante con un número
      equivocado, SellPointy te avisa al guardar y no lo deja pasar.
    - **Código interno**: la clave que usa tu negocio, como «AGUA-1L». Si lo
      dejas vacío, se usa el código de barras. Una clave con letras va aquí, no

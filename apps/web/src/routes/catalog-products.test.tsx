@@ -821,6 +821,125 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
       expect(screen.queryByRole("button", { name: "Cambiar" })).not.toBeInTheDocument();
     });
 
+    /**
+     * Carlos (2026-10-30): el nombre del catálogo solo aparecía con Enter; con
+     * Tab o con un clic afuera, nada. Salir del campo también sugiere, pero
+     * solo en el alta y con «Nombre» vacío, sin mover el cursor y sin pisar
+     * lo que se escriba mientras llega la respuesta.
+     */
+    describe("salir del campo también sugiere el nombre", () => {
+      const MAMEY = {
+        status: "global" as const,
+        code: "7503010020615",
+        gtin14: "07503010020615",
+        tenant: null,
+        global: {
+          name: "Aceite de hueso de mamey c/50 ml",
+          lang: "es",
+          brand: null,
+          unitSize: null,
+        },
+        contributable: false,
+      };
+
+      it("con Tab sugiere el nombre y el cursor sigue al siguiente campo", async () => {
+        mockedProducts.lookupBarcode.mockResolvedValue(MAMEY);
+        const user = await abrirAlta();
+
+        await user.type(screen.getByLabelText(/código de barras/i), "7503010020615");
+        await user.tab();
+
+        expect(
+          await screen.findByDisplayValue("Aceite de hueso de mamey c/50 ml"),
+        ).toBeInTheDocument();
+        expect(mockedProducts.lookupBarcode).toHaveBeenCalledWith("7503010020615");
+        const interno = screen.getByLabelText(/código interno/i);
+        expect(interno).toHaveFocus();
+        expect(interno).toHaveValue("7503010020615");
+      });
+
+      it("un clic afuera también sugiere", async () => {
+        mockedProducts.lookupBarcode.mockResolvedValue(MAMEY);
+        const user = await abrirAlta();
+
+        await user.type(screen.getByLabelText(/código de barras/i), "7503010020615");
+        await user.click(document.body);
+
+        expect(
+          await screen.findByDisplayValue("Aceite de hueso de mamey c/50 ml"),
+        ).toBeInTheDocument();
+      });
+
+      it("con el nombre ya escrito, salir del campo no consulta ni lo pisa", async () => {
+        const user = await abrirAlta();
+
+        await user.type(screen.getByLabelText(/^nombre/i), "Aceite de mamey de la casa");
+        await user.type(screen.getByLabelText(/código de barras/i), "7503010020615");
+        await user.tab();
+
+        expect(mockedProducts.lookupBarcode).not.toHaveBeenCalled();
+        expect(screen.getByLabelText(/^nombre/i)).toHaveValue("Aceite de mamey de la casa");
+      });
+
+      it("el Enter consulta UNA vez, aunque después el foco salga del campo", async () => {
+        mockedProducts.lookupBarcode.mockResolvedValue({
+          status: "unknown",
+          code: "7501011167650",
+          gtin14: "07501011167650",
+          tenant: null,
+          global: null,
+          contributable: true,
+        });
+        await abrirAlta();
+
+        escanearCodigo("7501011167650");
+
+        expect(await screen.findByText("Escribe el nombre")).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByLabelText(/^nombre/i)).toHaveFocus());
+        expect(mockedProducts.lookupBarcode).toHaveBeenCalledTimes(1);
+      });
+
+      it("lo que se escribe en el nombre mientras llega la respuesta no se pisa", async () => {
+        let responder: (valor: typeof MAMEY) => void = () => {};
+        mockedProducts.lookupBarcode.mockReturnValue(
+          new Promise((resolve) => {
+            responder = resolve;
+          }),
+        );
+        const user = await abrirAlta();
+
+        await user.type(screen.getByLabelText(/código de barras/i), "7503010020615");
+        await user.tab();
+        await user.type(screen.getByLabelText(/^nombre/i), "Aceite casero");
+        responder(MAMEY);
+
+        await waitFor(() => expect(mockedProducts.lookupBarcode).toHaveBeenCalledTimes(1));
+        expect(screen.getByLabelText(/^nombre/i)).toHaveValue("Aceite casero");
+        expect(screen.queryByText("Nombre sugerido")).not.toBeInTheDocument();
+      });
+
+      it("en la EDICIÓN, salir del campo no consulta", async () => {
+        mockedProducts.listProducts.mockResolvedValue({
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          items: [{ ...PRODUCT, price: "0.02" }],
+        });
+        mockedProducts.getProduct.mockResolvedValue({
+          ...PRODUCT,
+          tracksLots: false,
+          hasLotStock: false,
+        });
+        const user = await openProduct();
+
+        await user.click(await screen.findByRole("button", { name: "Cambiar" }));
+        await user.type(screen.getByLabelText(/código de barras/i), "7503010020615");
+        await user.tab();
+
+        expect(mockedProducts.lookupBarcode).not.toHaveBeenCalled();
+      });
+    });
+
     it("en el ALTA no hay candado que estorbe", async () => {
       await abrirAlta();
 

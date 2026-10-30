@@ -603,12 +603,30 @@ function ProductForm({
   } | null>(null);
   const codigoRef = useRef<HTMLInputElement | null>(null);
   const nombreRef = useRef<HTMLInputElement | null>(null);
+  // El último código consultado: el Enter consulta y después mueve el cursor a
+  // «Nombre», y esa salida del campo no tiene por qué consultar otra vez.
+  const consultadoRef = useRef<string | null>(null);
 
-  const consultarCodigo = async (codigo: string) => {
+  /**
+   * `escaneo` es el lector, el Enter o la ráfaga: una orden. Consulta, llena
+   * los dos códigos, sugiere el nombre y deja el cursor en «Nombre».
+   *
+   * `salida` (Carlos, 2026-10-30): salir del campo con Tab o con un clic
+   * también sugiere, porque antes el nombre del catálogo solo aparecía con
+   * Enter. Pero solo con «Nombre» vacío, sin mover el cursor a donde nadie lo
+   * pidió y sin pisar lo que se alcance a escribir mientras llega la
+   * respuesta. El nombre se lee del DOM: el estado de React puede ir atrás.
+   */
+  const consultarCodigo = async (codigo: string, modo: "escaneo" | "salida" = "escaneo") => {
     const limpio = codigo.trim();
     if (!esAlta || !isScannableBarcode(limpio)) {
       return;
     }
+    const hayNombre = () => (nombreRef.current?.value ?? "").trim() !== "";
+    if (modo === "salida" && (hayNombre() || limpio === consultadoRef.current)) {
+      return;
+    }
+    consultadoRef.current = limpio;
     setBarcode(limpio);
     // ── Los dos códigos se llenan JUNTOS al escanear (Carlos, 2026-09-17) ──
     //
@@ -620,10 +638,19 @@ function ProductForm({
     // Solo en el ALTA. En la edición, el código interno es el identificador
     // con el que el negocio YA nombra ese producto —está en sus planillas y en
     // sus etiquetas— y cambiar el código de barras no es motivo para pisarlo.
-    setSku(normalizeCode(limpio));
+    //
+    // Al salir del campo no se pisa un código interno que ya se escribió.
+    setSku((actual) =>
+      modo === "escaneo" || actual.trim() === "" ? normalizeCode(limpio) : actual,
+    );
     setSugerencia(null);
     try {
       const hallazgo = await lookupBarcode(limpio);
+      // Quien ya escribe el nombre manda: ni se le cambia ni se le pone una
+      // insignia que diga «sugerido» sobre lo que tecleó.
+      if (modo === "salida" && hayNombre()) {
+        return;
+      }
       const sugerido = hallazgo.tenant?.name ?? hallazgo.global?.name ?? null;
       if (sugerido !== null) {
         setName(sugerido);
@@ -633,7 +660,9 @@ function ProductForm({
       // Un catálogo que no responde no puede frenar un alta a mano.
       setSugerencia(null);
     } finally {
-      nombreRef.current?.focus();
+      if (modo === "escaneo") {
+        nombreRef.current?.focus();
+      }
     }
   };
 
@@ -795,6 +824,7 @@ function ProductForm({
           event.preventDefault();
           void consultarCodigo(event.currentTarget.value);
         }}
+        onBlur={(event) => void consultarCodigo(event.currentTarget.value, "salida")}
       />
       {codigoBloqueado && canManage && (
         <Button
