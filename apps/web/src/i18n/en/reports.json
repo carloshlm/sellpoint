@@ -63,6 +63,8 @@
     "onlyBelowMin": "Only below minimum",
     "product": "Product",
     "quantity": "Quantity",
+    "search": "Search product",
+    "searchPlaceholder": "Name or SKU",
     "value": "Value",
     "valueNet": "Value (before tax)",
     "warehouse": "Store"

@@ -6,6 +6,7 @@ import { type ReportQuery, ReportTable } from "@/components/reports/report-table
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { downloadStockReport, type StockReportQuery } from "@/lib/reports/api";
 import { useStockReport } from "@/lib/reports/hooks";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -35,6 +36,11 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
   const [belowMin, setBelowMin] = useState(initialBelowMin);
   const [detalle, setDetalle] = useState(false);
   const [page, setPage] = useState(1);
+  // Carlos (2026-10-30): el buscador va al API —que busca por nombre o SKU—
+  // porque el reporte pagina en el servidor. Vacío no se manda: el schema
+  // rechaza `search` sin texto.
+  const [busqueda, setBusqueda] = useState("");
+  const buscado = useDebouncedValue(busqueda.trim());
 
   /**
    * Los FILTROS van separados de la paginación, y no es cosmético: el endpoint
@@ -43,6 +49,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
    * API acepta cualquier objeto—.
    */
   const filtros: StockReportQuery = {
+    ...(buscado !== "" && { search: buscado }),
     ...(warehouseId !== null && { warehouseId }),
     ...(belowMin && { belowMin: true }),
     ...(detalle && { detail: "lots" as const }),
@@ -110,6 +117,18 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
       <h1 className="font-semibold text-xl">{t("reports.hub.stock.title")}</h1>
 
       <div className="flex flex-wrap items-end gap-3">
+        <label htmlFor="stock-search" className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{t("reports.stock.search")}</span>
+          <input
+            id="stock-search"
+            type="search"
+            className="h-9 w-64 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+            value={busqueda}
+            placeholder={t("reports.stock.searchPlaceholder")}
+            onChange={(e) => alFiltrar(() => setBusqueda(e.target.value))}
+          />
+        </label>
+
         {negocioAjeno === null && (
           <label htmlFor="stock-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
             <span className="text-muted-foreground">{t("reports.stock.warehouse")}</span>

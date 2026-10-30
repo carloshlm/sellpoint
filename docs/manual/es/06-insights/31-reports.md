@@ -87,7 +87,8 @@ y **Tickets**. Es el número que necesitas para tu declaración.
 ## Stock por sucursal
 
 Cuánto hay de cada producto en cada sucursal, con su **Mínimo**, su **Costo
-promedio** y su **Valor (sin impuesto)**. Dos casillas lo cambian:
+promedio** y su **Valor (sin impuesto)**. Para encontrar uno, escribe su nombre
+o su SKU en **Buscar producto**. Dos casillas lo cambian:
 
 - **Solo bajo mínimo** deja los productos que hay que resurtir. El mínimo se
   compara contra lo que hay **sumando todas las sucursales**.

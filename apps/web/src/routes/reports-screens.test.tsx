@@ -229,6 +229,65 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       );
     });
 
+    /**
+     * Carlos (2026-10-30): un buscador por producto. Viaja al API, que busca
+     * por nombre o SKU: el reporte pagina en el servidor y filtrar solo la
+     * página visible escondería lo que está en las demás.
+     */
+    it("buscar un producto viaja al API, sin los espacios de los lados", async () => {
+      await renderRuta("/reports/stock");
+      await screen.findByText("Café");
+      const user = userEvent.setup();
+
+      await user.type(screen.getByLabelText(/buscar producto/i), "  café ");
+
+      await waitFor(() =>
+        expect(mocked.getStockReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "café", page: 1 }),
+        ),
+      );
+    });
+
+    /** El API rechaza `search` vacío (min 1): sin texto, ni se manda. */
+    it("al vaciar la búsqueda deja de mandar `search`", async () => {
+      await renderRuta("/reports/stock");
+      await screen.findByText("Café");
+      const user = userEvent.setup();
+      const buscador = screen.getByLabelText(/buscar producto/i);
+
+      await user.type(buscador, "café");
+      await waitFor(() =>
+        expect(mocked.getStockReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "café" }),
+        ),
+      );
+      await user.clear(buscador);
+
+      await waitFor(() =>
+        expect(mocked.getStockReport.mock.lastCall?.[0]).not.toHaveProperty("search"),
+      );
+    });
+
+    it("exportar lleva la búsqueda vigente", async () => {
+      await renderRuta("/reports/stock");
+      await screen.findByText("Café");
+      const user = userEvent.setup();
+
+      await user.type(screen.getByLabelText(/buscar producto/i), "café");
+      await waitFor(() =>
+        expect(mocked.getStockReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "café" }),
+        ),
+      );
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() =>
+        expect(mocked.downloadStockReport).toHaveBeenCalledWith(
+          expect.objectContaining({ search: "café" }),
+        ),
+      );
+    });
+
     it("el detalle por lote cambia las columnas y consulta de nuevo", async () => {
       mocked.getStockReport.mockResolvedValue({
         rows: [

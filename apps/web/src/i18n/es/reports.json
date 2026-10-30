@@ -63,6 +63,8 @@
     "onlyBelowMin": "Solo bajo mínimo",
     "product": "Producto",
     "quantity": "Cantidad",
+    "search": "Buscar producto",
+    "searchPlaceholder": "Nombre o SKU",
     "value": "Valor",
     "valueNet": "Valor (sin impuesto)",
     "warehouse": "Sucursal"
