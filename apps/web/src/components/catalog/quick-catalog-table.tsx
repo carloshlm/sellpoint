@@ -1,4 +1,4 @@
-import { isScannableBarcode, parseMoneyInput } from "@sellpoint/shared";
+import { isScannableBarcode, isValidBarcode, parseMoneyInput } from "@sellpoint/shared";
 import { Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -295,6 +295,18 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
     },
   });
 
+  /**
+   * Lo mismo que revisa el API (`barcode-rules.ts`), con dos mensajes porque
+   * se corrigen distinto: las letras no son de un código de barras; un dígito
+   * verificador que no cuadra es un dedazo (Carlos, 2026-10-30).
+   */
+  const problemaDelCodigo = (code: string): string | null => {
+    if (!isScannableBarcode(code)) {
+      return t("products.quick.invalidBarcode", { code });
+    }
+    return isValidBarcode(code) ? null : t("products.quick.barcodeCheckDigit", { code });
+  };
+
   const escanear = (code: string) => {
     const limpio = code.trim();
     if (limpio === "") {
@@ -304,8 +316,9 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
     // lector puede entregar no es una línea a medio llenar, es basura que
     // después hay que quitar a mano. El campo se queda con lo tecleado para
     // que se vea qué entró y se pueda corregir.
-    if (!isScannableBarcode(limpio)) {
-      setAviso(t("products.quick.invalidBarcode", { code: limpio }));
+    const problema = problemaDelCodigo(limpio);
+    if (problema !== null) {
+      setAviso(problema);
       return;
     }
     setGuardado(null);
@@ -335,8 +348,9 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
     }
     // Las líneas que entraron antes de que existiera esta validación: el
     // borrador vive en el navegador y puede traerlas.
-    if (!isScannableBarcode(linea.code)) {
-      return t("products.quick.invalidBarcode", { code: linea.code });
+    const problemaCodigo = problemaDelCodigo(linea.code);
+    if (problemaCodigo !== null) {
+      return problemaCodigo;
     }
     if (linea.name.trim() === "") {
       return t("products.quick.nameRequired");

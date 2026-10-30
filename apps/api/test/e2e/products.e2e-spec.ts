@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { gtinCheckDigit } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -162,7 +163,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         sku: `OAT-${randomUUID().slice(0, 8)}`,
         name: "Oatmeal Bars",
         baseUnit: "unit",
-        barcode: "111111111111",
+        barcode: "111111111117",
       }).expect(201);
       const id = (created.body as { id: string }).id;
 
@@ -187,7 +188,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         sku: `OAT-${randomUUID().slice(0, 8)}`,
         name: "Oatmeal Bars",
         baseUnit: "unit",
-        barcode: "222222222222",
+        barcode: "222222222224",
       }).expect(201);
       const id = (created.body as { id: string }).id;
 
@@ -218,14 +219,14 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         sku: `UNO-${randomUUID().slice(0, 8)}`,
         name: "Primero",
         baseUnit: "unit",
-        barcode: "333333333333",
+        barcode: "333333333331",
       }).expect(201);
 
       const res = await createProduct(token, {
         sku: `DOS-${randomUUID().slice(0, 8)}`,
         name: "Segundo",
         baseUnit: "unit",
-        barcode: "333333333333",
+        barcode: "333333333331",
       }).expect(409);
 
       // La clave viaja en `code`; `message` trae el texto ya traducido — la
@@ -370,7 +371,9 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         name: "Ibuprofeno 400mg",
       }).expect(201);
       const id = (created.body as { id: string }).id;
-      const barcode = `750${Date.now()}`;
+      // Un EAN-13 válido y único: desde 2026-10-30 el alta revisa el verificador.
+      const cuerpo = `750${String(Date.now()).slice(-9)}`;
+      const barcode = `${cuerpo}${gtinCheckDigit(cuerpo)}`;
 
       await request(app.getHttpServer())
         .post(`/products/${id}/presentations`)
@@ -671,7 +674,8 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       const { token } = await registerAndLogin();
       const first = await createProduct(token, { sku: "A", name: "A" }).expect(201);
       const second = await createProduct(token, { sku: "B", name: "B" }).expect(201);
-      const barcode = `999${Date.now()}`;
+      const cuerpo = `999${String(Date.now()).slice(-9)}`;
+      const barcode = `${cuerpo}${gtinCheckDigit(cuerpo)}`;
 
       await request(app.getHttpServer())
         .post(`/products/${(first.body as { id: string }).id}/presentations`)
@@ -1846,13 +1850,34 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(rechazo.body.message).toContain("6 y 14 dígitos");
     });
 
-    it("un código interno del negocio se busca literal, con su guion y todo", async () => {
+    /** Carlos (2026-10-30): un EAN con un dígito cambiado tampoco entra. */
+    it("el alta rechaza un EAN con el dígito verificador equivocado", async () => {
       const { token } = await registerAndLogin();
-      await createProduct(token, {
+
+      const rechazo = await quick(token, [
+        { code: "7509999000212", name: "Producto Error", price: 10 },
+      ]).expect(400);
+
+      expect(rechazo.body).toMatchObject({ code: "products.barcode_check_digit" });
+    });
+
+    /**
+     * Desde 2026-10-30 el alta ya no acepta letras en el código de barras, pero
+     * los productos de antes siguen ahí con su «INTERNO-42», y la consulta los
+     * tiene que seguir encontrando: el código se siembra directo, como dato viejo.
+     */
+    it("un código interno del negocio se busca literal, con su guion y todo", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const creado = await createProduct(token, {
         sku: "INTERNO-1",
         name: "Producto sin código de barras",
-        barcode: "INTERNO-42",
       }).expect(201);
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productPresentation.updateMany({
+          where: { productId: (creado.body as { id: string }).id },
+          data: { barcode: "INTERNO-42" },
+        }),
+      );
 
       const encontrado = await lookup(token, "INTERNO-42").expect(200);
       expect(encontrado.body).toMatchObject({
@@ -1860,6 +1885,182 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         gtin14: null,
         tenant: { name: "Producto sin código de barras" },
       });
+    });
+  });
+  /**
+   * Carlos (2026-10-30): un negocio dio de alta «CUBREADULTOAZUL» como código
+   * de barras, y el 7503010020615 de una farmacia no le aparecía a otro negocio
+   * en la Carga rápida: solo ESA pantalla aportaba al catálogo compartido.
+   * Ahora todo alta valida el código y aporta los GTIN de la unidad base.
+   */
+  describe("el código de barras se valida y se aporta en toda alta (2026-10-30)", () => {
+    const APORTA_ALTA = "7509999000211";
+    const APORTA_EDICION = "7509999000228";
+    const CAJA = "7509999000235";
+
+    afterAll(async () => {
+      await prisma.globalBarcodeCatalog.deleteMany({
+        where: { gtin14: { in: [APORTA_ALTA, APORTA_EDICION, CAJA].map((c) => `0${c}`) } },
+      });
+    });
+
+    const presentacion = (token: string, productId: string, body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post(`/products/${productId}/presentations`)
+        .set("Authorization", bearer(token))
+        .send(body);
+
+    it("el alta rechaza un código con letras: un código propio va en el código interno", async () => {
+      const { token } = await registerAndLogin();
+
+      const res = await createProduct(token, {
+        sku: `CUB-${randomUUID().slice(0, 8)}`,
+        name: "Cubrebocas adulto azul 1 pza",
+        baseUnit: "unit",
+        barcode: "CUBREADULTOAZUL",
+      }).expect(400);
+
+      expect(res.body).toMatchObject({ code: "products.invalid_barcode" });
+    });
+
+    it("el alta rechaza un EAN con el dígito verificador equivocado", async () => {
+      const { token } = await registerAndLogin();
+
+      const res = await createProduct(token, {
+        sku: `EAN-${randomUUID().slice(0, 8)}`,
+        name: "Aceite de coco c/50 ml",
+        baseUnit: "unit",
+        barcode: "7509999000212",
+      }).expect(400);
+
+      expect(res.body).toMatchObject({ code: "products.barcode_check_digit" });
+    });
+
+    /**
+     * Los 34 códigos con letras que ya existen no se tocan: el formulario
+     * reenvía el código en cada guardado, y bloquearlo dejaría esos productos
+     * sin poder cambiarles ni el precio.
+     */
+    it("editar un producto que YA tenía un código con letras no lo bloquea", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `LEG-${randomUUID().slice(0, 8)}`,
+        name: "Ajolotius caramelo",
+        baseUnit: "unit",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productPresentation.updateMany({
+          where: { productId: id },
+          data: { barcode: "AJOLOCARAMELO" },
+        }),
+      );
+
+      await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ barcode: "AJOLOCARAMELO", price: 12 })
+        .expect(200);
+    });
+
+    it("cambiar el código a uno inválido al editar da 400 y no lo guarda", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `EDT-${randomUUID().slice(0, 8)}`,
+        name: "Aceite de trigo c/50 ml",
+        baseUnit: "unit",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ barcode: "75916565T" })
+        .expect(400);
+
+      expect(res.body).toMatchObject({ code: "products.invalid_barcode" });
+      const base = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productPresentation.findFirst({ where: { productId: id } }),
+      );
+      expect(base?.barcode).toBeNull();
+    });
+
+    it("un alta con un código que nadie conocía lo aporta al catálogo de todos", async () => {
+      const { token, tenantId } = await registerAndLogin();
+
+      await createProduct(token, {
+        sku: APORTA_ALTA,
+        name: "Aceite de hueso de mamey c/50 ml",
+        baseUnit: "unit",
+        barcode: APORTA_ALTA,
+      }).expect(201);
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${APORTA_ALTA}` },
+      });
+      expect(fila).toMatchObject({
+        source: "tenant_contributed",
+        nameEs: "Aceite de hueso de mamey c/50 ml",
+        contributedByTenantId: tenantId,
+      });
+    });
+
+    it("corregir el código al editar también lo aporta", async () => {
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `COR-${randomUUID().slice(0, 8)}`,
+        name: "Aceite de romero c/50 ml",
+        baseUnit: "unit",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ barcode: APORTA_EDICION })
+        .expect(200);
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${APORTA_EDICION}` },
+      });
+      expect(fila?.nameEs).toBe("Aceite de romero c/50 ml");
+    });
+
+    /**
+     * El código de una CAJA no lleva el nombre de la pieza: aportarlo con
+     * «Aceite de romero c/50 ml» le sugeriría la pieza a quien escanea la caja.
+     */
+    it("una presentación de varias piezas no aporta su código", async () => {
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `CJA-${randomUUID().slice(0, 8)}`,
+        name: "Aceite de oso c/50 ml",
+        baseUnit: "unit",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      await presentacion(token, id, { name: "Caja c/12", factor: 12, barcode: CAJA }).expect(201);
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({ where: { gtin14: `0${CAJA}` } });
+      expect(fila).toBeNull();
+    });
+
+    it("una presentación con un código inválido se rechaza", async () => {
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `PRS-${randomUUID().slice(0, 8)}`,
+        name: "Aceite de almendras c/50 ml",
+        baseUnit: "unit",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      const res = await presentacion(token, id, {
+        name: "Caja c/6",
+        factor: 6,
+        barcode: "AJOLOCARAMELO-ME-EU",
+      }).expect(400);
+
+      expect(res.body).toMatchObject({ code: "products.invalid_barcode" });
     });
   });
 });

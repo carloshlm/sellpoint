@@ -51,7 +51,7 @@ siguiente PROV-… .
 
 | Columna | Qué va |
 |---|---|
-| `codigo_de_barras` | El código impreso en el empaque. Opcional. |
+| `codigo_de_barras` | El código impreso en el empaque, solo dígitos (de 6 a 14). Opcional. Una clave con letras va en `sku`. |
 | `sku` | El código interno. **Obligatorio.** |
 | `nombre` | El nombre. **Obligatorio.** |
 | `unidad_base` | `unit` para pieza, `kg`, `gr`, `l`, `ml`… |

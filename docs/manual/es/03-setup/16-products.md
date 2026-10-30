@@ -21,9 +21,12 @@ Para abrir un producto, presiona **Ver** en su renglón.
 2. Captura los códigos. Necesitas **al menos uno** de los dos:
    - **Código de barras**: el que viene impreso en el empaque. Si tienes lector,
      escanea el producto: SellPointy busca el código en tu catálogo y en un
-     catálogo público de productos, y si lo encuentra te sugiere el nombre.
+     catálogo público de productos, y si lo encuentra te sugiere el nombre. Solo
+     lleva dígitos, de 6 a 14; si tecleas el de un fabricante con un número
+     equivocado, SellPointy te avisa al guardar y no lo deja pasar.
    - **Código interno**: la clave que usa tu negocio, como «AGUA-1L». Si lo
-     dejas vacío, se usa el código de barras.
+     dejas vacío, se usa el código de barras. Una clave con letras va aquí, no
+     en **Código de barras**.
 3. Escribe el **Nombre** como lo vas a buscar en la caja: marca, producto y
    tamaño. «Agua natural 1 L» y «Agua natural 600 ml» son dos productos.
 4. Elige la **Unidad base**: **Pieza** para lo que se cuenta, o una unidad de
@@ -99,7 +102,13 @@ es lo más rápido: escaneas, escribes el precio y sigues con el siguiente.
 
 Los códigos nuevos se crean como productos; a los que ya tienes **solo se les
 cambia el precio de venta**. Caben hasta 100 líneas por vez, y puedes volver
-cuando quieras a seguir con los demás.
+cuando quieras a seguir con los demás. Un código con letras, o con un número
+equivocado, no agrega línea: la pantalla te dice qué tiene.
+
+Cuando das de alta un producto cuyo código de barras todavía no está en el
+catálogo público —por cualquiera de los tres caminos—, el nombre que escribiste
+se suma a él y se les sugiere a otros negocios. Solo viajan el código y el
+nombre: nunca tus precios, tus existencias ni nada de tu negocio.
 
 ## Cambiar, desactivar o eliminar
 

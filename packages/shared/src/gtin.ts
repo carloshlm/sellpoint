@@ -187,6 +187,62 @@ export function isScannableBarcode(code: string | null | undefined): boolean {
   return /^\d{6,14}$/.test(cleanGtin(code));
 }
 
+/**
+ * Un UPC-E (N d1…d6 C) en su forma UPC-A de 12, o `null` si no es UPC-E.
+ *
+ * El UPC-E comprime los ceros de un UPC-A, y su dígito verificador es el del
+ * UPC-A EXPANDIDO, no el módulo 10 de sus propios 8 dígitos. La expansión
+ * depende del último dígito de datos: es la tabla de GS1, tal cual.
+ */
+function upcEToUpcA(code: string): string | null {
+  if (!/^[01]\d{7}$/.test(code)) {
+    return null;
+  }
+  const d = code.slice(1, 7);
+  const ultimo = d[5] ?? "";
+  let cuerpo: string;
+  if (ultimo <= "2") {
+    cuerpo = `${d.slice(0, 2)}${ultimo}0000${d.slice(2, 5)}`;
+  } else if (ultimo === "3") {
+    cuerpo = `${d.slice(0, 3)}00000${d.slice(3, 5)}`;
+  } else if (ultimo === "4") {
+    cuerpo = `${d.slice(0, 4)}00000${d[4]}`;
+  } else {
+    cuerpo = `${d.slice(0, 5)}0000${ultimo}`;
+  }
+  return `${code[0]}${cuerpo}${code[7]}`;
+}
+
+/**
+ * Lo que se acepta al GUARDAR un código de barras en un producto: lo que un
+ * lector entrega (`isScannableBarcode`) y, si tiene largo de GTIN, con su
+ * dígito verificador correcto.
+ *
+ * Carlos (2026-10-30): un negocio dio de alta «CUBREADULTOAZUL» como código de
+ * barras. El mostrador nunca lo reconoce al escanear —no es de dígitos— y un
+ * EAN con un dígito cambiado es un producto que el lector no va a encontrar.
+ * Los códigos cortos de la tienda (6, 7, 9 a 11 dígitos) no traen verificador
+ * que revisar y siguen entrando; un código interno con letras va en «Código
+ * interno».
+ *
+ * Un código de 8 que no cuadra como EAN-8 todavía puede ser un UPC-E, cuyo
+ * verificador se calcula sobre su forma expandida.
+ */
+export function isValidBarcode(code: string | null | undefined): boolean {
+  if (!isScannableBarcode(code)) {
+    return false;
+  }
+  const limpio = cleanGtin(code ?? "");
+  if (!(GTIN_LENGTHS as readonly number[]).includes(limpio.length)) {
+    return true;
+  }
+  if (normalizeGtin14(limpio) !== null) {
+    return true;
+  }
+  const upcA = limpio.length === 8 ? upcEToUpcA(limpio) : null;
+  return upcA !== null && normalizeGtin14(upcA) !== null;
+}
+
 /** Un código de barras ya entendido: la clave, su prefijo y sus escrituras. */
 export interface GtinInfo {
   /** La clave canónica de 14 dígitos. */

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { refineBarcode } from "../barcode-rules";
 import { moneyAmount } from "../money";
 
 /**
@@ -13,7 +14,7 @@ export const createPresentationSchema = z.object({
   isSellable: z.boolean().default(true),
   isDefaultSale: z.boolean().default(false),
   allowFractionalInput: z.boolean().optional(),
-  barcode: z.string().trim().min(1).max(64).optional(),
+  barcode: z.string().trim().min(1).max(64).superRefine(refineBarcode).optional(),
   price: moneyAmount().optional(),
   cost: moneyAmount().optional(),
 });

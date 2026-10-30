@@ -45,6 +45,8 @@ describe("ProductsService — el candado de lotes (F10-MANFIX-06)", () => {
     { record: auditar } as any,
     // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
     { resolve: resolverPlan } as any,
+    // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
+    { contribute: jest.fn() } as any,
   );
 
   const usuario: AuthUser = { tenantId: "t-1", userId: "u-1", permissions: [], locale: "es" };

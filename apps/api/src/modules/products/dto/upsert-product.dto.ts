@@ -1,5 +1,6 @@
 import { normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
+import { refineBarcode } from "../barcode-rules";
 import { moneyAmount } from "../money";
 
 /**
@@ -30,7 +31,9 @@ export const createProductSchema = z.object({
   cost: moneyAmount().optional(),
   /** F4-TAX-10: el impuesto del artículo; null o ausente = el default del negocio. */
   taxGroupId: z.string().uuid().nullable().optional(),
-  barcode: z.string().trim().min(1).max(64).optional(),
+  // Al editar se valida en el servicio, solo si el código cambia: ver
+  // `assertBarcodeChange`.
+  barcode: z.string().trim().min(1).max(64).superRefine(refineBarcode).optional(),
 });
 
 export const updateProductSchema = z

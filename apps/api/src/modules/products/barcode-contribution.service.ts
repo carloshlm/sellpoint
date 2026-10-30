@@ -71,8 +71,20 @@ export class BarcodeContributionService {
       return 0;
     }
 
+    // Una clave repetida en la MISMA sentencia hace que el ON CONFLICT toque
+    // la fila dos veces, y Postgres rechaza el INSERT entero: el mismo GTIN en
+    // dos escrituras (`7501…` y `07501…`) dejaría a la planilla sin aportar
+    // nada. Gana la primera, como en la Carga rápida.
+    const porClave = new Map<string, BarcodeContribution>();
+    for (const codigo of codigos) {
+      if (!porClave.has(codigo.gtin14)) {
+        porClave.set(codigo.gtin14, codigo);
+      }
+    }
+    const unicos = [...porClave.values()];
+
     try {
-      const filas = codigos.map(
+      const filas = unicos.map(
         (c) =>
           Prisma.sql`(${c.gtin14}::char(14), ${c.prefix}::char(3), ${c.name}::varchar(300), ${normalizeSearchText(c.name)}::varchar(300))`,
       );

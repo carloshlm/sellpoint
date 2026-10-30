@@ -335,6 +335,19 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(screen.getByLabelText("Código de barras")).toHaveValue(codigo);
   });
 
+  /** Carlos (2026-10-30): un EAN con un dígito cambiado tampoco abre línea. */
+  it("no crea línea con un EAN cuyo dígito verificador no cuadra", async () => {
+    const user = await abrir();
+
+    await escanear(user, "7503010020614");
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "su último dígito no coincide con los demás",
+    );
+    expect(mocked.lookupBarcode).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Código de barras")).toHaveValue("7503010020614");
+  });
+
   it("una línea vieja con un código imposible frena el alta y lo dice", async () => {
     useQuickCatalogStore.setState({
       owner: `${USUARIO.tenant.id}:${USUARIO.id}`,

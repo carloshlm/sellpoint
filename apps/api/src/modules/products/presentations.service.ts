@@ -5,6 +5,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { BarcodeContributionService } from "./barcode-contribution.service";
+import { assertBarcodeChange, contributionOf } from "./barcode-rules";
 import type { CreatePresentationDto, UpdatePresentationDto } from "./dto/upsert-presentation.dto";
 import { derivesFractionalInput } from "./products.service";
 
@@ -35,6 +37,7 @@ export class PresentationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly contribution: BarcodeContributionService,
   ) {}
 
   async list(user: AuthUser, productId: string) {
@@ -50,7 +53,7 @@ export class PresentationsService {
   }
 
   async create(user: AuthUser, productId: string, input: CreatePresentationDto, meta: RequestMeta) {
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+    const hecha = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const product = await this.findProductOrFail(tx, user, productId);
 
       try {
@@ -87,11 +90,17 @@ export class PresentationsService {
           userAgent: meta.userAgent,
         });
 
-        return presentation;
+        return {
+          presentation,
+          aporte: contributionOf(input.barcode, product.name, input.factor),
+        };
       } catch (error) {
         throw translateUniqueViolation(error);
       }
     });
+
+    await this.aportar(user, hecha.aporte);
+    return hecha.presentation;
   }
 
   async update(
@@ -101,8 +110,8 @@ export class PresentationsService {
     input: UpdatePresentationDto,
     meta: RequestMeta,
   ) {
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.findProductOrFail(tx, user, productId);
+    const hecha = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const product = await this.findProductOrFail(tx, user, productId);
       const current = await tx.productPresentation.findFirst({
         where: { id: presentationId, productId, tenantId: user.tenantId },
       });
@@ -110,6 +119,10 @@ export class PresentationsService {
       if (!current) {
         throw new NotFoundException({ message: "products.presentation_not_found" });
       }
+
+      // Carlos (2026-10-30): se valida solo si el código CAMBIA — ver
+      // `assertBarcodeChange`.
+      assertBarcodeChange(input.barcode, current.barcode);
 
       // Quitarle el default al ÚNICO default dejaría al producto sin
       // presentación preseleccionada y el POS no sabría qué ofrecer.
@@ -158,11 +171,25 @@ export class PresentationsService {
           userAgent: meta.userAgent,
         });
 
-        return presentation;
+        const cambio = input.barcode !== undefined && input.barcode !== current.barcode;
+        return {
+          presentation,
+          aporte: cambio ? contributionOf(input.barcode, product.name, presentation.factor) : null,
+        };
       } catch (error) {
         throw translateUniqueViolation(error);
       }
     });
+
+    await this.aportar(user, hecha.aporte);
+    return hecha.presentation;
+  }
+
+  /** El aporte al catálogo compartido, si lo hay. `contribute` no lanza nunca. */
+  private async aportar(user: AuthUser, aporte: ReturnType<typeof contributionOf>): Promise<void> {
+    if (aporte !== null) {
+      await this.contribution.contribute(user.tenantId, user.locale, [aporte]);
+    }
   }
 
   /**
@@ -260,10 +287,10 @@ export class PresentationsService {
     tx: Prisma.TransactionClient,
     user: AuthUser,
     productId: string,
-  ): Promise<{ id: string; baseUnit: string }> {
+  ): Promise<{ id: string; baseUnit: string; name: string }> {
     const product = await tx.product.findFirst({
       where: { id: productId, tenantId: user.tenantId },
-      select: { id: true, baseUnit: true },
+      select: { id: true, baseUnit: true, name: true },
     });
 
     if (!product) {

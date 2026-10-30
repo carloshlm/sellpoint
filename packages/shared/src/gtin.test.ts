@@ -6,6 +6,7 @@ import {
   gtinCheckDigit,
   gtinVariants,
   isScannableBarcode,
+  isValidBarcode,
   normalizeGtin14,
 } from "./gtin";
 
@@ -123,5 +124,57 @@ describe("gtin", () => {
       variants: ["07501055300013", "7501055300013"],
     });
     expect(classifyGtin("no-es-un-codigo")).toBeNull();
+  });
+});
+
+/**
+ * Carlos (2026-10-30): un negocio dio de alta «CUBREADULTOAZUL» como código de
+ * barras. Al guardar un código se exige lo que un lector entrega y, cuando el
+ * código trae dígito verificador, que cuadre: así un dedazo no termina en un
+ * producto que nadie encuentra escaneando.
+ */
+describe("isValidBarcode", () => {
+  it("acepta un EAN-13, un UPC-A, un GTIN-14 y un EAN-8 con su verificador", () => {
+    expect(isValidBarcode("7503010020615")).toBe(true);
+    expect(isValidBarcode("041500750903")).toBe(true);
+    expect(isValidBarcode("07503010020615")).toBe(true);
+    expect(isValidBarcode("75000011")).toBe(true);
+    expect(isValidBarcode(" 7503010020615 ")).toBe(true);
+  });
+
+  it("rechaza letras y símbolos, como un código interno", () => {
+    expect(isValidBarcode("CUBREADULTOAZUL")).toBe(false);
+    expect(isValidBarcode("75916565T")).toBe(false);
+    expect(isValidBarcode("AJOLOCARAMELO-ME-EU")).toBe(false);
+  });
+
+  it("rechaza un GTIN con el dígito verificador equivocado", () => {
+    expect(isValidBarcode("7503010020614")).toBe(false);
+    expect(isValidBarcode("041500750904")).toBe(false);
+    expect(isValidBarcode("75000012")).toBe(false);
+  });
+
+  /**
+   * El UPC-E (8 dígitos, productos chicos de Estados Unidos) calcula su
+   * verificador sobre la forma EXPANDIDA a UPC-A: 04252614 es 042100005264.
+   * Validarlo como EAN-8 rechazaría un código real.
+   */
+  it("acepta un UPC-E de 8 dígitos y rechaza uno con el verificador mal", () => {
+    expect(isValidBarcode("04252614")).toBe(true);
+    expect(isValidBarcode("04252615")).toBe(false);
+  });
+
+  it("deja pasar los códigos cortos de la tienda, que no traen verificador", () => {
+    expect(isValidBarcode("123456")).toBe(true);
+    expect(isValidBarcode("1234567")).toBe(true);
+    expect(isValidBarcode("123456789")).toBe(true);
+  });
+
+  it("rechaza lo que no se puede escanear: corto, largo, ceros o vacío", () => {
+    expect(isValidBarcode("12345")).toBe(false);
+    expect(isValidBarcode("123456789012345")).toBe(false);
+    expect(isValidBarcode("0000000000000")).toBe(false);
+    expect(isValidBarcode("")).toBe(false);
+    expect(isValidBarcode(null)).toBe(false);
   });
 });

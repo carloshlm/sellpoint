@@ -329,6 +329,21 @@ los valores que decide el Python.
 - El aporte corre en **su propia transacción, después del COMMIT** del alta, y
   no lanza nunca: si falla, el negocio se queda con sus productos y la
   plataforma pierde una fila. Al revés sería indefendible en el mostrador.
+- **Desde 2026-10-30 aporta TODA alta, no solo la Carga rápida** (Carlos: el
+  7503010020615 de una farmacia, dado de alta con «Nuevo producto», no le
+  aparecía a otro negocio). Aportan el alta y la edición del producto, el alta
+  y la edición de una presentación, y la importación — solo un código NUEVO o
+  cambiado, solo la unidad base (`factor` 1) y con el nombre del PRODUCTO: el
+  código de una caja con el nombre de la pieza envenenaría la sugerencia. La
+  regla vive en `apps/api/src/modules/products/barcode-rules.ts`
+  (`contributionOf`). Los términos (T6/P6) ya lo cubrían: hablan del nombre
+  que se captura para un código, no de una pantalla.
+- **Desde 2026-10-30 el código de barras se valida al guardarlo**: solo dígitos
+  (de 6 a 14) y, con largo de GTIN, el dígito verificador correcto — también el
+  del UPC-E de 8, que se calcula sobre su forma expandida (`isValidBarcode` en
+  `gtin.ts`). Al EDITAR se valida solo si el código cambia: en producción hay 34
+  códigos con letras de antes de la regla, y el formulario reenvía el código en
+  cada guardado.
 
 ⚠️ **La columna del sello NO se puede llamar `tenant_id`.** `purge_tenant`
 recorre `information_schema` y borra de toda tabla base con una columna así:

@@ -17,6 +17,8 @@ import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions"
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
+import { BarcodeContributionService } from "./barcode-contribution.service";
+import { assertBarcodeChange, contributionOf } from "./barcode-rules";
 import type {
   CreateProductDto,
   ListProductsQuery,
@@ -57,6 +59,7 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly entitlements: EntitlementsService,
+    private readonly contribution: BarcodeContributionService,
   ) {}
 
   /**
@@ -171,7 +174,7 @@ export class ProductsService {
       assertPlanFeature(await this.entitlements.resolve(user.tenantId), "lots");
     }
 
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+    const creado = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.assertAttributesValid(tx, user, input.attributes);
       assertKnownUnit(input.baseUnit);
       await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
@@ -227,6 +230,11 @@ export class ProductsService {
         throw traducirConflicto(error);
       }
     });
+
+    // Carlos (2026-10-30): toda alta aporta al catálogo compartido, no solo la
+    // Carga rápida. Después del COMMIT y sin lanzar nunca, como allá.
+    await this.aportar(user, contributionOf(input.barcode, creado.name, 1));
+    return creado;
   }
 
   async update(user: AuthUser, id: string, input: UpdateProductDto, meta: RequestMeta) {
@@ -241,12 +249,24 @@ export class ProductsService {
     // pool por un solo guardado.
     const plan = input.tracksLots === true ? await this.entitlements.resolve(user.tenantId) : null;
 
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+    const hecho = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const current = await tx.product.findFirst({ where: { id, tenantId: user.tenantId } });
 
       if (!current) {
         throw new NotFoundException({ message: "products.not_found" });
       }
+
+      // Precio, costo y código de barras editan la presentación
+      // PREDETERMINADA: para el usuario son "del producto", para el modelo
+      // son la fila base. Un solo lugar donde vive cada dato.
+      const base =
+        input.price !== undefined || input.cost !== undefined || input.barcode !== undefined
+          ? await tx.productPresentation.findFirst({
+              where: { productId: id, isDefaultSale: true },
+              select: { id: true, barcode: true, factor: true },
+            })
+          : null;
+      assertBarcodeChange(input.barcode, base?.barcode);
 
       if (plan !== null && !current.tracksLots) {
         assertPlanFeature(plan, "lots");
@@ -295,24 +315,15 @@ export class ProductsService {
           },
         });
 
-        // Precio, costo y código de barras editan la presentación
-        // PREDETERMINADA: para el usuario son "del producto", para el modelo
-        // son la fila base. Un solo lugar donde vive cada dato.
-        if (input.price !== undefined || input.cost !== undefined || input.barcode !== undefined) {
-          const target = await tx.productPresentation.findFirst({
-            where: { productId: id, isDefaultSale: true },
-            select: { id: true },
+        if (base) {
+          await tx.productPresentation.update({
+            where: { id: base.id },
+            data: {
+              ...(input.price !== undefined ? { price: input.price } : {}),
+              ...(input.cost !== undefined ? { cost: input.cost } : {}),
+              ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
+            },
           });
-          if (target) {
-            await tx.productPresentation.update({
-              where: { id: target.id },
-              data: {
-                ...(input.price !== undefined ? { price: input.price } : {}),
-                ...(input.cost !== undefined ? { cost: input.cost } : {}),
-                ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
-              },
-            });
-          }
         }
 
         await this.auditService.record(tx, {
@@ -327,11 +338,27 @@ export class ProductsService {
           userAgent: meta.userAgent,
         });
 
-        return product;
+        // Solo un código NUEVO se aporta: reenviar el de siempre no es aporte.
+        const cambio =
+          base !== null && input.barcode !== undefined && input.barcode !== base.barcode;
+        return {
+          product,
+          aporte: cambio ? contributionOf(input.barcode, product.name, base.factor) : null,
+        };
       } catch (error) {
         throw traducirConflicto(error);
       }
     });
+
+    await this.aportar(user, hecho.aporte);
+    return hecho.product;
+  }
+
+  /** El aporte al catálogo compartido, si lo hay. `contribute` no lanza nunca. */
+  private async aportar(user: AuthUser, aporte: ReturnType<typeof contributionOf>): Promise<void> {
+    if (aporte !== null) {
+      await this.contribution.contribute(user.tenantId, user.locale, [aporte]);
+    }
   }
 
   /**

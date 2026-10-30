@@ -27,6 +27,11 @@ import {
 } from "../catalogs/import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
+import {
+  type BarcodeContribution,
+  BarcodeContributionService,
+} from "./barcode-contribution.service";
+import { barcodeProblem, contributionOf } from "./barcode-rules";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
 import { basePresentationName, derivesFractionalInput } from "./products.service";
 
@@ -149,6 +154,7 @@ export class ImportService {
     private readonly auditService: AuditService,
     private readonly i18n: I18nService,
     private readonly entitlements: EntitlementsService,
+    private readonly contribution: BarcodeContributionService,
   ) {}
 
   /**
@@ -472,10 +478,22 @@ export class ImportService {
     const existing = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.product.findMany({
         where: { sku: { in: parsed.map((item) => item.sku) } },
-        select: { id: true, sku: true, tracksLots: true },
+        select: {
+          id: true,
+          sku: true,
+          tracksLots: true,
+          presentations: {
+            where: { isDefaultSale: true },
+            select: { barcode: true, factor: true },
+            take: 1,
+          },
+        },
       }),
     );
     const idBySku = new Map(existing.map((product) => [product.sku, product.id]));
+    // El código que la presentación base ya tiene: volver a subir la planilla
+    // de siempre no castiga un código de antes de la regla (2026-10-30).
+    const baseBySku = new Map(existing.map((product) => [product.sku, product.presentations[0]]));
     const conId: ParsedRow[] = parsed.map((item) => ({
       ...item,
       existingId: idBySku.get(item.sku) ?? null,
@@ -535,6 +553,23 @@ export class ImportService {
           row: item.row,
           field: "controla_lotes",
           message: "products.lots_not_in_plan",
+          itemCode: item.sku,
+        });
+        continue;
+      }
+      // Carlos (2026-10-30): la planilla no pasa por los DTO, así que la regla
+      // del código de barras se aplica aquí, por fila. Solo si el código CAMBIA.
+      const codigoDeAntes =
+        item.existingId === null ? null : (baseBySku.get(item.sku)?.barcode ?? null);
+      const problema =
+        item.barcode !== null && item.barcode !== codigoDeAntes
+          ? barcodeProblem(item.barcode)
+          : null;
+      if (problema !== null) {
+        errors.push({
+          row: item.row,
+          field: "codigo_de_barras",
+          message: problema,
           itemCode: item.sku,
         });
         continue;
@@ -653,6 +688,23 @@ export class ImportService {
         userAgent: meta.userAgent,
       });
     });
+
+    // Toda alta aporta al catálogo compartido, también la de una planilla
+    // (Carlos, 2026-10-30). Después del COMMIT, y solo los códigos nuevos.
+    const aportes = importable
+      .filter(
+        (item) =>
+          item.barcode !== null && item.barcode !== (baseBySku.get(item.sku)?.barcode ?? null),
+      )
+      .map((item) =>
+        contributionOf(
+          item.barcode,
+          item.name,
+          item.existingId === null ? 1 : (baseBySku.get(item.sku)?.factor ?? 1),
+        ),
+      )
+      .filter((aporte): aporte is BarcodeContribution => aporte !== null);
+    await this.contribution.contribute(user.tenantId, user.locale, aportes);
 
     return { ...report, imported: importable.length };
   }

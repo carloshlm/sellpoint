@@ -154,6 +154,7 @@
     },
     "alreadyInDraft": "Code {{code}} is already on the list. We took you to its price.",
     "invalidBarcode": "«{{code}}» isn't a barcode: it must be 6 to 14 digits, with no letters or symbols.",
+    "barcodeCheckDigit": "«{{code}}» isn't a valid barcode: its last digit doesn't match the rest. Check that it's typed correctly.",
     "tooManyLines": "You reached the limit of {{max}} lines. Add these and continue with the next ones.",
     "nameRequired": "Type the product name.",
     "priceRequired": "Type the price.",

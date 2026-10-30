@@ -170,6 +170,113 @@ describe("Importación de productos (F2-IMPORT)", () => {
     expect((report.body as { errors: { row: number }[] }).errors[0]?.row).toBe(3);
   });
 
+  /**
+   * Carlos (2026-10-30): la planilla tampoco deja entrar un código de barras
+   * con letras ni un EAN mal tecleado. El error es de SU fila y dice la columna.
+   */
+  it("un código de barras inválido es error de su fila, en su columna", async () => {
+    const { token } = await registerAndLogin();
+    const content =
+      "sku,nombre,codigo_de_barras\nOK-1,Bueno,7501055300013\nMAL-1,Malo,CUBREADULTOAZUL\nMAL-2,Otro,7509999000243";
+
+    const report = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content, dryRun: true })
+      .expect(200);
+
+    expect(report.body).toMatchObject({ valid: 1, failed: 2 });
+    const errors = (report.body as { errors: ImportRowError[] }).errors;
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          row: 3,
+          field: "codigo_de_barras",
+          code: "products.invalid_barcode",
+        }),
+        expect.objectContaining({
+          row: 4,
+          field: "codigo_de_barras",
+          code: "products.barcode_check_digit",
+        }),
+      ]),
+    );
+  });
+
+  /** Volver a subir la planilla de siempre no castiga un código que ya estaba. */
+  it("re-importar un producto con su mismo código viejo no lo rechaza", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre\nLEG-1,Legado" })
+      .expect(200);
+    await prisma.withTenantContext(tenantId, (tx) =>
+      tx.productPresentation.updateMany({
+        where: { product: { sku: "LEG-1" } },
+        data: { barcode: "AJOLOTETE" },
+      }),
+    );
+
+    const report = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,codigo_de_barras\nLEG-1,Legado,AJOLOTETE", dryRun: true })
+      .expect(200);
+
+    expect(report.body).toMatchObject({ valid: 1, failed: 0 });
+  });
+
+  it("un producto importado aporta su código al catálogo compartido", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const codigo = "7509999000259";
+    try {
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: `sku,nombre,codigo_de_barras\nIMP-1,Aceite de coco c/50 ml,${codigo}` })
+        .expect(200);
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${codigo}` },
+      });
+      expect(fila).toMatchObject({
+        source: "tenant_contributed",
+        nameEs: "Aceite de coco c/50 ml",
+        contributedByTenantId: tenantId,
+      });
+    } finally {
+      await prisma.globalBarcodeCatalog.deleteMany({ where: { gtin14: `0${codigo}` } });
+    }
+  });
+
+  /**
+   * El mismo GTIN en sus dos escrituras (EAN-13 y con el cero al frente) son
+   * dos filas para la tienda, pero UNA clave del catálogo. Sin quitar el
+   * repetido, el INSERT … ON CONFLICT toca la misma fila dos veces, Postgres
+   * rechaza la sentencia entera y la planilla no aporta NADA.
+   */
+  it("el mismo GTIN escrito de dos formas se aporta una vez, sin perder el resto", async () => {
+    const { token } = await registerAndLogin();
+    const codigo = "7509999000266";
+    try {
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({
+          content: `sku,nombre,codigo_de_barras\nDOS-1,Aceite de oso c/50 ml,${codigo}\nDOS-2,Aceite de oso c/50 ml (caja),0${codigo}`,
+        })
+        .expect(200);
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${codigo}` },
+      });
+      expect(fila?.nameEs).toBe("Aceite de oso c/50 ml");
+    } finally {
+      await prisma.globalBarcodeCatalog.deleteMany({ where: { gtin14: `0${codigo}` } });
+    }
+  });
+
   it("el número de fila que se reporta es el que el usuario ve en Excel", async () => {
     const { token } = await registerAndLogin();
     // Fila 1 = encabezado, fila 2 = primer producto, fila 3 = el que falla.

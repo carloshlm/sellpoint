@@ -1,5 +1,6 @@
-import { isScannableBarcode, QUICK_ADD_MAX_LINES } from "@sellpoint/shared";
+import { QUICK_ADD_MAX_LINES } from "@sellpoint/shared";
 import { z } from "zod";
+import { refineBarcode } from "../barcode-rules";
 import { moneyAmount } from "../money";
 
 /**
@@ -34,7 +35,8 @@ export const quickAddSchema = z.object({
           .trim()
           .min(1)
           .max(64)
-          .refine(isScannableBarcode, { message: "products.invalid_barcode" }),
+          // Desde 2026-10-30 también revisa el dígito verificador.
+          .superRefine(refineBarcode),
         name: z.string().trim().min(1).max(200),
         /**
          * Obligatorio: esta pantalla existe para ponerle precio a lo que se
