@@ -1,8 +1,16 @@
-import { composeSupplierPhone, supplierFormSchema } from "./schemas";
+import { composeSupplierPhone, supplierContactSchema, supplierFormSchema } from "./schemas";
 
 /** F9-SUPPL-06 — el formulario valida el registro fiscal con el país y el teléfono como E.164. */
 describe("supplierFormSchema (F9-SUPPL-06)", () => {
-  const base = { name: "Norte", taxId: "", contactName: "", email: "", address: "", notes: "" };
+  const base = {
+    name: "Norte",
+    taxId: "",
+    contactName: "",
+    jobTitle: "",
+    email: "",
+    address: "",
+    notes: "",
+  };
 
   it("el nombre es obligatorio", () => {
     const res = supplierFormSchema("MX").safeParse({ ...base, name: "  " });
@@ -34,5 +42,23 @@ describe("supplierFormSchema (F9-SUPPL-06)", () => {
       error: "suppliers.form.errors.phone",
     });
     expect(composeSupplierPhone("MX", "")).toEqual({ phone: null, error: null });
+  });
+});
+
+/** Un contacto adicional con datos pide su nombre; el correo, como el del contacto 1. */
+describe("supplierContactSchema (2026-10-31)", () => {
+  it("sin nombre devuelve la clave del nombre del contacto", () => {
+    const res = supplierContactSchema.safeParse({ name: " ", email: "", jobTitle: "Cobranza" });
+    expect(res.error?.issues.map((issue) => [issue.path[0], issue.message])).toEqual([
+      ["name", "suppliers.form.errors.contactName"],
+    ]);
+  });
+
+  it("un correo mal escrito rebota con la clave de correo; vacío vale", () => {
+    const base = { name: "Pedro", jobTitle: "" };
+    expect(
+      supplierContactSchema.safeParse({ ...base, email: "nope" }).error?.issues[0]?.message,
+    ).toBe("suppliers.form.errors.email");
+    expect(supplierContactSchema.safeParse({ ...base, email: "" }).success).toBe(true);
   });
 });

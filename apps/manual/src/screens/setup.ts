@@ -257,6 +257,24 @@ export const SETUP: Screen[] = [
       page.getByTestId("duplicate-supplier"),
     ],
   },
+  {
+    id: "supplier-contacts",
+    chapter: "03-setup/19-suppliers.md",
+    as: "owner",
+    path: "/suppliers/new",
+    prepare: async (page) => {
+      // La sección queda al final de una tarjeta larga: que quepa entera.
+      await tall(page);
+      // El Contacto 1 y uno recién agregado, para que se vea la numeración. No guarda.
+      await page.getByLabel("Contacto 1", { exact: true }).fill("Marta Gómez");
+      await page.getByLabel("Puesto / Cargo").first().fill("Gerente de ventas");
+      await page.getByRole("button", { name: "Agregar contacto" }).click();
+      await page.getByLabel("Contacto 2", { exact: true }).fill("Luis Ortega");
+      await page.getByLabel("Puesto / Cargo").nth(1).fill("Cobranza");
+      await blur(page);
+    },
+    target: (page) => [page.getByRole("region", { name: "Contactos" })],
+  },
 
   // ── Capítulo 20 — Importar y exportar con Excel ────────────────────────
   {

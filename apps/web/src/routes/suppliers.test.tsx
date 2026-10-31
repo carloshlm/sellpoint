@@ -11,6 +11,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildSupplier } from "@/test/supplier-fixture";
 
 /**
  * F9-SUPPL-08 — «Proveedores»: el listado alfabético del API con su estado,
@@ -33,22 +34,14 @@ const mocked = vi.mocked(suppliersApi);
 const demoUser = (permissions: string[]): AuthUser =>
   buildAuthUser({ permissions, subscription: { ...SUBSCRIPTION_PLUS, modules: ["purchases"] } });
 
-const proveedor = (over: Partial<suppliersApi.Supplier> = {}): suppliersApi.Supplier => ({
-  id: "s1",
-  code: "PROV-001",
-  name: "Distribuidora Norte",
-  taxId: "DNO900101AB1",
-  contactName: "Rosa Luna",
-  phone: "+525512345678",
-  email: "ventas@norte.mx",
-  address: null,
-  notes: null,
-  attributes: {},
-  isActive: true,
-  createdAt: "2026-09-10T18:00:00.000Z",
-  updatedAt: "2026-09-10T18:00:00.000Z",
-  ...over,
-});
+const proveedor = (over: Partial<suppliersApi.Supplier> = {}): suppliersApi.Supplier =>
+  buildSupplier({
+    taxId: "DNO900101AB1",
+    contactName: "Rosa Luna",
+    phone: "+525512345678",
+    email: "ventas@norte.mx",
+    ...over,
+  });
 
 async function renderSuppliers(permissions: string[], path = "/suppliers") {
   useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
@@ -115,6 +108,34 @@ describe("Proveedores (F9-SUPPL-08)", () => {
     const fila = await screen.findByTestId("supplier-s1");
     expect(within(fila).getAllByRole("cell")[0]).toHaveTextContent("PROV-001");
     expect(screen.getByRole("columnheader", { name: "Código" })).toBeInTheDocument();
+  });
+
+  it("la fila muestra el Contacto 1 y no los contactos adicionales (2026-10-31)", async () => {
+    mocked.listSuppliers.mockResolvedValue({
+      rows: [
+        proveedor({
+          contacts: [
+            {
+              id: "c2",
+              name: "Pedro Ruiz",
+              phone: "+525598765432",
+              email: "pedro@norte.mx",
+              jobTitle: "Cobranza",
+            },
+          ],
+        }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderSuppliers(["suppliers:read"]);
+    const fila = await screen.findByTestId("supplier-s1");
+    expect(within(fila).getByText("Rosa Luna")).toBeInTheDocument();
+    expect(within(fila).getByText("+525512345678")).toBeInTheDocument();
+    expect(within(fila).getByText("ventas@norte.mx")).toBeInTheDocument();
+    expect(screen.queryByText("Pedro Ruiz")).not.toBeInTheDocument();
+    expect(screen.queryByText("pedro@norte.mx")).not.toBeInTheDocument();
   });
 
   it("«Eliminar» pide confirmación y solo entonces llama al API", async () => {

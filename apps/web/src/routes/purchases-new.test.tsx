@@ -12,6 +12,7 @@ import { routeTree } from "@/routeTree.gen";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildSupplier } from "@/test/supplier-fixture";
 
 /**
  * Carlos (2026-09-13): la compra nueva no tenía campo de almacén, y quien no
@@ -48,21 +49,7 @@ const mocked = vi.mocked(purchasesApi);
 const mockedProveedores = vi.mocked(suppliersApi);
 const mockedAlmacenes = vi.mocked(warehousesApi);
 
-const laboratorio: suppliersApi.Supplier = {
-  id: "s1",
-  code: "PROV-001",
-  name: "Laboratorio Pharma",
-  taxId: null,
-  contactName: null,
-  phone: null,
-  email: null,
-  address: null,
-  notes: null,
-  attributes: {},
-  isActive: true,
-  createdAt: "2026-09-10T18:00:00.000Z",
-  updatedAt: "2026-09-10T18:00:00.000Z",
-};
+const laboratorio: suppliersApi.Supplier = buildSupplier({ name: "Laboratorio Pharma" });
 
 const almacenes = [
   { id: "w1", code: "ALM-001", name: "Central" },

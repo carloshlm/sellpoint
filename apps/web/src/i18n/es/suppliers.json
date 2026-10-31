@@ -49,13 +49,18 @@
     "taxId": "Registro fiscal",
     "taxIdWithAbbr": "Registro fiscal ({{abbr}})",
     "taxIdHint": "Por ejemplo {{example}}",
-    "contactName": "Persona de contacto",
     "phoneCountry": "País del teléfono",
     "phoneCountryPlaceholder": "Elige el país",
     "phone": "Teléfono",
     "email": "Correo",
-    "address": "Dirección",
     "notes": "Notas",
+    "jobTitle": "Puesto / Cargo",
+    "contacts": {
+      "title": "Contactos",
+      "name": "Contacto {{number}}",
+      "add": "Agregar contacto",
+      "remove": "Quitar contacto {{number}}"
+    },
     "isActive": "Proveedor activo",
     "isActiveHint": "Un proveedor inactivo no aparece al capturar compras ni gastos, pero conserva su historial.",
     "loadFailed": "No pudimos cargar el proveedor.",
@@ -69,7 +74,8 @@
       "phone": "Escribe solo los dígitos del número, sin el prefijo del país.",
       "email": "Escribe un correo válido.",
       "taxId": "Escribe un registro fiscal válido para el país de tu negocio, como {{example}}.",
-      "taxIdNoExample": "Escribe un registro fiscal válido para el país de tu negocio."
+      "taxIdNoExample": "Escribe un registro fiscal válido para el país de tu negocio.",
+      "contactName": "Escribe el nombre del contacto."
     }
   },
   "picker": {

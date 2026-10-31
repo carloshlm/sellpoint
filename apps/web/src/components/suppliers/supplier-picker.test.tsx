@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import * as suppliersApi from "@/lib/suppliers/api";
+import { buildSupplier } from "@/test/supplier-fixture";
 import { SupplierPicker } from "./supplier-picker";
 
 vi.mock("@/lib/suppliers/api", () => ({
@@ -15,21 +16,10 @@ vi.mock("@/lib/suppliers/api", () => ({
 }));
 const mocked = vi.mocked(suppliersApi);
 
-const norte: suppliersApi.Supplier = {
-  id: "s1",
-  code: "PROV-001",
-  name: "Distribuidora Norte",
+const norte: suppliersApi.Supplier = buildSupplier({
   taxId: "DNO900101AB1",
   contactName: "Rosa Luna",
-  phone: null,
-  email: null,
-  address: null,
-  notes: null,
-  attributes: {},
-  isActive: true,
-  createdAt: "2026-09-10T18:00:00.000Z",
-  updatedAt: "2026-09-10T18:00:00.000Z",
-};
+});
 
 function renderPicker(props: Partial<React.ComponentProps<typeof SupplierPicker>> = {}) {
   const onChange = vi.fn();
