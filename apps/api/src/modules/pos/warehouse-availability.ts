@@ -57,6 +57,10 @@ interface FilaLote {
   product_id: string;
   vivo: string;
   vencido: string;
+  /** Σ de TODAS las cubetas, incluso las en cero o negativas: de aquí sale el residuo. */
+  en_lotes: string;
+  /** ¿Algún lote con saldo? Sin ninguno, el producto no es asunto de FEFO. */
+  con_saldo: boolean;
 }
 
 export async function sellableStock(
@@ -113,18 +117,25 @@ export async function sellableStock(
   // `>= CURRENT_DATE` y no `>`: **el día que vence, el lote todavía sirve**.
   // Mismo criterio que FEFO y que la pestaña de existencias — si difirieran,
   // el buscador ofrecería hoy lo que la caja rechazaría hoy.
+  //
+  // `vivo` y `vencido` suman solo las cubetas con saldo, como los candidatos
+  // de FEFO; `en_lotes` las suma TODAS, porque el residuo sin lote es
+  // `stock_by_warehouse − Σ stock_lots` (la misma cuenta que
+  // `loadUnlottedRemainder`).
   const lotes = await tx.$queryRaw<FilaLote[]>`
     SELECT pl.product_id,
            COALESCE(SUM(sl.quantity) FILTER (
-             WHERE pl.expires_at IS NULL OR pl.expires_at >= CURRENT_DATE), 0)::text AS vivo,
+             WHERE sl.quantity > 0
+               AND (pl.expires_at IS NULL OR pl.expires_at >= CURRENT_DATE)), 0)::text AS vivo,
            COALESCE(SUM(sl.quantity) FILTER (
-             WHERE pl.expires_at < CURRENT_DATE), 0)::text AS vencido
+             WHERE sl.quantity > 0 AND pl.expires_at < CURRENT_DATE), 0)::text AS vencido,
+           COALESCE(SUM(sl.quantity), 0)::text AS en_lotes,
+           COALESCE(BOOL_OR(sl.quantity > 0), false) AS con_saldo
       FROM stock_lots sl
       JOIN product_lots pl ON pl.id = sl.lot_id
      WHERE sl.tenant_id = ${tenantId}::uuid
        AND sl.warehouse_id = ${warehouseId}::uuid
        AND pl.product_id = ANY(${ids}::uuid[])
-       AND sl.quantity > 0
      GROUP BY pl.product_id`;
   const lotePorProducto = new Map(lotes.map((l) => [l.product_id, l]));
 
@@ -176,11 +187,20 @@ export async function sellableStock(
     return total;
   };
 
-  /** El saldo PROPIO: por lotes si los lleva, por `stock_by_warehouse` si no. */
+  /**
+   * El saldo PROPIO: por lotes si los lleva, por `stock_by_warehouse` si no.
+   *
+   * Con lotes, vale el residuo sin lote POSITIVO más los lotes vivos: la venta
+   * toma primero lo sin lote (Carlos, 2026-10-31), así que esconderlo dejaría
+   * al buscador ofreciendo menos de lo que la caja cobra. Un residuo negativo
+   * no resta: FEFO tampoco lo toma.
+   */
   const propio = (productId: string): Prisma.Decimal => {
     const lote = lotePorProducto.get(productId);
-    if (lote !== undefined) {
-      return new Prisma.Decimal(lote.vivo);
+    if (lote?.con_saldo) {
+      const total = saldoPorProducto.get(productId) ?? CERO;
+      const residuo = total.minus(new Prisma.Decimal(lote.en_lotes));
+      return Prisma.Decimal.max(residuo, CERO).plus(new Prisma.Decimal(lote.vivo));
     }
     return saldoPorProducto.get(productId) ?? CERO;
   };

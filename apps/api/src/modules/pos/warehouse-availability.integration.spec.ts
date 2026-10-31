@@ -26,6 +26,9 @@ describe("sellableStock (F4-CART-01)", () => {
   let todoVencido: string;
   let compuesto: string;
   let componenteEscaso: string;
+  let mixto: string;
+  let residuoNegativo: string;
+  let lotesAgotados: string;
 
   const AYER = new Date();
   AYER.setUTCDate(AYER.getUTCDate() - 1);
@@ -103,6 +106,25 @@ describe("sellableStock (F4-CART-01)", () => {
       await saldo(todoVencido, central, 12);
       await lote(todoVencido, central, "unico", AYER, 12);
 
+      // 5. Mixto (Carlos, 2026-10-31): 24 en total, 10 vivos y 5 vencidos en
+      //    lotes. Los 9 que ningún lote cubre son saldo SIN lote, y se venden.
+      mixto = await producto("MIXTO", { tracksLots: true });
+      await saldo(mixto, central, 24);
+      await lote(mixto, central, "vivo", EL_AÑO_QUE_VIENE, 10);
+      await lote(mixto, central, "muerto", AYER, 5);
+
+      // 6. Residuo negativo: los lotes suman 10 y el producto dice 5. Lo que
+      //    falta no se inventa: solo cuentan los lotes vivos.
+      residuoNegativo = await producto("NEGATIVO", { tracksLots: true });
+      await saldo(residuoNegativo, central, 5);
+      await lote(residuoNegativo, central, "vivo", EL_AÑO_QUE_VIENE, 10);
+
+      // 7. Lotes agotados: la fila del lote existe en cero y el saldo es 7.
+      //    Sin lotes con saldo vale el total, igual que antes.
+      lotesAgotados = await producto("AGOTADOS", { tracksLots: true });
+      await saldo(lotesAgotados, central, 7);
+      await lote(lotesAgotados, central, "agotado", EL_AÑO_QUE_VIENE, 0);
+
       // 4. Compuesto: lleva 2 del componente escaso (hay 9 → alcanza para 4)
       //    y 1 del simple (hay 7 → alcanza para 7). El techo es 4.
       componenteEscaso = await producto("ESCASO");
@@ -159,6 +181,29 @@ describe("sellableStock (F4-CART-01)", () => {
     const mapa = await consultar(sucursal, [compuesto]);
     // En Sucursal hay 99 simples pero cero escasos: no se arma ninguno.
     expect(mapa.get(compuesto)?.available.toString()).toBe("0");
+  });
+
+  /**
+   * «que salga Lo sin lote primero» (Carlos, 2026-10-31): si la venta toma el
+   * saldo sin lote antes que los lotes, el buscador tiene que ofrecerlo. Con
+   * solo los lotes, el POS escondía nueve piezas que la caja sí cobra.
+   */
+  it("un producto con lotes Y saldo sin lote vale el residuo más los lotes vivos", async () => {
+    const mapa = await consultar(central, [mixto]);
+    // 24 − (10 + 5) = 9 sin lote; 9 + 10 vivos = 19. Los 5 vencidos, aparte.
+    expect(mapa.get(mixto)?.available.toString()).toBe("19");
+    expect(mapa.get(mixto)?.expired.toString()).toBe("5");
+  });
+
+  it("un residuo NEGATIVO no resta ni suma: valen solo los lotes vivos", async () => {
+    const mapa = await consultar(central, [residuoNegativo]);
+    expect(mapa.get(residuoNegativo)?.available.toString()).toBe("10");
+  });
+
+  it("con todos sus lotes en cero, el producto vale su saldo total, como antes", async () => {
+    const mapa = await consultar(central, [lotesAgotados]);
+    expect(mapa.get(lotesAgotados)?.available.toString()).toBe("7");
+    expect(mapa.get(lotesAgotados)?.expired.toString()).toBe("0");
   });
 
   it("devuelve una entrada por cada producto pedido, aunque no tenga stock", async () => {

@@ -2,6 +2,7 @@ import { UnprocessableEntityException } from "@nestjs/common";
 import { type MovementReason, rejectsExpiredLots } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import type { ExpandedLine } from "./composition-expander";
+import { loadUnlottedRemainder } from "./count-buckets";
 
 /**
  * F3-CORE-08 — FEFO: *First Expired, First Out*.
@@ -29,6 +30,16 @@ import type { ExpandedLine } from "./composition-expander";
  * Se ejecuta DENTRO de la transacción del ledger y las filas elegidas entran
  * al mismo `FOR UPDATE` que el resto: si dos salidas compiten por el mismo
  * lote, el lock las ordena y la segunda relee el saldo ya descontado.
+ *
+ * ── Lo sin lote sale PRIMERO ────────────────────────────────────────────
+ *
+ * «que salga Lo sin lote primero» (Carlos, 2026-10-31). Un producto que
+ * controla lotes puede tener saldo SIN lote: lo que había antes de prender el
+ * control, o lo que entró sin capturarlo. Ese saldo no tiene fila propia; es
+ * `stock_by_warehouse − Σ stock_lots`. FEFO lo ignoraba y rechazaba la venta
+ * con el anaquel lleno. Ahora se toma antes que cualquier lote, como una
+ * línea sin `lotId` (el ledger solo mueve el total, que es justo lo que baja
+ * el residuo), y después siguen los lotes en su orden de siempre.
  */
 /** Un lote candidato con su saldo, ya ordenado FEFO. */
 interface LotCandidate {
@@ -52,6 +63,12 @@ export interface FefoTake {
 /** El reparto de una línea: de dónde sale, y cuánto faltó si no alcanzó. */
 export interface FefoLinePlan {
   lineIndex: number;
+  /**
+   * Lo que sale del saldo SIN lote, ANTES que cualquier lote (Carlos,
+   * 2026-10-31). `0` si el producto no tiene residuo positivo.
+   */
+  unlotted: Prisma.Decimal;
+  /** Lo que sale de cada lote, en orden FEFO, después de lo sin lote. */
   takes: FefoTake[];
   /** `0` si el reparto se completó. */
   shortfall: Prisma.Decimal;
@@ -129,11 +146,17 @@ function comienzoDelDiaUtc(): Date {
 export function allocateFefo(
   candidatesByProduct: Map<string, LotCandidate[]>,
   lines: { lineIndex: number; productId: string; quantityBase: Prisma.Decimal }[],
-  options: { excludeExpired?: boolean } = {},
+  options: {
+    excludeExpired?: boolean;
+    /** El residuo sin lote por producto (`loadUnlottedRemainder`); puede ser negativo. */
+    unlottedByProduct?: ReadonlyMap<string, Prisma.Decimal>;
+  } = {},
 ): FefoLinePlan[] {
   // Lo ya comprometido por líneas anteriores del MISMO movimiento: dos líneas
-  // del mismo producto no pueden repartirse el mismo saldo dos veces.
+  // del mismo producto no pueden repartirse el mismo saldo dos veces. Vale
+  // para cada lote y también para el residuo sin lote de cada producto.
   const comprometido = new Map<string, Prisma.Decimal>();
+  const residuoComprometido = new Map<string, Prisma.Decimal>();
   const planes: FefoLinePlan[] = [];
   const hoy = comienzoDelDiaUtc();
 
@@ -162,6 +185,23 @@ export function allocateFefo(
 
     const takes: FefoTake[] = [];
     let restante = line.quantityBase;
+    let sinLote = new Prisma.Decimal(0);
+
+    // ── Lo sin lote, primero (Carlos, 2026-10-31) ────────────────────────
+    //
+    // Solo si el producto tiene lotes con saldo: sin ellos no es asunto de
+    // FEFO y la línea pasa entera, como siempre. Y solo el residuo POSITIVO:
+    // si los lotes suman más que el producto, no hay nada sin lote que tomar.
+    if (todos.length > 0) {
+      const residuo = options.unlottedByProduct?.get(line.productId) ?? new Prisma.Decimal(0);
+      const usado = residuoComprometido.get(line.productId) ?? new Prisma.Decimal(0);
+      const libre = Prisma.Decimal.max(residuo, 0).minus(usado);
+      if (libre.greaterThan(0) && restante.greaterThan(0)) {
+        sinLote = Prisma.Decimal.min(libre, restante);
+        residuoComprometido.set(line.productId, usado.plus(sinLote));
+        restante = restante.minus(sinLote);
+      }
+    }
 
     for (const candidato of candidatos) {
       if (restante.lessThanOrEqualTo(0)) {
@@ -189,6 +229,7 @@ export function allocateFefo(
 
     planes.push({
       lineIndex: line.lineIndex,
+      unlotted: sinLote,
       takes,
       // Un producto SIN lotes no es un faltante: simplemente no es asunto de
       // FEFO. Si controla lotes y no hay saldo, lo rechaza el ledger al validar.
@@ -209,6 +250,19 @@ export function allocateFefo(
  * st10, vence 01/07/2026") para que quien confirma vea de dónde va a salir la
  * mercancía ANTES de que salga.
  */
+/**
+ * «Que salga lo sin lote primero» (Carlos, 2026-10-31) vale para vender y dar
+ * salida, pero NO para dar de baja lo caducado: eso es sacar LOTES vencidos, y
+ * lo sin lote no tiene caducidad. Con el residuo primero, una baja por
+ * Caducado sin lote elegido se llevaba lo sin lote y dejaba el lote vencido.
+ */
+function residuoPrimero(
+  reasonCode: MovementReason | null | undefined,
+  residuos: Map<string, Prisma.Decimal>,
+): Map<string, Prisma.Decimal> {
+  return reasonCode === "expired" ? new Map() : residuos;
+}
+
 export async function planLotsFefo(
   tx: Prisma.TransactionClient,
   tenantId: string,
@@ -219,10 +273,14 @@ export async function planLotsFefo(
   if (lines.length === 0) {
     return [];
   }
-  const candidatos = await fetchCandidates(tx, tenantId, warehouseId, [
-    ...new Set(lines.map((l) => l.productId)),
-  ]);
-  return allocateFefo(candidatos, lines, { excludeExpired: rejectsExpiredLots(reasonCode) });
+  const productIds = [...new Set(lines.map((l) => l.productId))];
+  // La previa solo mira: sin candado. El confirm relee BLOQUEADO.
+  const residuos = await loadUnlottedRemainder(tx, tenantId, warehouseId, productIds, false);
+  const candidatos = await fetchCandidates(tx, tenantId, warehouseId, productIds);
+  return allocateFefo(candidatos, lines, {
+    excludeExpired: rejectsExpiredLots(reasonCode),
+    unlottedByProduct: residuoPrimero(reasonCode, residuos),
+  });
 }
 
 export async function resolveLotsFefo(
@@ -231,10 +289,10 @@ export async function resolveLotsFefo(
   warehouseId: string,
   lines: ExpandedLine[],
   reasonCode?: MovementReason | null,
-  // F7-POS-01: con `allowNegative` un faltante NO lanza — el shortfall se
-  // suma al último lote elegido (o la línea sigue sin lote si no hay
-  // ninguno) y la venta procede. Lo activa SOLO la venta, cuando el plan no
-  // controla stock o el admin prendió "Vender sin existencias".
+  // F7-POS-01: con `allowNegative` un faltante NO lanza — el shortfall va a
+  // la toma SIN lote (Carlos, 2026-10-31) y la venta procede. Lo activa SOLO
+  // la venta, cuando el plan no controla stock o el admin prendió "Vender
+  // sin existencias".
   options: { allowNegative?: boolean } = {},
 ): Promise<ExpandedLine[]> {
   // Solo las líneas que NO traen lote forzado necesitan reparto. El resto
@@ -244,6 +302,18 @@ export async function resolveLotsFefo(
     return lines;
   }
 
+  // El residuo sin lote se lee BLOQUEADO, y antes que los lotes: sin el
+  // candado, dos ventas simultáneas leerían el mismo residuo y las dos lo
+  // tomarían. Se bloquean los productos de TODAS las líneas —los mismos que
+  // el ledger va a bloquear enseguida, en el mismo orden— para no tomar las
+  // filas en un orden distinto al suyo.
+  const residuos = await loadUnlottedRemainder(
+    tx,
+    tenantId,
+    warehouseId,
+    lines.map((l) => l.productId),
+    true,
+  );
   const candidatos = await fetchCandidates(tx, tenantId, warehouseId, [
     ...new Set(necesitanFefo.map((l) => l.productId)),
   ]);
@@ -257,7 +327,10 @@ export async function resolveLotsFefo(
       productId: line.productId,
       quantityBase: line.quantityBase,
     })),
-    { excludeExpired: rejectsExpiredLots(reasonCode) },
+    {
+      excludeExpired: rejectsExpiredLots(reasonCode),
+      unlottedByProduct: residuoPrimero(reasonCode, residuos),
+    },
   );
 
   const resultado: ExpandedLine[] = [];
@@ -305,26 +378,35 @@ export async function resolveLotsFefo(
     }
 
     // Un producto sin lotes pasa de largo, entero y sin tocar.
-    if (plan.takes.length === 0) {
+    if (plan.takes.length === 0 && plan.unlotted.isZero() && plan.shortfall.isZero()) {
       resultado.push(line);
       continue;
     }
 
-    for (const [i, take] of plan.takes.entries()) {
-      // F7-POS-01: si se vendió más de lo que hay, el faltante se suma al
-      // ÚLTIMO lote del reparto — así el saldo por lote absorbe el negativo
-      // y la invariante Σ stock_lots == stock_by_warehouse sigue en pie.
-      const esUltima = i === plan.takes.length - 1;
-      const quantity =
-        esUltima && plan.shortfall.greaterThan(0)
-          ? take.quantity.plus(plan.shortfall)
-          : take.quantity;
+    // Lo sin lote va PRIMERO (Carlos, 2026-10-31), como una línea sin
+    // `lotId`: el ledger solo mueve el total, que es lo que baja el residuo.
+    //
+    // F7-POS-01: si se vendió más de lo que hay, el faltante también va acá.
+    // Antes se sumaba al ÚLTIMO lote y lo dejaba debiendo lo que nunca tuvo;
+    // ahora ningún lote queda en negativo por FEFO: el negativo es saldo sin
+    // lote, que es lo que de verdad falta. Sin `allowNegative` el faltante ya
+    // lanzó arriba, así que acá vale cero.
+    const sinLote = plan.unlotted.plus(plan.shortfall);
+    if (sinLote.greaterThan(0)) {
+      resultado.push({
+        ...line,
+        lineIndex: line.lineIndex,
+        quantityBase: sinLote,
+      });
+    }
+
+    for (const take of plan.takes) {
       resultado.push({
         ...line,
         // El índice de la línea ORIGINAL: el error de una sublínea tiene que
         // pintarse sobre la fila que el usuario ve, no sobre una que inventamos.
         lineIndex: line.lineIndex,
-        quantityBase: quantity,
+        quantityBase: take.quantity,
         lotId: take.lotId,
         location: take.location,
       });

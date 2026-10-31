@@ -72,6 +72,64 @@ export function sumBuckets(buckets: readonly CountBucket[]): Prisma.Decimal {
 }
 
 /**
+ * El saldo SIN lote de cada producto en el almacén: `stock_by_warehouse − Σ`
+ * de TODAS sus cubetas. Ese saldo no tiene fila propia (`stock_lots.lot_id`
+ * es parte de la llave): es lo que el total tiene y ningún lote cubre. Es la
+ * misma cuenta que el `residuo` del conteo.
+ *
+ * Puede salir negativo —los lotes suman más que el producto— y se devuelve
+ * tal cual: decidir qué hacer con un negativo es de quien lo usa.
+ *
+ * `lock` bloquea primero las filas de `stock_by_warehouse` y después las
+ * cubetas, con el MISMO orden que el ledger (`ORDER BY product_id`, saldo
+ * antes que lote). Así dos salidas que compiten por el mismo residuo se
+ * forman: la segunda espera y relee lo que la primera ya tomó.
+ */
+export async function loadUnlottedRemainder(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  warehouseId: string,
+  productIds: readonly string[],
+  lock: boolean,
+): Promise<Map<string, Prisma.Decimal>> {
+  const residuos = new Map<string, Prisma.Decimal>();
+  if (productIds.length === 0) {
+    return residuos;
+  }
+  const ids = [...new Set(productIds)].sort();
+  // Con candado, la fila del saldo se CREA antes de bloquearla, igual que el
+  // ledger en su paso 2. Si no existiera, el ledger la insertaría después con
+  // `ON CONFLICT DO NOTHING` ya teniendo otras filas bloqueadas, y ese INSERT
+  // espera a cualquier transacción que haya insertado la misma llave: un
+  // bloqueo mutuo posible (lo encontró la verificación del 2026-10-31).
+  if (lock) {
+    await tx.$executeRaw`
+      INSERT INTO stock_by_warehouse (product_id, warehouse_id, tenant_id, quantity, updated_at)
+      SELECT p, ${warehouseId}::uuid, ${tenantId}::uuid, 0, now()
+        FROM unnest(${ids}::uuid[]) AS p
+      ON CONFLICT (product_id, warehouse_id) DO NOTHING`;
+  }
+  const totales = await tx.$queryRaw<{ product_id: string; quantity: string }[]>`
+    SELECT product_id, quantity::text AS quantity
+      FROM stock_by_warehouse
+     WHERE tenant_id = ${tenantId}::uuid
+       AND warehouse_id = ${warehouseId}::uuid
+       AND product_id = ANY(${ids}::uuid[])
+     ORDER BY product_id
+     ${lock ? Prisma.sql`FOR UPDATE` : Prisma.empty}`;
+  const cubetas = await loadCountBuckets(tx, tenantId, warehouseId, ids, lock);
+
+  const totalPorProducto = new Map(
+    totales.map((fila) => [fila.product_id, new Prisma.Decimal(fila.quantity)]),
+  );
+  for (const id of ids) {
+    const total = totalPorProducto.get(id) ?? new Prisma.Decimal(0);
+    residuos.set(id, total.minus(sumBuckets(cubetas.get(id) ?? [])));
+  }
+  return residuos;
+}
+
+/**
  * Las cubetas que la planilla NO menciona y tienen saldo: son las que se
  * vacían al aprobar. Una cubeta mencionada pero OMITIDA (fila sin contado)
  * cuenta como representada y se respeta: omitir no es contar cero.

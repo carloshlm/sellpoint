@@ -519,10 +519,21 @@ export class DocumentsService {
       // sin lote forzado. Sale del MISMO `allocateFefo` que usa el confirm: si
       // fueran dos repartos podrían elegir lotes distintos y la previa mentiría
       // justo en el dato por el que existe.
-      const planPorLinea = new Map<
-        number,
-        { lotCode: string; expiresAt: Date | null; location: string; quantity: string }[]
-      >();
+      //
+      // Lo sin lote sale PRIMERO (Carlos, 2026-10-31) y la previa lo muestra
+      // igual que el confirm lo asienta: como la primera toma, con
+      // `lotCode: null`.
+      type TomaPrevia = {
+        lotCode: string | null;
+        expiresAt: Date | null;
+        location: string;
+        quantity: string;
+      };
+      const planPorLinea = new Map<number, TomaPrevia[]>();
+      // Lo que FEFO no alcanza a cubrir, por línea. El confirm lo rechaza
+      // ANTES que el ledger, así que la previa tiene que avisarlo igual: sin
+      // esto, decía «todo bien» y el confirm fallaba.
+      const faltantePorLinea = new Map<number, { available: string; requested: string }>();
       if (direction === "exit" && esBorrador) {
         const conCantidad = document.lines
           .map((line, index) => ({ line, index, res: resolved[index] }))
@@ -546,17 +557,30 @@ export class DocumentsService {
           // — y la previa existe justamente para que eso no pase.
           document.reasonCode,
         );
-        for (const plan of planes) {
-          if (plan.takes.length > 0) {
-            planPorLinea.set(
-              plan.lineIndex,
-              plan.takes.map((take) => ({
-                lotCode: take.lotCode,
-                expiresAt: take.expiresAt,
-                location: take.location,
-                quantity: take.quantity.toString(),
-              })),
-            );
+        for (const [i, plan] of planes.entries()) {
+          const tomas: TomaPrevia[] = plan.takes.map((take) => ({
+            lotCode: take.lotCode,
+            expiresAt: take.expiresAt,
+            location: take.location,
+            quantity: take.quantity.toString(),
+          }));
+          if (plan.unlotted.greaterThan(0)) {
+            tomas.unshift({
+              lotCode: null,
+              expiresAt: null,
+              location: "",
+              quantity: plan.unlotted.toString(),
+            });
+          }
+          if (tomas.length > 0) {
+            planPorLinea.set(plan.lineIndex, tomas);
+          }
+          if (plan.shortfall.greaterThan(0)) {
+            const pedido = conCantidad[i]?.res?.quantityBase ?? new Prisma.Decimal(0);
+            faltantePorLinea.set(plan.lineIndex, {
+              available: pedido.minus(plan.shortfall).toString(),
+              requested: pedido.toString(),
+            });
           }
         }
       }
@@ -762,6 +786,18 @@ export class DocumentsService {
         }
         // La previa de una SALIDA avisa antes de confirmar; el rechazo duro lo
         // hace el ledger, con la fila ya bloqueada.
+        //
+        // Primero lo que FEFO no cubre: en el confirm, FEFO rechaza antes que
+        // el ledger, así que el disponible que la previa enseña es el mismo
+        // que el confirm va a decir.
+        const faltante = faltantePorLinea.get(index);
+        if (esBorrador && direction === "exit" && faltante !== undefined && errors.length === 0) {
+          errors.push({
+            field: "quantity",
+            code: "inventory.insufficient_stock",
+            args: { sku: res?.sku ?? "", ...faltante },
+          });
+        }
         if (
           esBorrador &&
           direction === "exit" &&
