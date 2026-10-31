@@ -196,6 +196,32 @@ describe("resolveLines (F3-CORE-04)", () => {
     });
 
     /**
+     * S8 — Carlos (2026-10-31): «que salga Lo sin lote primero». Un despacho
+     * puede llevar existencias SIN lote de un producto que sí los controla, y
+     * su recepción (entrada con motivo `transfer`) no puede exigir un lote que
+     * nunca existió. Que la línea corresponda de verdad a una línea sin lote
+     * del traspaso lo comprueba `TransfersService.receive`.
+     */
+    it("la RECEPCIÓN de un traspaso admite la línea sin lote y no la manda a ningún lote", async () => {
+      const [line] = await resolve([{ productId: loteadoId, quantity: 5 }], {
+        reasonCode: "transfer",
+      });
+
+      expect(line?.lotId).toBeUndefined();
+      expect(line?.quantityBase.toString()).toBe("5");
+    });
+
+    it("en la previa de la recepción, la línea sin lote no pinta error", async () => {
+      const [line] = await resolve([{ productId: loteadoId, quantity: 5 }], {
+        reasonCode: "transfer",
+        mode: "preview",
+      });
+
+      expect(line?.errors).toEqual([]);
+      expect(line?.lotId).toBeUndefined();
+    });
+
+    /**
      * Carlos (2026-09-01): «me dejó hacer una entrada de un producto
      * controlado por lotes sin poner fecha de caducidad». Un lote sin fecha
      * es un lote que FEFO no puede ordenar y que el aviso de «próximos a

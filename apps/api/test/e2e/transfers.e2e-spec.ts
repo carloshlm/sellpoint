@@ -5,6 +5,7 @@ import { localCalendarDate, startOfDayUtc } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { Prisma } from "../../src/generated/prisma/client";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
@@ -1238,6 +1239,274 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       // garantiza que `inventory.transfer_header_locked` existe en los dos
       // idiomas, así que acá se afirma lo que de verdad lee quien recibe.
       expect((res.body as { message: string }).message).toContain("no se editan desde la entrada");
+    });
+  });
+
+  /**
+   * S8 — un producto con lote también puede tener existencias SIN lote: no
+   * tienen fila propia, son `stock_by_warehouse − Σ stock_lots`. Carlos
+   * (2026-10-31): «que salga Lo sin lote primero». Así que un despacho puede
+   * llevar una línea sin lote (`transfer_lines.lot_id` NULL) aunque el
+   * producto controle lotes.
+   *
+   * Lo que salió sin lote entra sin lote: la recepción no puede pedir un lote
+   * que nunca existió. Si lo pidiera, el traspaso quedaría en tránsito para
+   * siempre — y quien recibe terminaría inventando un lote para destrabarlo.
+   */
+  describe("Lo despachado SIN lote se recibe sin lote (S8)", () => {
+    async function conLoteado() {
+      const base = await escenario();
+      const { token, tenantId, central, norte } = base;
+      const auth = () => ({ Authorization: bearer(token) });
+
+      const loteadoId = await prisma.withTenantContext(tenantId, async (tx) => {
+        const producto = await tx.product.create({
+          data: {
+            tenantId,
+            sku: `LOT-${randomUUID().slice(0, 8)}`,
+            name: "Jarabe",
+            tracksLots: true,
+          },
+          select: { id: true },
+        });
+        return producto.id;
+      });
+
+      const nuevoDoc = async (
+        type: "entry" | "exit",
+        header: Record<string, unknown>,
+        wh: string,
+      ) => {
+        const res = await request(app.getHttpServer())
+          .post("/inventory/documents")
+          .set(auth())
+          .send({ type, warehouseId: wh })
+          .expect(201);
+        const id = (res.body as { id: string }).id;
+        await request(app.getHttpServer())
+          .patch(`/inventory/documents/${id}`)
+          .set(auth())
+          .send(header)
+          .expect(200);
+        return id;
+      };
+
+      const agregarLinea = (documentId: string, body: Record<string, unknown>) =>
+        request(app.getHttpServer())
+          .post(`/inventory/documents/${documentId}/lines`)
+          .set(auth())
+          .send(body)
+          .expect(201);
+
+      const confirmar = (documentId: string) =>
+        request(app.getHttpServer())
+          .post(`/inventory/documents/${documentId}/confirm`)
+          .set(auth())
+          .send({});
+
+      /** Despacha `cantidad` del loteado de Central a Norte, sin elegir lote. */
+      async function despachar(cantidad: number) {
+        const salida = await nuevoDoc(
+          "exit",
+          { reasonCode: "transfer", linkedWarehouseId: norte },
+          central,
+        );
+        await agregarLinea(salida, { productId: loteadoId, quantity: cantidad });
+        const res = await confirmar(salida).expect(201);
+        return (res.body as { transfer: { id: string } }).transfer;
+      }
+
+      async function borradorDeRecepcion(transferId: string) {
+        const res = await request(app.getHttpServer())
+          .post(`/transfers/${transferId}/receipt-draft`)
+          .set(auth())
+          .send({})
+          .expect(201);
+        return (res.body as { id: string }).id;
+      }
+
+      /** El saldo del loteado en las dos tablas, para los dos almacenes. */
+      const saldos = () =>
+        prisma.withTenantContext(tenantId, async (tx) => {
+          const [porAlmacen, porLote] = await Promise.all([
+            tx.stockByWarehouse.findMany({
+              where: { productId: loteadoId },
+              select: { warehouseId: true, quantity: true },
+            }),
+            tx.stockLot.findMany({
+              where: { lot: { productId: loteadoId } },
+              select: { warehouseId: true, lotId: true, quantity: true },
+            }),
+          ]);
+          const de = (warehouseId: string) =>
+            porAlmacen.find((s) => s.warehouseId === warehouseId)?.quantity.toString() ?? null;
+          return { central: de(central), norte: de(norte), porLote };
+        });
+
+      return {
+        ...base,
+        auth,
+        loteadoId,
+        nuevoDoc,
+        agregarLinea,
+        confirmar,
+        despachar,
+        borradorDeRecepcion,
+        saldos,
+      };
+    }
+
+    it("un loteado con saldo solo SIN lote viaja y se recibe sin lote: crece el saldo, no los lotes", async () => {
+      const { tenantId, central, loteadoId, despachar, borradorDeRecepcion, confirmar, saldos } =
+        await conLoteado();
+
+      // Saldo sin lote: hay fila en `stock_by_warehouse` y ninguna en
+      // `stock_lots`. Es lo que deja, por ejemplo, el inventario de arranque.
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.create({
+          data: {
+            tenantId,
+            productId: loteadoId,
+            warehouseId: central,
+            quantity: new Prisma.Decimal(10),
+          },
+        }),
+      );
+
+      const transfer = await despachar(10);
+      const lineas = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.transferLine.findMany({
+          where: { transferId: transfer.id },
+          select: { lotId: true, quantitySent: true },
+        }),
+      );
+      expect(lineas).toHaveLength(1);
+      expect(lineas[0]?.lotId).toBeNull();
+
+      const draftId = await borradorDeRecepcion(transfer.id);
+      const res = await confirmar(draftId);
+      expect(res.status).toBe(201);
+      expect((res.body as { transfer: { status: string } }).transfer.status).toBe("completed");
+
+      const despues = await saldos();
+      expect(despues.central).toBe("0");
+      expect(despues.norte).toBe("10");
+      // Ni en el origen ni en el destino: lo que no tenía lote no lo gana al
+      // cambiar de almacén.
+      expect(despues.porLote).toEqual([]);
+    });
+
+    it("una entrada NORMAL de un loteado sin lote sigue exigiendo el lote", async () => {
+      const { central, loteadoId, nuevoDoc, agregarLinea, confirmar, saldos } = await conLoteado();
+
+      const entrada = await nuevoDoc(
+        "entry",
+        { reasonCode: "adjustment", reasonNote: "carga sin lote" },
+        central,
+      );
+      await agregarLinea(entrada, { productId: loteadoId, quantity: 5 });
+
+      const res = await confirmar(entrada);
+      expect(res.status).toBe(422);
+      expect((res.body as { code: string }).code).toBe("inventory.lot_required");
+
+      const despues = await saldos();
+      expect(despues.central).toBeNull();
+      expect(despues.porLote).toEqual([]);
+    });
+
+    it("una línea despachada CON lote se recibe en ese mismo lote, como siempre", async () => {
+      const {
+        central,
+        norte,
+        loteadoId,
+        nuevoDoc,
+        agregarLinea,
+        confirmar,
+        despachar,
+        borradorDeRecepcion,
+        saldos,
+      } = await conLoteado();
+
+      const carga = await nuevoDoc(
+        "entry",
+        { reasonCode: "adjustment", reasonNote: "carga" },
+        central,
+      );
+      await agregarLinea(carga, {
+        productId: loteadoId,
+        quantity: 6,
+        lotCode: "L-S8",
+        expiresAt: "2027-03-31",
+      });
+      await confirmar(carga).expect(201);
+
+      const transfer = await despachar(6);
+      const draftId = await borradorDeRecepcion(transfer.id);
+      await confirmar(draftId).expect(201);
+
+      const despues = await saldos();
+      expect(despues.central).toBe("0");
+      expect(despues.norte).toBe("6");
+      const enNorte = despues.porLote.filter((l) => l.warehouseId === norte);
+      expect(enNorte).toHaveLength(1);
+      expect(enNorte[0]?.quantity.toString()).toBe("6");
+    });
+
+    it("a una línea CON lote no se le puede borrar el lote al recibirla", async () => {
+      const {
+        token,
+        central,
+        loteadoId,
+        nuevoDoc,
+        agregarLinea,
+        confirmar,
+        despachar,
+        borradorDeRecepcion,
+        saldos,
+      } = await conLoteado();
+
+      const carga = await nuevoDoc(
+        "entry",
+        { reasonCode: "adjustment", reasonNote: "carga" },
+        central,
+      );
+      await agregarLinea(carga, {
+        productId: loteadoId,
+        quantity: 4,
+        lotCode: "L-S8B",
+        expiresAt: "2027-03-31",
+      });
+      await confirmar(carga).expect(201);
+
+      const transfer = await despachar(4);
+      const draftId = await borradorDeRecepcion(transfer.id);
+
+      // La exención es SOLO para lo que salió sin lote: lo que salió de un lote
+      // entra a ese lote, y quitárselo sigue siendo el error de siempre.
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${draftId}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const fila = (detalle.body as { rows: { id: string }[] }).rows[0];
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${draftId}/lines/${fila?.id}`)
+        .set("Authorization", bearer(token))
+        .send({ lotCode: null })
+        .expect(200);
+
+      const res = await confirmar(draftId);
+      expect(res.status).toBe(422);
+      expect((res.body as { code: string }).code).toBe("inventory.lot_required");
+
+      // Y nada entró al destino: el traspaso sigue en tránsito.
+      const despues = await saldos();
+      expect(despues.norte).toBeNull();
+      const tr = await request(app.getHttpServer())
+        .get(`/transfers/${transfer.id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((tr.body as { status: string }).status).toBe("in_transit");
     });
   });
 });

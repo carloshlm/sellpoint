@@ -324,7 +324,13 @@ export class TransfersService {
       warehouseId: string;
       reasonNote: string | null;
     },
-    lines: { productId: string; lotId?: string; quantityBase: Prisma.Decimal }[],
+    lines: {
+      productId: string;
+      lotId?: string;
+      quantityBase: Prisma.Decimal;
+      sku: string;
+      lineIndex: number;
+    }[],
   ) {
     if (document.transferId === null) {
       throw new UnprocessableEntityException({
@@ -367,7 +373,8 @@ export class TransfersService {
 
     // Se identifica por producto + LOTE: lo que salió de un lote entra al
     // mismo lote, con su misma caducidad. Dos lotes del mismo producto son dos
-    // líneas y no se pueden confundir entre sí.
+    // líneas y no se pueden confundir entre sí. Lo que salió SIN lote (S8)
+    // tiene la clave `producto|` y entra sin lote: solo al saldo del almacén.
     const clave = (productId: string, lotId: string | null | undefined) =>
       `${productId}|${lotId ?? ""}`;
     const esperadas = new Map(transfer.lines.map((l) => [clave(l.productId, l.lotId), l]));
@@ -376,6 +383,20 @@ export class TransfersService {
     for (const line of lines) {
       const key = clave(line.productId, line.lotId);
       if (!esperadas.has(key)) {
+        // `resolveLines` deja pasar SIN lote cualquier línea de una recepción
+        // (S8), porque no ve el traspaso. Acá sí se ve: si lo enviado de este
+        // producto salió de un lote, a la línea le falta ESE lote — el mismo
+        // error que daría cualquier entrada, y no un «no pertenece al
+        // traspaso» que no le dice a quien recibe qué corregir.
+        const salioConLote = transfer.lines.some(
+          (l) => l.productId === line.productId && l.lotId !== null,
+        );
+        if (line.lotId === undefined && salioConLote) {
+          throw new UnprocessableEntityException({
+            message: "inventory.lot_required",
+            args: { sku: line.sku, lineIndex: line.lineIndex, field: "lotCode" },
+          });
+        }
         throw new UnprocessableEntityException({
           message: "inventory.transfer_line_unknown",
           args: { productId: line.productId },
@@ -537,6 +558,9 @@ export class TransfersService {
               lineNo: index + 1,
               productId: line.productId,
               quantity: line.quantitySent,
+              // `null` también en un producto CON lote, cuando lo despachado
+              // fue su saldo sin lote (S8): se recibe sin lote, y el confirm
+              // no lo pide porque el motivo es `transfer`.
               lotCode: line.lot?.lotCode ?? null,
               // La caducidad viaja con el lote, así que al confirmar se
               // resolvería igual desde `product_lots` — pero quien descarga el

@@ -305,6 +305,9 @@ async function resolveOne(
  *    en que la partida entra al negocio;
  *  · en SALIDA es opcional: sin él decide FEFO (F3-CORE-08), que es el
  *    comportamiento que hereda el POS de F4 sin pedirle nada al cajero.
+ *
+ * La única entrada que puede venir sin lote es la RECEPCIÓN de un traspaso
+ * (S8): lo que salió del origen sin lote entra al destino sin lote.
  */
 async function resolveLot(
   tx: Prisma.TransactionClient,
@@ -328,7 +331,19 @@ async function resolveLot(
   }
 
   if (!traeLote) {
-    if (options.direction === "entry") {
+    // Carlos (2026-10-31): «que salga Lo sin lote primero». Un producto con
+    // lote también tiene existencias SIN lote (`stock_by_warehouse − Σ
+    // stock_lots`), y un despacho puede llevarlas: su línea de traspaso queda
+    // con `lot_id` NULL. Pedirle un lote a su recepción sería pedir uno que
+    // nunca existió, y el traspaso se quedaría en tránsito para siempre.
+    //
+    // La recepción se reconoce por su motivo, `transfer` en una ENTRADA: nadie
+    // lo puede elegir (no está en `SELECTABLE_ENTRY_REASONS`), lo pone el
+    // borrador que arma el servidor, y el confirm no lo deja pasar sin
+    // `transfer_id`. Que la línea corresponda de verdad a una línea SIN lote
+    // del traspaso lo comprueba `TransfersService.receive`: a una que salió de
+    // un lote le sigue exigiendo ese lote.
+    if (options.direction === "entry" && options.reasonCode !== "transfer") {
       throw new UnprocessableEntityException({
         message: "inventory.lot_required",
         args: { sku: product.sku, lineIndex, field: "lotCode" },
