@@ -5,6 +5,8 @@ import type {
   LookupQuoteItem,
   LookupServiceItem,
 } from "@/lib/pos/api";
+import { buildAuthUser } from "@/test/auth-fixture";
+import { useAuthStore } from "./auth.store";
 import {
   aLineasDeVenta,
   type CartLine,
@@ -509,5 +511,48 @@ describe("el impuesto del carrito (F4-TAX-16)", () => {
       tax: IVA,
     });
     expect(useCartStore.getState().lines[0]?.tax).toEqual(IVA);
+  });
+});
+
+/**
+ * Carlos (2026-10-31): cerró sesión con un negocio, entró con otro y la caja
+ * le mostró el «Oatmeal Bars» del primero. El carrito vive en memoria y nadie
+ * lo vaciaba al cambiar de cuenta: ahora se vacía al DEJAR una identidad, con
+ * la misma regla que la caché de React Query (`watchSessionIdentity`).
+ */
+describe("el carrito muere con la sesión", () => {
+  beforeEach(() => {
+    useAuthStore.getState().clearAuth();
+    useCartStore.getState().clear();
+  });
+
+  it("cerrar sesión vacía el carrito", () => {
+    useAuthStore.getState().setAuth("jwt-a", buildAuthUser({ id: "user-a" }));
+    useCartStore.getState().add(AGUA);
+    expect(useCartStore.getState().lines).toHaveLength(1);
+
+    useAuthStore.getState().clearAuth();
+
+    expect(useCartStore.getState().lines).toEqual([]);
+  });
+
+  it("entrar con otra cuenta sin cerrar sesión también lo vacía", () => {
+    useAuthStore.getState().setAuth("jwt-a", buildAuthUser({ id: "user-a" }));
+    useCartStore.getState().add(AGUA);
+
+    useAuthStore.getState().setAuth("jwt-b", buildAuthUser({ id: "user-b" }));
+
+    expect(useCartStore.getState().lines).toEqual([]);
+  });
+
+  it("renovar el token o cambiar el idioma NO lo vacía: es la misma sesión", () => {
+    const ana = buildAuthUser({ id: "user-a" });
+    useAuthStore.getState().setAuth("jwt-a", ana);
+    useCartStore.getState().add(AGUA);
+
+    useAuthStore.getState().setToken("jwt-a-renovado");
+    useAuthStore.getState().setUser({ ...ana, locale: "en" });
+
+    expect(useCartStore.getState().lines).toHaveLength(1);
   });
 });

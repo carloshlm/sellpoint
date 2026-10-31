@@ -8,6 +8,7 @@ import {
 } from "@sellpoint/shared";
 import { create } from "zustand";
 import type { LookupItem, LookupItemTax, LookupPresentation } from "@/lib/pos/api";
+import { useAuthStore } from "./auth.store";
 
 /**
  * F4-CART-02 — el carrito.
@@ -336,6 +337,31 @@ export const useCartStore = create<CartState>((set) => ({
 
   clear: () => set({ lines: [], quoteId: null, errorSku: null }),
 }));
+
+/**
+ * El carrito muere con la sesión (Carlos, 2026-10-31): cerró sesión con un
+ * negocio, entró con otro en la misma pestaña y la caja le mostró el producto
+ * del primero. El carrito vive en memoria, así que sobrevivía al logout.
+ *
+ * Misma regla que la caché de React Query (`watchSessionIdentity` en
+ * `lib/query-client.ts`): se vacía al DEJAR una identidad —logout, sesión
+ * muerta o entrar con otra cuenta encima—, no al estrenarla ni al renovar el
+ * token o cambiar el idioma, que son la misma sesión. Vive aquí y no en cada
+ * botón de salir: hay varios caminos que cierran la sesión y ninguno tiene
+ * que acordarse.
+ */
+let identidadDelCarrito = useAuthStore.getState().user?.id ?? null;
+useAuthStore.subscribe((state) => {
+  const actual = state.user?.id ?? null;
+  if (actual === identidadDelCarrito) {
+    return;
+  }
+  const dejaUnaIdentidad = identidadDelCarrito !== null;
+  identidadDelCarrito = actual;
+  if (dejaUnaIdentidad) {
+    useCartStore.getState().clear();
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────
 // Derivados
