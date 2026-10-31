@@ -8,6 +8,8 @@
   "empty_update": "There are no changes to save.",
   "invalid_phone": "The phone must include the country code, for example +1 555 123 4567.",
   "invalid_tax_id": "The tax ID is not valid for your business's country.",
+  "invalid_region": "That province or state does not belong to the business's country.",
+  "invalid_postal_code": "The postal code does not match the business's country format.",
   "in_use": "This supplier has purchases or expenses on record and cannot be deleted. You can deactivate it instead.",
   "import_too_large": "The file exceeds the 2 MB limit",
   "import_unreadable": "The file could not be read. Is it a valid Excel?",

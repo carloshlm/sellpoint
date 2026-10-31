@@ -157,6 +157,7 @@ model Tenant {
   // Recepción (Fase 9)
   customers             Customer[]
   suppliers             Supplier[]
+  supplierContacts      SupplierContact[]
   expenseCategories     ExpenseCategory[]
   expenses              Expense[]
   purchases             Purchase[]
@@ -2101,30 +2102,43 @@ model Customer {
 /// a propósito (un repetido avisa, no bloquea). `is_active` retira sin
 /// borrar; borrar uno referenciado rebota por la FK RESTRICT de quien lo use.
 /// CHECKs: btrim(name) <> ''; phone E.164.
+///
+/// Contactos de proveedor (Carlos, 2026-10-31): `contact_name`, `job_title`,
+/// `phone` y `email` son el CONTACTO 1 (la lista los sigue leyendo de aquí);
+/// los adicionales viven en `supplier_contacts`. La dirección se desglosa como
+/// la de Sucursales: `address` es la línea 1 («Calle y número») y la región y
+/// el CP se validan contra el país del negocio en el service.
 model Supplier {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
   /// F9-SUPPCAT-03: la llave visible, única por negocio y en MAYÚSCULAS (`PROV-NNN` si el alta no trae uno).
-  code        String   @db.VarChar(64)
-  name        String
-  taxId       String?  @map("tax_id") @db.VarChar(32)
-  contactName String?  @map("contact_name") @db.VarChar(120)
-  phone       String?  @db.VarChar(20)
-  email       String?
-  address     String?
-  notes       String?
-  attributes  Json     @default("{}")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdBy   String?  @map("created_by") @db.Uuid
-  updatedBy   String?  @map("updated_by") @db.Uuid
-  createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  code         String   @db.VarChar(64)
+  name         String
+  taxId        String?  @map("tax_id") @db.VarChar(32)
+  contactName  String?  @map("contact_name") @db.VarChar(120)
+  /// «Puesto / Cargo» del contacto 1.
+  jobTitle     String?  @map("job_title") @db.VarChar(120)
+  phone        String?  @db.VarChar(20)
+  email        String?
+  address      String?
+  addressLine2 String?  @map("address_line2") @db.VarChar(120)
+  city         String?  @db.VarChar(120)
+  region       String?  @db.VarChar(8)
+  postalCode   String?  @map("postal_code") @db.VarChar(16)
+  notes        String?
+  attributes   Json     @default("{}")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdBy    String?  @map("created_by") @db.Uuid
+  updatedBy    String?  @map("updated_by") @db.Uuid
+  createdAt    DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
-  creator   User?      @relation("SupplierCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  updater   User?      @relation("SupplierUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  creator   User?             @relation("SupplierCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater   User?             @relation("SupplierUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
   expenses  Expense[]
   purchases Purchase[]
+  contacts  SupplierContact[]
 
   purchaseOrders PurchaseOrder[]
 
@@ -2133,6 +2147,32 @@ model Supplier {
   @@index([tenantId, taxId])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
   @@map("suppliers")
+}
+
+/// Contactos de proveedor (Carlos, 2026-10-31) — los contactos ADICIONALES
+/// de un proveedor: «Contacto 2», «Contacto 3»… (el 1 vive en `suppliers`).
+/// `sort_order` es la posición que la persona les dio; la edición reemplaza
+/// el conjunto completo. Lleva su propio `tenant_id` porque `purge_tenant`
+/// borra por esa columna con los CASCADE apagados. Se va con el proveedor
+/// (ON DELETE CASCADE). CHECKs: btrim(name) <> ''; phone E.164.
+model SupplierContact {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  supplierId String   @map("supplier_id") @db.Uuid
+  sortOrder  Int      @map("sort_order")
+  name       String   @db.VarChar(120)
+  phone      String?  @db.VarChar(20)
+  email      String?
+  jobTitle   String?  @map("job_title") @db.VarChar(120)
+  createdAt  DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, sortOrder])
+  @@index([tenantId, supplierId])
+  @@map("supplier_contacts")
 }
 
 /// F9-EXP-02 — la categoría de gasto: tabla propia (Basic no trae el motor

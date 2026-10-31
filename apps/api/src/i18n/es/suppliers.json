@@ -8,6 +8,8 @@
   "empty_update": "No hay cambios que guardar.",
   "invalid_phone": "El teléfono debe llevar el prefijo del país, por ejemplo +52 55 1234 5678.",
   "invalid_tax_id": "El registro fiscal no es válido para el país de tu negocio.",
+  "invalid_region": "Esa provincia o estado no corresponde al país del negocio.",
+  "invalid_postal_code": "El código postal no tiene el formato del país del negocio.",
   "in_use": "Este proveedor tiene compras o gastos registrados y no se puede borrar. Puedes desactivarlo.",
   "import_too_large": "El archivo supera el límite de 2 MB",
   "import_unreadable": "No se pudo leer el archivo. ¿Es un Excel válido?",

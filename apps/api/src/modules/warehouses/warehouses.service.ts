@@ -4,12 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import {
-  addressAsksRegion,
-  isAddressRegionCode,
-  isPostalCode,
-  normalizePostalCode,
-} from "@sellpoint/shared";
+import { withValidatedTenantAddress } from "../../common/address-validation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -174,28 +169,21 @@ export class WarehousesService {
    * F1-ADDR-03: el CP y la región de un almacén se validan contra el país del
    * NEGOCIO —un almacén hereda `tenants.country`— y el CP se guarda
    * normalizado (`M5V 3L9`). Sin región ni CP en el body no hay nada que
-   * mirar y no se consulta el tenant.
+   * mirar y no se consulta el tenant. La regla vive en
+   * `common/address-validation.ts` (la comparte Proveedores); aquí solo
+   * quedan las claves y el 422 de Sucursales.
    */
-  private async conDireccionValidada<
-    T extends { region?: string | null; postalCode?: string | null },
-  >(tx: Prisma.TransactionClient, tenantId: string, input: T): Promise<T> {
-    if (input.region == null && input.postalCode == null) return input;
-    const { country } = await tx.tenant.findUniqueOrThrow({
-      where: { id: tenantId },
-      select: { country: true },
+  private conDireccionValidada<T extends { region?: string | null; postalCode?: string | null }>(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    input: T,
+  ): Promise<T> {
+    return withValidatedTenantAddress(tx, tenantId, input, {
+      invalidRegion: () =>
+        new UnprocessableEntityException({ message: "warehouses.invalid_region" }),
+      invalidPostalCode: () =>
+        new UnprocessableEntityException({ message: "warehouses.invalid_postal_code" }),
     });
-    if (
-      input.region != null &&
-      !(addressAsksRegion(country) && isAddressRegionCode(country, input.region))
-    ) {
-      throw new UnprocessableEntityException({ message: "warehouses.invalid_region" });
-    }
-    if (input.postalCode == null) return input;
-    const postalCode = normalizePostalCode(country, input.postalCode);
-    if (!isPostalCode(country, postalCode)) {
-      throw new UnprocessableEntityException({ message: "warehouses.invalid_postal_code" });
-    }
-    return { ...input, postalCode: postalCode === "" ? null : postalCode };
   }
 
   async create(

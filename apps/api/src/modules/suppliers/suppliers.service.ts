@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { isTaxId, normalizeTaxId } from "@sellpoint/shared";
+import { withValidatedTenantAddress } from "../../common/address-validation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -15,8 +16,18 @@ import { SUPPLIERS_CATALOG_KEY } from "../tenants/role-catalog";
 import type {
   CreateSupplierDto,
   ListSuppliersQuery,
+  SupplierContactInput,
   UpdateSupplierDto,
 } from "./dto/upsert-supplier.dto";
+
+/** Un contacto ADICIONAL tal como sale al cliente («Contacto 2», «Contacto 3»…). */
+export interface SupplierContactSummary {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  jobTitle: string | null;
+}
 
 /** Lo que sale al cliente: el espejo plano de la fila. */
 export interface SupplierSummary {
@@ -25,17 +36,34 @@ export interface SupplierSummary {
   code: string;
   name: string;
   taxId: string | null;
+  /** El contacto 1 (contacto principal): nombre, puesto, teléfono y correo. */
   contactName: string | null;
+  jobTitle: string | null;
   phone: string | null;
   email: string | null;
+  /** La dirección desglosada como la de Sucursales: `address` es la línea 1. */
   address: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
   notes: string | null;
   /** F9-SUPPCAT-05: los campos propios del catálogo de proveedores. */
   attributes: Record<string, unknown>;
+  /** Los contactos adicionales, en el orden que la persona les dio. */
+  contacts: SupplierContactSummary[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
+
+type SupplierContactRow = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  jobTitle: string | null;
+};
 
 type SupplierRow = {
   id: string;
@@ -43,15 +71,29 @@ type SupplierRow = {
   name: string;
   taxId: string | null;
   contactName: string | null;
+  jobTitle: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
   notes: string | null;
   attributes: unknown;
+  contacts: SupplierContactRow[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
+
+/** Toda lectura del proveedor trae sus contactos adicionales, por posición. */
+const WITH_CONTACTS = {
+  contacts: { orderBy: { sortOrder: "asc" } },
+} satisfies Prisma.SupplierInclude;
+
+/** Un contacto como lo guarda la auditoría: sin id, que cambia en cada reemplazo. */
+type SupplierContactAudit = Omit<SupplierContactSummary, "id">;
 
 /**
  * F9-SUPPL-03 — el catálogo de proveedores. Core: lo usan Compras y Gastos.
@@ -65,6 +107,12 @@ type SupplierRow = {
  *
  * Borrar un proveedor con compras o gastos rebota por la FK (RESTRICT) y se
  * traduce a 409 `suppliers.in_use`: la salida es desactivarlo, no borrarlo.
+ *
+ * Contactos de proveedor (Carlos, 2026-10-31): el contacto 1 sigue en las
+ * columnas del proveedor; los adicionales viven en `supplier_contacts` y se
+ * van con él (CASCADE). La edición con `contacts` REEMPLAZA el conjunto. La
+ * dirección se valida contra el país del negocio con la MISMA regla que
+ * Sucursales (`common/address-validation.ts`).
  */
 @Injectable()
 export class SuppliersService {
@@ -101,6 +149,7 @@ export class SuppliersService {
         tx.supplier.count({ where }),
         tx.supplier.findMany({
           where,
+          include: WITH_CONTACTS,
           // Se elige de un catálogo: alfabético. Desempate por id para que
           // dos nombres iguales no salgan en dos páginas o en ninguna.
           orderBy: [{ name: "asc" }, { id: "asc" }],
@@ -114,7 +163,10 @@ export class SuppliersService {
 
   async get(user: AuthUser, id: string): Promise<SupplierSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const fila = await tx.supplier.findFirst({ where: { id, tenantId: user.tenantId } });
+      const fila = await tx.supplier.findFirst({
+        where: { id, tenantId: user.tenantId },
+        include: WITH_CONTACTS,
+      });
       if (!fila) {
         throw new NotFoundException({ message: "suppliers.not_found" });
       }
@@ -135,12 +187,14 @@ export class SuppliersService {
         });
       }
       const taxId = await this.registroFiscalValidado(tx, user.tenantId, input.taxId);
+      const direccion = await this.conDireccionValidada(tx, user.tenantId, input);
       // El código lo trae la persona o lo pone el sistema (`PROV-NNN`); si lo
       // trae, se comprueba ANTES del insert para que el 409 diga qué chocó.
       const code = input.code ?? (await this.nextCode(tx, user.tenantId));
       if (input.code !== undefined) {
         await this.assertCodeFree(tx, user.tenantId, code);
       }
+      const contactos = input.contacts ?? [];
       const creado = await tx.supplier.create({
         data: {
           tenantId: user.tenantId,
@@ -148,16 +202,25 @@ export class SuppliersService {
           name: input.name,
           taxId,
           contactName: input.contactName ?? null,
+          jobTitle: input.jobTitle ?? null,
           phone: input.phone ?? null,
           email: input.email ?? null,
           address: input.address ?? null,
+          addressLine2: direccion.addressLine2 ?? null,
+          city: direccion.city ?? null,
+          region: direccion.region ?? null,
+          postalCode: direccion.postalCode ?? null,
           notes: input.notes ?? null,
           ...(input.attributes !== undefined
             ? { attributes: input.attributes as Prisma.InputJsonValue }
             : {}),
+          ...(contactos.length > 0
+            ? { contacts: { create: contactRows(user.tenantId, contactos) } }
+            : {}),
           createdBy: user.userId,
           updatedBy: user.userId,
         },
+        include: WITH_CONTACTS,
       });
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
@@ -165,7 +228,12 @@ export class SuppliersService {
         action: "supplier.created",
         resourceType: "supplier",
         resourceId: creado.id,
-        after: { code: creado.code, name: creado.name, taxId: creado.taxId },
+        after: {
+          code: creado.code,
+          name: creado.name,
+          taxId: creado.taxId,
+          contacts: creado.contacts.map(toContactAudit),
+        },
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
@@ -180,7 +248,10 @@ export class SuppliersService {
     meta: RequestMeta,
   ): Promise<SupplierSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const actual = await tx.supplier.findFirst({ where: { id, tenantId: user.tenantId } });
+      const actual = await tx.supplier.findFirst({
+        where: { id, tenantId: user.tenantId },
+        include: WITH_CONTACTS,
+      });
       if (!actual) {
         throw new NotFoundException({ message: "suppliers.not_found" });
       }
@@ -193,6 +264,7 @@ export class SuppliersService {
       if (input.code !== undefined && input.code !== actual.code) {
         await this.assertCodeFree(tx, user.tenantId, input.code);
       }
+      const direccion = await this.conDireccionValidada(tx, user.tenantId, input);
       const data: Prisma.SupplierUpdateInput = {
         ...(input.code !== undefined ? { code: input.code } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
@@ -200,9 +272,14 @@ export class SuppliersService {
           ? { taxId: await this.registroFiscalValidado(tx, user.tenantId, input.taxId) }
           : {}),
         ...(input.contactName !== undefined ? { contactName: input.contactName } : {}),
+        ...(input.jobTitle !== undefined ? { jobTitle: input.jobTitle } : {}),
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
         ...(input.email !== undefined ? { email: input.email } : {}),
         ...(input.address !== undefined ? { address: input.address } : {}),
+        ...(direccion.addressLine2 !== undefined ? { addressLine2: direccion.addressLine2 } : {}),
+        ...(direccion.city !== undefined ? { city: direccion.city } : {}),
+        ...(direccion.region !== undefined ? { region: direccion.region } : {}),
+        ...(direccion.postalCode !== undefined ? { postalCode: direccion.postalCode } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         ...(input.attributes !== undefined
           ? { attributes: input.attributes as Prisma.InputJsonValue }
@@ -210,7 +287,24 @@ export class SuppliersService {
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         updater: { connect: { id: user.userId } },
       };
-      const actualizado = await tx.supplier.update({ where: { id }, data });
+
+      // `contacts` presente REEMPLAZA el conjunto: se borra el anterior ANTES
+      // de crear el nuevo (la posición es única por proveedor) y el orden es
+      // el del arreglo. Ausente, los contactos no se tocan.
+      const contactos = input.contacts === undefined ? undefined : (input.contacts ?? []);
+      if (contactos !== undefined) {
+        await tx.supplierContact.deleteMany({ where: { tenantId: user.tenantId, supplierId: id } });
+      }
+      const actualizado = await tx.supplier.update({
+        where: { id },
+        data: {
+          ...data,
+          ...(contactos !== undefined && contactos.length > 0
+            ? { contacts: { create: contactRows(user.tenantId, contactos) } }
+            : {}),
+        },
+        include: WITH_CONTACTS,
+      });
       const { updater: _updater, ...cambios } = data;
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
@@ -223,8 +317,14 @@ export class SuppliersService {
           name: actual.name,
           taxId: actual.taxId,
           isActive: actual.isActive,
+          ...(contactos !== undefined ? { contacts: actual.contacts.map(toContactAudit) } : {}),
         },
-        after: cambios as Prisma.InputJsonValue,
+        after: {
+          ...cambios,
+          ...(contactos !== undefined
+            ? { contacts: actualizado.contacts.map(toContactAudit) }
+            : {}),
+        } as Prisma.InputJsonValue,
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
@@ -294,6 +394,31 @@ export class SuppliersService {
   }
 
   /**
+   * La región y el CP, contra el país del negocio: la misma regla que
+   * Sucursales, con las claves de proveedores. Es 422 como en Sucursales y
+   * en el RFC, con el error en su campo para que el formulario lo pinte
+   * junto al input.
+   */
+  private conDireccionValidada<T extends { region?: string | null; postalCode?: string | null }>(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    input: T,
+  ): Promise<T> {
+    return withValidatedTenantAddress(tx, tenantId, input, {
+      invalidRegion: () =>
+        new UnprocessableEntityException({
+          message: "suppliers.invalid_region",
+          errors: [{ key: "region", message: "suppliers.invalid_region" }],
+        }),
+      invalidPostalCode: () =>
+        new UnprocessableEntityException({
+          message: "suppliers.invalid_postal_code",
+          errors: [{ key: "postalCode", message: "suppliers.invalid_postal_code" }],
+        }),
+    });
+  }
+
+  /**
    * El registro fiscal, normalizado a la forma canónica de su país y validado
    * contra su patrón. `null`/vacío limpia el campo; sin país del negocio,
    * solo se recorta y se pone en mayúsculas (no se toca lo que no se entiende).
@@ -322,6 +447,33 @@ function isForeignKeyViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003";
 }
 
+/** Las filas de `supplier_contacts` a crear: la posición es la del arreglo, desde 1. */
+function contactRows(tenantId: string, contacts: SupplierContactInput[]) {
+  return contacts.map((contact, index) => ({
+    tenantId,
+    sortOrder: index + 1,
+    name: contact.name,
+    phone: contact.phone ?? null,
+    email: contact.email ?? null,
+    jobTitle: contact.jobTitle ?? null,
+  }));
+}
+
+function toContactSummary(row: SupplierContactRow): SupplierContactSummary {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    email: row.email,
+    jobTitle: row.jobTitle,
+  };
+}
+
+function toContactAudit(row: SupplierContactRow): SupplierContactAudit {
+  const { id: _id, ...audit } = toContactSummary(row);
+  return audit;
+}
+
 function toSummary(row: SupplierRow): SupplierSummary {
   return {
     id: row.id,
@@ -329,11 +481,17 @@ function toSummary(row: SupplierRow): SupplierSummary {
     name: row.name,
     taxId: row.taxId,
     contactName: row.contactName,
+    jobTitle: row.jobTitle,
     phone: row.phone,
     email: row.email,
     address: row.address,
+    addressLine2: row.addressLine2,
+    city: row.city,
+    region: row.region,
+    postalCode: row.postalCode,
     notes: row.notes,
     attributes: (row.attributes ?? {}) as Record<string, unknown>,
+    contacts: row.contacts.map(toContactSummary),
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
