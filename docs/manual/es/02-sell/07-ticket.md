@@ -31,7 +31,8 @@ imprime. Arriba queda el aviso verde **Venta VTA-000483 cobrada.** con el botón
    importe. La presentación va con su nombre («1 Caja con 12 (12 piezas)»), y
    si el producto se controla por lotes, sale el **Lote** que se vendió.
 4. Los totales: el subtotal, el descuento si lo hubo, el impuesto y el
-   **Total**, y cómo pagó el cliente. Si pagó en efectivo, también con cuánto
+   **TOTAL**, en mayúsculas y con letra más grande para que se distinga de un
+   vistazo, y cómo pagó el cliente. Si pagó en efectivo, también con cuánto
    (**Recibido**) y su **Cambio**: en la venta VTA-000482 el total fue $243.50,
    el cliente pagó con $300.00 y se llevó $56.50 de cambio.
 5. El mensaje del pie y un **código de barras** con su número: al escanearlo en
@@ -44,6 +45,12 @@ de entrada, u **80 mm**. El ancho se elige por computadora, porque la impresora
 está conectada a ella: en la computadora donde imprimes, entra a **Mi perfil** ›
 **Preferencias** › **Ancho del papel de esta computadora** (capítulo 4, «Mi
 perfil: tus datos»). Se elige una sola vez.
+
+Una impresora térmica no imprime hasta la orilla del rollo: en papel de 80 mm
+imprime unos 72 mm, y en papel de 58 mm, unos 48. SellPointy arma el ticket a
+ese ancho, así que no se corta. Si aun así sale corrido hacia un lado, revisa
+en el cuadro de impresión, en **Más ajustes**, que los **Márgenes** digan
+**Ninguno** y la **Escala** esté al 100 %.
 
 ## Reimprimir un ticket
 

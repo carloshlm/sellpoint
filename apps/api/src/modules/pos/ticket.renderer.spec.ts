@@ -70,6 +70,27 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       expect(ancho.pageSize.height).toBe("auto");
     });
 
+    /**
+     * Carlos (2026-10-31): en una térmica de 80 mm el ticket salía con margen
+     * a la izquierda y cortado a la derecha. El cabezal no imprime los 80 mm:
+     * imprime 72 (576 puntos a 203 ppp), y 48 en papel de 58. La página mide
+     * eso, con 2 mm por lado, para que nada caiga fuera de lo imprimible.
+     */
+    it.each([
+      ["80mm", 72],
+      ["58mm", 48],
+    ] as const)("en papel de %s la página mide lo que imprime el cabezal: %s mm", (papel, mm) => {
+      const def = buildTicketDefinition({ ...base, width: papel }, t) as {
+        pageSize: { width: number };
+        pageMargins: number[];
+      };
+      const enMm = (pt: number) => Math.round((pt / 2.83) * 10) / 10;
+
+      expect(enMm(def.pageSize.width)).toBe(mm);
+      expect(enMm(def.pageMargins[0] ?? 0)).toBe(2);
+      expect(enMm(def.pageMargins[2] ?? 0)).toBe(2);
+    });
+
     it("encabeza con el nombre del negocio, y la razón social va junto al RFC", () => {
       const json = textos(buildTicketDefinition(base, t));
 
@@ -181,6 +202,26 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
   describe("los totales", () => {
     it("muestra el total", () => {
       expect(textos(buildTicketDefinition(base, t))).toContain("$30.00");
+    });
+
+    /**
+     * Carlos (2026-10-31): el total se tiene que distinguir de un vistazo.
+     * «TOTAL» en mayúsculas, la letra un poco más grande que los demás
+     * importes (8) sin exagerar, y un poco de aire arriba y abajo.
+     */
+    it("el renglón del TOTAL va en mayúsculas, más grande y con aire", () => {
+      const def = buildTicketDefinition(base, t) as { content: unknown[] };
+      const renglon = def.content.find((nodo) => JSON.stringify(nodo).includes("TICKET.TOTAL")) as
+        | { columns: { text: string; fontSize?: number }[]; margin: number[] }
+        | undefined;
+
+      expect(renglon?.columns.map((c) => c.text)).toEqual(["TICKET.TOTAL", "$30.00"]);
+      for (const columna of renglon?.columns ?? []) {
+        expect(columna.fontSize).toBeGreaterThan(8);
+        expect(columna.fontSize).toBeLessThanOrEqual(11);
+      }
+      expect(renglon?.margin[1]).toBeGreaterThanOrEqual(4);
+      expect(renglon?.margin[3]).toBeGreaterThanOrEqual(4);
     });
 
     it("sin descuento NO imprime la línea de subtotal: sería ruido", () => {
@@ -573,9 +614,12 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
   });
   const filasDelPie = (def: unknown): string[] => {
     const content = (def as { content: unknown[] }).content;
-    return content
-      .map((n) => JSON.stringify(n))
-      .filter((s) => s.includes("ticket.") || s.includes("%"));
+    return (
+      content
+        .map((n) => JSON.stringify(n))
+        // Sin distinguir mayúsculas: el TOTAL va en mayúsculas (2026-10-31).
+        .filter((s) => s.toLowerCase().includes("ticket.") || s.includes("%"))
+    );
   };
 
   it("sin componentes, el pie es EXACTAMENTE el de siempre, con y sin descuento", () => {
@@ -613,7 +657,8 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
     expect(pie.indexOf("ticket.subtotal")).toBeLessThan(pie.indexOf("ticket.discount"));
     expect(pie.indexOf("ticket.discount")).toBeLessThan(pie.indexOf("ticket.taxableBase"));
     expect(pie.indexOf("ticket.taxableBase")).toBeLessThan(pie.indexOf("IVA 16%"));
-    expect(pie.indexOf("IVA 16%")).toBeLessThan(pie.indexOf("ticket.total"));
+    // El total va en mayúsculas (Carlos, 2026-10-31).
+    expect(pie.indexOf("IVA 16%")).toBeLessThan(pie.indexOf("TICKET.TOTAL"));
     expect((116 - 16).toFixed(2)).toBe("100.00");
     expect((86.21 + 13.79).toFixed(2)).toBe("100.00");
   });
@@ -723,7 +768,7 @@ describe("la marca de impuesto por línea (F4-TAXMARK-03)", () => {
   it("la leyenda dice el nombre del grupo, después del Total y antes del cobro", () => {
     const texto = JSON.stringify(buildTicketDefinition(base(), t));
     const leyenda = texto.indexOf("B = HST 13%");
-    expect(leyenda).toBeGreaterThan(texto.indexOf("ticket.total"));
+    expect(leyenda).toBeGreaterThan(texto.indexOf("TICKET.TOTAL"));
     expect(leyenda).toBeLessThan(texto.indexOf("ticket.payment"));
     expect(texto).toContain("A = GST 5%");
   });

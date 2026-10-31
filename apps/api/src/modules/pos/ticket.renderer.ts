@@ -18,6 +18,15 @@ export type Translate = (key: string) => string;
 
 /** Los dos anchos de papel térmico del mercado. */
 export const TICKET_WIDTHS = { "58mm": 58, "80mm": 80 } as const;
+
+/**
+ * Lo que el cabezal REALMENTE imprime en cada papel (Carlos, 2026-10-31): una
+ * térmica de 80 mm imprime 72 mm (576 puntos a 203 ppp) y una de 58, 48 mm
+ * (384 puntos). La página medía el papel completo con 5 mm por lado: en 80 mm
+ * pedía 70 mm de contenido desde los 5 mm, el cabezal arranca unos 4 mm
+ * adentro y llega hasta los 76, y lo de la derecha se cortaba («$72.»).
+ */
+export const TICKET_PRINTABLE_MM = { "58mm": 48, "80mm": 72 } as const;
 export type TicketWidth = keyof typeof TICKET_WIDTHS;
 
 export interface TicketRow {
@@ -169,11 +178,11 @@ export interface TicketInput {
  * térmica de 58 mm son ~48.
  */
 export function buildTicketDefinition(input: TicketInput, t: Translate) {
-  const anchoMm = TICKET_WIDTHS[input.width];
-  // 1 mm ≈ 2.83 pt. La térmica no imprime hasta el borde: 5 mm de margen por
-  // lado es lo que reconoce cualquier cabezal del mercado.
-  const anchoPt = anchoMm * 2.83;
-  const margen = 5 * 2.83;
+  // 1 mm ≈ 2.83 pt. La página mide lo IMPRIMIBLE, no el papel, con 2 mm por
+  // lado: así nada cae fuera de lo que el cabezal alcanza.
+  const anchoPt = TICKET_PRINTABLE_MM[input.width] * 2.83;
+  const margen = 2 * 2.83;
+  const margenVertical = 5 * 2.83;
 
   const dinero = (valor: string | null | undefined): string =>
     formatMoney(Number(valor ?? 0), input.currency, input.locale);
@@ -215,7 +224,7 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
 
   return {
     pageSize: { width: anchoPt, height: "auto" },
-    pageMargins: [margen, margen, margen, margen],
+    pageMargins: [margen, margenVertical, margen, margenVertical],
     defaultStyle: { font: "Helvetica", fontSize: 8, lineHeight: 1.1 },
     content: [
       // ── El logotipo, arriba de todo (F4-TICKETCFG-05) ─────────────────
@@ -329,12 +338,19 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
               fila(t("ticket.discount"), `-${dinero(input.discount)}`),
             ]
           : []),
+      // El total se distingue de un vistazo (Carlos, 2026-10-31): «TOTAL» en
+      // mayúsculas, un poco más grande que los demás importes —10 contra 8,
+      // sin exagerar— y con un poco de aire arriba y abajo.
       {
         columns: [
-          { text: t("ticket.total"), bold: true },
-          { text: dinero(input.total), alignment: "right", bold: true },
+          {
+            text: t("ticket.total").toLocaleUpperCase(input.locale),
+            bold: true,
+            fontSize: 10,
+          },
+          { text: dinero(input.total), alignment: "right", bold: true, fontSize: 10 },
         ],
-        margin: [0, 2, 0, 2],
+        margin: [0, 4, 0, 4],
       },
 
       // ── La leyenda de las letras (F4-TAXMARK-03) ──────────────────────
