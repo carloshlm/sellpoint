@@ -43,7 +43,9 @@ Arriba de la lista aparece el resumen: cuántos productos **Contados**, cuántos
 ![Lo contado contra lo que dice el sistema](screen:count-differences)
 
 Cada línea muestra el **Teórico**, lo **Contado** y la **Diferencia**, y en
-**Stock** cómo va a quedar: de cuánto a cuánto. Marca **Solo discrepancias**
+**Stock** cómo va a quedar: de cuánto a cuánto. Esa columna solo aparece en el
+borrador; ya confirmado, el conteo muestra lo que se contó y su diferencia.
+Marca **Solo discrepancias**
 para ver únicamente lo que no cuadra; es donde vale la pena volver a contar
 antes de confirmar.
 

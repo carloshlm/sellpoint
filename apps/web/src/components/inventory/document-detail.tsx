@@ -146,6 +146,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const puedeConfirmar = editable && (!esConteo || has("inventory:manage"));
   const conErrores = document.summary.errors > 0;
   const conColumnaFinal = editable || conErrores;
+  // Carlos (2026-10-31): un conteo ya confirmado (o anulado) no tiene saldo
+  // que mostrar por línea —solo «—»— y la columna confundía. En el borrador se
+  // queda: ahí es la previa de cómo va a quedar el saldo.
+  const conStock = !esConteo || document.status === "draft";
   const sinLineas = document.rows.length === 0;
 
   // La cabecera se valida ANTES de mandar: descubrir que faltaba la nota por
@@ -406,7 +410,9 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                 {conUbicacion && (
                   <th className="px-2 py-2 font-medium">{t("inventory.document.location")}</th>
                 )}
-                <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
+                {conStock && (
+                  <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
+                )}
                 {/* La última columna: «Quitar línea» y el aviso de una línea con
                     error. Existe si el documento se puede editar o trae errores,
                     y ENTONCES la tiene cada fila: con una celda de más solo en las
@@ -441,6 +447,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     conUbicacion={conUbicacion}
                     esSalida={document.type === "exit"}
                     esConteo={esConteo}
+                    conStock={conStock}
                     conColumnaFinal={conColumnaFinal}
                     registrarCampo={registrarCampo}
                   />
@@ -525,6 +532,7 @@ function LineRow({
   conUbicacion,
   esSalida,
   esConteo,
+  conStock,
   conColumnaFinal,
   autoFocusQuantity,
   registrarCampo,
@@ -538,6 +546,8 @@ function LineRow({
   conUbicacion: boolean;
   esSalida: boolean;
   esConteo: boolean;
+  /** La columna «Stock» va o no va en toda la tabla: encabezado y celdas juntos. */
+  conStock: boolean;
   /** La tabla tiene su última columna (quitar y avisos): la fila también, aunque vacía. */
   conColumnaFinal: boolean;
   autoFocusQuantity: boolean;
@@ -1045,22 +1055,24 @@ function LineRow({
           )}
         </td>
       )}
-      <td className="px-2 py-2">
-        <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
-          <span>
-            {/* Sin saldo que contar (anulados, conteos asentados): «—» antes
-                que un número reconstruido a medias. El exacto vive en el kardex. */}
-            {row.stockBefore === null || row.stockAfter === null
-              ? "—"
-              : `${formatQuantity(row.stockBefore, product?.baseUnit ?? "")} → ${formatQuantity(row.stockAfter, product?.baseUnit ?? "")}`}
-          </span>
-          {!esConteo && row.newLot && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-              {t("inventory.document.newLot")}
+      {conStock && (
+        <td className="px-2 py-2">
+          <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
+            <span>
+              {/* Sin saldo que contar (anulados): «—» antes que un número
+                  reconstruido a medias. El exacto vive en el kardex. */}
+              {row.stockBefore === null || row.stockAfter === null
+                ? "—"
+                : `${formatQuantity(row.stockBefore, product?.baseUnit ?? "")} → ${formatQuantity(row.stockAfter, product?.baseUnit ?? "")}`}
             </span>
-          )}
-        </div>
-      </td>
+            {!esConteo && row.newLot && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                {t("inventory.document.newLot")}
+              </span>
+            )}
+          </div>
+        </td>
+      )}
       {/*
         Quitar una línea del BORRADOR no toca el ledger: la línea todavía no
         movió nada. Por eso no hay diálogo de confirmación — pedirla acá

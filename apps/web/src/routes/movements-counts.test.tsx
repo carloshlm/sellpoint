@@ -305,6 +305,30 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
     expect(celdas).toBe(encabezados);
   });
 
+  /**
+   * Carlos (2026-10-31): en un conteo confirmado la columna «Stock» solo traía
+   * «—» y confundía; ahí lo que importa es el teórico, lo contado y la
+   * diferencia. En el borrador se queda: es la previa de cómo va a quedar.
+   */
+  it("confirmado, ya no trae la columna «Stock» y la tabla sigue alineada", async () => {
+    mocked.getDocument.mockResolvedValue(detalle({ status: "confirmed" }));
+    await renderCount();
+
+    const fila = (await screen.findByText("PAR-500")).closest("tr") as HTMLElement;
+    const tabla = fila.closest("table") as HTMLElement;
+    expect(within(tabla).queryByRole("columnheader", { name: "Stock" })).not.toBeInTheDocument();
+    expect(within(fila).getAllByRole("cell")).toHaveLength(
+      within(tabla).getAllByRole("columnheader").length,
+    );
+  });
+
+  it("en borrador, la columna «Stock» sigue: es la previa", async () => {
+    await renderCount();
+
+    const tabla = (await screen.findByText("PAR-500")).closest("table") as HTMLElement;
+    expect(within(tabla).getByRole("columnheader", { name: "Stock" })).toBeInTheDocument();
+  });
+
   it("el resumen sale de `countSummary`", async () => {
     mocked.getDocument.mockResolvedValue(
       detalle({
