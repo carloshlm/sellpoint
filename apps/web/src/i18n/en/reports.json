@@ -60,6 +60,7 @@
     "location": "Location",
     "lot": "Lot",
     "min": "Minimum",
+    "noLot": "No lot",
     "onlyBelowMin": "Only below minimum",
     "product": "Product",
     "quantity": "Quantity",

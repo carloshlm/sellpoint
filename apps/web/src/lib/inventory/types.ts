@@ -102,7 +102,11 @@ export interface DocumentPresentation {
  */
 /** De qué lote saldría una línea, y cuánto de cada uno (F3-EXIT-02). */
 export interface LotPlanTake {
-  lotCode: string;
+  /**
+   * `null` es lo que no tiene lote, que sale PRIMERO (Carlos, 2026-10-31):
+   * el saldo que ya había cuando se encendió el control por lote.
+   */
+  lotCode: string | null;
   expiresAt: string | null;
   location: string;
   quantity: string;

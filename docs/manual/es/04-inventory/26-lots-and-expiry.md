@@ -27,8 +27,11 @@ marca con error si el producto es nuevo o todavía no llevaba lote.
 - **Al recibir mercancía**, la entrada te pide el **Lote** y su **Caducidad** en
   cada línea (capítulo 23, «Entradas y salidas»). Lo mismo al recibir una
   orden de compra (capítulo 29, «Órdenes de compra y recepciones»).
-- **Al vender o dar salida**, SellPointy descuenta primero el lote que vence
-  antes. No tienes que elegirlo: la salida te muestra de qué lote va a salir.
+- **Al vender o dar salida**, SellPointy descuenta primero lo que no tiene lote
+  (por ejemplo, lo que ya tenías cuando encendiste el control por lote) y
+  después el lote que vence antes. No tienes que elegirlo: la salida te muestra
+  de dónde va a salir. La excepción es una salida con motivo **Caducado**: esa
+  saca primero los lotes, porque lo que no tiene lote no tiene caducidad.
 - **Lo vencido no se vende.** El punto de venta no toma piezas de un lote
   vencido. Para sacarlas del inventario, dales salida con motivo **Caducado**.
 
@@ -39,7 +42,11 @@ cada sucursal con su cantidad y su caducidad.
 
 ![Los lotes de un producto, por sucursal](screen:lots-stock)
 
-- **Se descuenta primero** marca el lote que va a salir en la próxima venta.
+- **Sin lote** es lo que la sucursal tiene sin un lote asignado, por ejemplo lo
+  que ya había cuando encendiste los lotes. Va antes que los lotes porque la
+  venta lo toma primero. No tiene caducidad y no se edita.
+- **Se descuenta primero** marca lo que va a salir en la próxima venta: el
+  renglón **Sin lote** si lo hay y, si no, el lote que vence antes.
 - **Vence pronto** avisa que la caducidad está cerca.
 - **Editar lote** corrige el código o la caducidad si se capturaron mal. Cuidado:
   la caducidad decide qué lote sale primero, así que cambiarla puede cambiar de
@@ -48,7 +55,8 @@ cada sucursal con su cantidad y su caducidad.
 ## Próximos a vencer
 
 En **Movimientos › Próximos a vencer** ves, de todas tus sucursales, los lotes
-que están por caducar, del más próximo al más lejano.
+que están por caducar, del más próximo al más lejano. Lo que no tiene lote no
+aparece aquí: no tiene caducidad.
 
 ![Los lotes que vencen en los próximos 90 días](screen:expiring-soon)
 

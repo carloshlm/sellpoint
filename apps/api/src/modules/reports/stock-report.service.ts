@@ -31,11 +31,23 @@ export interface StockLotReportRow {
   baseUnit: string;
   warehouseId: string;
   warehouseName: string;
+  /** Vacío en la fila sin lote: ver `unlotted`. */
   lotCode: string;
-  /** `null` en los rubros que manejan lote sin vencimiento. */
+  /** `null` en los rubros que manejan lote sin vencimiento, y sin lote. */
   expiresAt: string | null;
   location: string;
   quantity: string;
+  /**
+   * La fila de lo que NO tiene lote (Carlos, 2026-10-31): el saldo de la
+   * sucursal menos lo que está en lotes. Va sin código, sin caducidad y sin
+   * ubicación, porque ninguna de las tres existe para ese saldo.
+   */
+  unlotted: boolean;
+}
+
+/** `%`, `_` y `\` valen como texto literal dentro de un LIKE. */
+function likePattern(needle: string): string {
+  return `%${needle.replace(/[\\%_]/g, "\\$&")}%`;
 }
 
 /**
@@ -142,55 +154,78 @@ export class StockReportService {
    * `stock_lots`, así que «12 en A-1 y 8 en B-2» son dos filas y no una fila
    * con una etiqueta. Quien va a buscar la mercancía necesita saber a qué
    * estante ir (directiva de Carlos, 2026-08-24).
+   *
+   * **Lo que no tiene lote también es una fila** (Carlos, 2026-10-31). Un
+   * producto con lote puede tener existencias sin lote —lo que había antes de
+   * encender el control—, y ese saldo no vive en `stock_lots`: es el de la
+   * sucursal menos lo que está en lotes. Leyendo solo `stock_lots`, una
+   * farmacia con 777 productos así no los veía en el detalle. Va como una
+   * fila más del mismo producto y sucursal, sin código ni caducidad, al final
+   * de las que no vencen.
+   *
+   * **Un lote agotado ya no es fila.** Vender un lote entero lo deja en
+   * `stock_lots` con cero; el detalle pintaba un «0» por cada partida agotada,
+   * que nadie va a ir a buscar al estante. La pestaña del producto ya los
+   * dejaba fuera.
    */
   async listLots(
     user: AuthUser,
     scope: UserScope,
     query: StockReportQueryDto,
   ): Promise<{ rows: StockLotReportRow[]; total: number; page: number; pageSize: number }> {
-    const where = this.whereLots(scope, query);
+    const desde = this.detalleDesde(user.tenantId, scope, query);
 
     const [total, filas] = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const conteo = await tx.stockLot.count({ where });
-      const rows = await tx.stockLot.findMany({
-        where,
-        include: {
-          lot: {
-            select: {
-              lotCode: true,
-              expiresAt: true,
-              product: { select: { id: true, sku: true, name: true, baseUnit: true } },
-            },
-          },
-          warehouse: { select: { name: true } },
-        },
-        // FEFO primero —lo que vence antes va arriba— y después el desempate
-        // por las tres columnas de la clave.
-        orderBy: [
-          { lot: { expiresAt: "asc" } },
-          { lotId: "asc" },
-          { warehouseId: "asc" },
-          { location: "asc" },
-        ],
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-      });
-      return [conteo, rows] as const;
+      const [conteo] = await tx.$queryRaw<{ total: number }[]>`
+        SELECT COUNT(*)::int AS total ${desde}`;
+      // FEFO primero —lo que vence antes va arriba— y después el desempate
+      // por las tres columnas de la clave. Lo que no vence va al final (NULLS
+      // LAST, como el ASC de siempre) y, entre eso, la fila sin lote después
+      // de los lotes, por producto y sucursal. El nombre y el producto NO
+      // mueven las filas de lote: un lote es de un solo producto.
+      const rows = await tx.$queryRaw<
+        {
+          product_id: string;
+          sku: string;
+          name: string;
+          base_unit: string;
+          warehouse_id: string;
+          warehouse_name: string;
+          lot_code: string | null;
+          expires_at: string | null;
+          location: string;
+          quantity: string;
+          unlotted: boolean;
+        }[]
+      >`
+        SELECT d.product_id, p.sku, p.name, p.base_unit, d.warehouse_id,
+               w.name AS warehouse_name, d.lot_code,
+               to_char(d.expires_at, 'YYYY-MM-DD') AS expires_at, d.location,
+               d.quantity::text AS quantity, d.lot_id IS NULL AS unlotted
+        ${desde}
+         ORDER BY d.expires_at ASC NULLS LAST, d.lot_id ASC NULLS LAST, p.name ASC,
+                  d.product_id ASC, d.warehouse_id ASC, d.location ASC
+         LIMIT ${query.pageSize} OFFSET ${(query.page - 1) * query.pageSize}`;
+      return [conteo?.total ?? 0, rows] as const;
     });
 
     return {
       rows: filas.map((fila) => ({
-        productId: fila.lot.product.id,
-        sku: fila.lot.product.sku,
-        name: fila.lot.product.name,
-        baseUnit: fila.lot.product.baseUnit,
-        warehouseId: fila.warehouseId,
-        warehouseName: fila.warehouse.name,
-        lotCode: fila.lot.lotCode,
-        // Solo la fecha: la hora de un vencimiento no significa nada.
-        expiresAt: fila.lot.expiresAt?.toISOString().slice(0, 10) ?? null,
+        productId: fila.product_id,
+        sku: fila.sku,
+        name: fila.name,
+        baseUnit: fila.base_unit,
+        warehouseId: fila.warehouse_id,
+        warehouseName: fila.warehouse_name,
+        lotCode: fila.lot_code ?? "",
+        // Solo la fecha (el `to_char`): la hora de un vencimiento no
+        // significa nada.
+        expiresAt: fila.expires_at,
         location: fila.location,
-        quantity: fila.quantity.toString(),
+        // Por `Decimal` para que salga como antes: «13» y no el «13.0000» de
+        // la columna.
+        quantity: new Prisma.Decimal(fila.quantity).toString(),
+        unlotted: fila.unlotted,
       })),
       total,
       page: query.page,
@@ -201,9 +236,12 @@ export class StockReportService {
   /** Cuántas filas dejarían los filtros. Lo consume el tope del export. */
   async count(user: AuthUser, scope: UserScope, query: StockReportQueryDto): Promise<number> {
     if (query.detail === "lots") {
-      return this.prisma.withTenantContext(user.tenantId, (tx) =>
-        tx.stockLot.count({ where: this.whereLots(scope, query) }),
+      const desde = this.detalleDesde(user.tenantId, scope, query);
+      const [conteo] = await this.prisma.withTenantContext(
+        user.tenantId,
+        (tx) => tx.$queryRaw<{ total: number }[]>`SELECT COUNT(*)::int AS total ${desde}`,
       );
+      return conteo?.total ?? 0;
     }
 
     const bajoMinimo = query.belowMin
@@ -293,28 +331,68 @@ export class StockReportService {
     };
   }
 
-  private whereLots(scope: UserScope, query: StockReportQueryDto) {
+  /**
+   * El `FROM … WHERE` del detalle por lote, el MISMO para contar y para traer
+   * la página: si fueran dos, el paginador prometería filas que no llegan.
+   *
+   * Son dos fuentes en una: las filas de `stock_lots` con existencia y, por
+   * cada producto con lote y sucursal, lo que su saldo tiene de más sobre la
+   * suma de sus lotes. La suma va sobre TODOS los lotes —también los agotados
+   * o en negativo— porque es la que dice cuánto del saldo NO tiene lote; las
+   * filas que se muestran siguen siendo solo las que tienen existencia.
+   *
+   * Solo los productos que manejan lote dan fila sin lote: en los demás TODO
+   * es «sin lote» y el detalle por lote no es su lugar.
+   */
+  private detalleDesde(tenantId: string, scope: UserScope, query: StockReportQueryDto) {
     if (query.warehouseId !== undefined) {
       assertWarehouseInScope(scope, query.warehouseId);
     }
 
-    return {
-      ...(query.warehouseId !== undefined
-        ? { warehouseId: query.warehouseId }
+    // Lista vacía → `= ANY('{}')`, que no devuelve nada: un alcance vacío no
+    // es «todos».
+    const enAlcance = (columna: Prisma.Sql) =>
+      query.warehouseId !== undefined
+        ? Prisma.sql`AND ${columna} = ${query.warehouseId}::uuid`
         : scope.warehouseIds === "all"
-          ? {}
-          : { warehouseId: { in: scope.warehouseIds } }),
-      ...(query.search !== undefined && {
-        lot: {
-          product: {
-            OR: [
-              { sku: { contains: query.search, mode: "insensitive" as const } },
-              { name: { contains: query.search, mode: "insensitive" as const } },
-            ],
-          },
-        },
-      }),
-    };
+          ? Prisma.empty
+          : Prisma.sql`AND ${columna} = ANY(${[...scope.warehouseIds]}::uuid[])`;
+    const busqueda =
+      query.search === undefined
+        ? Prisma.empty
+        : Prisma.sql`AND (p.sku ILIKE ${likePattern(query.search)}
+                          OR p.name ILIKE ${likePattern(query.search)})`;
+
+    return Prisma.sql`
+      FROM (
+        SELECT pl.product_id, sl.warehouse_id, sl.lot_id, pl.lot_code, pl.expires_at,
+               sl.location, sl.quantity
+          FROM stock_lots sl
+          JOIN product_lots pl ON pl.id = sl.lot_id
+         WHERE sl.tenant_id = ${tenantId}::uuid
+           AND sl.quantity > 0
+           ${enAlcance(Prisma.sql`sl.warehouse_id`)}
+        UNION ALL
+        SELECT sbw.product_id, sbw.warehouse_id, NULL::uuid, NULL, NULL::date,
+               '', sbw.quantity - COALESCE(en_lotes.quantity, 0)
+          FROM stock_by_warehouse sbw
+          JOIN products con_lote ON con_lote.id = sbw.product_id AND con_lote.tracks_lots
+          LEFT JOIN (
+            SELECT pl.product_id, sl.warehouse_id, SUM(sl.quantity) AS quantity
+              FROM stock_lots sl
+              JOIN product_lots pl ON pl.id = sl.lot_id
+             WHERE sl.tenant_id = ${tenantId}::uuid
+               ${enAlcance(Prisma.sql`sl.warehouse_id`)}
+             GROUP BY pl.product_id, sl.warehouse_id
+          ) en_lotes ON en_lotes.product_id = sbw.product_id
+                    AND en_lotes.warehouse_id = sbw.warehouse_id
+         WHERE sbw.tenant_id = ${tenantId}::uuid
+           AND sbw.quantity - COALESCE(en_lotes.quantity, 0) > 0
+           ${enAlcance(Prisma.sql`sbw.warehouse_id`)}
+      ) d
+      JOIN products p ON p.id = d.product_id
+      JOIN warehouses w ON w.id = d.warehouse_id
+     WHERE TRUE ${busqueda}`;
   }
 
   /**

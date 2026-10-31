@@ -324,6 +324,51 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     });
 
     /**
+     * Carlos (2026-10-31): lo que un producto con lote tiene SIN lote llega
+     * como su propia fila, con el código vacío. Una celda de lote vacía junto
+     * a una cantidad se lee como un dato perdido: dice «Sin lote».
+     */
+    it("en el detalle, la fila sin lote dice «Sin lote» y deja la caducidad vacía", async () => {
+      const fila = (overrides: Partial<reportsApi.StockReportRow>) =>
+        ({
+          productId: "p2",
+          sku: "SKU-2",
+          name: "Con lotes",
+          baseUnit: "unit",
+          warehouseId: "w1",
+          warehouseName: "Central",
+          location: "",
+          ...overrides,
+        }) as unknown as reportsApi.StockReportRow;
+      mocked.getStockReport.mockResolvedValue({
+        rows: [
+          fila({ lotCode: "L-4", expiresAt: "2027-05-01", quantity: "4", unlotted: false }),
+          fila({ lotCode: "", expiresAt: null, quantity: "9", unlotted: true }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/stock");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByLabelText(/detalle por lote/i));
+
+      const sinLote = (await screen.findByText("Sin lote")).closest("tr") as HTMLElement;
+      const celdas = within(sinLote).getAllByRole("cell");
+      // Producto, Sucursal, Lote, Caducidad, Ubicación, Cantidad.
+      expect(celdas.map((c) => c.textContent)).toEqual([
+        "Con lotes",
+        "Central",
+        "Sin lote",
+        "",
+        "",
+        "9",
+      ]);
+      expect(screen.getByText("L-4")).toBeInTheDocument();
+    });
+
+    /**
      * ⚠ Exportar baja lo MISMO que se está viendo. Si el export ignorara los
      * filtros, el archivo traería el inventario entero mientras la pantalla
      * muestra tres filas, y nadie lo notaría hasta abrirlo.

@@ -254,9 +254,12 @@ export class KardexService {
           where: { productId, warehouseId: { in: ids } },
           select: { warehouseId: true, quantity: true, updatedAt: true },
         }),
+        // TODOS los lotes, también los agotados: la suma completa es la que
+        // dice cuánto del saldo NO tiene lote. Los renglones de la pestaña
+        // siguen siendo solo los que tienen existencia.
         producto.tracksLots
           ? tx.stockLot.findMany({
-              where: { warehouseId: { in: ids }, quantity: { gt: 0 }, lot: { productId } },
+              where: { warehouseId: { in: ids }, lot: { productId } },
               select: {
                 location: true,
                 quantity: true,
@@ -288,7 +291,19 @@ export class KardexService {
 
       const rows = almacenes.map((warehouse) => {
         const saldo = saldoPorAlmacen.get(warehouse.id);
-        const suyos = lotes.filter((l) => l.warehouseId === warehouse.id);
+        const todos = lotes.filter((l) => l.warehouseId === warehouse.id);
+        const suyos = todos.filter((l) => l.quantity.greaterThan(0));
+        // ── Lo que NO tiene lote (Carlos, 2026-10-31) ───────────────────────
+        //
+        // Encender el control por lote con existencias deja ese saldo sin
+        // lote: no hay fila de `stock_lots` que lo diga, es el total menos lo
+        // que está en lotes. La pestaña decía 13 arriba y debajo solo el lote
+        // de 4; los otros 9 no estaban en ningún renglón. `null` cuando los
+        // lotes lo cubren todo: no hay nada sin lote que mostrar.
+        const sinLote = todos.reduce(
+          (resto, l) => resto.minus(l.quantity),
+          new Prisma.Decimal(saldo?.quantity.toString() ?? "0"),
+        );
 
         return {
           warehouseId: warehouse.id,
@@ -298,6 +313,7 @@ export class KardexService {
           updatedAt: saldo?.updatedAt ?? null,
           ...(producto.tracksLots
             ? {
+                unlottedQuantity: sinLote.greaterThan(0) ? sinLote.toString() : null,
                 lots: suyos.map((l) => ({
                   lotId: l.lot.id,
                   lotCode: l.lot.lotCode,

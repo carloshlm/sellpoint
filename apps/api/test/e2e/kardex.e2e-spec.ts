@@ -836,6 +836,130 @@ describe("Kardex (F3-KARDEX-01)", () => {
       expect(suma).toBe(Number(fila?.quantity));
     });
 
+    /**
+     * ── Lo que NO tiene lote (Carlos, 2026-10-31) ─────────────────────────
+     *
+     * Encender el control por lote con existencias deja ese saldo sin lote: no
+     * hay fila de `stock_lots` que lo diga, es el total menos lo que está en
+     * lotes. La pestaña mostraba el total y solo los lotes, así que en una
+     * farmacia 777 productos decían «9» arriba y nada debajo.
+     *
+     * El saldo se siembra directo con Prisma y no por el camino real: una
+     * entrada de un producto con lote siempre lleva lote, y lo que se prueba
+     * es justo el saldo que quedó de ANTES de encenderlo.
+     */
+    describe("lo que no tiene lote", () => {
+      async function sembrar(
+        tenantId: string,
+        warehouseId: string,
+        datos: {
+          tracksLots: boolean;
+          total: string;
+          lotes?: { code: string; quantity: string; expiresAt?: string }[];
+        },
+      ): Promise<string> {
+        return prisma.withTenantContext(tenantId, async (tx) => {
+          const producto = await tx.product.create({
+            data: {
+              tenantId,
+              sku: `SL-${randomUUID().slice(0, 6)}`,
+              name: "Sin lote",
+              tracksLots: datos.tracksLots,
+            },
+          });
+          await tx.stockByWarehouse.create({
+            data: { tenantId, productId: producto.id, warehouseId, quantity: datos.total },
+          });
+          for (const lote of datos.lotes ?? []) {
+            const creado = await tx.productLot.create({
+              data: {
+                tenantId,
+                productId: producto.id,
+                lotCode: lote.code,
+                ...(lote.expiresAt !== undefined && { expiresAt: new Date(lote.expiresAt) }),
+              },
+            });
+            await tx.stockLot.create({
+              data: { tenantId, lotId: creado.id, warehouseId, quantity: lote.quantity },
+            });
+          }
+          return producto.id;
+        });
+      }
+
+      type FilaConLotes = {
+        warehouseId: string;
+        quantity: string;
+        lots?: { lotCode: string; quantity: string }[];
+        unlottedQuantity?: string | null;
+      };
+
+      it("con lotes Y saldo sin lote, la sucursal trae lo que falta asignar: 13 − 4 = 9", async () => {
+        const { token, tenantId, warehouseA, warehouseB } = await escenario();
+        // El lote agotado (0) también entra en la resta: no cambia el número,
+        // pero la suma es sobre TODOS los lotes, no solo los que se muestran.
+        const productId = await sembrar(tenantId, warehouseA, {
+          tracksLots: true,
+          total: "13",
+          lotes: [
+            { code: "L-4", quantity: "4", expiresAt: "2027-05-01" },
+            { code: "L-0", quantity: "0", expiresAt: "2027-01-01" },
+          ],
+        });
+
+        const res = await stock(token, productId).expect(200);
+        const filas = res.body.rows as FilaConLotes[];
+        const fila = filas.find((r) => r.warehouseId === warehouseA);
+
+        // El total sigue siendo el de siempre: 13, no 4 ni 9.
+        expect(res.body.total).toBe("13");
+        expect(fila?.quantity).toBe("13");
+        expect(fila?.lots?.map((l) => [l.lotCode, l.quantity])).toEqual([["L-4", "4"]]);
+        expect(fila?.unlottedQuantity).toBe("9");
+        // La sucursal sin nada no tiene saldo sin lote que mostrar.
+        expect(filas.find((r) => r.warehouseId === warehouseB)?.unlottedQuantity).toBeNull();
+      });
+
+      it("un producto con lote cuyo saldo entero está sin lote lo trae todo como sin lote", async () => {
+        const { token, tenantId, warehouseA } = await escenario();
+        const productId = await sembrar(tenantId, warehouseA, { tracksLots: true, total: "9" });
+
+        const res = await stock(token, productId).expect(200);
+        const fila = (res.body.rows as FilaConLotes[]).find((r) => r.warehouseId === warehouseA);
+
+        expect(fila?.quantity).toBe("9");
+        expect(fila?.lots).toEqual([]);
+        expect(fila?.unlottedQuantity).toBe("9");
+      });
+
+      it("si los lotes cubren el saldo, no hay saldo sin lote", async () => {
+        const { token, tenantId, warehouseA } = await escenario();
+        const productId = await sembrar(tenantId, warehouseA, {
+          tracksLots: true,
+          total: "4",
+          lotes: [{ code: "L-4", quantity: "4" }],
+        });
+
+        const res = await stock(token, productId).expect(200);
+        const fila = (res.body.rows as FilaConLotes[]).find((r) => r.warehouseId === warehouseA);
+
+        expect(fila?.lots).toHaveLength(1);
+        expect(fila?.unlottedQuantity).toBeNull();
+      });
+
+      it("un producto sin lotes no cambia: ni lotes ni saldo sin lote", async () => {
+        const { token, tenantId, warehouseA } = await escenario();
+        const productId = await sembrar(tenantId, warehouseA, { tracksLots: false, total: "9" });
+
+        const res = await stock(token, productId).expect(200);
+        const fila = (res.body.rows as FilaConLotes[]).find((r) => r.warehouseId === warehouseA);
+
+        expect(fila?.quantity).toBe("9");
+        expect(fila).not.toHaveProperty("lots");
+        expect(fila).not.toHaveProperty("unlottedQuantity");
+      });
+    });
+
     /** Un compuesto no tiene saldo propio: se arma. */
     it("un compuesto responde con sus unidades armables, no con filas", async () => {
       const { token, tenantId, warehouseA, productId, mover } = await escenario();

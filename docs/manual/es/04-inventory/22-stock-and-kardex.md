@@ -30,7 +30,9 @@ Abajo está el **Total** de todas tus sucursales. Dos avisos pueden aparecer ah�
   (capítulo 24, «Traspasos entre sucursales»).
 
 Si el producto se controla por lote, debajo de cada sucursal ves sus lotes con
-su caducidad (capítulo 26, «Lotes y próximos a vencer»).
+su caducidad (capítulo 26, «Lotes y próximos a vencer»). Lo que la sucursal
+tiene sin lote, como lo que ya había antes de encender los lotes, aparece en su
+propio renglón, **Sin lote**.
 
 Los botones **Registrar entrada** y **Registrar salida** te llevan a las
 pantallas del capítulo 23, «Entradas y salidas».

@@ -4,6 +4,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { parseSpreadsheet } from "../../src/common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
@@ -554,6 +555,208 @@ describe("Reporte de stock (F5-STK)", () => {
         tx.userWarehouseScope.deleteMany({ where: { userId } }),
       );
     });
+
+    /**
+     * ── La fila «Sin lote» (Carlos, 2026-10-31) ───────────────────────────
+     *
+     * Encender el control por lote con existencias deja ese saldo sin lote:
+     * no tiene fila propia, es el saldo de la sucursal menos lo que está en
+     * lotes. El detalle solo leía `stock_lots`, así que en una farmacia 777
+     * productos con existencia no aparecían en el detalle por lote.
+     *
+     * Estos datos se siembran DESPUÉS de las pruebas de arriba (el `beforeAll`
+     * de este bloque corre al entrar a él): las de arriba cuentan filas y no
+     * tienen por qué enterarse.
+     */
+    describe("lo que no tiene lote", () => {
+      let mixtoId: string;
+      let soloSinLoteId: string;
+      let mixtoSku: string;
+      let soloSinLoteSku: string;
+
+      type FilaDeLote = {
+        productId: string;
+        warehouseId: string;
+        lotCode: string;
+        expiresAt: string | null;
+        location: string;
+        quantity: string;
+        unlotted: boolean;
+      };
+
+      const detalle = (query: string, headers: Record<string, string> = auth()) =>
+        request(app.getHttpServer()).get(`/reports/stock?detail=lots&${query}`).set(headers);
+
+      beforeAll(async () => {
+        await prisma.withTenantContext(tenantId, async (tx) => {
+          const stamp = randomUUID().slice(0, 6);
+          mixtoSku = `SMIX-${stamp}`;
+          soloSinLoteSku = `SSIN-${stamp}`;
+          const mixto = await tx.product.create({
+            data: { tenantId, sku: mixtoSku, name: "Mixto", tracksLots: true },
+          });
+          const soloSinLote = await tx.product.create({
+            data: { tenantId, sku: soloSinLoteSku, name: "Solo sin lote", tracksLots: true },
+          });
+          mixtoId = mixto.id;
+          soloSinLoteId = soloSinLote.id;
+
+          // Mixto: 13 en Central, 4 de ellos en un lote → 9 sin lote. El lote
+          // agotado (0) es el que el detalle ya no debe mostrar.
+          // Solo sin lote: 9 en Central y 5 en el Norte, ningún lote.
+          await tx.stockByWarehouse.createMany({
+            data: [
+              { tenantId, productId: mixto.id, warehouseId: centralId, quantity: "13" },
+              { tenantId, productId: soloSinLote.id, warehouseId: centralId, quantity: "9" },
+              { tenantId, productId: soloSinLote.id, warehouseId: norteId, quantity: "5" },
+            ],
+          });
+          const [conSaldo, agotado] = await Promise.all([
+            tx.productLot.create({
+              data: {
+                tenantId,
+                productId: mixto.id,
+                lotCode: `M4-${stamp}`,
+                expiresAt: new Date("2027-01-15"),
+              },
+            }),
+            tx.productLot.create({
+              data: {
+                tenantId,
+                productId: mixto.id,
+                lotCode: `M0-${stamp}`,
+                expiresAt: new Date("2026-12-01"),
+              },
+            }),
+          ]);
+          await tx.stockLot.createMany({
+            data: [
+              { tenantId, lotId: conSaldo.id, warehouseId: centralId, quantity: "4" },
+              { tenantId, lotId: agotado.id, warehouseId: centralId, quantity: "0" },
+            ],
+          });
+        });
+      });
+
+      it("con lotes Y saldo sin lote, trae una fila «Sin lote» con lo que falta: 13 − 4 = 9", async () => {
+        const response = await detalle(`search=${mixtoSku}`).expect(200);
+        const body = response.body as { rows: FilaDeLote[]; total: number };
+
+        // El lote primero —tiene caducidad— y la fila sin lote al final.
+        expect(body.rows.map((r) => [r.unlotted, r.quantity])).toEqual([
+          [false, "4"],
+          [true, "9"],
+        ]);
+        expect(body.total).toBe(2);
+        expect(body.rows[1]).toMatchObject({
+          productId: mixtoId,
+          warehouseId: centralId,
+          lotCode: "",
+          expiresAt: null,
+          location: "",
+        });
+      });
+
+      it("un producto con lote y ningún lote cargado trae todo su saldo como «Sin lote»", async () => {
+        const response = await detalle(`search=${soloSinLoteSku}`).expect(200);
+        const rows = (response.body as { rows: FilaDeLote[] }).rows;
+
+        const porAlmacen = new Map(rows.map((r) => [r.warehouseId, r]));
+        expect(rows).toHaveLength(2);
+        expect(rows.every((r) => r.productId === soloSinLoteId && r.unlotted)).toBe(true);
+        expect(porAlmacen.get(centralId)?.quantity).toBe("9");
+        expect(porAlmacen.get(norteId)?.quantity).toBe("5");
+      });
+
+      it("si los lotes cubren el saldo no hay fila «Sin lote», y un producto sin lotes sigue fuera", async () => {
+        const response = await detalle("pageSize=100").expect(200);
+        const rows = (response.body as { rows: FilaDeLote[] }).rows;
+
+        // «Con lotes» tiene 30 y sus lotes suman 12 + 8 + 10 = 30: nada sin lote.
+        expect(rows.filter((r) => r.productId === loteadoId).every((r) => !r.unlotted)).toBe(true);
+        expect(rows.filter((r) => r.productId === loteadoId)).toHaveLength(3);
+        // El café no maneja lotes: todo su saldo es «sin lote» y no por eso
+        // entra al detalle por lote.
+        expect(rows.some((r) => r.productId === cafeId)).toBe(false);
+      });
+
+      /**
+       * Un lote que se vendió entero queda en `stock_lots` con cero. En el
+       * detalle era una fila de «0» por cada partida agotada que nadie quiere
+       * ir a buscar al estante; la pestaña del producto ya los dejaba fuera.
+       */
+      it("un lote agotado (en cero) no aparece en el detalle", async () => {
+        const response = await detalle(`search=${mixtoSku}`).expect(200);
+        const rows = (response.body as { rows: FilaDeLote[] }).rows;
+
+        expect(rows.some((r) => r.lotCode.startsWith("M0-"))).toBe(false);
+        expect(rows.every((r) => r.quantity !== "0")).toBe(true);
+      });
+
+      it("las filas sin lote cuentan en el total y se paginan sin repetirse", async () => {
+        const primera = await detalle(`search=${mixtoSku}&page=1&pageSize=1`).expect(200);
+        const segunda = await detalle(`search=${mixtoSku}&page=2&pageSize=1`).expect(200);
+
+        const uno = primera.body as { rows: FilaDeLote[]; total: number };
+        const dos = segunda.body as { rows: FilaDeLote[]; total: number };
+        expect(uno.total).toBe(2);
+        expect(dos.total).toBe(2);
+        expect(uno.rows.map((r) => r.unlotted)).toEqual([false]);
+        expect(dos.rows.map((r) => r.unlotted)).toEqual([true]);
+      });
+
+      it("el filtro de sucursal y el alcance también recortan lo que no tiene lote", async () => {
+        const porFiltro = await detalle(`search=${soloSinLoteSku}&warehouseId=${norteId}`).expect(
+          200,
+        );
+        expect(
+          (porFiltro.body as { rows: FilaDeLote[] }).rows.map((r) => [r.warehouseId, r.quantity]),
+        ).toEqual([[norteId, "5"]]);
+
+        const acotado = tokenService.signAccessToken({
+          sub: userId,
+          tenantId,
+          permissions: ["reports:read"],
+          locale: "es",
+        });
+        await prisma.withTenantContext(tenantId, (tx) =>
+          tx.userWarehouseScope.create({ data: { tenantId, userId, warehouseId: norteId } }),
+        );
+
+        const response = await detalle("pageSize=100", {
+          Authorization: `Bearer ${acotado}`,
+        }).expect(200);
+
+        // Del Norte solo es el saldo sin lote de «Solo sin lote»: lo de Central
+        // —sus 9 y los 9 del mixto— no se ve.
+        expect(
+          (response.body as { rows: FilaDeLote[] }).rows.map((r) => [r.productId, r.quantity]),
+        ).toEqual([[soloSinLoteId, "5"]]);
+
+        await prisma.withTenantContext(tenantId, (tx) =>
+          tx.userWarehouseScope.deleteMany({ where: { userId } }),
+        );
+      });
+
+      it("el Excel del detalle lleva la misma fila, que dice «Sin lote» en la columna del lote", async () => {
+        const response = await descargar(
+          `/reports/stock/export?detail=lots&search=${mixtoSku}`,
+        ).expect(200);
+
+        const filas = await filasXlsx(response.body as Buffer);
+        // Producto, SKU, Sucursal, Lote, Caducidad, Ubicación, Cantidad, Unidad.
+        expect(filas).toHaveLength(3);
+        expect(filas[2]?.slice(0, 7)).toEqual([
+          "Mixto",
+          mixtoSku,
+          "Central stock",
+          "Sin lote",
+          "",
+          "",
+          "9",
+        ]);
+      });
+    });
   });
 
   // ── F5-STK-02 ─────────────────────────────────────────────────────────
@@ -634,5 +837,10 @@ describe("Reporte de stock (F5-STK)", () => {
     await workbook.xlsx.load(body as unknown as XlsxInput);
     const sheet = workbook.worksheets[0];
     return { name: sheet?.name ?? "", rowCount: sheet?.rowCount ?? 0 };
+  }
+
+  /** Las celdas como texto, con el MISMO lector que usan las importaciones. */
+  function filasXlsx(body: Buffer): Promise<string[][]> {
+    return parseSpreadsheet(body.toString("base64"), "xlsx");
   }
 });

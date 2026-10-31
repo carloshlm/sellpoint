@@ -60,6 +60,7 @@
     "location": "Ubicación",
     "lot": "Lote",
     "min": "Mínimo",
+    "noLot": "Sin lote",
     "onlyBelowMin": "Solo bajo mínimo",
     "product": "Producto",
     "quantity": "Cantidad",

@@ -1183,12 +1183,14 @@ function RepartoFefo({ row }: { row: DocumentRow }) {
       {row.lotPlan.map((take, index) => {
         const vence = fecha(take.expiresAt);
         return (
-          <span key={`${take.lotCode}-${take.location}`}>
+          <span key={`${take.lotCode ?? "sin-lote"}-${take.location}`}>
             {index > 0 && " · "}
-            {t("inventory.document.lotPlanTake", {
-              quantity: take.quantity,
-              lotCode: take.lotCode,
-            })}
+            {take.lotCode === null
+              ? t("inventory.document.lotPlanTakeNoLot", { quantity: take.quantity })
+              : t("inventory.document.lotPlanTake", {
+                  quantity: take.quantity,
+                  lotCode: take.lotCode,
+                })}
             {vence !== null && ` (${t("inventory.document.lotExpires", { date: vence })})`}
           </span>
         );

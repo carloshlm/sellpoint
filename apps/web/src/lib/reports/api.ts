@@ -31,6 +31,11 @@ export interface StockReportRow {
   lotCode?: string;
   expiresAt?: string | null;
   location?: string;
+  /**
+   * Solo con `detail=lots`: la fila de lo que el producto tiene SIN lote en
+   * esa sucursal (Carlos, 2026-10-31). Llega con `lotCode` vacío.
+   */
+  unlotted?: boolean;
 }
 
 export interface StockReportQuery {

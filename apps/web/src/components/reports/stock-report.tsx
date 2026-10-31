@@ -90,6 +90,10 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
 
   const filas = (data?.rows ?? []).map((fila) => ({
     ...fila,
+    // Lo que no tiene lote llega con el código vacío, y una celda de lote
+    // vacía junto a una cantidad se lee como un dato perdido (Carlos,
+    // 2026-10-31).
+    ...(fila.unlotted === true && { lotCode: t("reports.stock.noLot") }),
     avgCost: dinero(fila.avgCost),
     totalValue: dinero(fila.totalValue),
     expiresAt:

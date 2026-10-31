@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
+import type { StockRow } from "@/lib/inventory/kardex-api";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildWarehouse } from "@/test/warehouse-fixture";
@@ -554,6 +555,84 @@ describe("Tab Stock por sucursal (F3-KARDEX-05)", () => {
     // El que de verdad está por vencer conserva su aviso amarillo.
     expect(within(porVencer).getByTestId("expiring-soon")).toBeInTheDocument();
     expect(within(porVencer).queryByTestId("expired")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Carlos (2026-10-31): un producto con lote puede tener existencias SIN
+   * lote —lo que había antes de encender el control—. La sucursal decía 13 y
+   * debajo solo aparecía el lote de 4; los otros 9 no estaban en ningún
+   * renglón. Ahora tienen el suyo, y como la venta los toma antes que a los
+   * lotes, es el que lleva «Se descuenta primero».
+   */
+  describe("lo que no tiene lote", () => {
+    const conLote = (unlottedQuantity: string | null): StockRow => ({
+      warehouseId: "w1",
+      name: "Central",
+      quantity: "13",
+      updatedAt: "2026-10-31T10:00:00.000Z",
+      unlottedQuantity,
+      lots: [
+        {
+          lotId: "l1",
+          lotCode: "L-4",
+          expiresAt: "2027-05-01",
+          location: "",
+          quantity: "4",
+          expired: false,
+          expiringSoon: false,
+        },
+      ],
+    });
+
+    it("muestra la fila «Sin lote» con su cantidad, sin caducidad y como la que se descuenta primero", async () => {
+      mocked.getStock.mockResolvedValue(resumen({ rows: [conLote("9")], total: "13" }));
+      renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+
+      const sinLote = (await screen.findByText("Sin lote")).closest("tr") as HTMLElement;
+      const lote = screen.getByText("L-4").closest("tr") as HTMLElement;
+
+      expect(within(sinLote).getByText("9")).toBeInTheDocument();
+      expect(within(sinLote).getByText("—")).toBeInTheDocument();
+      expect(within(sinLote).getByTestId("fefo-first")).toBeInTheDocument();
+      expect(within(lote).queryByTestId("fefo-first")).not.toBeInTheDocument();
+      // No es un lote: no hay código ni caducidad que corregir.
+      expect(within(sinLote).queryByRole("button", { name: /editar lote/i })).toBeNull();
+      // Va antes que los lotes, igual que en la venta.
+      expect(sinLote.compareDocumentPosition(lote) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // El total no cambia: los 13 de siempre.
+      expect(screen.getByText("Total").closest("tr")).toHaveTextContent("13");
+    });
+
+    it("si los lotes cubren el saldo no hay fila «Sin lote» y el primer lote sigue marcado", async () => {
+      mocked.getStock.mockResolvedValue(resumen({ rows: [conLote(null)], total: "4" }));
+      renderTab(<StockTab productId="p1" />);
+
+      const lote = (await screen.findByText("L-4")).closest("tr") as HTMLElement;
+
+      expect(screen.queryByText("Sin lote")).not.toBeInTheDocument();
+      expect(within(lote).getByTestId("fefo-first")).toBeInTheDocument();
+    });
+
+    it("en inglés la fila dice «No lot»", async () => {
+      mocked.getStock.mockResolvedValue(resumen({ rows: [conLote("9")], total: "13" }));
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["inventory:read"]));
+      const i18n = createI18n();
+      await i18n.changeLanguage("en");
+      const rootRoute = createRootRoute({ component: () => <StockTab productId="p1" /> });
+      const router = createRouter({
+        routeTree: rootRoute,
+        history: createMemoryHistory({ initialEntries: ["/"] }),
+      });
+      render(
+        <I18nextProvider i18n={i18n}>
+          <QueryClientProvider client={createQueryClient()}>
+            <RouterProvider router={router as never} />
+          </QueryClientProvider>
+        </I18nextProvider>,
+      );
+
+      expect(await screen.findByText("No lot")).toBeInTheDocument();
+    });
   });
 
   it("muestra lo que está en tránsito", async () => {

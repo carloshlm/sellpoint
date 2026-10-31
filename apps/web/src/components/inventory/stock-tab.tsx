@@ -8,9 +8,15 @@ import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
-import type { StockLotRow } from "@/lib/inventory/kardex-api";
+import type { StockLotRow, StockRow } from "@/lib/inventory/kardex-api";
 import { useInTransit, useStock } from "@/lib/inventory/kardex-hooks";
 import { LotEditor } from "./lot-editor";
+
+/**
+ * La fila de una sucursal con lo que NO tiene lote (Carlos, 2026-10-31): el
+ * total menos lo que está en lotes. El API lo manda en los productos con lote,
+ * y en `null` cuando los lotes cubren todo el saldo.
+ */
 
 /**
  * Lo que identifica un RENGLÓN de lote: lote + almacén + ubicación, la misma
@@ -32,6 +38,10 @@ const claveDeRenglon = (warehouseId: string, lot: StockLotRow) =>
  * En productos con lote, el PRIMERO de la lista se marca: es el que el sistema
  * va a descontar (FEFO). Decirlo evita la sorpresa de ver salir una partida
  * distinta de la que uno tenía en mente.
+ *
+ * Lo que la sucursal tiene SIN lote va en su propio renglón, «Sin lote», antes
+ * que los lotes: la venta lo toma primero (Carlos, 2026-10-31), así que cuando
+ * existe es el que lleva «Se descuenta primero».
  */
 export function StockTab({ productId }: { productId: string }) {
   const { t, i18n } = useTranslation();
@@ -90,7 +100,7 @@ export function StockTab({ productId }: { productId: string }) {
             </tr>
           </thead>
           <tbody>
-            {data.rows.map((row) => (
+            {data.rows.map((row: StockRow) => (
               <Fragment key={row.warehouseId}>
                 {/* Encabezado de GRUPO, no una fila más (Carlos, 2026-08-24):
                     con varios almacenes y sus lotes intercalados, «Almacén
@@ -115,6 +125,20 @@ export function StockTab({ productId }: { productId: string }) {
                         }).format(new Date(row.updatedAt))}
                   </td>
                 </tr>
+                {/* Sin código ni caducidad que corregir: no es un lote, es lo
+                    que todavía no tiene uno. */}
+                {typeof row.unlottedQuantity === "string" && (
+                  <tr className="border-b border-dashed last:border-0 text-xs">
+                    <td className="py-1 pl-6">
+                      {t("inventory.kardex.noLot")}
+                      <Badge data-testid="fefo-first" variant="default" className="ml-2">
+                        {t("inventory.kardex.fefoFirst")}
+                      </Badge>
+                    </td>
+                    <td className="py-1">{formatQuantity(row.unlottedQuantity, data.baseUnit)}</td>
+                    <td className="py-1 text-muted-foreground">—</td>
+                  </tr>
+                )}
                 {(row.lots ?? []).map((lot, index) => {
                   const clave = claveDeRenglon(row.warehouseId, lot);
                   return (
@@ -125,8 +149,9 @@ export function StockTab({ productId }: { productId: string }) {
                           {lot.location !== "" && (
                             <span className="ml-2 text-muted-foreground">{lot.location}</span>
                           )}
-                          {/* El primero FEFO es el que el sistema va a descontar. */}
-                          {index === 0 && (
+                          {/* El primero FEFO es el que el sistema va a descontar,
+                              salvo que haya saldo sin lote: ese sale antes. */}
+                          {index === 0 && typeof row.unlottedQuantity !== "string" && (
                             <Badge data-testid="fefo-first" variant="default" className="ml-2">
                               {t("inventory.kardex.fefoFirst")}
                             </Badge>

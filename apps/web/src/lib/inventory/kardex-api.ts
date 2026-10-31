@@ -57,6 +57,11 @@ export interface StockRow {
   /** `null` si nunca se movió nada en ese almacén — distinto de cero. */
   updatedAt: string | null;
   lots?: StockLotRow[];
+  /**
+   * Lo que no tiene lote en ese almacén (Carlos, 2026-10-31): el total menos
+   * lo que está en lotes. `null` cuando no queda nada sin lote.
+   */
+  unlottedQuantity?: string | null;
 }
 
 export interface StockSummary {

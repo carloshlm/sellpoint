@@ -101,7 +101,9 @@ export class StockExportService {
       fila.name,
       fila.sku,
       fila.warehouseName,
-      fila.lotCode,
+      // Lo que no tiene lote se nombra (Carlos, 2026-10-31): una celda vacía
+      // en la columna del lote se lee como un dato que falta.
+      fila.unlotted ? "Sin lote" : fila.lotCode,
       fila.expiresAt ?? "",
       fila.location,
       fila.quantity,

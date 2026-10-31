@@ -412,6 +412,48 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
       expect(within(filaProducto).getByText(/01\/07\/2026/)).toBeInTheDocument();
     });
 
+    /**
+     * Carlos (2026-10-31): «que salga Lo sin lote primero». La previa lo
+     * muestra como la primera toma, y sin lote no hay código que pintar.
+     */
+    it("lo sin lote sale primero y se lee «sin lote», no un código vacío", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          reasonCode: "loss",
+          reasonNote: "rota",
+          rows: [
+            fila({
+              quantityInput: "12",
+              quantityBase: "12",
+              lotPlan: [
+                { lotCode: null, expiresAt: null, location: "", quantity: "9" },
+                { lotCode: "st10", expiresAt: "2026-07-01", location: "", quantity: "3" },
+              ],
+            }),
+          ],
+          products: [
+            {
+              id: "p1",
+              sku: "PAR-500",
+              name: "Paracetamol 500mg",
+              baseUnit: "unit",
+              isComposite: false,
+              tracksLots: true,
+              location: null,
+              availableUnits: null,
+              presentations: [],
+            },
+          ],
+        }),
+      );
+      await renderDoc();
+
+      const filaProducto = (await screen.findByText("PAR-500")).closest("tr") as HTMLElement;
+
+      expect(within(filaProducto).getByText(/9 sin lote/)).toBeInTheDocument();
+      expect(within(filaProducto).getByText(/3 de st10/)).toBeInTheDocument();
+    });
+
     /** Cuando el primero no alcanza, se ven los DOS de dónde sale. */
     it("muestra el reparto entre varios lotes", async () => {
       mocked.getDocument.mockResolvedValue(

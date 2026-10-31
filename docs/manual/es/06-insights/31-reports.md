@@ -93,7 +93,9 @@ o su SKU en **Buscar producto**. Dos casillas lo cambian:
 - **Solo bajo mínimo** deja los productos que hay que resurtir. El mínimo se
   compara contra lo que hay **sumando todas las sucursales**.
 - **Detalle por lote y ubicación** separa cada producto por lote, caducidad y
-  ubicación.
+  ubicación. Lo que un producto con lote tiene sin lote en una sucursal sale en
+  su propio renglón, con **Sin lote** en la columna del lote y la caducidad
+  vacía. Los lotes que ya se agotaron no aparecen.
 
 Si un producto no tiene costo, su valor queda vacío en lugar de contar como
 cero.
