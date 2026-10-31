@@ -149,6 +149,115 @@ describe("Importar servicios por Excel", () => {
     expect(renovada?.name).toBe("Consulta general renovada");
   });
 
+  /**
+   * Carlos (2026-10-31): costo, precio y los campos propios de tipo número
+   * van como NÚMERO en el xlsx; el código, el nombre y los campos de texto,
+   * con formato Texto. Y la plantilla se vuelve a subir sin perder nada: el
+   * 8.5 sigue siendo 8.5 y el código conserva sus ceros.
+   */
+  it("la plantilla lleva números y texto donde van, y se reimporta igual", async () => {
+    const token = await ownerToken();
+    const catalogos = await request(app.getHttpServer())
+      .get("/catalogs")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const catalogId = (catalogos.body as { id: string; systemKey: string | null }[]).find(
+      (c) => c.systemKey === "services",
+    )?.id;
+    for (const campo of [
+      { label: "Grupo", fieldType: "text" },
+      { label: "Duración", fieldType: "number" },
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send(campo)
+        .expect(201);
+    }
+    await request(app.getHttpServer())
+      .post("/services/import")
+      .set("Authorization", bearer(token))
+      .send({
+        content: await xlsxBase64([
+          ["codigo", "nombre", "costo", "precio", "impuesto", "Grupo", "Duración"],
+          ["001000000018", "Consulta general", "8.5", "250", "", "0042", "30"],
+        ]),
+      })
+      .expect(200);
+
+    const plantilla = await request(app.getHttpServer())
+      .get("/services/import/template")
+      .set("Authorization", bearer(token))
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+    await workbook.xlsx.load(plantilla.body as unknown as XlsxInput);
+    const sheet = workbook.worksheets[0];
+    const celda = (nombre: string) =>
+      sheet?.getRow(2).getCell((sheet.getRow(1).values as unknown[]).indexOf(nombre));
+
+    for (const [nombre, valor] of [
+      ["costo", 8.5],
+      ["precio", 250],
+      ["Duración", 30],
+    ] as const) {
+      expect({ nombre, type: celda(nombre)?.type, value: celda(nombre)?.value }).toEqual({
+        nombre,
+        type: ExcelJS.ValueType.Number,
+        value: valor,
+      });
+    }
+    for (const [nombre, valor] of [
+      ["codigo", "001000000018"],
+      ["nombre", "Consulta general"],
+      ["Grupo", "0042"],
+    ] as const) {
+      expect({ nombre, value: celda(nombre)?.value, numFmt: celda(nombre)?.numFmt }).toEqual({
+        nombre,
+        value: valor,
+        numFmt: "@",
+      });
+    }
+    expect(celda("impuesto")?.numFmt).toBe("@");
+
+    const reimportada = await request(app.getHttpServer())
+      .post("/services/import")
+      .set("Authorization", bearer(token))
+      .send({ content: (plantilla.body as Buffer).toString("base64") })
+      .expect(200);
+    expect(reimportada.body).toMatchObject({ failed: 0, created: 0, updated: 1 });
+
+    const lista = await request(app.getHttpServer())
+      .get("/services")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const servicios = (
+      lista.body as {
+        rows: {
+          code: string;
+          cost: string | null;
+          price: string | null;
+          attributes: Record<string, unknown>;
+        }[];
+      }
+    ).rows;
+    expect(servicios).toHaveLength(1);
+    expect(servicios[0]).toMatchObject({
+      code: "001000000018",
+      cost: "8.5",
+      price: "250",
+      attributes: { grupo: "0042", duracion: 30 },
+    });
+  });
+
   it("un código repetido en el archivo es error por fila, no una intención", async () => {
     const token = await ownerToken();
     const contenido = await xlsxBase64([

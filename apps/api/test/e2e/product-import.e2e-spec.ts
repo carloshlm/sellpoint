@@ -407,6 +407,129 @@ describe("Importación de productos (F2-IMPORT)", () => {
     expect(report.body).toMatchObject({ valid: 1, failed: 0, created: 0, updated: 1 });
   });
 
+  /**
+   * Carlos (2026-10-31): en el xlsx, costo, precio, stock mínimo y los campos
+   * propios de tipo número llevan NÚMEROS; los códigos, el nombre, la
+   * ubicación y los campos de texto, formato Texto. Y el viaje de ida y
+   * vuelta no pierde nada: el 8.5 vuelve como 8.5 y el sku conserva sus ceros
+   * —si los perdiera, volver a subir la plantilla daría de alta OTRO producto—.
+   */
+  it("el xlsx lleva números en las columnas numéricas, texto en las demás, y se reimporta igual", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const codigo = "07509999000280";
+    const catalogs = await request(app.getHttpServer())
+      .get("/catalogs")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const productsCatalog = (catalogs.body as { id: string; systemKey: string | null }[]).find(
+      (catalog) => catalog.systemKey === "products",
+    );
+    for (const campo of [
+      { label: "Sustancia activa", fieldType: "text" },
+      { label: "Piezas por caja", fieldType: "number" },
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/catalogs/${productsCatalog?.id}/fields`)
+        .set("Authorization", bearer(token))
+        .send(campo)
+        .expect(201);
+    }
+
+    try {
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({
+          content: [
+            "codigo_de_barras,sku,nombre,unidad_base,costo,precio,stock_minimo,ubicacion,Sustancia activa,Piezas por caja",
+            `${codigo},001000000018,Paracetamol 500mg,unit,8.5,15.5,3,0042,Paracetamol,12`,
+          ].join("\n"),
+        })
+        .expect(200);
+
+      const template = await request(app.getHttpServer())
+        .get("/products/import/template?format=xlsx")
+        .set("Authorization", bearer(token))
+        .responseType("blob")
+        .expect(200);
+
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(template.body as unknown as XlsxInput);
+      const sheet = workbook.worksheets[0];
+      if (sheet === undefined) {
+        throw new Error("sin hoja");
+      }
+      const encabezado = sheet.getRow(1).values as unknown[];
+      const celda = (nombre: string) => sheet.getRow(2).getCell(encabezado.indexOf(nombre));
+
+      for (const [nombre, valor] of [
+        ["costo", 8.5],
+        ["precio", 15.5],
+        ["stock_minimo", 3],
+        ["Piezas por caja", 12],
+      ] as const) {
+        expect({ nombre, type: celda(nombre)?.type, value: celda(nombre)?.value }).toEqual({
+          nombre,
+          type: ExcelJS.ValueType.Number,
+          value: valor,
+        });
+      }
+      for (const [nombre, valor] of [
+        ["codigo_de_barras", codigo],
+        ["sku", "001000000018"],
+        ["nombre", "Paracetamol 500mg"],
+        ["unidad_base", "unit"],
+        ["ubicacion", "0042"],
+        ["controla_lotes", "NO"],
+        ["es_compuesto", "NO"],
+        ["Sustancia activa", "Paracetamol"],
+      ] as const) {
+        expect({ nombre, value: celda(nombre)?.value, numFmt: celda(nombre)?.numFmt }).toEqual({
+          nombre,
+          value: valor,
+          numFmt: "@",
+        });
+      }
+      // El impuesto viene vacío (hereda el default), pero su columna es texto.
+      expect(celda("impuesto")?.numFmt).toBe("@");
+
+      // De vuelta, tal cual se descargó: actualiza el MISMO producto.
+      const report = await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: (template.body as Buffer).toString("base64"), format: "xlsx" })
+        .expect(200);
+      expect(report.body).toMatchObject({ failed: 0, created: 0, updated: 1 });
+
+      const productos = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.product.findMany({ include: { presentations: { where: { isDefaultSale: true } } } }),
+      );
+      expect(productos).toHaveLength(1);
+      const [producto] = productos;
+      expect({
+        sku: producto?.sku,
+        stockMin: producto?.stockMin.toString(),
+        location: producto?.location,
+        attributes: producto?.attributes,
+        cost: producto?.presentations[0]?.cost?.toString(),
+        price: producto?.presentations[0]?.price?.toString(),
+        barcode: producto?.presentations[0]?.barcode,
+      }).toEqual({
+        sku: "001000000018",
+        stockMin: "3",
+        location: "0042",
+        attributes: { sustancia_activa: "Paracetamol", piezas_por_caja: 12 },
+        cost: "8.5",
+        price: "15.5",
+        barcode: codigo,
+      });
+    } finally {
+      await prisma.globalBarcodeCatalog.deleteMany({ where: { gtin14: codigo } });
+    }
+  });
+
   it("un xlsx recortado se rechaza con 400, no revienta el proceso", async () => {
     const { token } = await registerAndLogin();
 

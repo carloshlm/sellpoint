@@ -188,6 +188,97 @@ describe("Importación de almacenes (2026-09-01)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-10-31): ninguna columna estándar de una sucursal es un
+   * número —el código postal y el teléfono son TEXTO, con sus ceros—; solo
+   * los campos propios de tipo número llevan números en el xlsx. La
+   * plantilla se vuelve a subir sin perder nada.
+   */
+  it("la plantilla lleva el CP y el teléfono como texto, los campos numéricos como número, y se reimporta igual", async () => {
+    const token = await ownerToken();
+    await request(app.getHttpServer())
+      .patch("/tenants/me")
+      .set("Authorization", bearer(token))
+      .send({ country: "MX" })
+      .expect(200);
+    const catalogos = await request(app.getHttpServer())
+      .get("/catalogs")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const catalogId = (catalogos.body as { id: string; systemKey: string | null }[]).find(
+      (c) => c.systemKey === "warehouses",
+    )?.id;
+    for (const campo of [
+      { label: "Zona", fieldType: "text" },
+      { label: "Metros cuadrados", fieldType: "number" },
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send(campo)
+        .expect(201);
+    }
+    await importar(
+      token,
+      await xlsxBase64([
+        ["codigo", "nombre", "codigo_postal", "telefono", "Zona", "Metros cuadrados"],
+        ["001000000018", "Bodega Norte", "07300", "+525512345678", "0042", "120.5"],
+      ]),
+    ).expect(200);
+
+    const plantilla = await request(app.getHttpServer())
+      .get("/warehouses/import/template")
+      .set("Authorization", bearer(token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+    await workbook.xlsx.load(plantilla.body as unknown as XlsxInput);
+    const sheet = workbook.worksheets[0];
+    const encabezado = sheet?.getRow(1).values as unknown[];
+    // Las filas van por código: «001000000018» queda antes que «ALM-001».
+    const celda = (nombre: string) => sheet?.getRow(2).getCell(encabezado.indexOf(nombre));
+
+    expect(celda("Metros cuadrados")?.type).toBe(ExcelJS.ValueType.Number);
+    expect(celda("Metros cuadrados")?.value).toBe(120.5);
+    for (const [nombre, valor] of [
+      ["codigo", "001000000018"],
+      ["nombre", "Bodega Norte"],
+      ["codigo_postal", "07300"],
+      ["telefono", "+525512345678"],
+      ["Zona", "0042"],
+    ] as const) {
+      expect({ nombre, value: celda(nombre)?.value, numFmt: celda(nombre)?.numFmt }).toEqual({
+        nombre,
+        value: valor,
+        numFmt: "@",
+      });
+    }
+
+    const reimportada = await importar(token, (plantilla.body as Buffer).toString("base64")).expect(
+      200,
+    );
+    expect(reimportada.body).toMatchObject({ failed: 0, created: 0, updated: 2 });
+    const lista = await request(app.getHttpServer())
+      .get("/warehouses")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    expect((lista.body as { code: string }[]).find((w) => w.code === "001000000018")).toMatchObject(
+      {
+        postalCode: "07300",
+        phone: "+525512345678",
+        attributes: { zona: "0042", metros_cuadrados: 120.5 },
+      },
+    );
+  });
+
   it("un teléfono que no es E.164 falla la FILA con su código — la planilla no salta al formulario", async () => {
     const token = await ownerToken();
     const contenido = await xlsxBase64([

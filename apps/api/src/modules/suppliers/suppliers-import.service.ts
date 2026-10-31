@@ -19,6 +19,7 @@ import {
   parseCustomAttributes,
   readImportWorkbook,
   resolveCustomColumns,
+  templateNumericColumns,
   translateImportErrors,
 } from "../catalogs/import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
@@ -95,7 +96,7 @@ export class SuppliersImportService {
     user: AuthUser,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const { header, rows } = await this.catalogRows(user);
+    const { header, rows, numericColumns } = await this.catalogRows(user);
     const body =
       rows.length > 0
         ? rows
@@ -115,6 +116,7 @@ export class SuppliersImportService {
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: spreadsheetSheetName("Proveedores", locale),
       filenameBase: spreadsheetFilenameBase("proveedores", locale),
+      numericColumns,
     });
   }
 
@@ -325,7 +327,9 @@ export class SuppliersImportService {
   }
 
   /** El catálogo completo como filas — la plantilla ES el catálogo actual. */
-  private async catalogRows(user: AuthUser): Promise<{ header: string[]; rows: string[][] }> {
+  private async catalogRows(
+    user: AuthUser,
+  ): Promise<{ header: string[]; rows: string[][]; numericColumns: number[] }> {
     const { fields, lookups } = await this.contexto(user);
     const custom = fields.map((field) => field.key);
     // El encabezado lleva la ETIQUETA de hoy; `custom` sigue siendo la key,
@@ -348,7 +352,13 @@ export class SuppliersImportService {
       ...customCells((supplier.attributes ?? {}) as Record<string, unknown>, custom, lookups),
     ]);
 
-    return { header, rows };
+    // Ninguna estándar es numérica —el teléfono y el código postal son
+    // texto—: solo los campos propios de tipo número.
+    return {
+      header,
+      rows,
+      numericColumns: templateNumericColumns(STANDARD_COLUMNS, [], fields),
+    };
   }
 
   private async contexto(

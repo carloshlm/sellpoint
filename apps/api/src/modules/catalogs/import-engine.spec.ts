@@ -1,4 +1,4 @@
-import { customHeaderLabels, resolveCustomColumns } from "./import-engine";
+import { customHeaderLabels, resolveCustomColumns, templateNumericColumns } from "./import-engine";
 import type { FieldDefinition } from "./validate-attributes";
 
 const campo = (key: string, label: string): FieldDefinition => ({
@@ -71,5 +71,41 @@ describe("resolveCustomColumns — la columna propia se nombra como la persona l
 
   it("una celda sin nada usable no rompe el encabezado", () => {
     expect(resolveCustomColumns(["---", ""], [proveedor]).header).toEqual(["---", ""]);
+  });
+});
+
+/**
+ * Carlos (2026-10-31): en el Excel, los campos propios de tipo número llevan
+ * números de verdad —«Crédito máximo» se suma— y los de texto o lookup siguen
+ * como texto. Van por POSICIÓN: la plantilla escribe los campos propios al
+ * final, en su orden, y dos etiquetas pueden repetirse.
+ */
+describe("templateNumericColumns — qué columnas de la plantilla van como número", () => {
+  const numero = (key: string, label: string): FieldDefinition => ({
+    ...campo(key, label),
+    fieldType: "number",
+  });
+  const lookup = (key: string, label: string): FieldDefinition => ({
+    ...campo(key, label),
+    fieldType: "lookup",
+    lookupCatalogId: "c-1",
+  });
+
+  it("las estándar pedidas por nombre y los campos propios numéricos por su posición", () => {
+    const estandar = ["sku", "nombre", "costo", "precio"];
+    const campos = [
+      campo("sustancia", "Sustancia activa"),
+      numero("credito", "Crédito máximo"),
+      lookup("grupo", "Grupo"),
+      numero("dias", "Días de crédito"),
+    ];
+
+    expect(templateNumericColumns(estandar, ["costo", "precio"], campos)).toEqual([2, 3, 5, 7]);
+  });
+
+  it("dos campos con la MISMA etiqueta se distinguen por su tipo, no por su nombre", () => {
+    const campos = [campo("grupo_texto", "Grupo"), numero("grupo_numero", "Grupo")];
+
+    expect(templateNumericColumns(["codigo"], [], campos)).toEqual([2]);
   });
 });

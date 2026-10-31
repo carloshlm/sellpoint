@@ -23,6 +23,7 @@ import {
   resolveCustomColumns,
   resolveTaxGroupCode,
   type TaxGroupIndex,
+  templateNumericColumns,
   translateImportErrors,
 } from "../catalogs/import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
@@ -31,6 +32,9 @@ import { type FieldDefinition, validateRecordAttributes } from "../catalogs/vali
 // venta y al final los campos personalizados del catálogo de servicios.
 // F4-TAX-11: `impuesto` lleva el CÓDIGO del grupo; vacío = el default del negocio.
 const STANDARD_COLUMNS = ["codigo", "nombre", "costo", "precio", "impuesto"] as const;
+
+/** Las que en el xlsx van como NÚMERO; el código y el impuesto son texto. */
+const NUMERIC_COLUMNS = ["costo", "precio"] as const;
 
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 const SERVICES_CATALOG_KEY = "services";
@@ -83,7 +87,7 @@ export class ServicesImportService {
     user: AuthUser,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const { header, rows, impuestos } = await this.catalogRows(user);
+    const { header, rows, impuestos, numericColumns } = await this.catalogRows(user);
     const body =
       rows.length > 0
         ? rows
@@ -100,6 +104,7 @@ export class ServicesImportService {
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: spreadsheetSheetName("Servicios", locale),
       filenameBase: spreadsheetFilenameBase("servicios", locale),
+      numericColumns,
     });
   }
 
@@ -299,9 +304,12 @@ export class ServicesImportService {
   }
 
   /** El catálogo completo como filas — plantilla y export comparten columnas. */
-  private async catalogRows(
-    user: AuthUser,
-  ): Promise<{ header: string[]; rows: string[][]; impuestos: TaxGroupIndex }> {
+  private async catalogRows(user: AuthUser): Promise<{
+    header: string[];
+    rows: string[][];
+    impuestos: TaxGroupIndex;
+    numericColumns: number[];
+  }> {
     const { fields, lookups, impuestos } = await this.contexto(user);
     const custom = fields.map((field) => field.key);
     // El encabezado lleva la ETIQUETA de hoy; `custom` sigue siendo la key,
@@ -322,7 +330,12 @@ export class ServicesImportService {
       ...customCells((service.attributes ?? {}) as Record<string, unknown>, custom, lookups),
     ]);
 
-    return { header, rows, impuestos };
+    return {
+      header,
+      rows,
+      impuestos,
+      numericColumns: templateNumericColumns(STANDARD_COLUMNS, NUMERIC_COLUMNS, fields),
+    };
   }
 
   /** Los campos vigentes del catálogo de servicios y sus índices de lookup. */

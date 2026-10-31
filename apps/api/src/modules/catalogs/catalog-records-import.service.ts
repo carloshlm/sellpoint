@@ -20,6 +20,7 @@ import {
   parseCustomAttributes,
   readImportWorkbook,
   resolveCustomColumns,
+  templateNumericColumns,
   translateImportErrors,
 } from "./import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "./validate-attributes";
@@ -73,11 +74,12 @@ export class CatalogRecordsImportService {
     catalogId: string,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const { header, rows, catalogName } = await this.catalogRows(user, catalogId);
+    const { header, rows, catalogName, numericColumns } = await this.catalogRows(user, catalogId);
     const body = rows.length > 0 ? rows : [["EJEMPLO-01", ...header.slice(1).map(() => "")]];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: catalogName.slice(0, 31),
       filenameBase: spreadsheetFilenameBase("registros", locale),
+      numericColumns,
     });
   }
 
@@ -223,7 +225,12 @@ export class CatalogRecordsImportService {
   private async catalogRows(
     user: AuthUser,
     catalogId: string,
-  ): Promise<{ header: string[]; rows: string[][]; catalogName: string }> {
+  ): Promise<{
+    header: string[];
+    rows: string[][];
+    catalogName: string;
+    numericColumns: number[];
+  }> {
     const { fields, lookups, catalogName } = await this.contexto(user, catalogId);
     const custom = fields.map((field) => field.key);
     // El encabezado lleva la ETIQUETA de hoy; `custom` sigue siendo la key,
@@ -239,7 +246,13 @@ export class CatalogRecordsImportService {
       ...customCells((record.attributes ?? {}) as Record<string, unknown>, custom, lookups),
     ]);
 
-    return { header, rows, catalogName };
+    // El código es texto; los campos propios de tipo número van como número.
+    return {
+      header,
+      rows,
+      catalogName,
+      numericColumns: templateNumericColumns(STANDARD_COLUMNS, [], fields),
+    };
   }
 
   /**

@@ -2,11 +2,37 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
-import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
+import { columnIndexes, type SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import { KardexService } from "./kardex.service";
 import { LotsService } from "./lots.service";
+
+const EXPIRING_HEADER = [
+  "Producto",
+  "SKU",
+  "Lote",
+  "Caduca",
+  "Días restantes",
+  "Sucursal",
+  "Ubicación",
+  "Cantidad",
+];
+const IN_TRANSIT_HEADER = [
+  "Producto",
+  "SKU",
+  "Lote",
+  "Origen",
+  "Destino",
+  "Cantidad",
+  "Folio",
+  "Salió",
+];
+/**
+ * Las que van como NÚMERO en el xlsx. El SKU, el lote, el folio y las fechas
+ * quedan como texto.
+ */
+const NUMERICAS = ["Días restantes", "Cantidad"];
 
 /**
  * F5-EXP — vencimientos y tránsito en Excel.
@@ -59,16 +85,8 @@ export class InventoryExportService {
           fila.location,
           fila.quantity,
         ]),
-      header: [
-        "Producto",
-        "SKU",
-        "Lote",
-        "Caduca",
-        "Días restantes",
-        "Sucursal",
-        "Ubicación",
-        "Cantidad",
-      ],
+      header: EXPIRING_HEADER,
+      numericColumns: columnIndexes(EXPIRING_HEADER, NUMERICAS),
       format,
       sheetName: "Vencimientos",
       filenameBase: spreadsheetFilenameBase("vencimientos", locale),
@@ -109,7 +127,8 @@ export class InventoryExportService {
           fila.folio ?? "",
           fila.sentAt.toISOString().slice(0, 10),
         ]),
-      header: ["Producto", "SKU", "Lote", "Origen", "Destino", "Cantidad", "Folio", "Salió"],
+      header: IN_TRANSIT_HEADER,
+      numericColumns: columnIndexes(IN_TRANSIT_HEADER, NUMERICAS),
       format,
       sheetName: "En tránsito",
       filenameBase: spreadsheetFilenameBase("en-transito", locale),

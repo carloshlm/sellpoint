@@ -3,7 +3,7 @@ import type { Locale } from "@sellpoint/shared";
 import { formatAddress, fullName } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
-import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
+import { columnIndexes, type SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -28,6 +28,9 @@ import { ImportService } from "../products/import.service";
  * no aceptó la invitación, y colapsarlo a «Inactivo» borraría justo el dato
  * que alguien busca cuando pregunta «¿por qué esta persona no entra?».
  */
+/** Las columnas del export de sucursales. Solo el conteo va como número. */
+const WAREHOUSE_HEADER = ["Nombre", "Dirección", "Estado", "Productos con stock"];
+
 const ESTADOS: Record<string, string> = {
   invited: "Invitado",
   active: "Activo",
@@ -159,7 +162,8 @@ export class CatalogExportService {
           String(w._count.stock),
         ]);
       },
-      header: ["Nombre", "Dirección", "Estado", "Productos con stock"],
+      header: WAREHOUSE_HEADER,
+      numericColumns: columnIndexes(WAREHOUSE_HEADER, ["Productos con stock"]),
       format,
       sheetName: "Sucursales",
       filenameBase: spreadsheetFilenameBase("sucursales", locale),
@@ -185,6 +189,8 @@ export class CatalogExportService {
       count: async () => catalogo.rows.length,
       rows: async () => catalogo.rows,
       header: catalogo.header,
+      // Las MISMAS columnas numéricas que la plantilla: salen de la misma lista.
+      numericColumns: catalogo.numericColumns,
       format,
       sheetName: "Catálogo",
       filenameBase: spreadsheetFilenameBase("catalogo", locale),

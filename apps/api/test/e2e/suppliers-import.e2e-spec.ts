@@ -144,6 +144,93 @@ describe("Importación de proveedores (F9-SUPPCAT, 2026-09-12)", () => {
     ]);
   });
 
+  /**
+   * Carlos (2026-10-31): en el xlsx, los campos propios de tipo número —el
+   * «Crédito máximo»— llevan NÚMEROS; el código, el teléfono, el registro
+   * fiscal y los campos de texto, formato Texto. La plantilla se vuelve a
+   * subir sin perder nada.
+   */
+  it("la plantilla lleva números y texto donde van, y se reimporta igual", async () => {
+    const propio = await registerTenant(app, "suppl-import-tipos");
+    await setTenantMarket(prisma, propio.tenantId, "MX");
+    const catalogos = (
+      await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(propio.token))
+        .expect(200)
+    ).body as { id: string; systemKey: string | null }[];
+    const deProveedores = catalogos.find((c) => c.systemKey === "suppliers");
+    for (const campo of [
+      { label: "Grupo", fieldType: "text" },
+      { label: "Crédito máximo", fieldType: "number" },
+    ]) {
+      await request(app.getHttpServer())
+        .post(`/catalogs/${deProveedores?.id}/fields`)
+        .set("Authorization", bearer(propio.token))
+        .send(campo)
+        .expect(201);
+    }
+    await importar(
+      propio.token,
+      await xlsxBase64([
+        ["codigo", "nombre", "registro_fiscal", "telefono", "Grupo", "Crédito máximo"],
+        ["001000000018", "Distribuidora Norte", "DNO900101AB1", "+525512345678", "0042", "15000.5"],
+      ]),
+    ).expect(200);
+
+    const plantilla = await request(app.getHttpServer())
+      .get("/suppliers/import/template")
+      .set("Authorization", bearer(propio.token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+    await workbook.xlsx.load(plantilla.body as unknown as XlsxInput);
+    const sheet = workbook.worksheets[0];
+    const celda = (nombre: string) =>
+      sheet?.getRow(2).getCell((sheet.getRow(1).values as unknown[]).indexOf(nombre));
+
+    expect(celda("Crédito máximo")?.type).toBe(ExcelJS.ValueType.Number);
+    expect(celda("Crédito máximo")?.value).toBe(15000.5);
+    for (const [nombre, valor] of [
+      ["codigo", "001000000018"],
+      ["nombre", "Distribuidora Norte"],
+      ["registro_fiscal", "DNO900101AB1"],
+      ["telefono", "+525512345678"],
+      ["Grupo", "0042"],
+    ] as const) {
+      expect({ nombre, value: celda(nombre)?.value, numFmt: celda(nombre)?.numFmt }).toEqual({
+        nombre,
+        value: valor,
+        numFmt: "@",
+      });
+    }
+
+    const reimportada = await importar(
+      propio.token,
+      (plantilla.body as Buffer).toString("base64"),
+    ).expect(200);
+    expect(reimportada.body).toMatchObject({ failed: 0, created: 0, updated: 1 });
+    const proveedores = await prisma.withTenantContext(propio.tenantId, (tx) =>
+      tx.supplier.findMany({ select: { code: true, taxId: true, phone: true, attributes: true } }),
+    );
+    expect(proveedores).toEqual([
+      {
+        code: "001000000018",
+        taxId: "DNO900101AB1",
+        phone: "+525512345678",
+        attributes: { grupo: "0042", credito_maximo: 15000.5 },
+      },
+    ]);
+  });
+
   it("los campos propios del catálogo de proveedores entran por su columna y se validan", async () => {
     const propio = await registerTenant(app, "suppl-import-campos");
     const catalogos = (

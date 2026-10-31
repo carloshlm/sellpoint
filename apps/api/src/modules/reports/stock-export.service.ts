@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { columnIndexes } from "../../common/spreadsheet/spreadsheet";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { StockExportQueryDto } from "./dto/stock-report.dto";
@@ -9,6 +10,33 @@ import { StockReportService } from "./stock-report.service";
 
 /** El tope alto de una sola página: el export no pagina, lo acota el límite. */
 const SIN_PAGINAR = { page: 1, pageSize: 100 } as const;
+
+const HEADER = [
+  "Producto",
+  "SKU",
+  "Sucursal",
+  "Cantidad",
+  "Unidad",
+  "Mínimo",
+  "Bajo mínimo",
+  "Costo promedio",
+  "Valor",
+];
+const LOTS_HEADER = [
+  "Producto",
+  "SKU",
+  "Sucursal",
+  "Lote",
+  "Caducidad",
+  "Ubicación",
+  "Cantidad",
+  "Unidad",
+];
+/**
+ * Las que van como NÚMERO en el xlsx: cantidades y dinero. El SKU, el lote y
+ * la caducidad quedan como texto.
+ */
+const NUMERICAS = ["Cantidad", "Mínimo", "Costo promedio", "Valor"];
 
 /**
  * F5-STK-02 — el reporte de stock en Excel.
@@ -30,19 +58,8 @@ export class StockExportService {
       count: () => this.stock.count(user, scope, { ...query, ...SIN_PAGINAR }),
       rows: () =>
         esDetalle ? this.filasDeLotes(user, scope, query) : this.filas(user, scope, query),
-      header: esDetalle
-        ? ["Producto", "SKU", "Sucursal", "Lote", "Caducidad", "Ubicación", "Cantidad", "Unidad"]
-        : [
-            "Producto",
-            "SKU",
-            "Sucursal",
-            "Cantidad",
-            "Unidad",
-            "Mínimo",
-            "Bajo mínimo",
-            "Costo promedio",
-            "Valor",
-          ],
+      header: esDetalle ? LOTS_HEADER : HEADER,
+      numericColumns: columnIndexes(esDetalle ? LOTS_HEADER : HEADER, NUMERICAS),
       format: query.format,
       sheetName: esDetalle ? "Stock por lote" : "Stock",
       filenameBase: spreadsheetFilenameBase(esDetalle ? "stock-por-lote" : "stock", locale),

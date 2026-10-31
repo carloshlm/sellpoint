@@ -24,6 +24,7 @@ import {
   resolveCustomColumns,
   resolveTaxGroupCode,
   type TaxGroupIndex,
+  templateNumericColumns,
 } from "../catalogs/import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
@@ -55,6 +56,13 @@ const STANDARD_COLUMNS = [
   // F4-TAX-11: el CÓDIGO del grupo; vacío = el default del negocio.
   "impuesto",
 ] as const;
+
+/**
+ * Las que en el xlsx van como NÚMERO, para que Excel las sume (Carlos,
+ * 2026-10-31). Todo lo demás —el código de barras y el sku con sus ceros, la
+ * ubicación, los sí/no, el código de impuesto— va como texto.
+ */
+const NUMERIC_COLUMNS = ["costo", "precio", "stock_minimo"] as const;
 
 export interface ImportRowError {
   row: number;
@@ -167,7 +175,7 @@ export class ImportService {
     format: SpreadsheetFormat,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const { header, rows, custom } = await this.catalogRows(user, locale);
+    const { header, rows, custom, numericColumns } = await this.catalogRows(user, locale);
 
     // Sin productos todavía, una fila de ejemplo: si no, nadie sabe si el
     // precio va con punto o con coma, ni qué se espera en "unidad_base".
@@ -201,6 +209,7 @@ export class ImportService {
       // para todo el mundo (Carlos, 2026-09-12).
       sheetName: spreadsheetSheetName("Productos", locale),
       filenameBase: spreadsheetFilenameBase("productos", locale),
+      numericColumns,
     });
   }
 
@@ -216,7 +225,7 @@ export class ImportService {
   async catalogRows(
     user: AuthUser,
     locale: Locale = "es",
-  ): Promise<{ header: string[]; rows: string[][]; custom: string[] }> {
+  ): Promise<{ header: string[]; rows: string[][]; custom: string[]; numericColumns: number[] }> {
     const fields = await this.loadFields(user);
     const active = fields.filter((field) => !field.isArchived);
     const custom = active.map((field) => field.key);
@@ -272,7 +281,12 @@ export class ImportService {
       ];
     });
 
-    return { header, rows, custom };
+    return {
+      header,
+      rows,
+      custom,
+      numericColumns: templateNumericColumns(STANDARD_COLUMNS, NUMERIC_COLUMNS, active),
+    };
   }
 
   async run(

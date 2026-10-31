@@ -2,7 +2,7 @@ import { BadRequestException, PayloadTooLargeException } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import type { I18nService } from "nestjs-i18n";
 import { canonicalHeader } from "../../common/spreadsheet/import-headers";
-import { parseSpreadsheet } from "../../common/spreadsheet/spreadsheet";
+import { columnIndexes, parseSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import type { Prisma } from "../../generated/prisma/client";
 import { deriveFieldKey } from "./field-key";
 import type { FieldDefinition } from "./validate-attributes";
@@ -247,6 +247,29 @@ function slugSeguro(texto: string): string | null {
 /** Los encabezados que la PLANTILLA escribe para los campos propios: sus etiquetas. */
 export function customHeaderLabels(fields: readonly FieldDefinition[]): string[] {
   return fields.map((field) => field.label);
+}
+
+/**
+ * Las columnas que la plantilla escribe como NÚMERO en el xlsx (Carlos,
+ * 2026-10-31): las estándar que se piden por nombre y los campos propios de
+ * tipo número, como «Crédito máximo». Un lookup lleva el CÓDIGO del registro y
+ * se queda como texto.
+ *
+ * Los campos propios van por POSICIÓN y no por nombre: la plantilla los
+ * escribe al final del encabezado y en el orden de `fields`, y dos campos
+ * pueden tener la misma etiqueta con tipos distintos.
+ */
+export function templateNumericColumns(
+  standard: readonly string[],
+  numericStandard: readonly string[],
+  fields: readonly FieldDefinition[],
+): number[] {
+  return [
+    ...columnIndexes(standard, numericStandard),
+    ...fields.flatMap((field, index) =>
+      field.fieldType === "number" ? [standard.length + index] : [],
+    ),
+  ];
 }
 
 /** El código de la planilla → id del registro, exacto primero y laxo después. */

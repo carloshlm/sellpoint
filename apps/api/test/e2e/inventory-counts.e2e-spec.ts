@@ -360,6 +360,125 @@ describe("Inventario físico (F3-COUNT)", () => {
         ]),
       );
     });
+
+    /**
+     * Carlos (2026-10-31): en el xlsx, el teórico es un NÚMERO y la columna
+     * del contado también, así lo que se teclee ahí entra como número; el
+     * sku, el lote y la ubicación van con formato Texto. La caducidad va SIN
+     * formato: la fecha que alguien teclee tiene que seguir volviéndose fecha.
+     * Y la planilla llenada en Excel se vuelve a subir sin perder nada.
+     */
+    it("el xlsx lleva el teórico como número y lo demás como texto, y se vuelve a subir igual", async () => {
+      const { token, tenantId, warehouseId, lotesSku } = await escenario();
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const producto = await tx.product.create({
+          data: { tenantId, sku: "001000000018", name: "Azúcar", baseUnit: "kg" },
+        });
+        await tx.stockByWarehouse.create({
+          data: { tenantId, productId: producto.id, warehouseId, quantity: 8.5 },
+        });
+      });
+
+      const res = await request(app.getHttpServer())
+        .get(
+          `/inventory/documents/template?type=physical_count&warehouseId=${warehouseId}&format=xlsx`,
+        )
+        .set("Authorization", bearer(token))
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(res.body as unknown as XlsxInput);
+      const sheet = workbook.worksheets[0];
+      if (sheet === undefined) {
+        throw new Error("sin hoja");
+      }
+      const encabezado = sheet.getRow(1).values as unknown[];
+      const columna = (nombre: string) => encabezado.indexOf(nombre);
+      const filaDe = (sku: string, lote = "") => {
+        let encontrada: ReturnType<typeof sheet.getRow> | undefined;
+        sheet.eachRow((row) => {
+          if (
+            row.getCell(columna("sku")).value === sku &&
+            (row.getCell(columna("lote")).value ?? "") === lote
+          ) {
+            encontrada = row;
+          }
+        });
+        if (encontrada === undefined) {
+          throw new Error(`no hay fila para ${sku} ${lote}`);
+        }
+        return encontrada;
+      };
+
+      const azucar = filaDe("001000000018");
+      expect(azucar.getCell(columna("teorico")).type).toBe(ExcelJS.ValueType.Number);
+      expect(azucar.getCell(columna("teorico")).value).toBe(8.5);
+      expect(azucar.getCell(columna("sku")).numFmt).toBe("@");
+      expect(azucar.getCell(columna("nombre")).numFmt).toBe("@");
+      expect(azucar.getCell(columna("unidad")).numFmt).toBe("@");
+      // El contado llega vacío y su columna NO es texto: lo tecleado entra como número.
+      expect(azucar.getCell(columna("contado")).numFmt).not.toBe("@");
+      expect(sheet.getColumn(columna("contado")).numFmt).not.toBe("@");
+
+      const lote = filaDe(lotesSku, "ZZZ-JUL");
+      expect(lote.getCell(columna("teorico")).value).toBe(9);
+      const caducidad = lote.getCell(columna("caducidad"));
+      expect(caducidad.value).toBe("2026-07-01");
+      expect(caducidad.numFmt).toBeUndefined();
+      for (const [nombre, valor] of [
+        ["lote", "ZZZ-JUL"],
+        ["ubicacion", "B-2"],
+      ] as const) {
+        const celda = lote.getCell(columna(nombre));
+        expect({ nombre, value: celda.value, numFmt: celda.numFmt }).toEqual({
+          nombre,
+          value: valor,
+          numFmt: "@",
+        });
+      }
+
+      // Quien cuenta teclea NÚMEROS en Excel: 8.5 de azúcar y 7 del lote de julio.
+      azucar.getCell(columna("contado")).value = 8.5;
+      lote.getCell(columna("contado")).value = 7;
+      const llenada = Buffer.from(await workbook.xlsx.writeBuffer()).toString("base64");
+
+      const creado = await request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set("Authorization", bearer(token))
+        .send({ type: "physical_count", warehouseId })
+        .expect(201);
+      const id = (creado.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/lines/import`)
+        .set("Authorization", bearer(token))
+        .send({ file: llenada, format: "xlsx", mode: "replace" })
+        .expect(200);
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (detalle.body as { rows: Record<string, unknown>[] }).rows;
+
+      expect(filas.find((f) => f.sku === "001000000018")).toEqual(
+        expect.objectContaining({ theoretical: "8.5", counted: "8.5", difference: "0" }),
+      );
+      expect(filas.find((f) => f.sku === lotesSku && f.lotCode === "ZZZ-JUL")).toEqual(
+        expect.objectContaining({
+          location: "B-2",
+          theoretical: "9",
+          counted: "7",
+          difference: "-2",
+        }),
+      );
+    });
   });
 
   /**

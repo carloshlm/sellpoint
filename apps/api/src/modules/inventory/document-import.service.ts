@@ -8,6 +8,7 @@ import {
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
 import {
+  columnIndexes,
   parseSpreadsheet,
   type SpreadsheetFormat,
   serializeSpreadsheet,
@@ -30,6 +31,12 @@ const COLUMNS: Record<InventoryDocumentType, string[]> = {
   exit: ["sku", "presentacion", "cantidad", "lote", "caducidad", "ubicacion"],
   physical_count: ["sku", "lote", "caducidad", "ubicacion", "contado"],
 };
+
+/**
+ * Las que en el xlsx van como NÚMERO, en el tipo que las tenga. El sku, la
+ * presentación, el lote y la caducidad quedan como texto.
+ */
+const NUMERIC_COLUMNS = ["cantidad", "costo_unitario", "contado"];
 
 const EXAMPLE: Record<InventoryDocumentType, string[]> = {
   entry: ["PAR-500", "Caja ×12", "3", "15.50", "st10", "2026-07-01", "A-3"],
@@ -79,6 +86,11 @@ export class DocumentImportService {
     const file = await serializeSpreadsheet(
       [localizeHeaders(COLUMNS[type], locale), EXAMPLE[type]],
       format,
+      {
+        numericColumns: columnIndexes(COLUMNS[type], NUMERIC_COLUMNS),
+        // La caducidad que alguien teclee tiene que seguir volviéndose fecha.
+        plainColumns: columnIndexes(COLUMNS[type], ["caducidad"]),
+      },
     );
     return {
       ...file,

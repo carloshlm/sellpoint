@@ -352,6 +352,91 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       );
     });
 
+    /**
+     * Carlos (2026-10-31): en el xlsx, la cantidad, el costo unitario y el
+     * contado son NÚMEROS; el sku, la presentación, el lote, la caducidad y la
+     * ubicación van con formato Texto. Y la plantilla llenada en Excel se
+     * vuelve a subir sin perder nada.
+     */
+    it("el xlsx lleva números y texto donde van, y se vuelve a subir igual", async () => {
+      const ExcelJS = (await import("exceljs")).default;
+      const descargar = async (type: string) => {
+        const res = await request(app.getHttpServer())
+          .get(`/inventory/documents/template?type=${type}&format=xlsx`)
+          .set(auth())
+          .buffer(true)
+          .parse((r, cb) => {
+            const chunks: Buffer[] = [];
+            r.on("data", (c: Buffer) => chunks.push(c));
+            r.on("end", () => cb(null, Buffer.concat(chunks)));
+          })
+          .expect(200);
+        const workbook = new ExcelJS.Workbook();
+        type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+        await workbook.xlsx.load(res.body as unknown as XlsxInput);
+        const sheet = workbook.worksheets[0];
+        if (sheet === undefined) {
+          throw new Error("sin hoja");
+        }
+        const celda = (nombre: string) =>
+          sheet.getRow(2).getCell((sheet.getRow(1).values as unknown[]).indexOf(nombre));
+        return { workbook, celda };
+      };
+      const esTexto = (celda: { numFmt: string }, nombre: string) =>
+        expect({ nombre, numFmt: celda.numFmt }).toEqual({ nombre, numFmt: "@" });
+
+      const entrada = await descargar("entry");
+      expect(entrada.celda("cantidad").value).toBe(3);
+      expect(entrada.celda("costo_unitario").value).toBe(15.5);
+      for (const nombre of ["sku", "presentacion", "lote", "ubicacion"]) {
+        esTexto(entrada.celda(nombre), nombre);
+      }
+      // La caducidad va SIN formato: la fecha que alguien teclee en Excel tiene
+      // que seguir volviéndose fecha, que la importación lee como ISO.
+      expect(entrada.celda("caducidad").value).toBe("2026-07-01");
+      expect(entrada.celda("caducidad").numFmt).toBeUndefined();
+
+      const salida = await descargar("exit");
+      expect(salida.celda("cantidad").value).toBe(1);
+      esTexto(salida.celda("lote"), "lote");
+
+      const conteo = await descargar("physical_count");
+      expect(conteo.celda("contado").value).toBe(9);
+      esTexto(conteo.celda("sku"), "sku");
+
+      // Se llena la de entrada con un producto real: el sku como texto, las
+      // cantidades como las teclea Excel, en número.
+      entrada.celda("sku").value = sku;
+      entrada.celda("presentacion").value = "";
+      entrada.celda("lote").value = "0042";
+      entrada.celda("costo_unitario").value = 8.5;
+      const llenada = Buffer.from(await entrada.workbook.xlsx.writeBuffer()).toString("base64");
+
+      const id = await nuevoBorrador();
+      const res = await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/lines/import`)
+        .set(auth())
+        .send({ file: llenada, format: "xlsx", mode: "replace" })
+        .expect(200);
+      expect(res.body).toMatchObject({ imported: 1, withErrors: 0 });
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      // El producto no maneja lote, así que el borrador marca la línea para
+      // corregirla en pantalla; lo que importa acá es que llegó lo tecleado.
+      expect((detalle.body as { rows: Record<string, unknown>[] }).rows[0]).toEqual(
+        expect.objectContaining({
+          productId,
+          quantityInput: "3",
+          unitCost: "8.5",
+          lotCode: "0042",
+          location: "A-3",
+        }),
+      );
+    });
+
     it("una salida no pide costo unitario: no tiene precio de compra", async () => {
       const res = await request(app.getHttpServer())
         .get("/inventory/documents/template?type=exit&format=csv")

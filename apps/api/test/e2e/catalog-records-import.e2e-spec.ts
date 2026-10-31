@@ -150,6 +150,82 @@ describe("Importación de registros de subcatálogo (2026-09-01)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-10-31): en el xlsx, el código y los campos de texto llevan
+   * formato Texto —el teléfono «5555555555» no se vuelve número— y los campos
+   * de tipo número llevan NÚMEROS. La plantilla se vuelve a subir sin perder
+   * nada.
+   */
+  it("la plantilla lleva números y texto donde van, y se reimporta igual", async () => {
+    const token = await ownerToken();
+    const catalogId = await laboratorios(token);
+    await request(app.getHttpServer())
+      .post(`/catalogs/${catalogId}/fields`)
+      .set("Authorization", bearer(token))
+      .send({ label: "Crédito máximo", fieldType: "number" })
+      .expect(201);
+    await importar(
+      token,
+      catalogId,
+      await xlsxBase64([
+        ["codigo", "nombre", "telefono", "Crédito máximo"],
+        ["001000000018", "Pfizer", "5555555555", "15000.5"],
+      ]),
+    ).expect(200);
+
+    const plantilla = await request(app.getHttpServer())
+      .get(`/catalogs/${catalogId}/records/import/template`)
+      .set("Authorization", bearer(token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+
+    const ExcelJS = (await import("exceljs")).default;
+    const workbook = new ExcelJS.Workbook();
+    type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+    await workbook.xlsx.load(plantilla.body as unknown as XlsxInput);
+    const sheet = workbook.worksheets[0];
+    const celda = (nombre: string) =>
+      sheet?.getRow(2).getCell((sheet.getRow(1).values as unknown[]).indexOf(nombre));
+
+    expect(celda("Crédito máximo")?.type).toBe(ExcelJS.ValueType.Number);
+    expect(celda("Crédito máximo")?.value).toBe(15000.5);
+    for (const [nombre, valor] of [
+      ["codigo", "001000000018"],
+      ["Nombre", "Pfizer"],
+      ["Teléfono", "5555555555"],
+    ] as const) {
+      expect({ nombre, value: celda(nombre)?.value, numFmt: celda(nombre)?.numFmt }).toEqual({
+        nombre,
+        value: valor,
+        numFmt: "@",
+      });
+    }
+
+    const reimportada = await importar(
+      token,
+      catalogId,
+      (plantilla.body as Buffer).toString("base64"),
+    ).expect(200);
+    expect(reimportada.body).toMatchObject({ failed: 0, created: 0, updated: 1 });
+    const lista = await request(app.getHttpServer())
+      .get(`/catalogs/${catalogId}/records`)
+      .set("Authorization", bearer(token))
+      .expect(200);
+    expect(
+      (lista.body as { rows: { code: string; attributes: Record<string, unknown> }[] }).rows,
+    ).toEqual([
+      expect.objectContaining({
+        code: "001000000018",
+        attributes: { nombre: "Pfizer", telefono: "5555555555", credito_maximo: 15000.5 },
+      }),
+    ]);
+  });
+
   it("un catálogo del SISTEMA no se importa por acá: tiene su propio importador", async () => {
     const token = await ownerToken();
     const catalogs = await request(app.getHttpServer())

@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import { parseSpreadsheet, serializeSpreadsheet } from "./spreadsheet";
+import { columnIndexes, parseSpreadsheet, serializeSpreadsheet } from "./spreadsheet";
 
 /**
  * F5-CORE-01 — el serializador deja de estar casado con «Productos».
@@ -78,6 +78,181 @@ describe("serializeSpreadsheet", () => {
       const sheet = await hoja(body);
 
       expect(sheet.getCell("B2").value).toBe("1.5");
+    });
+  });
+
+  /**
+   * Carlos (2026-10-31): las columnas de texto del Excel tienen que SER texto
+   * —con el formato «Texto» de Excel, no «General»— para que un código como
+   * «001000000018» no pierda sus ceros ni se vuelva notación científica
+   * cuando alguien lo vuelve a teclear. Las numéricas siguen en «General» y
+   * llevan números de verdad, que Excel suma, ordena y filtra.
+   */
+  describe("formato Texto en las columnas que no son numéricas", () => {
+    async function hoja(body: Buffer) {
+      const workbook = new ExcelJS.Workbook();
+      type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(body as unknown as XlsxInput);
+      const sheet = workbook.worksheets[0];
+      if (sheet === undefined) {
+        throw new Error("sin hoja");
+      }
+      return sheet;
+    }
+    const FILAS_MIXTAS = [
+      ["sku", "nombre", "costo"],
+      ["001000000018", "Paracetamol", "22.5"],
+      ["0042", "Ibuprofeno", ""],
+    ];
+
+    it("un código con ceros a la izquierda sigue siendo el MISMO texto, con formato Texto", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("A2").type).toBe(ExcelJS.ValueType.String);
+      expect(sheet.getCell("A2").value).toBe("001000000018");
+      expect(sheet.getCell("A2").numFmt).toBe("@");
+      expect(sheet.getCell("B2").numFmt).toBe("@");
+      expect(sheet.getCell("A3").value).toBe("0042");
+      expect(sheet.getCell("A3").numFmt).toBe("@");
+    });
+
+    it("la columna numérica lleva el número de verdad, en formato General", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("C2").type).toBe(ExcelJS.ValueType.Number);
+      expect(sheet.getCell("C2").value).toBe(22.5);
+      expect(sheet.getCell("C2").numFmt).not.toBe("@");
+    });
+
+    /**
+     * Carlos (2026-09-02): el kardex muestra «2.50» para una unidad continua.
+     * El número se guarda limpio (2.5, para sumar) y se MUESTRA con los
+     * decimales que traía el texto; un entero se queda en General.
+     */
+    it("el número se muestra con los decimales que traía: «2.50» y «116.00», no 2.5 y 116", async () => {
+      const { body } = await serializeSpreadsheet(
+        [["cantidad"], ["2.50"], ["116.00"], ["1.2345"], ["3"]],
+        "xlsx",
+        { numericColumns: [0] },
+      );
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("A2").value).toBe(2.5);
+      expect(sheet.getCell("A2").numFmt).toBe("0.00");
+      expect(sheet.getCell("A3").value).toBe(116);
+      expect(sheet.getCell("A3").numFmt).toBe("0.00");
+      expect(sheet.getCell("A4").numFmt).toBe("0.0000");
+      expect(sheet.getCell("A5").value).toBe(3);
+      expect(sheet.getCell("A5").numFmt).toBeUndefined();
+    });
+
+    /**
+     * La caducidad de una plantilla que se importa: si alguien teclea
+     * «15/08/2026», Excel tiene que seguir volviéndola fecha (la importación
+     * la lee como ISO). Con formato Texto quedaría literal y no se importaría.
+     */
+    it("una columna «sin formato» no lleva Texto ni número: lo tecleado lo decide Excel", async () => {
+      const { body } = await serializeSpreadsheet(
+        [
+          ["sku", "caducidad", "contado"],
+          ["0042", "2026-07-01", ""],
+        ],
+        "xlsx",
+        { numericColumns: [2], plainColumns: [1] },
+      );
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("B2").value).toBe("2026-07-01");
+      expect(sheet.getCell("B2").numFmt).toBeUndefined();
+      expect(sheet.getColumn(2).style?.numFmt).toBeUndefined();
+      expect(sheet.getCell("A2").numFmt).toBe("@");
+    });
+
+    it("una celda vacía de una columna numérica sigue vacía: no se vuelve cero", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("C3").type).not.toBe(ExcelJS.ValueType.Number);
+      expect(sheet.getCell("C3").value ?? "").toBe("");
+    });
+
+    it("lo que no es un número limpio en una columna numérica se queda como estaba", async () => {
+      const { body } = await serializeSpreadsheet(
+        [
+          ["sku", "cantidad"],
+          ["A", "12 pzas"],
+          ["B", "—"],
+        ],
+        "xlsx",
+        { numericColumns: [1] },
+      );
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("B2").value).toBe("12 pzas");
+      expect(sheet.getCell("B3").value).toBe("—");
+    });
+
+    it("la COLUMNA de texto también tiene formato Texto, para lo que se teclee después", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
+      const sheet = await hoja(body);
+
+      expect(sheet.getColumn(1).numFmt).toBe("@");
+      expect(sheet.getColumn(2).numFmt).toBe("@");
+      expect(sheet.getColumn(3).numFmt).not.toBe("@");
+      // Una celda que todavía no existe hereda el formato de su columna.
+      expect(sheet.getCell("A20").numFmt).toBe("@");
+    });
+
+    it("sin numericColumns, TODAS las columnas van en formato Texto", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx");
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("C2").value).toBe("22.5");
+      expect(sheet.getCell("C2").numFmt).toBe("@");
+      expect(sheet.getColumn(3).numFmt).toBe("@");
+    });
+
+    it("el encabezado no se toca: texto, en negrita, congelado y sin formato Texto", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
+      const sheet = await hoja(body);
+
+      expect(sheet.getCell("A1").value).toBe("sku");
+      expect(sheet.getCell("C1").value).toBe("costo");
+      expect(sheet.getCell("A1").font?.bold).toBe(true);
+      expect(sheet.getCell("C1").font?.bold).toBe(true);
+      expect(sheet.getCell("A1").numFmt).not.toBe("@");
+      expect(sheet.views[0]).toMatchObject({ state: "frozen", ySplit: 1 });
+    });
+
+    it("lo exportado se vuelve a leer igual: el número 22.5 regresa como «22.5»", async () => {
+      const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
+
+      expect(await parseSpreadsheet(body.toString("base64"), "xlsx")).toEqual(FILAS_MIXTAS);
+    });
+
+    it("el CSV sale byte por byte igual que antes, con o sin numericColumns", async () => {
+      const bom = String.fromCharCode(0xfeff);
+      const esperado = `${bom}sku,nombre,costo\n001000000018,Paracetamol,22.5\n0042,Ibuprofeno,`;
+
+      const conOpcion = await serializeSpreadsheet(FILAS_MIXTAS, "csv", { numericColumns: [2] });
+      const sinOpcion = await serializeSpreadsheet(FILAS_MIXTAS, "csv");
+
+      expect(conOpcion.body.toString("utf8")).toBe(esperado);
+      expect(sinOpcion.body.equals(conOpcion.body)).toBe(true);
+    });
+  });
+
+  describe("columnIndexes", () => {
+    it("da la posición de cada columna pedida, en el orden del encabezado", () => {
+      expect(columnIndexes(["sku", "costo", "nombre", "precio"], ["precio", "costo"])).toEqual([
+        1, 3,
+      ]);
+    });
+
+    it("una columna que no está en el encabezado no aporta nada", () => {
+      expect(columnIndexes(["sku", "contado"], ["cantidad", "contado"])).toEqual([1]);
     });
   });
 

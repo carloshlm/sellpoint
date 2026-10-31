@@ -67,6 +67,74 @@ describe("StudyImportService (F9-CLINIC)", () => {
     expect(body.byteLength).toBeGreaterThan(0);
   });
 
+  /**
+   * Carlos (2026-10-31): en el xlsx, costo y precio llevan NÚMEROS; el código,
+   * el nombre, la descripción y el impuesto van con formato Texto. Y la
+   * plantilla se vuelve a subir sin perder nada: el 8.5 sigue siendo 8.5 y el
+   * código conserva sus ceros.
+   */
+  it("la plantilla lleva costo y precio como número, lo demás como texto, y se reimporta igual", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    delegate.findMany.mockResolvedValue([
+      {
+        id: "e-1",
+        code: "001000000018",
+        name: "Biometría",
+        description: "0042",
+        cost: "8.5",
+        price: "350",
+        taxGroupId: null,
+      },
+    ]);
+    const { body } = await service.template(USER);
+
+    const workbook = new ExcelJS.Workbook();
+    type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+    await workbook.xlsx.load(body as unknown as XlsxInput);
+    const fila = workbook.worksheets[0]?.getRow(2);
+    expect([fila?.getCell(4).type, fila?.getCell(4).value]).toEqual([
+      ExcelJS.ValueType.Number,
+      8.5,
+    ]);
+    expect([fila?.getCell(5).type, fila?.getCell(5).value]).toEqual([
+      ExcelJS.ValueType.Number,
+      350,
+    ]);
+    for (const [columna, valor] of [
+      [1, "001000000018"],
+      [2, "Biometría"],
+      [3, "0042"],
+    ] as const) {
+      expect({
+        columna,
+        value: fila?.getCell(columna).value,
+        numFmt: fila?.getCell(columna).numFmt,
+      }).toEqual({
+        columna,
+        value: valor,
+        numFmt: "@",
+      });
+    }
+    expect(fila?.getCell(6).numFmt).toBe("@");
+
+    const reporte = await service.run(
+      USER,
+      body.toString("base64"),
+      { dryRun: false, skipErrors: false, locale: "es" as const },
+      META,
+    );
+    expect(reporte).toMatchObject({ valid: 1, failed: 0, created: 0, updated: 1 });
+    expect(delegate.update).toHaveBeenCalledWith({
+      where: { id: "e-1" },
+      data: expect.objectContaining({
+        name: "Biometría",
+        description: "0042",
+        cost: 8.5,
+        price: 350,
+      }),
+    });
+  });
+
   it("da de alta lo nuevo y actualiza por CÓDIGO lo que ya existe", async () => {
     delegate.findMany.mockResolvedValue([{ id: "e-9", code: "BH" }]);
     const reporte = await correr([

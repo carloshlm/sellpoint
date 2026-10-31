@@ -2,7 +2,11 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
-import { type SpreadsheetFormat, serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
+import {
+  columnIndexes,
+  type SpreadsheetFormat,
+  serializeSpreadsheet,
+} from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -28,6 +32,15 @@ const COLUMNAS = [
   "teorico",
   "contado",
 ] as const;
+
+/**
+ * Las que en el xlsx van como NÚMERO (Carlos, 2026-10-31): el teórico, y el
+ * contado, que llega vacío y así lo que se teclee ahí entra como número. El
+ * sku, el lote y la caducidad quedan como texto.
+ */
+const NUMERICAS = columnIndexes(COLUMNAS, ["teorico", "contado"]);
+/** La caducidad que alguien teclee tiene que seguir volviéndose fecha en Excel. */
+const SIN_FORMATO = columnIndexes(COLUMNAS, ["caducidad"]);
 
 /**
  * F3-COUNT-01 — la plantilla de inventario físico, con el teórico ya puesto.
@@ -181,7 +194,10 @@ export class CountTemplateService {
       return cuerpo;
     });
 
-    const file = await serializeSpreadsheet([localizeHeaders(COLUMNAS, locale), ...filas], format);
+    const file = await serializeSpreadsheet([localizeHeaders(COLUMNAS, locale), ...filas], format, {
+      numericColumns: NUMERICAS,
+      plainColumns: SIN_FORMATO,
+    });
     return { ...file, filename: `${spreadsheetFilenameBase("conteo-fisico", locale)}.${format}` };
   }
 }

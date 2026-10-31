@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { columnIndexes } from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -9,6 +10,21 @@ import type { SalesExportQueryDto } from "./dto/sales-report.dto";
 import { SalesReportService } from "./sales-report.service";
 
 const SIN_PAGINAR = { page: 1, pageSize: 100 } as const;
+
+const HEADER = [
+  "Folio",
+  "Código de barras",
+  "Fecha",
+  "Vendió",
+  "Sucursal",
+  "Estado",
+  "Pago",
+  // F4-TAX-21: neto e impuesto al lado del total, para que el archivo
+  // cuadre contra el reporte de impuestos sin restar a mano.
+  "Neto",
+  "Impuesto",
+  "Total",
+];
 
 const METODOS: Record<string, string> = {
   cash: "Efectivo",
@@ -36,20 +52,8 @@ export class SalesExportService {
     return exportWithLimit({
       count: () => this.sales.count(user, scope, { ...query, ...SIN_PAGINAR }),
       rows: () => this.filas(user, scope, query),
-      header: [
-        "Folio",
-        "Código de barras",
-        "Fecha",
-        "Vendió",
-        "Sucursal",
-        "Estado",
-        "Pago",
-        // F4-TAX-21: neto e impuesto al lado del total, para que el archivo
-        // cuadre contra el reporte de impuestos sin restar a mano.
-        "Neto",
-        "Impuesto",
-        "Total",
-      ],
+      header: HEADER,
+      numericColumns: columnIndexes(HEADER, ["Neto", "Impuesto", "Total"]),
       format: query.format,
       sheetName: "Ventas",
       filenameBase: spreadsheetFilenameBase("ventas", locale),

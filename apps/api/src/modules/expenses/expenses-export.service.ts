@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { columnIndexes } from "../../common/spreadsheet/spreadsheet";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { ExportExpensesQuery } from "./dto/expense.dto";
@@ -49,6 +50,14 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Notes",
   ],
 };
+/**
+ * Las que van como NÚMERO en el xlsx: los cuatro montos. El folio, las fechas,
+ * la referencia y la cuenta quedan como texto.
+ */
+const NUMERICAS: Record<Locale, string[]> = {
+  es: ["Monto", "Descuento", "Impuesto", "Total"],
+  en: ["Amount", "Discount", "Tax", "Total"],
+};
 const HOJA: Record<Locale, string> = { es: "Gastos", en: "Expenses" };
 const ESTADO: Record<Locale, Record<string, string>> = {
   es: { active: "Activo", canceled: "Anulado", pending: "Pendiente", paid: "Pagado" },
@@ -72,6 +81,7 @@ export class ExpensesExportService {
       rows: async () =>
         (await this.expenses.all(user, scope, consulta)).map((g) => fila(g, locale)),
       header: ENCABEZADOS[locale],
+      numericColumns: columnIndexes(ENCABEZADOS[locale], NUMERICAS[locale]),
       format,
       sheetName: HOJA[locale],
       filenameBase: spreadsheetFilenameBase("gastos", locale),

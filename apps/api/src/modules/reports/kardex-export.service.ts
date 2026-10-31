@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { type Locale, quantityDecimals, unitName } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
-import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
+import { columnIndexes, type SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -14,6 +14,31 @@ const PAGE_SIZE = 200;
 
 /** Traduce una clave en el idioma de quien pidió el archivo. */
 export type Translate = (key: string) => string;
+
+/** Las columnas del archivo, por su clave de `inventory.kardexExport`. */
+const COLUMNS = [
+  "date",
+  "folio",
+  "typeHeader",
+  "movement",
+  "reason",
+  "lot",
+  "location",
+  "warehouse",
+  "unit",
+  "integersOnly",
+  "quantity",
+  "balance",
+  "unitCost",
+  "user",
+];
+
+/**
+ * Las que van como NÚMERO en el xlsx (Carlos, 2026-10-31): sumar la cantidad
+ * da el saldo, y para eso Excel tiene que verla como número. El folio, el
+ * lote y la fecha quedan como texto.
+ */
+const NUMERIC_COLUMNS = columnIndexes(COLUMNS, ["quantity", "balance", "unitCost"]);
 
 /**
  * Cómo se pinta una cantidad en el Excel (Carlos, 2026-09-02).
@@ -141,22 +166,8 @@ export class KardexExportService {
           fila.createdBy.name,
         ]);
       },
-      header: [
-        k("date"),
-        k("folio"),
-        k("typeHeader"),
-        k("movement"),
-        k("reason"),
-        k("lot"),
-        k("location"),
-        k("warehouse"),
-        k("unit"),
-        k("integersOnly"),
-        k("quantity"),
-        k("balance"),
-        k("unitCost"),
-        k("user"),
-      ],
+      header: COLUMNS.map(k),
+      numericColumns: NUMERIC_COLUMNS,
       format,
       sheetName: "Kardex",
       filenameBase: spreadsheetFilenameBase("kardex", locale),

@@ -35,15 +35,39 @@ export interface SpreadsheetOptions {
   /**
    * Columnas (desde 0) que en el xlsx se escriben como NÚMERO cuando la celda
    * lo es, para que Excel las sume (Carlos, 2026-10-30: el Excel de un
-   * movimiento). Sin la opción todo va como texto, igual que siempre; el
-   * encabezado nunca se toca, y un código como «0042» va en una columna que
-   * no se pide, así que conserva su cero.
+   * movimiento). Todas las DEMÁS llevan el formato «Texto» de Excel, en sus
+   * celdas y en la columna entera (Carlos, 2026-10-31): un código como «0042»
+   * conserva su cero aunque alguien lo vuelva a teclear. Sin la opción, todo
+   * va como texto; el encabezado nunca se toca.
    */
   numericColumns?: readonly number[];
+  /**
+   * Columnas (desde 0) que no llevan formato: ni número ni «Texto». Es para
+   * la caducidad de una plantilla que se IMPORTA: si alguien teclea
+   * «15/08/2026», Excel tiene que seguir volviéndola fecha, que la
+   * importación lee como ISO; con formato Texto quedaría literal y fallaría.
+   */
+  plainColumns?: readonly number[];
 }
 
 /** Un número que se puede escribir sin perder nada: «448.8», «-3», «36». */
 const NUMERO = /^-?\d+(\.\d+)?$/;
+
+/** El formato «Texto» de Excel: lo que se escribe ahí se guarda tal cual se tecleó. */
+const TEXT_FORMAT = "@";
+
+/**
+ * Las posiciones (desde 0) que ocupan `columns` dentro de `header`, para
+ * armar `numericColumns` a partir de los NOMBRES de las columnas y no de
+ * posiciones escritas a mano, que se desfasan el día que alguien agrega una
+ * columna en medio. Un nombre que el encabezado no trae no aporta nada: una
+ * misma lista sirve para las variantes de una planilla (la de entrada tiene
+ * «cantidad»; la de conteo, «contado»).
+ */
+export function columnIndexes(header: readonly string[], columns: readonly string[]): number[] {
+  const wanted = new Set(columns);
+  return header.flatMap((name, index) => (wanted.has(name) ? [index] : []));
+}
 
 export async function parseSpreadsheet(
   content: string,
@@ -100,14 +124,46 @@ export async function serializeSpreadsheet(
   const sheet = workbook.addWorksheet(options.sheetName ?? SHEET_NAME);
 
   const numericas = new Set(options.numericColumns ?? []);
+  const sinFormato = new Set(options.plainColumns ?? []);
+  const llevaTexto = (columna: number) => !numericas.has(columna) && !sinFormato.has(columna);
   for (const [fila, row] of rows.entries()) {
-    sheet.addRow(
+    const added = sheet.addRow(
       fila === 0 || numericas.size === 0
         ? [...row]
         : row.map((celda, columna) =>
             numericas.has(columna) && NUMERO.test(celda) ? Number(celda) : celda,
           ),
     );
+    if (fila === 0) {
+      continue;
+    }
+    // Formato «Texto» en cada celda escrita de una columna que no es numérica.
+    // Sin esto Excel las deja en «General», y quien corrige un código en la
+    // planilla ve cómo «001000000018» se vuelve 1000000018 al dar Enter.
+    for (const [columna, celda] of row.entries()) {
+      if (llevaTexto(columna)) {
+        added.getCell(columna + 1).numFmt = TEXT_FORMAT;
+      } else if (numericas.has(columna)) {
+        // El número se guarda limpio (2.5) y se MUESTRA con los decimales que
+        // traía el texto («2.50»): Carlos decidió el 2026-09-02 que el kardex
+        // pinte dos decimales, y un precio «116.00» no debe verse «116».
+        const decimales = NUMERO.test(celda) ? (celda.split(".")[1]?.length ?? 0) : 0;
+        if (decimales > 0) {
+          added.getCell(columna + 1).numFmt = `0.${"0".repeat(decimales)}`;
+        }
+      }
+    }
+  }
+
+  // Y en la COLUMNA, para las filas que alguien agregue después. Se asigna el
+  // estilo sin el setter `numFmt` de exceljs, que lo propagaría también al
+  // encabezado.
+  const anchura = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  for (let columna = 0; columna < anchura; columna += 1) {
+    if (llevaTexto(columna)) {
+      const column = sheet.getColumn(columna + 1);
+      column.style = { ...column.style, numFmt: TEXT_FORMAT };
+    }
   }
 
   // El encabezado en negrita y congelado: con cientos de productos, perder de

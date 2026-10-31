@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { columnIndexes } from "../../common/spreadsheet/spreadsheet";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { ShiftsExportQueryDto } from "./dto/shifts-report.dto";
@@ -43,6 +44,34 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Note",
   ],
 };
+/**
+ * Las que van como NÚMERO en el xlsx: los montos y el conteo de ventas. Las
+ * fechas, las personas, la sucursal y la nota quedan como texto.
+ */
+const NUMERICAS: Record<Locale, string[]> = {
+  es: [
+    "Efectivo",
+    "Tarjeta",
+    "Transferencia",
+    "Ventas",
+    "Fondo inicial",
+    "Gastos en efectivo",
+    "Calculado",
+    "Contado",
+    "Diferencia",
+  ],
+  en: [
+    "Cash",
+    "Card",
+    "Transfer",
+    "Sales",
+    "Opening cash",
+    "Cash expenses",
+    "Expected",
+    "Counted",
+    "Difference",
+  ],
+};
 const HOJA: Record<Locale, string> = { es: "Cierres de turno", en: "Shift closes" };
 
 /**
@@ -72,6 +101,7 @@ export class ShiftsExportService {
         return (await this.shifts.all(user, scope, consulta)).map((turno) => fila(turno, zona));
       },
       header: ENCABEZADOS[locale],
+      numericColumns: columnIndexes(ENCABEZADOS[locale], NUMERICAS[locale]),
       format: query.format,
       sheetName: HOJA[locale],
       filenameBase: spreadsheetFilenameBase("cierres-de-turno", locale),

@@ -4,7 +4,7 @@ import { hasValidMoneyScale, MONEY_MAX, normalizeCode } from "@sellpoint/shared"
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
-import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
+import { columnIndexes, serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -25,6 +25,9 @@ import {
  */
 // F4-TAX-11: `impuesto` lleva el CÓDIGO del grupo; vacío = el default del negocio.
 const COLUMNAS = ["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"] as const;
+
+/** Las que en el xlsx van como NÚMERO; el código y el impuesto son texto. */
+const NUMERICAS = columnIndexes(COLUMNAS, ["costo", "precio"]);
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 
 export interface StudyImportReport {
@@ -128,6 +131,7 @@ export abstract class StudyImportService {
       {
         sheetName: spreadsheetSheetName(this.config.sheetName, locale),
         filenameBase: spreadsheetFilenameBase(this.config.filenameBase, locale),
+        numericColumns: NUMERICAS,
       },
     );
   }

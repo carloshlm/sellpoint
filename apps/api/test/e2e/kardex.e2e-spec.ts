@@ -303,8 +303,19 @@ describe("Kardex (F3-KARDEX-01)", () => {
 
         // Del más reciente al más viejo, como la pantalla.
         expect(columna(rows, "Solo enteros")).toEqual(["No", "No"]);
-        expect(columna(rows, "Cantidad")).toEqual(["1.2345", "2.50"]);
-        expect(columna(rows, "Saldo")).toEqual(["3.7345", "2.50"]);
+        // Carlos (2026-10-31): en el xlsx la cantidad y el saldo son NÚMEROS,
+        // para que Excel los sume. El valor es 2.5; la celda lo MUESTRA «2.50»
+        // con el formato 0.00 (decisión del 2026-09-02, en spreadsheet.spec).
+        expect(columna(rows, "Cantidad")).toEqual(["1.2345", "2.5"]);
+        expect(columna(rows, "Saldo")).toEqual(["3.7345", "2.5"]);
+
+        // El CSV, que es texto, sigue pintando los dos decimales.
+        const csv = (
+          (await descargar(token, kiloId, "?format=csv").expect(200)).body as Buffer
+        ).toString("utf8");
+        const lineas = csv.split("\n").map((linea) => linea.split(","));
+        expect(columna(lineas, "Cantidad")).toEqual(["1.2345", "2.50"]);
+        expect(columna(lineas, "Saldo")).toEqual(["3.7345", "2.50"]);
       });
     });
 
