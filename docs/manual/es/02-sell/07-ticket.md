@@ -11,6 +11,8 @@ imprime. Arriba queda el aviso verde **Venta VTA-000483 cobrada.** con el botón
 **Imprimir ticket**, por si el cliente quiere otro, hasta que presionas
 **Cobrar** en la siguiente venta.
 
+- Si en el cuadro eliges **Guardar como PDF**, el archivo se llama como el
+  folio de la venta, por ejemplo `VTA-000483.pdf`.
 - Si el navegador no deja imprimir directo, abre el ticket en otra pestaña o lo
   descarga como archivo PDF.
 - Si avisa **No pudimos abrir el ticket. Puedes reimprimirlo desde el

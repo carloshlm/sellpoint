@@ -165,6 +165,99 @@ describe("imprimirPdf", () => {
     expect(document.querySelectorAll("iframe")).toHaveLength(1);
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Carlos (2026-10-31): «Guardar como PDF» proponía «SellPointy.pdf» para el
+   * ticket VTA-000105. Chrome nombra el archivo con el título de la PESTAÑA,
+   * no con el del iframe ni el del PDF.
+   */
+  describe("el nombre que propone «Guardar como PDF»", () => {
+    /** Imprime el papel y devuelve el título que tenía la pestaña al abrir el cuadro. */
+    function imprimirYLeerTitulo(filename: string): string {
+      let titulo = "";
+      imprimirPdf(new Blob(["%PDF"]), filename);
+      const frame = frameDeImpresion();
+      Object.defineProperty(frame, "contentWindow", {
+        value: {
+          focus: vi.fn(),
+          print: () => {
+            titulo = document.title;
+          },
+          location: { href: "blob:test-papel" },
+        },
+      });
+      frame.dispatchEvent(new Event("load"));
+      return titulo;
+    }
+
+    beforeEach(() => {
+      document.title = "SellPointy";
+    });
+
+    afterEach(() => {
+      document.dispatchEvent(new Event("pointerdown"));
+    });
+
+    it("al abrir el cuadro, la pestaña se llama como el folio (sin «.pdf», Chrome lo agrega)", () => {
+      expect(imprimirYLeerTitulo("VTA-000105.pdf")).toBe("VTA-000105");
+    });
+
+    it("la pestaña recupera su título con el primer clic después de imprimir", () => {
+      imprimirYLeerTitulo("VTA-000105.pdf");
+      expect(document.title).toBe("VTA-000105");
+
+      document.dispatchEvent(new Event("pointerdown"));
+
+      expect(document.title).toBe("SellPointy");
+    });
+
+    it("o con la primera tecla (el lector de códigos del siguiente cliente)", () => {
+      imprimirYLeerTitulo("VTA-000105.pdf");
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "7" }));
+
+      expect(document.title).toBe("SellPointy");
+    });
+
+    it("dos papeles seguidos: la pestaña vuelve a SU título, no al folio del primero", () => {
+      imprimirYLeerTitulo("VTA-000105.pdf");
+      expect(imprimirYLeerTitulo("VTA-000106.pdf")).toBe("VTA-000106");
+
+      document.dispatchEvent(new Event("pointerdown"));
+
+      expect(document.title).toBe("SellPointy");
+    });
+
+    it("si el papel se abre en pestaña porque el iframe no imprime, el título no cambia", () => {
+      vi.spyOn(window, "open").mockReturnValue({} as Window);
+      imprimirPdf(new Blob(["%PDF"]), "VTA-000105.pdf");
+      const frame = frameDeImpresion();
+      Object.defineProperty(frame, "contentWindow", {
+        value: { focus: vi.fn(), print: vi.fn(), location: { href: "about:blank" } },
+      });
+      frame.dispatchEvent(new Event("load"));
+
+      expect(document.title).toBe("SellPointy");
+    });
+
+    it("si el iframe rechaza imprimir y el papel se va a una pestaña, la de SellPointy conserva su título", () => {
+      vi.spyOn(window, "open").mockReturnValue({} as Window);
+      imprimirPdf(new Blob(["%PDF"]), "VTA-000105.pdf");
+      const frame = frameDeImpresion();
+      Object.defineProperty(frame, "contentWindow", {
+        value: {
+          focus: vi.fn(),
+          print: () => {
+            throw new Error("bloqueado");
+          },
+          location: { href: "blob:test-papel" },
+        },
+      });
+      frame.dispatchEvent(new Event("load"));
+
+      expect(document.title).toBe("SellPointy");
+    });
+  });
 });
 
 /**

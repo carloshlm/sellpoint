@@ -60,6 +60,38 @@ export function abrirPdfParaImprimir(blob: Blob, filename: string): void {
 
 const PRINT_FRAME_ID = "sellpoint-print-frame";
 
+/** El título de la pestaña antes de imprimir; `null` si no hay uno pendiente de volver. */
+let tituloPorRestaurar: string | null = null;
+
+function restaurarTitulo(): void {
+  if (tituloPorRestaurar !== null) {
+    document.title = tituloPorRestaurar;
+    tituloPorRestaurar = null;
+  }
+  document.removeEventListener("pointerdown", restaurarTitulo, true);
+  document.removeEventListener("keydown", restaurarTitulo, true);
+}
+
+/**
+ * «Guardar como PDF» propone el nombre con el título de la PESTAÑA, no con el
+ * del iframe ni el del PDF: todo papel salía como «SellPointy.pdf» (Carlos,
+ * 2026-10-31, con el ticket VTA-000105). Mientras el cuadro de impresión está
+ * abierto la pestaña se llama como el archivo, sin «.pdf» (Chrome lo agrega).
+ *
+ * Vuelve a su título con el primer clic o tecla: el cuadro no avisa en todos
+ * los navegadores cuándo se cierra, y mientras está abierto la página no se
+ * puede tocar, así que esa primera interacción ya es después. Dos papeles
+ * seguidos guardan el título ORIGINAL, no el folio del primero.
+ */
+function titularPestanaParaImprimir(filename: string): void {
+  if (tituloPorRestaurar === null) {
+    tituloPorRestaurar = document.title;
+    document.addEventListener("pointerdown", restaurarTitulo, true);
+    document.addEventListener("keydown", restaurarTitulo, true);
+  }
+  document.title = filename.replace(/\.pdf$/i, "");
+}
+
 /**
  * Imprime un PDF SIN salir de la pantalla: lo carga en un iframe oculto y
  * llama a `print()` sobre él, que abre el cuadro de impresión del navegador
@@ -92,9 +124,11 @@ export function imprimirPdf(blob: Blob, filename: string): void {
         abrirPdfParaImprimir(blob, filename);
         return;
       }
+      titularPestanaParaImprimir(filename);
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
     } catch {
+      restaurarTitulo();
       abrirPdfParaImprimir(blob, filename);
     }
   });
