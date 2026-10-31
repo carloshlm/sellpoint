@@ -1,8 +1,8 @@
 /**
  * Catálogo de TEMAS del negocio (Carlos, 2026-08-25/26).
  *
- * El tenant elige UN tema y toda la app se pinta con él. Desde el 2026-10-24
- * son catorce, todos con piel, elegidos por Carlos de un lienzo de propuestas;
+ * El tenant elige UN tema y toda la app se pinta con él. Desde el 2026-10-30
+ * son quince, todos con piel, elegidos por Carlos de un lienzo de propuestas;
  * se retiraron Uva, Esmeralda y Carbón, y Niebla Cobalto y Grafito Líquido se
  * volvieron el estilo de Claro y de Oscuro (migración
  * `f10_theme_catalog_consolidation`). El WIZARD ofrece cinco; Mi perfil,
@@ -25,21 +25,24 @@
  * oscuros y las variantes `dark:` de los componentes cuelgan de ella.
  */
 
+// El ORDEN es el del selector de Mi perfil (Carlos, 2026-10-30): Claro y
+// Oscuro, los dos de la marca, y Cabina al final.
 export const THEME_IDS = [
   "light",
   "dark",
+  "sellpointy",
+  "sellpointy-light",
   "sand",
   "espresso",
   "jade",
   "forest",
-  "cabin",
   "cotton",
   "cotton-night",
   "violet",
   "amethyst",
   "sky",
   "marine",
-  "sellpointy",
+  "cabin",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -199,6 +202,16 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     nameKey: "common.theme.names.sellpointy",
     swatch: "#1e3fd8",
     isDark: true,
+    skinned: true,
+  },
+  // SellPointy Claro (Carlos, 2026-10-30): el menú de la marca con todo lo
+  // demás de Claro. Bitono, así que su muestra es el azul del menú, como en
+  // Café Expreso, Esmeralda Bosque y Marino.
+  "sellpointy-light": {
+    id: "sellpointy-light",
+    nameKey: "common.theme.names.sellpointy-light",
+    swatch: "#1e3fd8",
+    isDark: false,
     skinned: true,
   },
 };

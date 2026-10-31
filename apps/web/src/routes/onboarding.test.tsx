@@ -323,11 +323,11 @@ describe("/onboarding", () => {
     it("muestra las CINCO opciones en su orden, con SellPointy preseleccionado", async () => {
       await renderRoute("/onboarding");
 
-      expect(await screen.findByRole("radio", { name: "SellPointy" })).toBeChecked();
+      expect(await screen.findByRole("radio", { name: "SellPointy Clásico" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Claro" })).not.toBeChecked();
       expect(
         screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent),
-      ).toEqual(["SellPointy", "Claro", "Oscuro", "Arena", "Algodón"]);
+      ).toEqual(["SellPointy Clásico", "Claro", "Oscuro", "Arena", "Algodón"]);
       expect(screen.getByRole("radio", { name: "Oscuro" })).not.toBeChecked();
       expect(screen.queryByRole("radio", { name: "Uva" })).not.toBeInTheDocument();
       // Y el aviso de que no es una decisión definitiva.

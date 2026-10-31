@@ -57,8 +57,33 @@ describe("catálogo de temas", () => {
       "marine",
       "sand",
       "sellpointy",
+      "sellpointy-light",
       "sky",
       "violet",
+    ]);
+  });
+
+  /**
+   * Carlos (2026-10-30): el orden del selector. Primero Claro y Oscuro, luego
+   * los dos de la marca, y Cabina al final.
+   */
+  it("el perfil los ofrece en el orden que pidió Carlos", () => {
+    expect([...THEME_IDS]).toEqual([
+      "light",
+      "dark",
+      "sellpointy",
+      "sellpointy-light",
+      "sand",
+      "espresso",
+      "jade",
+      "forest",
+      "cotton",
+      "cotton-night",
+      "violet",
+      "amethyst",
+      "sky",
+      "marine",
+      "cabin",
     ]);
   });
 
@@ -121,6 +146,7 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
     // un éxito. Los temas CLAROS usan los semánticos de :root; los oscuros
     // usan los de `.dark` — por eso `applyTheme` los acompaña con la clase.
     for (const id of [
+      "sellpointy-light",
       "sand",
       "espresso",
       "jade",
@@ -224,12 +250,13 @@ describe("la piel por componente (temas skinned)", () => {
     expect(SKINNED).toEqual([...THEME_IDS]);
     // Carlos, 2026-10-24: se sumaron Algodón Noche, Violeta, Amatista, Cielo y
     // Marino, y Algodón tomó el rosa chicle.
+    // Carlos, 2026-10-30: el orden nuevo del selector; SellPointy Claro es claro.
     expect(SKINNED.filter((id) => THEMES[id].isDark)).toEqual([
       "dark",
-      "cabin",
+      "sellpointy",
       "cotton-night",
       "amethyst",
-      "sellpointy",
+      "cabin",
     ]);
   });
 
@@ -239,6 +266,48 @@ describe("la piel por componente (temas skinned)", () => {
     const block = css.match(/:root\[data-theme="sellpointy"\]\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(block).toMatch(/--skin-title-dot:\s*#ffc42e/);
     expect(block).toMatch(/--warning:\s*#ffa057/);
+  });
+
+  /**
+   * Carlos (2026-10-30): «SellPointy Claro» es el menú de SellPointy Clásico
+   * con todo lo demás de Claro. Las fichas del menú se comparan con las de la
+   * marca y las de la página con las de Claro: si alguien retoca uno de los
+   * dos, este tema no se queda a medias sin que nadie lo note.
+   */
+  it("SellPointy Claro lleva el menú de SellPointy y lo demás de Claro", () => {
+    const valor = (bloque: string, token: string) =>
+      bloque.match(new RegExp(`${token}:\\s*([^;]+);`))?.[1]?.trim();
+    const marca = bloqueDelTema("sellpointy");
+    const claro = bloqueDelTema("light");
+    const nuevo = bloqueDelTema("sellpointy-light");
+
+    for (const token of [
+      "--sidebar",
+      "--sidebar-foreground",
+      "--sidebar-section",
+      "--skin-sidebar-bg",
+      "--skin-sidebar-line",
+      "--skin-nav-hover-bg",
+      "--skin-nav-active-bg",
+      "--skin-nav-active-color",
+      "--skin-nav-item-radius",
+      "--skin-label-tracking",
+    ]) {
+      expect([token, valor(nuevo, token)]).toEqual([token, valor(marca, token)]);
+    }
+    for (const token of [
+      "--background",
+      "--card",
+      "--primary",
+      "--skin-glass",
+      "--skin-title-dot-display",
+      "--skin-button-radius",
+      "--app-font-sans",
+    ]) {
+      expect([token, valor(nuevo, token)]).toEqual([token, valor(claro, token)]);
+    }
+    expect(nuevo).toContain("color-scheme: light");
+    expect(THEMES["sellpointy-light"].isDark).toBe(false);
   });
 
   it("la piel lee tokens: si esto falla, el barrido no está mirando nada", () => {

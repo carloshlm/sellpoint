@@ -110,14 +110,14 @@ Si tienes más sucursales, las das de alta después en **Catálogos** ›
 ![Paso 3: el tema de tu negocio](screen:wizard-theme)
 
 El tema son los colores de SellPointy para todo tu negocio. Para empezar hay
-cinco: **SellPointy**, **Claro**, **Oscuro**, **Arena** y **Algodón**. Al
+cinco: **SellPointy Clásico**, **Claro**, **Oscuro**, **Arena** y **Algodón**. Al
 presionar uno, el asistente se pinta con él para que veas cómo queda; si no
-eliges, se queda **SellPointy**, el tema con el que nace tu negocio: el de la
+eliges, se queda **SellPointy Clásico**, el tema con el que nace tu negocio: el de la
 marca, oscuro y con el menú en azul.
 
 Presiona **Terminar**. SellPointy guarda el tema, deja listos los impuestos de
 tu país (capítulo 13) y te lleva a tu **Panel**. El tema lo puedes cambiar
-cuando quieras, entre catorce, en **Mi perfil** (capítulo 3).
+cuando quieras, entre quince, en **Mi perfil** (capítulo 3).
 
 ## Tu prueba gratis
 

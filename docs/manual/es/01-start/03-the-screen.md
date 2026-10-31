@@ -106,11 +106,12 @@ en **Mi perfil** › **Tema**. Esa tarjeta solo la ve quien tiene el permiso
 
 ![El tema del negocio, en Mi perfil; aquí, con Oscuro](screen:theme-card)
 
-Hay catorce. Además de los colores, cada uno cambia la forma de todo: las
+Hay quince. Además de los colores, cada uno cambia la forma de todo: las
 tarjetas, los botones, los campos, las tablas y la letra.
 
-- **SellPointy**, el de la marca: oscuro, con el menú en azul y un punto
-  amarillo al final de cada título, como en sellpointy.com.
+- Los de la marca: **SellPointy Clásico**, oscuro, con el menú en azul y un
+  punto amarillo al final de cada título, como en sellpointy.com; y
+  **SellPointy Claro**, con el mismo menú azul y todo lo demás como **Claro**.
 - Claros: **Claro** (azul, con tarjetas blancas que flotan), **Arena** (cremas
   y café), **Café Expreso** (el menú en café oscuro), **Esmeralda Jade**
   (verde), **Esmeralda Bosque** (el menú en verde bosque), **Algodón** (rosa),

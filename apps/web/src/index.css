@@ -30,7 +30,7 @@
    SISTEMA DE TEMAS — UN SOLO EJE: `tenant.theme`
    ============================================================================
    El TENANT elige su tema (wizard paso 3, o Mi perfil) y toda la app se
-   pinta con él. Desde el 2026-10-24 son catorce, todos con PIEL (ver «LA
+   pinta con él. Desde el 2026-10-30 son quince, todos con PIEL (ver «LA
    PIEL», al final), elegidos por Carlos de lienzos de propuestas:
 
      light  (Claro)            -> `:root` a secas: la red de seguridad.
@@ -46,7 +46,8 @@
      amethyst (Amatista)       -> oscuro, violeta con vidrio.
      sky    (Cielo)            -> claro, azul tipo Salesforce, nítido.
      marine (Marino)           -> claro, bitono: menú azul marino.
-     sellpointy (SellPointy)   -> oscuro, la marca y el tema por defecto.
+     sellpointy (SellPointy Clásico) -> oscuro, la marca y el tema por defecto.
+     sellpointy-light (SellPointy Claro) -> Claro con el menú de la marca.
 
    Cada tema define también sus LETRAS (`--app-font-sans`/`--app-font-mono`),
    que `font-sans` y `font-mono` leen.
@@ -1862,6 +1863,144 @@
   --skin-table-head-padding-block: 11px;
   --skin-table-row-line: rgba(236, 239, 255, 0.08);
   --skin-table-row-hover: rgba(236, 239, 255, 0.04);
+}
+
+/* ===================== TEMA: SELLPOINTY CLARO (sellpointy-light) =====================
+   Carlos (2026-10-30): el MENÚ de SellPointy Clásico —azul de la marca, el
+   círculo en la esquina, el activo en píldora blanca y los títulos de sección
+   en mono espaciada— con TODO lo demás de Claro. Es una copia del bloque de
+   Claro con las fichas del menú (`--sidebar-*`, `--skin-sidebar-*`,
+   `--skin-nav-*` y `--skin-label-*`, que solo lee el título de sección) tomadas
+   de SellPointy. `themes.test.ts` compara las dos mitades contra sus
+   originales: si alguien retoca Claro o la marca, este tema avisa. Claro:
+   usa los semánticos de `:root`. */
+:root[data-theme="sellpointy-light"] {
+  color-scheme: light;
+  accent-color: #2846e8;
+  --background: #f1f4f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2846e8;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f7;
+  --secondary-foreground: #0f172a;
+  --muted: #eef1f7;
+  --muted-foreground: #5b6779;
+  --accent: #eef2ff;
+  --accent-foreground: #1a2fb0;
+  --destructive: #c8302a;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2846e8;
+  --radius: 0.75rem;
+  --chart-1: #2846e8;
+  --chart-2: #16a06d;
+  --chart-3: #e8a23b;
+  --chart-4: #ff7a3d;
+  --chart-5: #7c5cff;
+  --sidebar: #1e3fd8;
+  --sidebar-foreground: #dfe4fb;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #1e3fd8;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #1e3fd8;
+  --sidebar-border: #3a57e8;
+  --sidebar-ring: #ffc42e;
+  --sidebar-section: #ccd5f8;
+  --app-font-sans: 'Plus Jakarta Sans Variable', 'Geist Variable', sans-serif;
+  --app-font-mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  --skin-app-backdrop:
+    radial-gradient(900px 620px at 0% 0%, rgba(40, 70, 232, 0.11), rgba(40, 70, 232, 0) 60%),
+    radial-gradient(760px 520px at 100% 100%, rgba(255, 122, 61, 0.08), rgba(255, 122, 61, 0) 60%);
+  --skin-text-weight: 500;
+  /* 750 y -0.01em, no los 800 y -0.03em del lienzo: el espacio de Plus
+     Jakarta Sans es angosto y a 14 px los títulos de tarjeta se leían
+     pegados («Másvendidos»; visto en el Panel, 2026-10-22). */
+  --skin-heading-weight: 750;
+  --skin-heading-tracking: -0.01em;
+  /* Tokens que abrieron los temas de la tanda del 2026-10-22; aquí, con los
+     valores de siempre: este tema no cambia. */
+  --skin-heading-font: inherit;
+  --skin-title-dot: transparent;
+  --skin-title-dot-display: none;
+  --skin-primary-text: var(--primary);
+  --skin-sidebar-bg: radial-gradient(circle at calc(100% + 70px) -70px, #15309f 0 190px, rgba(21, 48, 159, 0) 190.5px),
+    linear-gradient(180deg, #1e3fd8 0%, #1a37c2 100%);
+  --skin-sidebar-line: rgba(255, 255, 255, 0.12);
+  --skin-nav-hover-bg: rgba(255, 255, 255, 0.12);
+  --skin-nav-hover-color: #ffffff;
+  --skin-charge-bg: var(--primary);
+  --skin-charge-color: var(--primary-foreground);
+  --skin-charge-shadow: var(--skin-primary-shadow);
+  --skin-numbers-font: var(--app-font-mono);
+  /* DM Mono no tiene seminegrita: sin esto, el navegador engorda a mano la
+     de 500 y las cifras quedan manchadas. Mejor la 500 limpia. */
+  --skin-numbers-synthesis: none;
+  --skin-label-font: 'JetBrains Mono Variable', ui-monospace, Menlo, monospace;
+  --skin-label-size: 10.5px;
+  --skin-label-weight: 500;
+  --skin-label-tracking: 0.14em;
+  --skin-glass: rgba(255, 255, 255, 0.82);
+  --skin-glass-hover: rgba(40, 70, 232, 0.06);
+  --skin-glass-thumb: #eef1f7;
+  --skin-glass-strong: rgba(255, 255, 255, 0.92);
+  --skin-blur: blur(20px) saturate(160%);
+  --skin-well: #f4f6fb;
+  --skin-well-focus: #ffffff;
+  --skin-well-shadow: 0 0 transparent;
+  --skin-hair: #e2e8f0;
+  --skin-hair-strong: #cbd5e1;
+  --skin-highlight: rgba(255, 255, 255, 0.9);
+  --skin-sheen: none;
+  /* El aro blanco de la porcelana: tapa el borde gris de la tarjeta. */
+  --skin-rim: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.95));
+  --skin-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05), 0 18px 40px -22px rgba(30, 41, 90, 0.28),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --skin-overlay-shadow: 0 2px 4px rgba(15, 23, 42, 0.04), 0 24px 48px -20px rgba(30, 41, 90, 0.35);
+  --skin-scrim: rgba(15, 23, 42, 0.32);
+  --skin-accent-wash: rgba(40, 70, 232, 0.14);
+  --skin-accent-line: rgba(40, 70, 232, 0.3);
+  --skin-accent-ring: #2846e8;
+  --skin-glow: rgba(40, 70, 232, 0.55);
+  /* Un brillo BLANCO sobre el color del botón, no un cobalto fijo: sobre el
+     primario da el #3a57f0 → #2846e8 del diseño, y un botón que traiga su
+     propio color (verde, rojo) lo conserva. */
+  --skin-primary-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  --skin-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 12px 24px -10px rgba(40, 70, 232, 0.65);
+  --skin-button-soft-bg: #ffffff;
+  --skin-button-soft-shadow: inset 0 0 0 1px var(--skin-hair), 0 1px 2px rgba(15, 23, 42, 0.05);
+  --skin-nav-active-bg: #ffffff;
+  --skin-nav-active-color: #1e3fd8;
+  --skin-nav-active-shadow: 0 8px 20px -10px rgba(3, 8, 40, 0.7);
+  --skin-check-shadow: 0 4px 10px -4px rgba(40, 70, 232, 0.7);
+  --skin-badge-font: var(--app-font-sans);
+  --skin-badge-size: 12px;
+  --skin-badge-tracking: 0;
+  --skin-badge-transform: none;
+  --skin-badge-ring: 0 0 transparent;
+  --skin-card-radius: 20px;
+  --skin-overlay-radius: 20px;
+  --skin-control-radius: 12px;
+  --skin-button-radius: 12px;
+  --skin-nav-item-radius: 999px;
+  --skin-badge-radius: 999px;
+  --skin-checkbox-radius: 5px;
+  --skin-table-head-bg: #eef2f8;
+  --skin-table-head-line: #dce3ee;
+  --skin-table-head-color: #334155;
+  --skin-table-head-font: var(--app-font-sans);
+  --skin-table-head-size: 12.5px;
+  --skin-table-head-weight: 700;
+  --skin-table-head-tracking: 0;
+  --skin-table-head-transform: none;
+  --skin-table-head-padding-block: 11px;
+  --skin-table-row-line: #eef2f7;
+  --skin-table-row-hover: #f5f7ff;
 }
 
 @theme inline {

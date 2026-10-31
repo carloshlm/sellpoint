@@ -56,30 +56,48 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
     expect(screen.getByRole("radio", { name: "Arena" })).toBeChecked();
   });
 
-  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: los catorce del 2026-10-24. */
-  it("ofrece los CATORCE temas, y ya no los retirados", () => {
+  /**
+   * A diferencia del wizard, el perfil ofrece el catálogo COMPLETO: los quince
+   * del 2026-10-30, en el orden que pidió Carlos, con SellPointy Claro nuevo y
+   * SellPointy renombrado a SellPointy Clásico.
+   */
+  it("ofrece los QUINCE temas en su orden, y ya no los retirados", () => {
     renderCard(demoUser(["tenants:manage"]));
 
-    expect(screen.getAllByRole("radio")).toHaveLength(14);
-    for (const nombre of [
+    expect(screen.getAllByRole("radio")).toHaveLength(15);
+    const orden = [
       "Claro",
       "Oscuro",
+      "SellPointy Clásico",
+      "SellPointy Claro",
       "Arena",
       "Café Expreso",
       "Esmeralda Jade",
       "Esmeralda Bosque",
-      "Cabina",
       "Algodón",
       "Algodón Noche",
       "Violeta",
       "Amatista",
       "Cielo",
       "Marino",
+      "Cabina",
+    ];
+    const radios = orden.map((nombre) => screen.getByRole("radio", { name: nombre }));
+    // Cada uno va DESPUÉS del anterior en el documento: el orden es el que se ve.
+    for (let i = 1; i < radios.length; i += 1) {
+      expect(
+        (radios[i - 1] as Node).compareDocumentPosition(radios[i] as Node) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    for (const retirado of [
+      "Uva",
+      "Esmeralda",
+      "Carbón",
+      "Grafito Líquido",
+      "Niebla Cobalto",
       "SellPointy",
     ]) {
-      expect(screen.getByRole("radio", { name: nombre })).toBeInTheDocument();
-    }
-    for (const retirado of ["Uva", "Esmeralda", "Carbón", "Grafito Líquido", "Niebla Cobalto"]) {
       expect(screen.queryByRole("radio", { name: retirado })).not.toBeInTheDocument();
     }
   });
@@ -144,8 +162,8 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Algo salió mal");
     // La pantalla no miente un tema que no se guardó: vuelve al que tenía
-    // (el negocio de prueba no eligió tema, así que el default, SellPointy).
+    // (el negocio de prueba no eligió tema, así que el default, SellPointy Clásico).
     expect(document.documentElement.dataset.theme).toBe("sellpointy");
-    expect(screen.getByRole("radio", { name: "SellPointy" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "SellPointy Clásico" })).toBeChecked();
   });
 });

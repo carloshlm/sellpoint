@@ -439,7 +439,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         expect(getResponse.body).toMatchObject({ theme: "sand" });
       });
 
-      it("todos los temas del catálogo (los catorce del 2026-10-24) persisten", async () => {
+      it("todos los temas del catálogo (los quince del 2026-10-30) persisten", async () => {
         const owner = await registerActiveOwner();
 
         for (const theme of [
@@ -448,6 +448,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
           "cabin",
           "cotton",
           "sellpointy",
+          "sellpointy-light",
           "espresso",
           "jade",
           "forest",
