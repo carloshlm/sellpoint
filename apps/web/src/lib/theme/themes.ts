@@ -5,7 +5,7 @@
  * son quince, todos con piel, elegidos por Carlos de un lienzo de propuestas;
  * se retiraron Uva, Esmeralda y Carbón, y Niebla Cobalto y Grafito Líquido se
  * volvieron el estilo de Claro y de Oscuro (migración
- * `f10_theme_catalog_consolidation`). El WIZARD ofrece cinco; Mi perfil,
+ * `f10_theme_catalog_consolidation`). El WIZARD ofrece seis; Mi perfil,
  * todos — el paso 3 lo avisa.
  *
  * PARA AGREGAR UN TEMA NUEVO (3 pasos, en este orden):
@@ -71,10 +71,12 @@ export const ROOT_THEME: ThemeId = "light";
  * desde el 2026-09-26 abre con el de la marca y Algodón toma el lugar de Uva
  * (Carlos). Mi perfil no usa esta lista: muestra el catálogo en su orden.
  */
+// Carlos (2026-10-31): seis, con SellPointy Claro después de Oscuro.
 export const WIZARD_THEME_IDS: readonly ThemeId[] = [
   "sellpointy",
   "light",
   "dark",
+  "sellpointy-light",
   "sand",
   "cotton",
 ];

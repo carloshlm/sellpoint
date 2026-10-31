@@ -320,18 +320,18 @@ describe("/onboarding", () => {
 
     // Carlos, 2026-09-26: abre con el tema de la marca, que además es el
     // preseleccionado (el default del producto), y Algodón toma el lugar de Uva.
-    it("muestra las CINCO opciones en su orden, con SellPointy preseleccionado", async () => {
+    it("muestra las SEIS opciones en su orden, con SellPointy preseleccionado", async () => {
       await renderRoute("/onboarding");
 
       expect(await screen.findByRole("radio", { name: "SellPointy Clásico" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Claro" })).not.toBeChecked();
       expect(
         screen.getAllByRole("radio").map((radio) => radio.closest("label")?.textContent),
-      ).toEqual(["SellPointy Clásico", "Claro", "Oscuro", "Arena", "Algodón"]);
+      ).toEqual(["SellPointy Clásico", "Claro", "Oscuro", "SellPointy Claro", "Arena", "Algodón"]);
       expect(screen.getByRole("radio", { name: "Oscuro" })).not.toBeChecked();
       expect(screen.queryByRole("radio", { name: "Uva" })).not.toBeInTheDocument();
-      // Y el aviso de que no es una decisión definitiva.
-      expect(screen.getByText(/Mi perfil/)).toBeInTheDocument();
+      // Y el aviso de que no es una decisión definitiva, con la cuenta al día.
+      expect(screen.getByText(/Mi perfil/)).toHaveTextContent("Estos son los seis básicos.");
     });
 
     /**
@@ -343,7 +343,7 @@ describe("/onboarding", () => {
       await renderRoute("/onboarding");
       await screen.findByRole("radio", { name: "Claro" });
 
-      expect(screen.getAllByRole("radio")).toHaveLength(5);
+      expect(screen.getAllByRole("radio")).toHaveLength(6);
       expect(screen.queryByRole("radio", { name: "Esmeralda" })).not.toBeInTheDocument();
       expect(screen.queryByRole("radio", { name: "Cabina" })).not.toBeInTheDocument();
       expect(screen.getByText(/más opciones/)).toBeInTheDocument();

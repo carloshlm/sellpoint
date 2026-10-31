@@ -117,7 +117,15 @@ describe("catálogo de temas", () => {
     // Elegir tema no debe volverse la parte larga del registro (Carlos,
     // 2026-08-26) — el paso 3 avisa que en Mi perfil hay más. Desde el
     // 2026-09-26 abre con el de la marca y Algodón toma el lugar de Uva.
-    expect([...WIZARD_THEME_IDS]).toEqual(["sellpointy", "light", "dark", "sand", "cotton"]);
+    // Desde el 2026-10-31 son seis: SellPointy Claro entra después de Oscuro.
+    expect([...WIZARD_THEME_IDS]).toEqual([
+      "sellpointy",
+      "light",
+      "dark",
+      "sellpointy-light",
+      "sand",
+      "cotton",
+    ]);
     expect(THEME_IDS.length).toBeGreaterThan(WIZARD_THEME_IDS.length);
   });
 });

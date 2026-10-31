@@ -25,8 +25,8 @@ interface ThemePickerProps {
   /** Distingue los grupos cuando hubiera dos pickers montados (no hoy). */
   name?: string;
   /**
-   * Clases extra de la rejilla. El wizard pide tres columnas: cinco temas en
-   * cuatro columnas dejaban el quinto solo, y en cinco no cabe «SellPointy».
+   * Clases extra de la rejilla. El wizard pide tres columnas: sus seis temas
+   * quedan en dos filas parejas, y en más columnas no cabe «SellPointy Clásico».
    */
   className?: string;
 }

@@ -72,7 +72,7 @@ export const updateTenantSchema = z
     // el país puede venir en el mismo body o estar ya guardado.
     region: z.string().trim().min(1).max(8).nullable().optional(),
     // El tema del negocio (2026-08-25/26): catálogo cerrado, sin CHECK SQL —
-    // mismo criterio que currency/country. Cinco se ofrecen en el wizard; los
+    // mismo criterio que currency/country. Seis se ofrecen en el wizard; los
     // quince, desde Mi perfil (SellPointy Claro, 2026-10-30, es el decimoquinto).
     // Un negocio nuevo nace con 'sellpointy' (DEFAULT de la columna, F10-THEME-04).
     theme: z
