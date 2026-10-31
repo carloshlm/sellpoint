@@ -3,6 +3,7 @@ import type { Locale } from "@sellpoint/shared";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { type SpreadsheetFormat, serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -99,8 +100,11 @@ export class CountTemplateService {
           where: { warehouseId, productId: { in: productIds } },
           select: { productId: true, quantity: true },
         }),
+        // TODOS los lotes, también los que quedaron en cero o debajo: la suma
+        // completa es la que dice cuánto del saldo NO tiene lote. Las filas
+        // del papel siguen siendo solo los lotes con existencia.
         tx.stockLot.findMany({
-          where: { warehouseId, quantity: { gt: 0 }, lot: { productId: { in: productIds } } },
+          where: { warehouseId, lot: { productId: { in: productIds } } },
           select: {
             location: true,
             quantity: true,
@@ -126,21 +130,32 @@ export class CountTemplateService {
 
       const cuerpo: string[][] = [];
       for (const producto of productos) {
-        const lotes = lotesPorProducto.get(producto.id) ?? [];
+        const todos = lotesPorProducto.get(producto.id) ?? [];
+        const lotes = todos.filter((fila) => fila.quantity.greaterThan(0));
+        const saldo = new Prisma.Decimal(saldoPorProducto.get(producto.id) ?? "0");
+        // ── Lo que NO tiene lote (Carlos, 2026-10-31) ─────────────────────
+        //
+        // Encender el control por lote con existencias deja ese saldo sin
+        // lote: no hay fila de `stock_lots` que lo diga, es el total menos lo
+        // que está en lotes. Se daba como 0 y la farmacia veía en ceros un
+        // inventario que en «Stock por sucursal» decía 9.
+        const sinLote = todos.reduce((resto, fila) => resto.minus(fila.quantity), saldo);
+        const filaSinLote = (teorico: string) => [
+          producto.sku,
+          producto.name,
+          producto.baseUnit,
+          "",
+          "",
+          "",
+          teorico,
+          "",
+        ];
 
-        // Con lotes pero sin ninguno cargado sale igual, con la fila vacía: es
-        // la única forma de dar de alta el PRIMER lote desde la planilla.
+        // Sin lotes con existencia sale igual, con la fila vacía: es la única
+        // forma de dar de alta el PRIMER lote desde la planilla, y lleva lo
+        // que no tiene lote.
         if (!producto.tracksLots || lotes.length === 0) {
-          cuerpo.push([
-            producto.sku,
-            producto.name,
-            producto.baseUnit,
-            "",
-            "",
-            "",
-            producto.tracksLots ? "0" : (saldoPorProducto.get(producto.id) ?? "0"),
-            "",
-          ]);
+          cuerpo.push(filaSinLote(producto.tracksLots ? sinLote.toString() : saldo.toString()));
           continue;
         }
 
@@ -155,6 +170,11 @@ export class CountTemplateService {
             fila.quantity.toString(),
             "",
           ]);
+        }
+        // Con lotes Y saldo sin lote, una fila más al final: lo que todavía
+        // falta asignarle a un lote.
+        if (sinLote.greaterThan(0)) {
+          cuerpo.push(filaSinLote(sinLote.toString()));
         }
       }
 

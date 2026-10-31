@@ -252,6 +252,67 @@ describe("Inventario físico (F3-COUNT)", () => {
       expect(suyas[0]?.[col("teorico")]).toBe("0");
     });
 
+    /**
+     * Carlos (2026-10-31): la farmacia encendió el control por lote cuando ya
+     * tenía existencias. Ese saldo queda SIN LOTE (el total menos lo que está
+     * en lotes) y la plantilla lo daba como 0 — parecía que no había nada.
+     */
+    it("un producto con lotes cuyo saldo no tiene lote trae ese saldo en la fila sin lote", async () => {
+      const { token, tenantId, warehouseId } = await escenario();
+      const sku = `SNL-${randomUUID().slice(0, 6).toUpperCase()}`;
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const aceite = await tx.product.create({
+          data: { tenantId, sku, name: "Aceite de almendras", tracksLots: true },
+        });
+        await tx.stockByWarehouse.create({
+          data: { tenantId, productId: aceite.id, warehouseId, quantity: 9 },
+        });
+      });
+
+      const filas = await plantilla(token, warehouseId);
+      const header = (filas[0] ?? []).map((c) => c.trim().toLowerCase());
+      const col = (nombre: string) => header.indexOf(nombre);
+      const suyas = filas.slice(1).filter((f) => f[col("sku")] === sku);
+
+      expect(suyas).toHaveLength(1);
+      expect(suyas[0]?.[col("lote")]).toBe("");
+      expect(suyas[0]?.[col("teorico")]).toBe("9");
+    });
+
+    it("con lotes Y saldo sin lote, sale cada lote y una fila más con lo que no tiene lote", async () => {
+      const { token, tenantId, warehouseId } = await escenario();
+      const sku = `MIX-${randomUUID().slice(0, 6).toUpperCase()}`;
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const solural = await tx.product.create({
+          data: { tenantId, sku, name: "Solural coco", tracksLots: true },
+        });
+        const lote = await tx.productLot.create({
+          data: {
+            tenantId,
+            productId: solural.id,
+            lotCode: "2020",
+            expiresAt: new Date("2027-10-01"),
+          },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lote.id, warehouseId, location: "A-1", quantity: 4 },
+        });
+        await tx.stockByWarehouse.create({
+          data: { tenantId, productId: solural.id, warehouseId, quantity: 13 },
+        });
+      });
+
+      const filas = await plantilla(token, warehouseId);
+      const header = (filas[0] ?? []).map((c) => c.trim().toLowerCase());
+      const col = (nombre: string) => header.indexOf(nombre);
+      const suyas = filas.slice(1).filter((f) => f[col("sku")] === sku);
+
+      expect(suyas.map((f) => [f[col("lote")], f[col("teorico")]])).toEqual([
+        ["2020", "4"],
+        ["", "9"],
+      ]);
+    });
+
     /** Un compuesto no tiene existencias propias: contarlo no significa nada. */
     it("los compuestos no aparecen", async () => {
       const { token, warehouseId, compuestoSku } = await escenario();
