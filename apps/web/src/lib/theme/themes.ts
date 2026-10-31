@@ -85,6 +85,12 @@ export interface ThemeOption {
   nameKey: string;
   /** La muestra del selector. Los hex están permitidos ACÁ: es el catálogo. */
   swatch: string;
+  /**
+   * Un dibujo sobre la muestra (`background-image` de CSS), para el tema que
+   * un color liso no alcanza a distinguir. Carlos (2026-10-31, opción 3): los
+   * dos SellPointy llevan el círculo de la esquina del menú.
+   */
+  swatchArt?: string;
   /** Enciende `.dark` al aplicarse (semánticos oscuros + variantes de componentes). */
   isDark: boolean;
   /** F10-THEME-05: enciende `.skinned`, la piel por componente (forma, letra, superficies). */
@@ -201,16 +207,21 @@ export const THEMES: Readonly<Record<ThemeId, ThemeOption>> = {
     id: "sellpointy",
     nameKey: "common.theme.names.sellpointy",
     swatch: "#1e3fd8",
+    // El círculo azul profundo del menú sobre el azul de la marca.
+    swatchArt:
+      "radial-gradient(circle at calc(100% + 10px) -18px, #15309f 0 62px, rgba(21, 48, 159, 0) 62.5px), linear-gradient(180deg, #2445e6 0%, #1a37c2 100%)",
     isDark: true,
     skinned: true,
   },
   // SellPointy Claro (Carlos, 2026-10-30): el menú de la marca con todo lo
-  // demás de Claro. Bitono, así que su muestra es el azul del menú, como en
-  // Café Expreso, Esmeralda Bosque y Marino.
+  // demás de Claro. Su muestra es la hermana de la de Clásico: el mismo
+  // círculo, en azul sobre blanco (2026-10-31, opción 3).
   "sellpointy-light": {
     id: "sellpointy-light",
     nameKey: "common.theme.names.sellpointy-light",
-    swatch: "#1e3fd8",
+    swatch: "#ffffff",
+    swatchArt:
+      "radial-gradient(circle at calc(100% + 10px) -18px, #1e3fd8 0 62px, rgba(30, 63, 216, 0) 62.5px), linear-gradient(180deg, #ffffff 0%, #f1f4f9 100%)",
     isDark: false,
     skinned: true,
   },

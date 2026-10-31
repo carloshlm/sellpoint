@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
  * Radios NATIVOS (sr-only) dentro del label: teclado, lectores y formularios
  * los entienden gratis. La opción elegida se marca con el anillo del token
  * primary, no solo con color — el color ES la opción, no puede ser también
- * el indicador. Las muestras salen del catálogo (`THEMES.swatch`): hex fijos
- * a propósito, son la vista previa del selector, no los tokens del tema.
+ * el indicador. Las muestras salen del catálogo (`THEMES.swatch`, y
+ * `swatchArt` encima cuando el tema lleva dibujo): colores fijos a propósito,
+ * son la vista previa del selector, no los tokens del tema.
  */
 interface ThemePickerProps {
   value: ThemeId;
@@ -67,7 +68,10 @@ function ThemePicker({
           <span
             aria-hidden="true"
             className="h-14 w-full rounded-md border border-border"
-            style={{ backgroundColor: theme.swatch }}
+            style={{
+              backgroundColor: theme.swatch,
+              ...(theme.swatchArt !== undefined && { backgroundImage: theme.swatchArt }),
+            }}
           />
           <span className="font-medium text-sm">{t(theme.nameKey)}</span>
         </label>

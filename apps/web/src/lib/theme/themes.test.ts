@@ -41,6 +41,32 @@ describe("catálogo de temas", () => {
     }
   });
 
+  /**
+   * Carlos (2026-10-31, opción 3): las miniaturas de los dos SellPointy llevan
+   * el círculo de la esquina del menú. Clásico: círculo azul profundo sobre el
+   * azul de la marca; Claro: el mismo círculo en azul sobre blanco. Colores
+   * fijos, como toda muestra: son la vista previa, no los tokens del tema.
+   */
+  it("las miniaturas de los dos SellPointy llevan el círculo de la marca", () => {
+    const clasico = THEMES.sellpointy;
+    const claro = THEMES["sellpointy-light"];
+
+    expect(clasico.swatchArt).toContain("radial-gradient(circle");
+    expect(clasico.swatchArt).toContain("#15309f");
+    expect(claro.swatchArt).toContain("radial-gradient(circle");
+    expect(claro.swatchArt).toContain("#1e3fd8");
+    expect(claro.swatch).toBe("#ffffff");
+    expect(clasico.swatchArt).not.toBe(claro.swatchArt);
+    for (const theme of THEME_LIST) {
+      expect(theme.swatchArt ?? "").not.toContain("var(");
+    }
+    // Solo estos dos: los demás siguen siendo un color liso.
+    expect(THEME_LIST.filter((theme) => theme.swatchArt !== undefined).map((t) => t.id)).toEqual([
+      "sellpointy",
+      "sellpointy-light",
+    ]);
+  });
+
   it("los ids son EXACTAMENTE los del enum del API (update-tenant.dto.ts)", () => {
     // Si esto falla, el selector ofrece un tema que el PATCH rechaza con 400
     // — o el API acepta uno que la app no sabe pintar.
