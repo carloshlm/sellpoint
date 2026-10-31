@@ -16,6 +16,7 @@ import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { TenantBlock } from "@/lib/tenant/api";
+import type { DetectedLocation } from "@/lib/tenant/detect-country";
 import {
   getCuratedTimezones,
   getDefaultCurrency,
@@ -52,6 +53,37 @@ interface StepBusinessProps {
   isSubmitting: boolean;
   formError?: string | null;
   onSubmit: (values: BusinessStepValues) => void;
+  /** Lo que el navegador dice de dónde está la persona (`detectBrowserCountry`). */
+  detected?: DetectedLocation;
+}
+
+/**
+ * Carlos (2026-10-31): un negocio que todavía no tiene país llega al paso 1
+ * con el que detectó el navegador, y la zona horaria y la moneda ya son las
+ * de ese país. La zona sigue la misma regla que al cambiar de país (la que ya
+ * tenía si es del país, si no la del navegador, si no la única del país, si
+ * no a elegir); un país no curado admite cualquier zona válida.
+ */
+function initialLocation(
+  tenant: TenantBlock,
+  detected: DetectedLocation | undefined,
+): Pick<BusinessStepValues, "country" | "timezone" | "currency"> {
+  const currency = tenant.currency as Currency;
+  if (tenant.country || !detected?.country) {
+    return { country: tenant.country ?? "", timezone: tenant.timezone, currency };
+  }
+  const zones = resolveCountryTimezones(detected.country);
+  let timezone = tenant.timezone;
+  if (zones && !zones.includes(timezone)) {
+    timezone = zones.includes(detected.timeZone)
+      ? detected.timeZone
+      : zones.length === 1
+        ? (zones.at(0) ?? "")
+        : "";
+  } else if (!zones && ALL_TIMEZONES_SET.has(detected.timeZone)) {
+    timezone = detected.timeZone;
+  }
+  return { country: detected.country, timezone, currency: getDefaultCurrency(detected.country) };
 }
 
 /**
@@ -70,14 +102,17 @@ interface StepBusinessProps {
  * 3. Moneda: se re-preselecciona SOLO si el usuario no la tocó
  *    explícitamente — un `ref` booleano (no estado, no dispara re-render
  *    por sí solo) marca el toque real en el `onChange` de `CurrencySelector`.
+ *
+ * Única excepción a «nunca se pisa solo»: sin país guardado, el país del
+ * navegador (`detected`) llega preseleccionado — ver `initialLocation`.
  */
-function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusinessProps) {
+function StepBusiness({ tenant, isSubmitting, formError, onSubmit, detected }: StepBusinessProps) {
   const { t, i18n } = useTranslation();
   const bcp47 = localeToBcp47(i18n.language.startsWith("en") ? "en" : "es");
 
   const defaultValues = React.useMemo<BusinessStepValues>(
     () => ({
-      country: tenant.country ?? "",
+      ...initialLocation(tenant, detected),
       region: tenant.region ?? "",
       legalName: tenant.legalName ?? "",
       taxId: tenant.taxId ?? "",
@@ -85,10 +120,8 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
       addressLine2: tenant.addressLine2 ?? "",
       city: tenant.city ?? "",
       postalCode: tenant.postalCode ?? "",
-      timezone: tenant.timezone,
-      currency: tenant.currency as Currency,
     }),
-    [tenant],
+    [tenant, detected],
   );
 
   const {

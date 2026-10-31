@@ -72,13 +72,20 @@ asistente de alta: tres pasos para dejar listo tu negocio. Hasta que lo
 termines, cada vez que entres te regresa a él. Lo que guardaste con
 **Continuar** no se pierde: sigues donde te quedaste.
 
+Arriba de la tarjeta puedes cambiar el idioma entre **Español** e **English**.
+Ya tienes cuenta, así que el cambio se guarda en ella, igual que en **Mi
+perfil** › **Preferencias** (capítulo 4).
+
 ### Paso 1: Datos del negocio
 
 ![Paso 1: los datos de tu negocio](screen:wizard-business)
 
 1. **País**: elígelo primero. De él dependen el nombre de la identificación
    fiscal (en México, el RFC), los campos de la dirección, las zonas horarias y
-   la moneda que te proponemos.
+   la moneda que te proponemos. La primera vez llega elegido el país de la zona
+   horaria de tu computadora (o, si no la reconocemos, el de su idioma), y la
+   zona horaria y la moneda ya son las de ese país. Si no es el tuyo,
+   cámbialo.
 2. **Nombre legal**: como aparece en tus documentos. También será el nombre de
    tu negocio en SellPointy; si lo conoces con otro, lo cambias después en
    **Mi perfil** › **Datos del negocio** (capítulo 12).

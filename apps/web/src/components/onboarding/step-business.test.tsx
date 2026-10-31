@@ -36,12 +36,16 @@ async function escribirRegistroFiscal(
   await user.type(campo, valor);
 }
 
-function renderStep(overrides: Partial<TenantBlock> = {}) {
+function renderStep(
+  overrides: Partial<TenantBlock> = {},
+  detected?: { country: string; timeZone: string },
+) {
   const onSubmit = vi.fn();
   render(
     <I18nextProvider i18n={createI18n()}>
       <StepBusiness
         tenant={tenantFixture(overrides)}
+        detected={detected}
         isSubmitting={false}
         formError={null}
         onSubmit={onSubmit}
@@ -94,6 +98,36 @@ describe("StepBusiness — país (ad-hoc post-Fase 1, 2026-08-16, MERCADOS.md §
 
   it("conserva el país del tenant preseleccionado", () => {
     renderStep({ country: "PT" });
+    expect((screen.getByLabelText("País") as HTMLSelectElement).value).toBe("PT");
+  });
+
+  /**
+   * Carlos (2026-10-31): sin país todavía, el wizard llega con el país que
+   * detectó del navegador, y la zona horaria y la moneda ya son las de ese
+   * país. Se puede cambiar todo.
+   */
+  it("sin país en el tenant, preselecciona el detectado con su zona y su moneda", () => {
+    renderStep({ country: null }, { country: "CA", timeZone: "America/Toronto" });
+
+    expect((screen.getByLabelText("País") as HTMLSelectElement).value).toBe("CA");
+    expect(timezoneSelect().value).toBe("America/Toronto");
+    expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("CAD");
+  });
+
+  it("detectado por el idioma (la zona no dice nada), conserva una zona válida del país", () => {
+    renderStep(
+      { country: null, timezone: "America/Mexico_City" },
+      { country: "MX", timeZone: "Etc/UTC" },
+    );
+
+    expect((screen.getByLabelText("País") as HTMLSelectElement).value).toBe("MX");
+    expect(timezoneSelect().value).toBe("America/Mexico_City");
+    expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("MXN");
+  });
+
+  it("el país que el negocio ya guardó manda sobre lo detectado", () => {
+    renderStep({ country: "PT" }, { country: "CA", timeZone: "America/Toronto" });
+
     expect((screen.getByLabelText("País") as HTMLSelectElement).value).toBe("PT");
   });
 });

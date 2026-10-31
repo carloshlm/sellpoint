@@ -1,5 +1,6 @@
 import type * as React from "react";
 import { useTranslation } from "react-i18next";
+import { AccountLanguageSwitcher } from "@/components/auth/language-switcher";
 import { BrandWordmark } from "@/components/brand/brand-wordmark";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -14,13 +15,18 @@ interface WizardShellProps {
  * el container (`routes/onboarding.tsx`) decide QUÉ paso mostrar.
  *
  * Arriba lleva la marca, igual que las pantallas de acceso: el wizard es lo
- * que ve el negocio justo después de registrarse (Carlos, 2026-09-19).
+ * que ve el negocio justo después de registrarse (Carlos, 2026-09-19). Y,
+ * como en ellas, el selector de idioma arriba a la derecha (Carlos,
+ * 2026-10-31); acá ya hay sesión, así que la elección se guarda en la cuenta.
  */
 function WizardShell({ step, children }: WizardShellProps) {
   const { t } = useTranslation();
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background p-4">
+      <div className="flex w-full max-w-lg justify-end">
+        <AccountLanguageSwitcher />
+      </div>
       <BrandWordmark />
       <Card className="w-full max-w-lg">
         <CardHeader>

@@ -1,6 +1,8 @@
 import { type Locale, SUPPORTED_LOCALES } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
+import { useUpdateLocale } from "@/lib/auth/hooks";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
 
 /**
  * Cada idioma se nombra EN SÍ MISMO, nunca traducido ("Inglés" / "Spanish").
@@ -31,7 +33,12 @@ const LANGUAGE_ENDONYMS: Record<Locale, string> = {
  * — y `register.tsx`, que manda el idioma vigente como `locale` de la cuenta
  * nueva.
  */
-function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+  /** Sin él, solo cambia el idioma de la pantalla (las pantallas públicas). */
+  onSelect?: (locale: Locale) => void;
+}
+
+function LanguageSwitcher({ onSelect }: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
   const current = i18n.resolvedLanguage ?? i18n.language;
 
@@ -53,7 +60,12 @@ function LanguageSwitcher() {
             lang={locale}
             aria-pressed={isActive}
             onClick={() => {
-              if (!isActive) {
+              if (isActive) {
+                return;
+              }
+              if (onSelect) {
+                onSelect(locale);
+              } else {
                 void i18n.changeLanguage(locale);
               }
             }}
@@ -72,4 +84,35 @@ function LanguageSwitcher() {
   );
 }
 
-export { LanguageSwitcher };
+/**
+ * El mismo selector en una pantalla CON sesión: el wizard de alta (Carlos,
+ * 2026-10-31). Además de cambiar la pantalla, guarda el idioma en la cuenta
+ * por `PATCH /me`, igual que «Preferencias» de Mi perfil; sin eso,
+ * `installAccountLanguageSync` regresaría al idioma de la cuenta en la
+ * siguiente carga. El cambio se ve al instante y, si el guardado falla, la
+ * pantalla vuelve al idioma anterior.
+ */
+function AccountLanguageSwitcher() {
+  const { i18n } = useTranslation();
+  const updateLocale = useUpdateLocale();
+
+  const handleSelect = (next: Locale) => {
+    const previous = i18n.resolvedLanguage ?? i18n.language;
+    void i18n.changeLanguage(next);
+    updateLocale.mutate(next, {
+      onSuccess: () => {
+        const { user, setUser } = useAuthStore.getState();
+        if (user) {
+          setUser({ ...user, locale: next });
+        }
+      },
+      onError: () => {
+        void i18n.changeLanguage(previous);
+      },
+    });
+  };
+
+  return <LanguageSwitcher onSelect={handleSelect} />;
+}
+
+export { AccountLanguageSwitcher, LanguageSwitcher };

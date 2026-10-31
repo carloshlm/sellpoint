@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -8,6 +9,7 @@ import { StepTheme, type ThemeChoice } from "@/components/onboarding/step-theme"
 import { StepWarehouse } from "@/components/onboarding/step-warehouse";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
 import type { ApiError } from "@/lib/api";
+import { detectBrowserCountry } from "@/lib/tenant/detect-country";
 import { useCompleteOnboarding, useUpdateMyTenant } from "@/lib/tenant/hooks";
 import type { BusinessStepValues } from "@/lib/tenant/schemas";
 import { primerPasoIncompleto } from "@/lib/tenant/steps";
@@ -99,6 +101,8 @@ function OnboardingGateway() {
  */
 function OnboardingContent() {
   const { t } = useTranslation();
+  // El navegador se consulta una vez por visita al wizard, no en cada render.
+  const [detected] = useState(detectBrowserCountry);
   const { step } = Route.useSearch();
   const navigate = useNavigate({ from: "/onboarding" });
   const tenant = useAuthStore((state) => state.user?.tenant);
@@ -194,6 +198,7 @@ function OnboardingContent() {
         <StepBusiness
           key={effectiveStep}
           tenant={tenant}
+          detected={detected}
           isSubmitting={updateTenantMutation.isPending}
           formError={
             updateTenantMutation.isError

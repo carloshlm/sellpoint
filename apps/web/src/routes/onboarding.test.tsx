@@ -12,6 +12,7 @@ import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
 import * as tenantApi from "../lib/tenant/api";
+import * as detectCountry from "../lib/tenant/detect-country";
 import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
@@ -35,7 +36,13 @@ vi.mock("../lib/tenant/api", () => ({
 
 vi.mock("../lib/auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/auth/api")>();
-  return { ...actual, getMe: vi.fn() };
+  return { ...actual, getMe: vi.fn(), updateMyLocale: vi.fn() };
+});
+// Lo que el navegador dice se simula: la máquina de pruebas tiene su propia
+// zona horaria (local Toronto, CI UTC) y el resultado no puede depender de eso.
+vi.mock("../lib/tenant/detect-country", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/tenant/detect-country")>();
+  return { ...actual, detectBrowserCountry: vi.fn(() => ({ country: "", timeZone: "" })) };
 });
 
 const mockedTenantApi = vi.mocked(tenantApi);
@@ -83,11 +90,46 @@ describe("/onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
+    // `clearAllMocks` no borra un `mockReturnValue`: sin esto, el país que
+    // simula una prueba se le quedaría a las siguientes.
+    vi.mocked(detectCountry.detectBrowserCountry).mockReturnValue({ country: "", timeZone: "" });
     // El piso del paso 2 depende de si ya hay sucursales. Default "ya tiene
     // una" para que los tests de otros pasos no caigan al 2.
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
       buildWarehouse({ id: "w-1", code: "ALM-w-1" }),
     ]);
+  });
+
+  /** Carlos (2026-10-31): el país del navegador llega preseleccionado. */
+  it("el paso 1 llega con el país que detectó del navegador", async () => {
+    vi.mocked(detectCountry.detectBrowserCountry).mockReturnValue({
+      country: "CA",
+      timeZone: "America/Toronto",
+    });
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantFixture()));
+
+    await renderRoute("/onboarding");
+
+    expect(((await screen.findByLabelText("País")) as HTMLSelectElement).value).toBe("CA");
+  });
+
+  /**
+   * Carlos (2026-10-31): el selector de idioma sigue en el wizard. Ya hay
+   * sesión, así que el idioma también se guarda en la cuenta: si no, al
+   * recargar volvería el de antes.
+   */
+  it("trae el selector de idioma, y elegir English lo guarda en la cuenta", async () => {
+    vi.mocked(authApi.updateMyLocale).mockResolvedValue({ locale: "en" });
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantFixture()));
+    const user = userEvent.setup();
+
+    await renderRoute("/onboarding");
+    await user.click(await screen.findByRole("button", { name: "English" }));
+
+    // react-query le pasa a la función un segundo argumento con su contexto.
+    expect(authApi.updateMyLocale).toHaveBeenCalledWith("en", expect.anything());
+    expect(await screen.findByText("Set up your business")).toBeInTheDocument();
+    await waitFor(() => expect(useAuthStore.getState().user?.locale).toBe("en"));
   });
 
   it("con el negocio incompleto, renderiza el paso 1 (datos del negocio)", async () => {

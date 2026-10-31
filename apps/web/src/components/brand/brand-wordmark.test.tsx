@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AuthCard } from "@/components/auth/auth-card";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
+import { createQueryClient } from "@/lib/query-client";
 import { BrandWordmark } from "./brand-wordmark";
 
 /**
@@ -60,10 +62,13 @@ describe("dónde va la marca", () => {
   });
 
   it("en el wizard de alta del negocio", () => {
+    // El selector de idioma del wizard guarda en la cuenta (react-query).
     render(
-      <WizardShell step={1}>
-        <p>paso</p>
-      </WizardShell>,
+      <QueryClientProvider client={createQueryClient()}>
+        <WizardShell step={1}>
+          <p>paso</p>
+        </WizardShell>
+      </QueryClientProvider>,
     );
     expect(screen.getByText("SellPointy").className).toContain("font-brand");
   });
