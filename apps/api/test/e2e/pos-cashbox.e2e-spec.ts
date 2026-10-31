@@ -308,7 +308,15 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
       const { productoId, almacenId, sku } = await prisma.withTenantContext(
         tenantId,
         async (tx) => {
-          const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
+          // La sucursal del registro, que es la asignada del usuario y donde
+          // `abrir` abre la caja. `escenario` ya creó otra: un `findFirst` sin
+          // orden a veces devolvía ESA, el stock caía donde la caja no vende y
+          // la venta respondía 422 «hay 0» (las fallas sueltas del CI del
+          // 2026-09-19 y del 2026-10-31, dos veces).
+          const almacen = await tx.warehouse.findFirstOrThrow({
+            select: { id: true },
+            orderBy: { createdAt: "asc" },
+          });
           const producto = await tx.product.create({
             data: { tenantId, sku: `V-${randomUUID().slice(0, 8)}`, name: "Paracetamol" },
           });
@@ -352,24 +360,11 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
       return { productoId, almacenId, sku };
     }
 
-    /**
-     * En el CI esta suite falló dos veces con un 422 al vender que no se
-     * repite en local (2026-09-19 y 2026-10-31), y `expect(201)` no dice cuál
-     * regla lo rechazó. El 422 deja su código en el registro para encontrar la
-     * causa a la tercera; las pruebas que esperan un 422 solo suman una línea.
-     */
     const vender = (token: string, body: Record<string, unknown>) =>
       request(app.getHttpServer())
         .post("/pos/sales")
         .set("Authorization", bearer(token))
-        .send(body)
-        .on("response", (res: { status: number; body: unknown }) => {
-          if (res.status === 422) {
-            console.error(
-              `[pos-cashbox] POST /pos/sales respondió 422: ${JSON.stringify(res.body)}`,
-            );
-          }
-        });
+        .send(body);
 
     /** El saldo de un producto en un almacén, leído de la tabla de saldos. */
     async function saldo(tenantId: string, productId: string, warehouseId: string) {

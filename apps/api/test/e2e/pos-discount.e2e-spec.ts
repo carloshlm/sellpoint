@@ -212,7 +212,7 @@ describe("descuento del ticket con código de autorización (F4-DISC)", () => {
     expect(texto).not.toContain("$96.67");
     expect(texto).not.toContain("$48.33");
     expect(texto).toContain(
-      "Subtotal$150.00Descuento-$5.00Base gravable$125.00IVA 16%$20.00Total$145.00",
+      "Subtotal$150.00Descuento-$5.00Base gravable$125.00IVA 16%$20.00TOTAL$145.00",
     );
     expect(body.taxTotal).toBe("20");
   });
