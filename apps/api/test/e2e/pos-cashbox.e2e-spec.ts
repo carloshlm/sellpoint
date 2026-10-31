@@ -352,11 +352,24 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
       return { productoId, almacenId, sku };
     }
 
+    /**
+     * En el CI esta suite falló dos veces con un 422 al vender que no se
+     * repite en local (2026-09-19 y 2026-10-31), y `expect(201)` no dice cuál
+     * regla lo rechazó. El 422 deja su código en el registro para encontrar la
+     * causa a la tercera; las pruebas que esperan un 422 solo suman una línea.
+     */
     const vender = (token: string, body: Record<string, unknown>) =>
       request(app.getHttpServer())
         .post("/pos/sales")
         .set("Authorization", bearer(token))
-        .send(body);
+        .send(body)
+        .on("response", (res: { status: number; body: unknown }) => {
+          if (res.status === 422) {
+            console.error(
+              `[pos-cashbox] POST /pos/sales respondió 422: ${JSON.stringify(res.body)}`,
+            );
+          }
+        });
 
     /** El saldo de un producto en un almacén, leído de la tabla de saldos. */
     async function saldo(tenantId: string, productId: string, warehouseId: string) {
