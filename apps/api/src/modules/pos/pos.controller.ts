@@ -197,14 +197,15 @@ export class PosController {
   /**
    * F4-TICKET-01 — el ticket de la venta.
    *
-   * `pos:view` y no `pos:sell`: **reimprimir es leer**. Quien audita una venta
-   * tiene que poder sacar su papel sin poder hacer una nueva.
+   * `pos:view` saca el de cualquier venta: **reimprimir es leer**, y quien
+   * audita tiene que poder sacar el papel sin poder vender. `pos:sell` saca el
+   * de SUS ventas (Carlos, 2026-10-31). Como el guard solo sabe exigir todos
+   * los permisos, la regla la aplica `assertCanPrintSaleTicket` en el servicio.
    *
    * Binario y no base64 en JSON, igual que el PDF de F3: el front lo baja con
    * axios `responseType: 'blob'` porque un `<a href>` plano iría sin el Bearer.
    */
   @Get("sales/:id/ticket")
-  @RequirePermissions("pos:view")
   async saleTicket(
     @CurrentUser() user: AuthUser,
     @UuidParam("id") id: string,

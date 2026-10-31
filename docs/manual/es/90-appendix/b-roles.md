@@ -17,9 +17,9 @@ puede cambiar el nombre y siguen siendo los mismos roles: la columna
 
 | Permiso | Qué permite | Administrador | Encargado | Cajero | Consulta |
 |---|---|:---:|:---:|:---:|:---:|
-| **Vender en caja** | Operar el punto de venta: abrir turno y cobrar | ✓ | ✓ | ✓ | — |
+| **Vender en caja** | Operar el punto de venta: abrir turno, cobrar e imprimir el ticket de las ventas que cobró | ✓ | ✓ | ✓ | — |
 | **Generar cotizaciones** | Hacer cotizaciones | ✓ | ✓ | ✓ | — |
-| **Ver historial de ventas** | Ver el historial de ventas y reimprimir tickets | ✓ | ✓ | ✓ | ✓ |
+| **Ver historial de ventas** | Ver el historial de ventas y reimprimir el ticket de cualquier venta | ✓ | ✓ | ✓ | ✓ |
 | **Cancelar ventas** | Cancelar una venta ya cobrada | ✓ | ✓ | — | — |
 | **Ver productos** | Ver los productos | ✓ | ✓ | ✓ | ✓ |
 | **Editar productos** | Crear y editar productos, presentaciones y composición | ✓ | ✓ | — | — |

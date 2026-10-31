@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Currency, TaxMode } from "@sellpoint/shared";
 import { saleAnnotationsSchema, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
@@ -68,6 +68,32 @@ export function descripcionDeFila(
   return line.description ?? line.conceptDescription ?? producto?.name ?? servicio?.name ?? "";
 }
 
+/**
+ * Quién saca el ticket de una venta (Carlos, 2026-10-31). Con «Ver historial
+ * de ventas» (`pos:view`), el de cualquiera: reimprimir es leer. Con solo
+ * «Vender en caja» (`pos:sell`), el de las ventas que cobró esa persona: quien
+ * cobra siempre entrega su ticket, aunque su rol no vea el historial. Pasó en
+ * una farmacia con un Encargado editado así: cobraba y el ticket daba 403.
+ *
+ * Vive aquí y no en `@RequirePermissions` porque el guard solo sabe exigir
+ * TODOS los permisos y esta regla es «uno u otro, y el segundo con dueño».
+ * Se llama dos veces: sin `sellerId` antes de buscar la venta (quien no tiene
+ * ninguno de los dos permisos recibe el 403 de entrada, como con el guard) y
+ * con el vendedor ya leído.
+ */
+export function assertCanPrintSaleTicket(user: AuthUser, sellerId?: string): void {
+  if (user.permissions.includes("pos:view")) {
+    return;
+  }
+  if (
+    user.permissions.includes("pos:sell") &&
+    (sellerId === undefined || sellerId === user.userId)
+  ) {
+    return;
+  }
+  throw new ForbiddenException({ message: "auth.forbidden" });
+}
+
 @Injectable()
 export class TicketService {
   private readonly printer = new PdfPrinter(FONTS);
@@ -83,6 +109,7 @@ export class TicketService {
     width: TicketWidth,
     t: (key: string) => string,
   ): Promise<{ body: Buffer; filename: string }> {
+    assertCanPrintSaleTicket(user);
     const input = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const venta = await tx.sale.findFirst({
         where: { id: saleId, tenantId: user.tenantId },
@@ -106,6 +133,7 @@ export class TicketService {
       if (venta === null) {
         throw new NotFoundException({ message: "pos.sale_not_found" });
       }
+      assertCanPrintSaleTicket(user, venta.createdBy);
 
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
