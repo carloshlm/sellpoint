@@ -7,7 +7,7 @@ import { ExpensesSummaryBar } from "@/components/expenses/expenses-summary-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
-import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -225,13 +225,11 @@ export function ExpensesList() {
                       </Badge>
                     </td>
                     <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
-                      <Link
-                        to="/expenses/$expenseId"
-                        params={{ expenseId: gasto.id }}
-                        className="inline-flex h-8 items-center px-3 font-medium text-primary text-sm hover:underline"
-                      >
-                        {t("expenses.list.view")}
-                      </Link>
+                      <RowAction intent="view" asChild>
+                        <Link to="/expenses/$expenseId" params={{ expenseId: gasto.id }}>
+                          {t("expenses.list.view")}
+                        </Link>
+                      </RowAction>
                     </td>
                   </tr>
                 );

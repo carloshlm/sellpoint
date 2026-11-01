@@ -193,13 +193,14 @@ function CustomersContent() {
                         {t("reception.customers.issueTurn")}
                       </RowAction>
                     )}
-                    <Link
-                      to="/reception/customers/$customerId"
-                      params={{ customerId: customer.id }}
-                      className="inline-flex h-8 items-center px-3 font-medium text-primary text-sm hover:underline"
-                    >
-                      {t("common.actions.edit")}
-                    </Link>
+                    <RowAction intent="edit" asChild>
+                      <Link
+                        to="/reception/customers/$customerId"
+                        params={{ customerId: customer.id }}
+                      >
+                        {t("common.actions.edit")}
+                      </Link>
+                    </RowAction>
                     <RowAction
                       intent="delete"
                       onClick={() => {

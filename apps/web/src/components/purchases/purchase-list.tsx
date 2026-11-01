@@ -6,7 +6,7 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
-import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -201,13 +201,11 @@ export function PurchaseList() {
                       </Badge>
                     </td>
                     <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
-                      <Link
-                        to="/purchases/$purchaseId"
-                        params={{ purchaseId: compra.id }}
-                        className="inline-flex h-8 items-center px-3 font-medium text-primary text-sm hover:underline"
-                      >
-                        {t("purchases.list.view")}
-                      </Link>
+                      <RowAction intent="view" asChild>
+                        <Link to="/purchases/$purchaseId" params={{ purchaseId: compra.id }}>
+                          {t("purchases.list.view")}
+                        </Link>
+                      </RowAction>
                     </td>
                   </tr>
                 );

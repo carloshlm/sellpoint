@@ -108,16 +108,13 @@ describe("la columna de acciones de los listados", () => {
     "components/billing/payment-history-table.tsx",
     "components/catalog/composition-tab.tsx",
     "components/catalog/quick-catalog-table.tsx",
-    "components/expenses/expenses-list.tsx",
     "components/inventory/expiring-list.tsx",
     "components/inventory/transfers-list.tsx",
-    "components/medical-clinic/records-table.tsx",
     "components/profile/reception-settings.tsx",
     "components/purchase-orders/purchase-order-lines-table.tsx",
     "components/purchase-orders/purchase-order-list.tsx",
     "components/purchase-orders/purchase-receipt-detail.tsx",
     "components/purchases/purchase-lines-table.tsx",
-    "components/purchases/purchase-list.tsx",
     "routes/admin.billing.tsx",
     "routes/reception.turns.tsx",
   ];
@@ -155,4 +152,19 @@ describe("la columna de acciones de los listados", () => {
       noTiene(/<th(\s+className="[^"]*")?\s*\/>/, "queda un <th /> vacío");
     },
   );
+
+  /**
+   * Carlos (2026-11-01): en Proveedores y Registro de paciente el «Editar» era
+   * un enlace con estilo propio (subrayado al pasar el cursor) junto a
+   * «Eliminar», que sí es un `RowAction`. Una acción de fila que navega es un
+   * `RowAction` con `asChild` sobre el `Link`: mismo color, mismo resaltado.
+   */
+  it("ningún enlace de acción de fila usa el estilo suelto de subrayado", () => {
+    const sueltos = archivos.filter((ruta) =>
+      fuente(ruta).includes(
+        "inline-flex h-8 items-center px-3 font-medium text-primary text-sm hover:underline",
+      ),
+    );
+    expect(sueltos, `Enlaces de acción con estilo propio:\n${sueltos.join("\n")}`).toEqual([]);
+  });
 });

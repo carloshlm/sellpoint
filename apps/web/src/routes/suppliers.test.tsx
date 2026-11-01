@@ -98,7 +98,11 @@ describe("Proveedores (F9-SUPPL-08)", () => {
     const fila = await screen.findByTestId("supplier-s1");
 
     expectRowActionsColumn(within(fila).getByRole("button", { name: "Eliminar" }));
-    expect(within(fila).getByRole("link", { name: "Editar" })).toBeInTheDocument();
+    // Carlos (2026-11-01): el «Editar» es la acción de fila de siempre (el
+    // botón fantasma con su resaltado), no un enlace con estilo propio.
+    const editar = within(fila).getByRole("link", { name: "Editar" });
+    expect(editar).toHaveAttribute("data-slot", "button");
+    expect(editar).toHaveClass("text-primary");
   });
 
   it("Importar proveedores y Nuevo bajan de línea si no caben en el celular", async () => {

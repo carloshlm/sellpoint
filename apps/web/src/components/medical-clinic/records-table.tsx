@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
-import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -65,15 +65,13 @@ export function RecordsTable({
                 </Badge>
               </TableCell>
               <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
-                <Link
-                  to="/medical-clinic/records/$recordId"
-                  params={{ recordId: fila.id }}
-                  className="inline-flex h-8 items-center px-3 font-medium text-primary text-sm hover:underline"
-                >
-                  {fila.lockReason === null
-                    ? t("medicalClinic.history.continue")
-                    : t("medicalClinic.history.open")}
-                </Link>
+                <RowAction intent="view" asChild>
+                  <Link to="/medical-clinic/records/$recordId" params={{ recordId: fila.id }}>
+                    {fila.lockReason === null
+                      ? t("medicalClinic.history.continue")
+                      : t("medicalClinic.history.open")}
+                  </Link>
+                </RowAction>
               </TableCell>
             </TableRow>
           );

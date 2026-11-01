@@ -178,13 +178,11 @@ export function SuppliersList() {
                 </TableCell>
                 {canManage && (
                   <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
-                    <Link
-                      to="/suppliers/$supplierId"
-                      params={{ supplierId: supplier.id }}
-                      className="inline-flex h-8 items-center px-3 font-medium text-primary text-sm hover:underline"
-                    >
-                      {t("common.actions.edit")}
-                    </Link>
+                    <RowAction intent="edit" asChild>
+                      <Link to="/suppliers/$supplierId" params={{ supplierId: supplier.id }}>
+                        {t("common.actions.edit")}
+                      </Link>
+                    </RowAction>
                     <RowAction
                       intent="delete"
                       onClick={() => {
