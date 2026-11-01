@@ -30,6 +30,17 @@ export function CartPanel() {
   const lines = useCartStore((s) => s.lines);
   const [seleccionada, setSeleccionada] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const lastAdded = useCartStore((s) => s.lastAdded);
+
+  // Con el teclado abierto, la selección pasa al producto que se acaba de
+  // escanear o agregar (Carlos, 2026-11-01): quedarse en el anterior hacía que
+  // el teclado le cambiara la cantidad al renglón equivocado. Con el teclado
+  // cerrado no se abre solo: taparía media pantalla en cada escaneo.
+  useEffect(() => {
+    if (lastAdded === null) return;
+    setSeleccionada((actual) => (actual === null ? null : lastAdded.key));
+    setAviso(null);
+  }, [lastAdded]);
 
   if (lines.length === 0) {
     return (

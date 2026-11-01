@@ -42,8 +42,9 @@ Cada renglón del carrito muestra el producto, la cantidad, el importe y una
 - **Cambiar la cantidad.** Toca el renglón y se abre un teclado en la pantalla.
   Los números se agregan a la derecha: para cambiar 1 por 3, primero borra el 1
   con **⌫** (en los productos por pieza, **C** borra todo). También puedes
-  usar el teclado de tu computadora. Para cerrarlo, presiona **Ocultar
-  teclado**.
+  usar el teclado de tu computadora. Si escaneas otro producto con el teclado
+  abierto, el teclado pasa a ese producto: lo que escribas cambia su cantidad.
+  Para cerrarlo, presiona **Ocultar teclado**.
 - **Venta por peso.** En lo que se vende por kilo, como el queso o el frijol a
   granel, el teclado trae punto decimal: escribe **1.5** para kilo y medio o
   **0.350** para 350 gramos. En lo que se vende por pieza, y en los servicios,

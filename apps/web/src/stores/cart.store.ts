@@ -121,6 +121,12 @@ interface CartState {
    * a atravesar toda la pantalla con un dato que solo dos puntas usan.
    */
   errorSku: string | null;
+  /**
+   * La última línea que entró o subió por `add` —un escaneo, la búsqueda, una
+   * cotización—, con un contador: escanear dos veces el mismo producto son dos
+   * avisos. El panel le pasa ahí la selección (Carlos, 2026-11-01).
+   */
+  lastAdded: { key: string; seq: number } | null;
   add: (item: LookupItem, options?: { presentationId?: string; quantity?: string }) => void;
   remove: (key: string) => void;
   setQuantity: (key: string, quantity: string) => void;
@@ -169,10 +175,16 @@ function presentacionInicial(
   return (presentations.find((p) => p.isDefaultSale) ?? presentations[0])?.id;
 }
 
+/** El estado tras un `add`: las líneas nuevas y cuál fue la última. */
+function trasAgregar(state: CartState, key: string, lines: CartLine[]): Partial<CartState> {
+  return { lines, lastAdded: { key, seq: (state.lastAdded?.seq ?? 0) + 1 } };
+}
+
 export const useCartStore = create<CartState>((set) => ({
   lines: [],
   quoteId: null,
   errorSku: null,
+  lastAdded: null,
 
   add: (item, options) =>
     set((state) => {
@@ -189,11 +201,13 @@ export const useCartStore = create<CartState>((set) => ({
         const key = claveDe({ type: "concept", id: item.id });
         const existente = state.lines.find((l) => l.key === key);
         if (existente !== undefined) {
-          return {
-            lines: state.lines.map((l) =>
+          return trasAgregar(
+            state,
+            key,
+            state.lines.map((l) =>
               l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
             ),
-          };
+          );
         }
         const nueva: CartConceptLine = {
           key,
@@ -204,18 +218,20 @@ export const useCartStore = create<CartState>((set) => ({
           unitPrice: item.unitPrice,
           quantity: cantidad,
         };
-        return { lines: [...state.lines, nueva] };
+        return trasAgregar(state, key, [...state.lines, nueva]);
       }
 
       if (item.type === "service") {
         const key = claveDe({ type: "service", id: item.id, quoteLineId: item.quoteLineId });
         const existente = state.lines.find((l) => l.key === key);
         if (existente !== undefined) {
-          return {
-            lines: state.lines.map((l) =>
+          return trasAgregar(
+            state,
+            key,
+            state.lines.map((l) =>
               l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
             ),
-          };
+          );
         }
         const nueva: CartServiceLine = {
           key,
@@ -228,7 +244,7 @@ export const useCartStore = create<CartState>((set) => ({
           price: item.price,
           quantity: cantidad,
         };
-        return { lines: [...state.lines, nueva] };
+        return trasAgregar(state, key, [...state.lines, nueva]);
       }
 
       // `matchedPresentationId` gana sobre la predeterminada: si el acierto vino
@@ -253,11 +269,13 @@ export const useCartStore = create<CartState>((set) => ({
       });
       const existente = state.lines.find((l) => l.key === key);
       if (existente !== undefined) {
-        return {
-          lines: state.lines.map((l) =>
+        return trasAgregar(
+          state,
+          key,
+          state.lines.map((l) =>
             l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
           ),
-        };
+        );
       }
 
       const nueva: CartProductLine = {
@@ -275,7 +293,7 @@ export const useCartStore = create<CartState>((set) => ({
         presentations: item.presentations,
         quantity: cantidad,
       };
-      return { lines: [...state.lines, nueva] };
+      return trasAgregar(state, key, [...state.lines, nueva]);
     }),
 
   remove: (key) =>
@@ -335,7 +353,7 @@ export const useCartStore = create<CartState>((set) => ({
 
   setErrorSku: (errorSku) => set({ errorSku }),
 
-  clear: () => set({ lines: [], quoteId: null, errorSku: null }),
+  clear: () => set({ lines: [], quoteId: null, errorSku: null, lastAdded: null }),
 }));
 
 /**
