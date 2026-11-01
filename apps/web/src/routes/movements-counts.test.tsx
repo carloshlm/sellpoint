@@ -381,7 +381,9 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
     await renderCount(["inventory:read", "inventory:movement"]);
 
     await screen.findByText("PAR-500");
-    expect(screen.queryByRole("button", { name: /^confirmar$/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^confirmar inventario$/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/debe aprobar este conteo/i)).toBeInTheDocument();
   });
 
@@ -389,7 +391,38 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
     await renderCount(["inventory:read", "inventory:movement", "inventory:manage"]);
 
     await screen.findByText("PAR-500");
-    expect(screen.getByRole("button", { name: /^confirmar$/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /^confirmar inventario$/i })).toBeEnabled();
+  });
+
+  /**
+   * Carlos (2026-11-01): «Anular» y «Confirmar inventario» se quedan arriba,
+   * pero confirmar solo se habilita cuando ya se subió la plantilla. En un
+   * conteo las líneas solo entran subiéndola: sin líneas, no hay qué aprobar.
+   */
+  it("sin plantilla subida, «Confirmar inventario» está apagado y dice por qué", async () => {
+    mocked.getDocument.mockResolvedValue(
+      detalle({
+        rows: [],
+        lineCount: 0,
+        countSummary: { counted: 0, matches: 0, discrepancies: 0, skipped: 0, newLots: 0 },
+        summary: { lines: 0, products: 0, newLots: 0, errors: 0 },
+      }),
+    );
+    await renderCount(["inventory:read", "inventory:movement", "inventory:manage"]);
+
+    const boton = await screen.findByRole("button", { name: /^confirmar inventario$/i });
+    expect(boton).toBeDisabled();
+    expect(boton).toHaveAttribute("title", "Sube la plantilla para confirmar");
+    expect(screen.getByRole("button", { name: /^anular$/i })).toBeInTheDocument();
+    expect(screen.getByText("Ningún archivo elegido")).toBeInTheDocument();
+  });
+
+  it("con la plantilla ya subida, junto al archivo dice cuántas filas se cargaron", async () => {
+    await renderCount(["inventory:read", "inventory:movement", "inventory:manage"]);
+
+    await screen.findByText("PAR-500");
+    expect(screen.getByText("Conteo subido: 1 fila")).toBeInTheDocument();
+    expect(screen.queryByText("Ningún archivo elegido")).not.toBeInTheDocument();
   });
 
   /** La deriva no se esconde: alguien movió el saldo mientras se contaba. */
@@ -402,7 +435,7 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
     await renderCount(["inventory:read", "inventory:movement", "inventory:manage"]);
     await screen.findByText("PAR-500");
 
-    await user.click(screen.getByRole("button", { name: /^confirmar$/i }));
+    await user.click(screen.getByRole("button", { name: /^confirmar inventario$/i }));
     await user.click(await screen.findByRole("button", { name: /^confirmar inventario físico$/i }));
 
     expect(await screen.findByText(/2 líneas cambiaron/i)).toBeInTheDocument();
@@ -498,7 +531,8 @@ describe("el panel de captura y la cajita de «contado» (Carlos, 2026-09-01, no
     expect(screen.getByText("Subir el conteo")).toBeInTheDocument();
     expect(screen.getByText(/^1\. Descarga la plantilla/)).toBeInTheDocument();
     expect(screen.getByText(/^2\. Llena la columna «contado»/)).toBeInTheDocument();
-    expect(screen.getByText("Ningún archivo elegido")).toBeInTheDocument();
+    // Este conteo ya trae una fila subida: junto al botón se dice cuántas.
+    expect(screen.getByText("Conteo subido: 1 fila")).toBeInTheDocument();
 
     const elegir = screen.getByText("Elegir archivo");
     expect(elegir).not.toHaveClass("bg-primary");

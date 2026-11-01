@@ -140,7 +140,9 @@
     "locationPlaceholder": "A-1",
     "purchaseHint": "Esta entrada nació de la compra {{folio}}: su motivo y su sucursal los fija la compra.",
     "cancelConfirm": "Sí, anular {{folio}}",
-    "keepDraft": "Conservar el borrador"
+    "keepDraft": "Conservar el borrador",
+    "confirmCount": "Confirmar inventario",
+    "confirmCountNeedsUpload": "Sube la plantilla para confirmar"
   },
   "document_not_found": "El movimiento no existe.",
   "document_not_draft": "Este movimiento ya no es un borrador: alguien lo confirmó o lo anuló. Actualiza la pantalla para ver cómo quedó.",
@@ -266,7 +268,9 @@
     "importFailed": "No se pudo leer el archivo. Verifica que sea la plantilla descargada.",
     "importDone": "Conteo cargado: {{count}} filas.",
     "importDoneWithErrors": "{{count}} filas no se pudieron leer: revísalas en el listado.",
-    "importNoCounted": "Se cargaron {{count}} filas, pero ninguna trae un valor en «contado». Revisa que hayas guardado el archivo en Excel después de llenarlo y súbelo de nuevo."
+    "importNoCounted": "Se cargaron {{count}} filas, pero ninguna trae un valor en «contado». Revisa que hayas guardado el archivo en Excel después de llenarlo y súbelo de nuevo.",
+    "uploaded_one": "Conteo subido: {{count}} fila",
+    "uploaded": "Conteo subido: {{count}} filas"
   },
   "kardex": {
     "title": "Kardex",

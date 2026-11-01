@@ -251,13 +251,22 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
               >
                 {t("inventory.document.cancel")}
               </button>
+              {/* En un conteo (Carlos, 2026-11-01) el botón dice «Confirmar
+                  inventario» y se queda arriba junto a «Anular», pero apagado
+                  hasta que se sube la plantilla: las líneas de un conteo solo
+                  entran así, y sin líneas no hay nada que aprobar. */}
               <button
                 type="button"
                 onClick={() => setDialog("confirm")}
                 disabled={conErrores || sinLineas || faltaCabecera || confirmDocument.isPending}
+                title={
+                  esConteo && sinLineas
+                    ? t("inventory.document.confirmCountNeedsUpload")
+                    : undefined
+                }
                 className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm font-medium disabled:opacity-50"
               >
-                {t("inventory.document.confirm")}
+                {esConteo ? t("inventory.document.confirmCount") : t("inventory.document.confirm")}
               </button>
             </>
           )}

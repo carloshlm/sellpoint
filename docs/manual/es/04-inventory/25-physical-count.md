@@ -54,10 +54,11 @@ antes de confirmar.
 
 ## Confirmar ajusta el inventario
 
-Cuando estés conforme, presiona **Confirmar**. SellPointy pone el saldo de cada
-producto en lo que contaste: donde sobraba, registra una salida; donde faltaba,
-una entrada, las dos con motivo **Inventario físico**. Las ves en el kardex de
-cada producto.
+Cuando estés conforme, presiona **Confirmar inventario**, arriba a la derecha
+junto a **Anular**; se habilita en cuanto subes la plantilla. SellPointy pone el
+saldo de cada producto en lo que contaste: donde sobraba, registra una salida;
+donde faltaba, una entrada, las dos con motivo **Inventario físico**. Las ves en
+el kardex de cada producto.
 
 Para confirmar, cada línea necesita su contado: una vacía, negativa o con texto
 no deja confirmar, y la pantalla te dice cuál es.

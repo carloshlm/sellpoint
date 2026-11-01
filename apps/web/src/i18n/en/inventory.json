@@ -140,7 +140,9 @@
     "locationPlaceholder": "A-1",
     "purchaseHint": "This entry was created from purchase {{folio}}: its reason and store are set by the purchase.",
     "cancelConfirm": "Yes, void {{folio}}",
-    "keepDraft": "Keep the draft"
+    "keepDraft": "Keep the draft",
+    "confirmCount": "Confirm count",
+    "confirmCountNeedsUpload": "Upload the template to confirm"
   },
   "document_not_found": "This movement doesn't exist.",
   "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up.",
@@ -266,7 +268,9 @@
     "importFailed": "The file could not be read. Check that it is the downloaded template.",
     "importDone": "Count loaded: {{count}} rows.",
     "importDoneWithErrors": "{{count}} rows could not be read: check them in the list.",
-    "importNoCounted": "{{count}} rows were loaded, but none has a value in «counted». Check that you saved the file in Excel after filling it in, then upload it again."
+    "importNoCounted": "{{count}} rows were loaded, but none has a value in «counted». Check that you saved the file in Excel after filling it in, then upload it again.",
+    "uploaded_one": "Count uploaded: {{count}} row",
+    "uploaded": "Count uploaded: {{count}} rows"
   },
   "kardex": {
     "title": "Kardex",

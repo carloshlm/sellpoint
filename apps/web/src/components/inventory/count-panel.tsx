@@ -117,8 +117,14 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
             >
               {t("inventory.count.upload")}
             </Label>
+            {/* Tras recargar, el control de archivo siempre dice «Ningún archivo
+                elegido» aunque el conteo ya se haya subido (Carlos, 2026-11-01):
+                si ya hay filas, se dice cuántas. */}
             <span className="text-muted-foreground text-xs">
-              {fileName || t("inventory.count.noFile")}
+              {fileName ||
+                (doc.rows.length > 0
+                  ? t("inventory.count.uploaded", { count: doc.rows.length })
+                  : t("inventory.count.noFile"))}
             </span>
           </div>
           <p className="text-muted-foreground text-xs">{t("inventory.count.uploadHint")}</p>
