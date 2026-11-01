@@ -13,6 +13,7 @@ import {
   type SpreadsheetFormat,
   serializeSpreadsheet,
 } from "../../common/spreadsheet/spreadsheet";
+import { parseSpreadsheetDate } from "../../common/spreadsheet/spreadsheet-date";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { DocumentsService } from "./documents.service";
@@ -88,8 +89,6 @@ export class DocumentImportService {
       format,
       {
         numericColumns: columnIndexes(COLUMNS[type], NUMERIC_COLUMNS),
-        // La caducidad que alguien teclee tiene que seguir volviéndose fecha.
-        plainColumns: columnIndexes(COLUMNS[type], ["caducidad"]),
       },
     );
     return {
@@ -129,6 +128,13 @@ export class DocumentImportService {
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const document = await this.documents.assertDraft(tx, user.tenantId, documentId);
+      // La caducidad llega como texto (formato Texto en el Excel): «05/08» es
+      // 5 de agosto en México y 8 de mayo en Estados Unidos.
+      const { country } = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { country: true },
+      });
+      const diaPrimero = country !== "US";
 
       // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; una planilla con `abc` tiene que encontrar a `ABC`.
       const skus = [
@@ -189,6 +195,9 @@ export class DocumentImportService {
                   p.name.toLowerCase() === nombrePresentacion.toLowerCase(),
               )?.id ?? null);
 
+        // Una fecha que no se entiende se marca en la fila y la línea se guarda
+        // sin caducidad: la previa pide corregirla antes de confirmar.
+        const caducidad = parseSpreadsheetDate(raw[idx("caducidad")] ?? "", diaPrimero);
         return {
           row,
           productId,
@@ -202,7 +211,7 @@ export class DocumentImportService {
           // «ST9» entraban como DOS lotes del mismo producto — existencias
           // partidas y FEFO tratándolos por separado (Carlos, 2026-09-01).
           lotCode: lote === null ? null : normalizeLotCode(lote) || null,
-          expiresAt: texto(raw[idx("caducidad")]),
+          expiresAt: caducidad.date,
           location: texto(raw[idx("ubicacion")]),
           counted: num(raw[idx("contado")]),
           error:
@@ -210,7 +219,9 @@ export class DocumentImportService {
               ? "inventory.product_not_found"
               : nombrePresentacion !== null && presentationId === null
                 ? "inventory.presentation_invalid"
-                : contadoInvalido(raw[idx("contado")]),
+                : caducidad.invalid
+                  ? "inventory.expiry_invalid"
+                  : contadoInvalido(raw[idx("contado")]),
         };
       });
 

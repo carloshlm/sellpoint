@@ -9,6 +9,7 @@
   "count_required": "Row {lineNo} has no count: enter how many units there are (0 if none).",
   "count_negative": "The count on row {lineNo} is negative: there can't be fewer than zero units.",
   "count_invalid": "The count on row {row} is not a number.",
+  "expiry_invalid": "The expiry on row {row} is not a date: write it as YYYY-MM-DD.",
   "count_file_too_large": "The file is over 5 MB. Please split it into smaller parts.",
   "count_requires_manage": "Approving a physical count requires the manage permission: it can rewrite a whole store's balance.",
   "document_empty": "This movement has no lines: add at least one product before confirming.",

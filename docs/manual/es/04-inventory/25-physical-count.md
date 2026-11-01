@@ -24,7 +24,9 @@ como borrador: nada se ajusta hasta que lo confirmas.
    el lote vacío para lo que todavía no tiene lote: por ejemplo, lo que ya
    tenías cuando encendiste el control por lote. Al contarlo, escribe su lote y
    su caducidad. La columna **controla_lotes** te dice en cuáles: **SI** lleva
-   lote y caducidad; **NO** se cuenta sin ellos.
+   lote y caducidad; **NO** se cuenta sin ellos. La caducidad escríbela como
+   día/mes/año (15/08/2026) o como 2026-08-15; si SellPointy no la entiende,
+   te avisa en esa fila al subir el archivo.
 3. Imprime la hoja o llévala en la tableta, cuenta y escribe lo que encontraste
    en la columna **contado**. Si no hay nada, escribe **0**.
 4. Guarda el archivo, vuelve a SellPointy, presiona **Elegir archivo** y súbelo.

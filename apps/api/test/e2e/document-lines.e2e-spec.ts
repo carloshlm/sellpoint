@@ -388,13 +388,12 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       const entrada = await descargar("entry");
       expect(entrada.celda("cantidad").value).toBe(3);
       expect(entrada.celda("costo_unitario").value).toBe(15.5);
-      for (const nombre of ["sku", "presentacion", "lote", "ubicacion"]) {
+      // La caducidad también va como Texto (Carlos, 2026-11-01): una fecha
+      // pegada no cambia de formato; la importación la lee como texto.
+      for (const nombre of ["sku", "presentacion", "lote", "caducidad", "ubicacion"]) {
         esTexto(entrada.celda(nombre), nombre);
       }
-      // La caducidad va SIN formato: la fecha que alguien teclee en Excel tiene
-      // que seguir volviéndose fecha, que la importación lee como ISO.
       expect(entrada.celda("caducidad").value).toBe("2026-07-01");
-      expect(entrada.celda("caducidad").numFmt).toBeUndefined();
 
       const salida = await descargar("exit");
       expect(salida.celda("cantidad").value).toBe(1);
@@ -435,6 +434,38 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
           location: "A-3",
         }),
       );
+    });
+
+    /**
+     * Carlos (2026-11-01): la caducidad va con formato Texto, así que lo
+     * tecleado llega como texto. «15/08/2026» es el 15 de agosto; lo que no es
+     * una fecha clara se marca en su fila y la línea se guarda sin caducidad,
+     * para corregirla en pantalla (nunca un error del servidor).
+     */
+    it("la caducidad escrita como texto se entiende, y la que no es fecha se marca en su fila", async () => {
+      const id = await nuevoBorrador();
+      const res = await importar(
+        id,
+        csv([
+          [sku, "", "3", "10", "L-AGO", "15/08/2026", ""],
+          [sku, "", "1", "10", "L-FEB", "31/02/2026", ""],
+        ]),
+        "replace",
+      ).expect(200);
+
+      expect(res.body).toMatchObject({ imported: 2, withErrors: 1 });
+      expect((res.body as { rows: { error: string | null }[] }).rows.map((r) => r.error)).toEqual([
+        null,
+        "inventory.expiry_invalid",
+      ]);
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      const filas = (detalle.body as { rows: { lotCode: string; expiresAt: string | null }[] })
+        .rows;
+      expect(filas.find((f) => f.lotCode === "L-AGO")?.expiresAt).toMatch(/^2026-08-15/);
+      expect(filas.find((f) => f.lotCode === "L-FEB")?.expiresAt).toBeNull();
     });
 
     it("una salida no pide costo unitario: no tiene precio de compra", async () => {

@@ -148,28 +148,6 @@ describe("serializeSpreadsheet", () => {
       expect(sheet.getCell("A5").numFmt).toBeUndefined();
     });
 
-    /**
-     * La caducidad de una plantilla que se importa: si alguien teclea
-     * «15/08/2026», Excel tiene que seguir volviéndola fecha (la importación
-     * la lee como ISO). Con formato Texto quedaría literal y no se importaría.
-     */
-    it("una columna «sin formato» no lleva Texto ni número: lo tecleado lo decide Excel", async () => {
-      const { body } = await serializeSpreadsheet(
-        [
-          ["sku", "caducidad", "contado"],
-          ["0042", "2026-07-01", ""],
-        ],
-        "xlsx",
-        { numericColumns: [2], plainColumns: [1] },
-      );
-      const sheet = await hoja(body);
-
-      expect(sheet.getCell("B2").value).toBe("2026-07-01");
-      expect(sheet.getCell("B2").numFmt).toBeUndefined();
-      expect(sheet.getColumn(2).style?.numFmt).toBeUndefined();
-      expect(sheet.getCell("A2").numFmt).toBe("@");
-    });
-
     it("una celda vacía de una columna numérica sigue vacía: no se vuelve cero", async () => {
       const { body } = await serializeSpreadsheet(FILAS_MIXTAS, "xlsx", { numericColumns: [2] });
       const sheet = await hoja(body);

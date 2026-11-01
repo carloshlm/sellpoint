@@ -170,6 +170,7 @@
   "count_required": "Falta el contado: escribe cuántas piezas hay (0 si no hay ninguna).",
   "count_negative": "El contado es negativo: no puede haber menos de cero piezas.",
   "count_invalid": "El contado no es un número.",
+  "expiry_invalid": "La caducidad no es una fecha: escríbela como AAAA-MM-DD o día/mes/año.",
   "lot_expiry_mismatch": "El lote «{{lotCode}}» ya existe con otra fecha de caducidad.",
   "insufficient_lot_stock": "El lote «{{lotCode}}» tiene {{available}} y se piden {{requested}}.",
   "transfer_same_warehouse": "La sucursal destino tiene que ser distinta del origen.",

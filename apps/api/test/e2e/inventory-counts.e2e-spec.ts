@@ -388,8 +388,8 @@ describe("Inventario físico (F3-COUNT)", () => {
     /**
      * Carlos (2026-10-31): en el xlsx, el teórico es un NÚMERO y la columna
      * del contado también, así lo que se teclee ahí entra como número; el
-     * sku, el lote y la ubicación van con formato Texto. La caducidad va SIN
-     * formato: la fecha que alguien teclee tiene que seguir volviéndose fecha.
+     * sku, el lote, la caducidad y la ubicación van con formato Texto (la
+     * caducidad desde el 2026-11-01: una fecha pegada no cambia de formato).
      * Y la planilla llenada en Excel se vuelve a subir sin perder nada.
      */
     it("el xlsx lleva el teórico como número y lo demás como texto, y se vuelve a subir igual", async () => {
@@ -454,11 +454,9 @@ describe("Inventario físico (F3-COUNT)", () => {
 
       const lote = filaDe(lotesSku, "ZZZ-JUL");
       expect(lote.getCell(columna("teorico")).value).toBe(9);
-      const caducidad = lote.getCell(columna("caducidad"));
-      expect(caducidad.value).toBe("2026-07-01");
-      expect(caducidad.numFmt).toBeUndefined();
       for (const [nombre, valor] of [
         ["lote", "ZZZ-JUL"],
+        ["caducidad", "2026-07-01"],
         ["ubicacion", "B-2"],
       ] as const) {
         const celda = lote.getCell(columna(nombre));

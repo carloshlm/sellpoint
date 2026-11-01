@@ -44,8 +44,6 @@ const COLUMNAS = [
  * sku, el lote y la caducidad quedan como texto.
  */
 const NUMERICAS = columnIndexes(COLUMNAS, ["teorico", "contado"]);
-/** La caducidad que alguien teclee tiene que seguir volviéndose fecha en Excel. */
-const SIN_FORMATO = columnIndexes(COLUMNAS, ["caducidad"]);
 
 /**
  * F3-COUNT-01 — la plantilla de inventario físico, con el teórico ya puesto.
@@ -204,7 +202,6 @@ export class CountTemplateService {
 
     const file = await serializeSpreadsheet([localizeHeaders(COLUMNAS, locale), ...filas], format, {
       numericColumns: NUMERICAS,
-      plainColumns: SIN_FORMATO,
     });
     return { ...file, filename: `${spreadsheetFilenameBase("conteo-fisico", locale)}.${format}` };
   }

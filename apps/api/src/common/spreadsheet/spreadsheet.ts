@@ -41,13 +41,6 @@ export interface SpreadsheetOptions {
    * va como texto; el encabezado nunca se toca.
    */
   numericColumns?: readonly number[];
-  /**
-   * Columnas (desde 0) que no llevan formato: ni número ni «Texto». Es para
-   * la caducidad de una plantilla que se IMPORTA: si alguien teclea
-   * «15/08/2026», Excel tiene que seguir volviéndola fecha, que la
-   * importación lee como ISO; con formato Texto quedaría literal y fallaría.
-   */
-  plainColumns?: readonly number[];
 }
 
 /** Un número que se puede escribir sin perder nada: «448.8», «-3», «36». */
@@ -124,8 +117,9 @@ export async function serializeSpreadsheet(
   const sheet = workbook.addWorksheet(options.sheetName ?? SHEET_NAME);
 
   const numericas = new Set(options.numericColumns ?? []);
-  const sinFormato = new Set(options.plainColumns ?? []);
-  const llevaTexto = (columna: number) => !numericas.has(columna) && !sinFormato.has(columna);
+  // Las fechas también van como Texto (Carlos, 2026-11-01): una fecha pegada
+  // no cambia de formato; la importación las lee con `parseSpreadsheetDate`.
+  const llevaTexto = (columna: number) => !numericas.has(columna);
   for (const [fila, row] of rows.entries()) {
     const added = sheet.addRow(
       fila === 0 || numericas.size === 0
