@@ -7,7 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -100,7 +100,7 @@ function OrdersScreen({ recordId }: { recordId: string }) {
               <TableHead>{t("medicalClinic.orders.list.columns.kind")}</TableHead>
               <TableHead>{t("medicalClinic.orders.list.columns.items")}</TableHead>
               <TableHead>{t("medicalClinic.orders.list.columns.status")}</TableHead>
-              <TableHead />
+              <RowActionsHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -124,7 +124,7 @@ function OrdersScreen({ recordId }: { recordId: string }) {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="text-right whitespace-nowrap">
+                <TableCell className={ROW_ACTIONS_CELL}>
                   <RowAction
                     intent="view"
                     onClick={() => {

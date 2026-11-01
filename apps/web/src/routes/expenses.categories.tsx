@@ -10,7 +10,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -136,7 +136,7 @@ function CategoriesContent() {
             <TableRow>
               <TableHead className="px-2">{t("expenses.categories.columns.name")}</TableHead>
               <TableHead className="px-2">{t("expenses.categories.columns.status")}</TableHead>
-              {canManage && <TableHead className="px-2" />}
+              {canManage && <RowActionsHead className="px-2" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -157,7 +157,7 @@ function CategoriesContent() {
                   </Badge>
                 </TableCell>
                 {canManage && (
-                  <TableCell className="px-2 text-right whitespace-nowrap">
+                  <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                     <RowAction
                       intent="edit"
                       onClick={() => {

@@ -9,6 +9,7 @@ import * as receptionApi from "@/lib/reception/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
@@ -114,6 +115,15 @@ describe("Registro de cliente (F9-RECEP-11)", () => {
       "href",
       "/reception/customers/new",
     );
+  });
+
+  // Carlos (2026-11-01): «como en Registro de paciente», y ahora con título.
+  it("la última columna se titula «Acciones» y sus acciones van en una línea", async () => {
+    await renderCustomers(["reception:read", "reception:manage"]);
+    const fila = await screen.findByTestId("customer-c1");
+
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Eliminar" }));
+    expect(within(fila).getByRole("link", { name: "Editar" })).toBeInTheDocument();
   });
 
   it("«Generar turno» llama al API con el cliente y muestra el número en un diálogo", async () => {

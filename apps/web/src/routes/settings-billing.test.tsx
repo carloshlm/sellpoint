@@ -9,6 +9,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 vi.mock("@/lib/billing/api", async (importOriginal) => ({
@@ -116,6 +117,46 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     expect(screen.getByText(/Plus/)).toBeInTheDocument();
     expect(await screen.findByText(/Transferencia/)).toBeInTheDocument();
     expect(screen.getByText(/\$499\.00/)).toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("el historial de pagos titula «Acciones» la columna de «Ver»", async () => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-06T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [
+        {
+          id: "pay-1",
+          paidAt: "2026-08-05T18:00:00.000Z",
+          amount: "499.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "recorded",
+          periodStart: "2026-08-05T18:00:00.000Z",
+          periodEnd: "2026-09-06T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
+          notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
+        },
+      ],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+      modules: [],
+    });
+    await renderBilling(["tenants:manage"]);
+
+    expectRowActionsColumn(await screen.findByRole("button", { name: /^Ver pago del/ }));
   });
 
   /**

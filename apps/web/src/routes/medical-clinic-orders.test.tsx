@@ -10,6 +10,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { useAuthStore } from "@/stores/auth.store";
 import { clinicUser, expediente } from "@/test/medical-clinic-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 
 /**
  * F9-CLINIC-WEB-17/18/19/22 — las órdenes: estudios por checkbox, receta
@@ -454,6 +455,26 @@ describe("órdenes emitidas (F9-CLINIC-WEB-19)", () => {
       within(screen.getByTestId("order-o3")).getByRole("button", { name: "Imprimir orden" }),
     );
     expect(mocked.printMedicalOrder).toHaveBeenCalledWith("o3", "ORM-000001");
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    mocked.listOrders.mockResolvedValue([orden({ id: "o2", chargeStatus: "pending" })]);
+    await renderRuta("/medical-clinic/records/r1/orders");
+
+    const fila = await screen.findByTestId("order-o2");
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Imprimir orden" }));
+    expect(within(fila).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+  });
+
+  it("las líneas de una orden nueva titulan «Acciones» la columna de «Quitar»", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/lab_order");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Buscar estudio de laboratorio"), "b");
+    await user.click(await screen.findByRole("button", { name: /Biometría hemática/ }));
+
+    const lineas = screen.getByTestId("order-lines");
+    expectRowActionsColumn(within(lineas).getByRole("button", { name: "Quitar" }));
   });
 
   it("sin órdenes sale el vacío", async () => {

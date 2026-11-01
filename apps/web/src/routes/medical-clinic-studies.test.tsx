@@ -9,6 +9,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
@@ -133,6 +134,13 @@ describe.each([
     expect(fila).toHaveTextContent("40");
     expect(fila).toHaveTextContent("180");
     expect(document.querySelector('[data-testid^="service-warehouse"]')).toBeNull();
+  });
+
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    await renderRuta(path, ["medical_clinic:read", "medical_clinic:manage"]);
+    const fila = await screen.findByTestId("study-s1");
+
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Editar" }));
   });
 
   it("filtra por texto desde el servidor", async () => {

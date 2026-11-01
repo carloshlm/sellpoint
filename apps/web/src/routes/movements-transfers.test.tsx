@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
@@ -190,6 +191,14 @@ describe("Traspasos en tránsito (F3-TRANSFER-05)", () => {
     expect(mocked.listTransfers).toHaveBeenCalledWith(
       expect.objectContaining({ direction: "incoming" }),
     );
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y «Recibir» va en una línea", async () => {
+    await renderTransfers();
+
+    const [recibir] = await screen.findAllByRole("button", { name: "Recibir" });
+    expectRowActionsColumn(recibir as HTMLElement);
   });
 
   it("cambiar de tab cambia la dirección del request", async () => {

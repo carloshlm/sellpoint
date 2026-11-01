@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
@@ -147,6 +148,25 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     // Formateado en la moneda del negocio (Carlos, 2026-09-07): si el campo de
     // captura dice «150.00», el listado no puede decir «150».
     expect(within(fila).getByText("$150.00")).toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): en el celular Editar / Desactivar / Eliminar se
+  // apilaban y la columna no tenía título.
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    await renderServices();
+
+    const fila = (await screen.findByText("Corte de cabello")).closest("tr") as HTMLElement;
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Editar" }));
+    expect(within(fila).getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
+    expect(within(fila).getByRole("button", { name: "Eliminar" })).toBeInTheDocument();
+  });
+
+  it("los botones del encabezado bajan de línea si no caben en el celular", async () => {
+    await renderServices();
+
+    const nuevo = await screen.findByRole("button", { name: "Nuevo servicio" });
+    expect(nuevo.parentElement).toHaveClass("flex-wrap");
+    expect(nuevo.parentElement?.parentElement).toHaveClass("flex-wrap");
   });
 
   it("crear un servicio manda código, nombre y precio", async () => {

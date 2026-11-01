@@ -9,6 +9,7 @@ import * as receptionApi from "@/lib/reception/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
@@ -90,6 +91,14 @@ describe("Generar turno (F9-RECEP-13)", () => {
     expect(within(filas[0] as HTMLElement).getByText("Rosa Luna")).toBeInTheDocument();
     expect(within(filas[1] as HTMLElement).getByText("Sin cliente")).toBeInTheDocument();
     expect(within(filas[0] as HTMLElement).getByText("En espera")).toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    await renderTurns(["reception:read", "reception:manage"]);
+    const fila = await screen.findByTestId("turn-t5");
+
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Reimprimir" }));
   });
 
   /**

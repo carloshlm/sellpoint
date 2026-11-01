@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
@@ -1500,5 +1501,57 @@ describe("el plan decide qué se ofrece del producto", () => {
 
     expect(await screen.findByRole("button", { name: "Stock por sucursal" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kardex" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-11-01): en el celular, Ver / Desactivar se apilaban uno debajo
+ * del otro y la última columna no tenía título. Ahora la columna se titula
+ * «Acciones» y sus botones van en una sola línea, como en Categorías de gasto.
+ */
+describe("Productos: la columna de acciones (2026-11-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      items: [{ ...PRODUCT, price: "0.02" }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  async function renderList() {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+  }
+
+  it("la última columna se titula «Acciones» y Ver / Desactivar van en una línea", async () => {
+    await renderList();
+
+    const ver = await screen.findByRole("button", { name: /^Ver / });
+    expectRowActionsColumn(ver);
+    const fila = ver.closest("tr") as HTMLElement;
+    expect(within(fila).getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
+  });
+
+  it("los tres botones del encabezado bajan de línea si no caben", async () => {
+    await renderList();
+
+    const nuevo = await screen.findByRole("button", { name: "Nuevo producto" });
+    expect(nuevo.parentElement).toHaveClass("flex-wrap");
   });
 });

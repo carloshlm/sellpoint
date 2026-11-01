@@ -9,6 +9,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
@@ -101,6 +102,14 @@ describe("Categorías de gasto (F9-EXP-03)", () => {
     ]);
     expect(within(filas[0] as HTMLElement).getByText("Activa")).toBeInTheDocument();
     expect(within(filas[1] as HTMLElement).getByText("Inactiva")).toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): la columna de acciones lleva su título, como las demás.
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    await renderCategorias(["expenses:read", "expenses:manage"]);
+    const fila = await screen.findByTestId("expense-category-c1");
+
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Editar" }));
   });
 
   it("sin expenses:manage se lee pero no hay alta ni acciones", async () => {

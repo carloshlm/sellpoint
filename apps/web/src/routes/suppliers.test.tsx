@@ -10,6 +10,7 @@ import * as importApi from "@/lib/suppliers/import-api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildSupplier } from "@/test/supplier-fixture";
 
@@ -88,6 +89,24 @@ describe("Proveedores (F9-SUPPL-08)", () => {
     expect(within(filas[1] as HTMLElement).getByText("Activo")).toBeInTheDocument();
     expect(within(filas[1] as HTMLElement).getByText("DNO900101AB1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Nuevo" })).toHaveAttribute("href", "/suppliers/new");
+  });
+
+  // Carlos (2026-11-01): la columna de acciones lleva su título y el
+  // encabezado no se sale de la pantalla en el celular.
+  it("la última columna se titula «Acciones» y sus acciones van en una línea", async () => {
+    await renderSuppliers(["suppliers:read", "suppliers:manage"]);
+    const fila = await screen.findByTestId("supplier-s1");
+
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Eliminar" }));
+    expect(within(fila).getByRole("link", { name: "Editar" })).toBeInTheDocument();
+  });
+
+  it("Importar proveedores y Nuevo bajan de línea si no caben en el celular", async () => {
+    await renderSuppliers(["suppliers:read", "suppliers:manage"]);
+
+    const nuevo = await screen.findByRole("link", { name: "Nuevo" });
+    expect(nuevo.parentElement).toHaveClass("flex-wrap");
+    expect(nuevo.parentElement?.parentElement).toHaveClass("flex-wrap");
   });
 
   it("sin suppliers:read la pantalla no existe", async () => {

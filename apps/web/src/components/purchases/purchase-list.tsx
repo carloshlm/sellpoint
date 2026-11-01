@@ -6,6 +6,7 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -145,7 +146,7 @@ export function PurchaseList() {
                 <th className="p-2 text-right">{t("purchases.list.columns.lines")}</th>
                 <th className="p-2 text-right">{t("purchases.list.columns.total")}</th>
                 <th className="p-2">{t("purchases.list.columns.status")}</th>
-                <th className="p-2" />
+                <RowActionsTh className="p-2" />
               </tr>
             </thead>
             <tbody>
@@ -199,7 +200,7 @@ export function PurchaseList() {
                         {t(`purchases.status.${compra.status}`)}
                       </Badge>
                     </td>
-                    <td className="p-2 text-right">
+                    <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
                       <Link
                         to="/purchases/$purchaseId"
                         params={{ purchaseId: compra.id }}

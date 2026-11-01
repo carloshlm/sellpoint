@@ -7,6 +7,7 @@ import { ExpensesSummaryBar } from "@/components/expenses/expenses-summary-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -72,9 +73,11 @@ export function ExpensesList() {
 
   return (
     <section className="flex flex-col gap-4" data-testid="expenses-list">
-      <div className="flex items-center justify-between gap-2">
+      {/* `flex-wrap`: en un celular angosto los botones bajan de línea en vez
+          de salirse de la pantalla (Carlos, 2026-11-01). */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("expenses.list.title")}</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
@@ -181,7 +184,7 @@ export function ExpensesList() {
                 <th className="p-2 text-right">{t("expenses.list.columns.total")}</th>
                 <th className="p-2">{t("expenses.list.columns.payment")}</th>
                 <th className="p-2">{t("expenses.list.columns.status")}</th>
-                <th className="p-2" />
+                <RowActionsTh className="p-2" />
               </tr>
             </thead>
             <tbody>
@@ -221,7 +224,7 @@ export function ExpensesList() {
                         {t(`expenses.status.${gasto.status}`)}
                       </Badge>
                     </td>
-                    <td className="p-2 text-right">
+                    <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
                       <Link
                         to="/expenses/$expenseId"
                         params={{ expenseId: gasto.id }}

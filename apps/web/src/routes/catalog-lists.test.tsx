@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
 import * as importApi from "../lib/catalogs/import-api";
@@ -122,6 +123,38 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
     const row = await screen.findByTestId("record-kg");
     expect(within(row).getByText("kilogramos")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Medida" })).toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): en el celular Editar / Desactivar / Eliminar se
+  // apilaban uno debajo del otro y la columna no tenía título.
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    mockedApi.listRecords.mockResolvedValue({
+      rows: [
+        {
+          id: "r1",
+          catalogId: "cat-units",
+          code: "kg",
+          attributes: { medida: "kilogramos" },
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderLists();
+
+    const row = await screen.findByTestId("record-kg");
+    expectRowActionsColumn(within(row).getByRole("button", { name: "Editar" }));
+    expect(within(row).getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "Eliminar" })).toBeInTheDocument();
+  });
+
+  it("Importar y Nuevo registro bajan de línea si no caben junto al selector", async () => {
+    await renderLists();
+
+    const nuevo = await screen.findByRole("button", { name: "Nuevo registro" });
+    expect(nuevo.parentElement).toHaveClass("flex-wrap");
   });
 
   it("una celda de lookup muestra el código, no el UUID que guarda", async () => {

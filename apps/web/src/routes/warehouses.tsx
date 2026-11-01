@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -120,10 +120,13 @@ function WarehousesContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-center justify-between gap-3">
+      {/* En un celular de 390 px el título y los dos botones no caben en una
+          fila: «Nueva sucursal» salía cortado (Carlos, 2026-11-01). Con
+          `flex-wrap` los botones bajan a la siguiente línea. */}
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("warehouses.page.title")}</h1>
         {canManage && !creating && !editing && !importing && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {/* Importar por Excel (Carlos, 2026-09-01): el mismo flujo de
                 productos y servicios, match por código. */}
             <Button variant="outline" onClick={() => setImporting(true)}>
@@ -205,7 +208,7 @@ function WarehousesContent() {
               <TableHead>{t("warehouses.form.name")}</TableHead>
               <TableHead>{t("warehouses.form.address")}</TableHead>
               <TableHead>{t("warehouses.status")}</TableHead>
-              {canManage && <TableHead />}
+              {canManage && <RowActionsHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -236,7 +239,7 @@ function WarehousesContent() {
                     </Badge>
                   </TableCell>
                   {canManage && (
-                    <TableCell className="text-right">
+                    <TableCell className={ROW_ACTIONS_CELL}>
                       <RowAction
                         intent="edit"
                         onClick={() => {

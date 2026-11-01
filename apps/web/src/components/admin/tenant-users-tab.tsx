@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -60,7 +61,7 @@ export function TenantUsersTab({ tenantId }: { tenantId: string }) {
               <TableHead className="px-2">{t("users.table.columns.email")}</TableHead>
               <TableHead className="px-2">{t("users.table.columns.roles")}</TableHead>
               <TableHead className="px-2">{t("users.table.columns.status")}</TableHead>
-              <TableHead className="px-2" />
+              <RowActionsHead className="px-2" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -74,7 +75,7 @@ export function TenantUsersTab({ tenantId }: { tenantId: string }) {
                     {t(`users.table.status.${user.status}`)}
                   </Badge>
                 </TableCell>
-                <TableCell className="px-2 text-right">
+                <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                   {user.status === "suspended" ? (
                     <Button
                       type="button"

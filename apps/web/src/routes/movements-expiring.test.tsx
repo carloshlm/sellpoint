@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
@@ -145,6 +146,14 @@ describe("Próximos a vencer (F3-LOTS-03)", () => {
     // Fecha de CALENDARIO: el 1 de julio se ve como 01/07, no como 30/06.
     expect(screen.getByText("01/07/2026")).toBeInTheDocument();
     expect(mocked.listExpiring).toHaveBeenCalledWith(expect.objectContaining({ days: 30 }));
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y la salida va en ella", async () => {
+    await renderExpiring();
+
+    const [salida] = await screen.findAllByRole("button", { name: "Dar salida por caducado" });
+    expectRowActionsColumn(salida as HTMLElement);
   });
 
   it("cambiar el filtro a 7 días vuelve a consultar", async () => {

@@ -11,6 +11,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { buildPurchaseOrderRow } from "@/test/purchase-order-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
@@ -124,6 +125,14 @@ describe("Órdenes de compra — listado (F9-PO-11)", () => {
     );
     // Sin `purchases:manage` no hay alta.
     expect(screen.queryByRole("link", { name: "Nueva orden" })).not.toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y «Ver» va en ella", async () => {
+    await renderEn("/purchase-orders", ["purchases:read"]);
+    const filas = await screen.findAllByTestId(/^purchase-order-po/);
+
+    expectRowActionsColumn(within(filas[0] as HTMLElement).getByRole("link", { name: "Ver" }));
   });
 
   it("«Recibidas sin factura» y «Con pendiente» viajan como filtros al API", async () => {

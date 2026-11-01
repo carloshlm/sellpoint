@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -95,7 +95,7 @@ function PresentationsTab({
             <TableHead>{t("products.presentations.wholeOnly")}</TableHead>
             <TableHead>{t("products.presentations.barcode")}</TableHead>
             <TableHead>{t("products.presentations.price")}</TableHead>
-            {canManage && <TableHead />}
+            {canManage && <RowActionsHead />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -200,7 +200,7 @@ function PresentationsTab({
                   <Money value={presentation.price} />
                 </TableCell>
                 {canManage && (
-                  <TableCell className="text-right whitespace-nowrap">
+                  <TableCell className={ROW_ACTIONS_CELL}>
                     {/* EDITAR queda disponible incluso en la predeterminada: es
                         lo que permite convertir la presentación base «×1» en
                         una de lote (renombrarla y cambiarle la equivalencia),
@@ -401,7 +401,7 @@ function EditPresentationRow({
           onChange={setPrice}
         />
       </TableCell>
-      <TableCell className="text-right whitespace-nowrap">
+      <TableCell className={ROW_ACTIONS_CELL}>
         <Button size="sm" disabled={!canSubmit || updatePresentation.isPending} onClick={save}>
           {t("common.form.save")}
         </Button>

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -44,7 +45,7 @@ export function RecordsTable({
           <TableHead className="px-2">{t("medicalClinic.history.columns.date")}</TableHead>
           <TableHead className="px-2">{t("medicalClinic.history.columns.doctor")}</TableHead>
           <TableHead className="px-2">{t("medicalClinic.history.columns.status")}</TableHead>
-          <TableHead className="px-2" />
+          <RowActionsHead className="px-2" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -63,7 +64,7 @@ export function RecordsTable({
                   {t(`medicalClinic.consultationStatus.${estado}`)}
                 </Badge>
               </TableCell>
-              <TableCell className="px-2 text-right whitespace-nowrap">
+              <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                 <Link
                   to="/medical-clinic/records/$recordId"
                   params={{ recordId: fila.id }}

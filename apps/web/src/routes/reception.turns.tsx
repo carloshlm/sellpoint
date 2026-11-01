@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -135,7 +136,7 @@ function TurnsContent() {
               </TableHead>
               <TableHead className="px-2">{t("reception.turns.columns.status")}</TableHead>
               <TableHead className="px-2">{t("reception.turns.columns.time")}</TableHead>
-              <TableHead className="px-2" />
+              <RowActionsHead className="px-2" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -173,7 +174,7 @@ function TurnsContent() {
                 <TableCell className="px-2 whitespace-nowrap">
                   {formatBusinessDate(turn.createdAt, locale, timeZone, true)}
                 </TableCell>
-                <TableCell className="px-2 text-right">
+                <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                   <div className="flex justify-end gap-2">
                     <Button
                       type="button"

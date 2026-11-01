@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -722,7 +723,7 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
               <TableHead className="w-36">{t("products.quick.columns.code")}</TableHead>
               <TableHead className="min-w-56">{t("products.quick.columns.name")}</TableHead>
               <TableHead className="w-32">{t("products.quick.columns.price")}</TableHead>
-              <TableHead className="w-12" />
+              <RowActionsHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -736,7 +737,9 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
                   )}
                 </TableCell>
                 <TableCell className="align-top">{campoPrecio(linea)}</TableCell>
-                <TableCell className="align-top">{botonQuitar(linea)}</TableCell>
+                <TableCell className={`align-top ${ROW_ACTIONS_CELL}`}>
+                  {botonQuitar(linea)}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

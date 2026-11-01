@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { CompositionLine } from "@/lib/products/api";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { CompositionTab } from "./composition-tab";
 
 /**
@@ -63,6 +64,20 @@ function failWith(errors: unknown) {
     errors,
   });
 }
+
+// Carlos (2026-11-01): toda columna de acciones lleva su título.
+describe("CompositionTab — la columna de acciones", () => {
+  it("la última columna se titula «Acciones» y «Quitar» va en ella", () => {
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <CompositionTab productId="prod-1" canManage />
+      </I18nextProvider>,
+    );
+
+    const [quitar] = screen.getAllByRole("button", { name: "Quitar" });
+    expectRowActionsColumn(quitar as HTMLElement);
+  });
+});
 
 describe("CompositionTab — el error se pinta sobre la fila", () => {
   beforeEach(() => {

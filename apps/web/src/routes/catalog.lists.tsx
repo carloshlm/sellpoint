@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -136,7 +136,9 @@ function CatalogListsContent() {
           }}
         />
         {canWrite && !creating && !editing && !importing && (
-          <div className="flex gap-2">
+          // `flex-wrap`: en un celular angosto los botones bajan de línea en
+          // vez de salirse de la pantalla (Carlos, 2026-11-01).
+          <div className="flex flex-wrap gap-2">
             {/* Importar por Excel (Carlos, 2026-09-01): el mismo flujo de
                 productos, servicios y almacenes, para CUALQUIER subcatálogo. */}
             <Button variant="outline" onClick={() => setImporting(true)}>
@@ -274,7 +276,7 @@ function RecordsTable({
               <TableHead key={field.id}>{field.label}</TableHead>
             ))}
             <TableHead>{t("catalogs.records.status")}</TableHead>
-            {canWrite && <TableHead />}
+            {canWrite && <RowActionsHead />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -296,7 +298,7 @@ function RecordsTable({
                 </Badge>
               </TableCell>
               {canWrite && (
-                <TableCell className="text-right">
+                <TableCell className={ROW_ACTIONS_CELL}>
                   <RowAction intent="edit" onClick={() => onEdit(record)} />
                   <RowAction
                     intent={record.isActive ? "deactivate" : "reactivate"}

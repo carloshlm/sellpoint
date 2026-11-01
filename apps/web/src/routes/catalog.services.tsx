@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -98,10 +98,12 @@ function ServicesContent() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      {/* `flex-wrap`: en un celular angosto los botones bajan de línea en vez
+          de salirse de la pantalla (Carlos, 2026-11-01). */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("services.page.title")}</h1>
         {canManage && !creating && !editing && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setImporting(true)}>
               {t("services.import.title")}
             </Button>
@@ -184,7 +186,7 @@ function ServicesContent() {
               <TableHead className="px-2">{t("services.form.price")}</TableHead>
               <TableHead className="px-2">{t("services.warehouses.column")}</TableHead>
               <TableHead className="px-2">{t("services.status")}</TableHead>
-              {canManage && <TableHead className="px-2" />}
+              {canManage && <RowActionsHead className="px-2" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -210,7 +212,7 @@ function ServicesContent() {
                   </Badge>
                 </TableCell>
                 {canManage && (
-                  <TableCell className="px-2 text-right">
+                  <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                     <RowAction
                       intent="edit"
                       onClick={() => {

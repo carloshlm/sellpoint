@@ -8,7 +8,7 @@ import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { QuoteRow } from "@/lib/pos/api";
@@ -115,7 +115,7 @@ export function QuotesList() {
                   <th className="p-2">{t("pos.quote.author")}</th>
                   <th className="p-2 text-right">{t("pos.quote.reference")}</th>
                   <th className="p-2">{t("pos.history.status")}</th>
-                  <th className="p-2" />
+                  <RowActionsTh className="p-2" />
                 </tr>
               </thead>
               <tbody>
@@ -201,7 +201,7 @@ function QuoteRowView({
             {t(`pos.quote.status.${cotizacion.status}`)}
           </Badge>
         </td>
-        <td className="p-2">
+        <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
           {/* items-center: Reimprimir y Cancelar conviven en la celda y sin el
               flex quedaban a alturas distintas (captura de Carlos). */}
           <div className="flex items-center justify-end gap-1">

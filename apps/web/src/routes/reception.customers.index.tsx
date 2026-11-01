@@ -14,7 +14,7 @@ import { TurnNumberDialog } from "@/components/reception/turn-number-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -154,7 +154,7 @@ function CustomersContent() {
               <TableHead className="px-2">{t("reception.customers.columns.email")}</TableHead>
               <TableHead className="px-2">{t("reception.customers.columns.age")}</TableHead>
               <TableHead className="px-2">{t("reception.customers.columns.createdAt")}</TableHead>
-              {canManage && <TableHead className="px-2" />}
+              {canManage && <RowActionsHead className="px-2" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -172,7 +172,7 @@ function CustomersContent() {
                   {formatBusinessDate(customer.createdAt, locale, timeZone)}
                 </TableCell>
                 {canManage && (
-                  <TableCell className="px-2 text-right whitespace-nowrap">
+                  <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                     {/* Si el negocio apagó los turnos en su configuración, no
                         se generan desde ningún lado: tampoco desde la fila. */}
                     {entidad.settings.showTurns && (

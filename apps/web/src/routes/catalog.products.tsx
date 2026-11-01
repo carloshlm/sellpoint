@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -164,7 +164,9 @@ function ProductsContent() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("products.page.title")}</h1>
         {canManage && (
-          <div className="flex gap-2">
+          // Tres botones: en un celular angosto bajan de línea entre ellos en
+          // vez de salirse de la pantalla (Carlos, 2026-11-01).
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setImporting(true)}>
               {t("products.import.open")}
             </Button>
@@ -252,7 +254,7 @@ function ProductsContent() {
                 {/* La columna de armables solo tiene sentido con el filtro de
                     compuestos puesto: para un producto simple no significa nada. */}
                 {onlyComposite && <TableHead>{t("products.availableUnits")}</TableHead>}
-                <TableHead />
+                <RowActionsHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -289,7 +291,7 @@ function ProductsContent() {
                     <Money value={product.price} />
                   </TableCell>
                   {onlyComposite && <AvailabilityCell productId={product.id} />}
-                  <TableCell className="text-right">
+                  <TableCell className={ROW_ACTIONS_CELL}>
                     {/* «Ver» y no «Editar» (Carlos, 2026-08-31): el enlace abre
                         la ficha, y desde ahí se edita SI se tiene permiso. A
                         quien solo puede leer, «Editar» le prometía algo que la

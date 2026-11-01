@@ -6,6 +6,7 @@ import { MoneyInput } from "@/components/form/money-input";
 import { QuantityInput } from "@/components/form/quantity-input";
 import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { ApiError } from "@/lib/api";
 import { describeLineIssues, type LineIssue, lineIssuesOf } from "@/lib/field-errors";
@@ -375,7 +376,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                   <th className="p-2 text-right">{t("purchaseOrders.lines.discount")}</th>
                   <th className="p-2 text-right">{t("purchaseOrders.lines.amount")}</th>
                   {!editable && <th className="p-2">{t("purchaseOrders.lines.received")}</th>}
-                  {(editable || viva) && <th className="p-2" />}
+                  {(editable || viva) && <RowActionsTh className="p-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -557,7 +558,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                         </td>
                       )}
                       {editable && (
-                        <td className="p-2 text-right">
+                        <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
                           <Button
                             type="button"
                             variant="ghost"
@@ -571,7 +572,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                         </td>
                       )}
                       {viva && (
-                        <td className="p-2 text-right">
+                        <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
                           {!linea.closedShort &&
                             Number(linea.pending) > 0 &&
                             linea.lineNo !== null && (

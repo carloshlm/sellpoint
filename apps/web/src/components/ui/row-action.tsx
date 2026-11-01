@@ -1,6 +1,7 @@
 import type * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { TableHead } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 /**
@@ -57,4 +58,53 @@ function RowAction({ intent, className, children, ...buttonProps }: RowActionPro
   );
 }
 
-export { RowAction };
+/**
+ * La columna de acciones de un listado, en UN lugar (Carlos, 2026-11-01).
+ *
+ * En el celular, Sucursales, Subcatálogos, Servicios y Productos apilaban
+ * Editar / Desactivar / Eliminar uno debajo del otro, mientras que Categorías
+ * de gasto los dejaba en una sola línea: la diferencia era un
+ * `whitespace-nowrap` que unas celdas tenían y otras no. Y ninguna columna de
+ * acciones tenía título. Ahora:
+ *
+ * - `ROW_ACTIONS_CELL` va en la celda: las acciones quedan en una sola línea,
+ *   alineadas a la derecha. Si no caben, la tabla se desliza (su caja ya
+ *   tiene scroll horizontal), pero los botones nunca se enciman.
+ * - `RowActionsHead` (tablas del componente `Table`) y `RowActionsTh`
+ *   (tablas crudas) titulan la columna «Acciones», a la derecha como sus
+ *   botones.
+ *
+ * El relleno de la celda NO va aquí: cada tabla conserva el suyo (`px-2`,
+ * `p-2`…) y lo suma en su `className`. La barrera
+ * `row-actions-column.test.tsx` exige las dos piezas en toda tabla con
+ * acciones.
+ */
+export const ROW_ACTIONS_CELL = "text-right whitespace-nowrap";
+
+const ROW_ACTIONS_COLUMN_KEY = "common.actions.column";
+
+type RowActionsHeadProps = Omit<React.ComponentProps<typeof TableHead>, "children">;
+
+function RowActionsHead({ className, ...props }: RowActionsHeadProps) {
+  const { t } = useTranslation();
+
+  return (
+    <TableHead className={cn("text-right", className)} {...props}>
+      {t(ROW_ACTIONS_COLUMN_KEY)}
+    </TableHead>
+  );
+}
+
+type RowActionsThProps = Omit<React.ComponentProps<"th">, "children">;
+
+function RowActionsTh({ className, ...props }: RowActionsThProps) {
+  const { t } = useTranslation();
+
+  return (
+    <th className={cn("text-right", className)} {...props}>
+      {t(ROW_ACTIONS_COLUMN_KEY)}
+    </th>
+  );
+}
+
+export { RowAction, RowActionsHead, RowActionsTh };

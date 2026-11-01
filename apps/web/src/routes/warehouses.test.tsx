@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
@@ -580,5 +581,47 @@ describe("sucursales — dirección por país (F1-ADDR-08)", () => {
     expect(fila).toHaveTextContent("Av. Juárez 10, 44100 Guadalajara, Jalisco");
     // Con solo la línea 1, lo de siempre.
     expect(screen.getByTestId("warehouse-w2")).toHaveTextContent("Calle 5 manzana 5, CDMX");
+  });
+});
+
+/**
+ * Carlos (2026-11-01), en su celular de unos 390 px: «Nueva sucursal» salía
+ * cortado a la derecha, las acciones de la fila se apilaban una debajo de la
+ * otra y la última columna no tenía título. jsdom no mide anchos: aquí se
+ * prueba la regla (las clases); el ancho real se mira en el navegador.
+ */
+describe("Sucursales en el celular (2026-11-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listWarehouses.mockResolvedValue([almacen({ id: "w1", name: "Central" })]);
+    mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    await renderWarehouses();
+
+    const fila = await screen.findByTestId("warehouse-w1");
+    expectRowActionsColumn(within(fila).getByRole("button", { name: "Editar" }));
+    expect(within(fila).getByRole("button", { name: "Desactivar" })).toBeInTheDocument();
+    expect(within(fila).getByRole("button", { name: "Eliminar" })).toBeInTheDocument();
+  });
+
+  it("los botones del encabezado bajan a otra línea en vez de salirse de la pantalla", async () => {
+    await renderWarehouses();
+
+    const nueva = await screen.findByRole("button", { name: "Nueva sucursal" });
+    const botones = nueva.parentElement as HTMLElement;
+    expect(botones).toContainElement(screen.getByRole("button", { name: "Importar sucursales" }));
+    expect(botones).toHaveClass("flex-wrap");
+    expect(botones.parentElement).toHaveClass("flex-wrap");
+  });
+
+  it("sin warehouses:manage no hay columna de acciones ni su título", async () => {
+    await renderWarehouses(["warehouses:read"]);
+
+    await screen.findByTestId("warehouse-w1");
+    expect(screen.queryByRole("columnheader", { name: "Acciones" })).not.toBeInTheDocument();
   });
 });

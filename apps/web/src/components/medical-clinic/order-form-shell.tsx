@@ -6,7 +6,7 @@ import { TextAreaField } from "@/components/form/text-area-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -146,7 +146,7 @@ export function OrderFormShell({
               {esReceta ? <TableHead>{t("medicalClinic.orders.lines.dosage")}</TableHead> : null}
               {/* La columna de la acción no se titula: «Quitar» no es un dato
                   de la orden, y un encabezado ahí desalinea la fila. */}
-              <TableHead className="w-24" />
+              <RowActionsHead className="w-24" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -202,7 +202,7 @@ export function OrderFormShell({
                     ) : null}
                   </TableCell>
                 ) : null}
-                <TableCell className="text-right">
+                <TableCell className={ROW_ACTIONS_CELL}>
                   <RowAction
                     type="button"
                     intent="delete"

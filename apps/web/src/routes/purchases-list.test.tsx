@@ -11,6 +11,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { buildPurchaseRow } from "@/test/purchase-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
@@ -107,6 +108,14 @@ describe("Compras — listado (F9-PURCH-10/13)", () => {
     expect(screen.getByTestId("mismatch-p2")).toBeInTheDocument();
     // Sin `purchases:manage` no hay alta.
     expect(screen.queryByRole("link", { name: "Nueva compra" })).not.toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y «Ver» va en ella", async () => {
+    await renderEn("/purchases", ["purchases:read"]);
+    const filas = await screen.findAllByTestId(/^purchase-p/);
+
+    expectRowActionsColumn(within(filas[0] as HTMLElement).getByRole("link", { name: "Ver" }));
   });
 
   it("el resumen es del RANGO y el descuadre solo aparece cuando hay", async () => {

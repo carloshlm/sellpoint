@@ -6,7 +6,7 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -146,7 +146,7 @@ export function SalesHistory() {
                 <th className="p-2 text-right">{t("pos.history.discount")}</th>
                 <th className="p-2 text-right">{t("pos.history.total")}</th>
                 <th className="p-2">{t("pos.history.state")}</th>
-                <th className="p-2" />
+                <RowActionsTh className="p-2" />
               </tr>
             </thead>
             <tbody>
@@ -236,7 +236,7 @@ function SaleRowView({
             {t(anulada ? "pos.history.canceled" : "pos.history.completed")}
           </Badge>
         </td>
-        <td className="p-2">
+        <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
           <div className="flex items-center justify-end gap-1">
             {/* Reimprimir es LEER: se ofrece aunque la venta esté cancelada,
                 porque quien reclama trae en la mano el ticket de la que se

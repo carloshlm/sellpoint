@@ -11,6 +11,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
@@ -166,6 +167,18 @@ describe("Gastos — listado (F9-EXP-13)", () => {
     expect(filas[1]).toHaveClass("line-through");
     // Sin `expenses:manage` no hay alta.
     expect(screen.queryByRole("link", { name: "Registrar gasto" })).not.toBeInTheDocument();
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título, y los
+  // botones del encabezado bajan de línea en vez de salirse en el celular.
+  it("la última columna se titula «Acciones» y «Ver» va en ella", async () => {
+    await renderEn("/expenses", ["expenses:read", "expenses:manage"]);
+    const filas = await screen.findAllByTestId(/^expense-g/);
+
+    expectRowActionsColumn(within(filas[0] as HTMLElement).getByRole("link", { name: "Ver" }));
+    const nuevo = screen.getByRole("link", { name: "Registrar gasto" });
+    expect(nuevo.parentElement).toHaveClass("flex-wrap");
+    expect(nuevo.parentElement?.parentElement).toHaveClass("flex-wrap");
   });
 
   it("el resumen viene de SU consulta y no se repide al paginar", async () => {

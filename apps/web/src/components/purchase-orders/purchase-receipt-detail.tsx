@@ -12,6 +12,7 @@ import { CanceledNotice } from "@/components/ui/canceled-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
@@ -351,7 +352,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                   <th className="p-2 text-right">{t("purchaseOrders.receipt.quantity")}</th>
                   <th className="p-2">{t("purchaseOrders.receipt.lot")}</th>
                   <th className="p-2">{t("purchaseOrders.receipt.expiresAt")}</th>
-                  {borrador && <th className="p-2" />}
+                  {borrador && <RowActionsTh className="p-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -421,7 +422,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                       }
                     />
                     {borrador && (
-                      <td className="p-2 text-right">
+                      <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
                         <Button
                           type="button"
                           variant="ghost"

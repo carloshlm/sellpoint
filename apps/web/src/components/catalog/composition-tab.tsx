@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -150,7 +151,7 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
               <TableHead>{t("products.composition.quantity")}</TableHead>
               <TableHead>{t("products.composition.unit")}</TableHead>
               <TableHead>{t("products.composition.waste")}</TableHead>
-              {canManage && <TableHead />}
+              {canManage && <RowActionsHead />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -192,7 +193,7 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
                   />
                 </TableCell>
                 {canManage && (
-                  <TableCell className="text-right">
+                  <TableCell className={ROW_ACTIONS_CELL}>
                     <Button
                       variant="ghost"
                       size="sm"

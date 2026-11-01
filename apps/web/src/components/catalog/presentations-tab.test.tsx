@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { Presentation } from "@/lib/products/api";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { PresentationsTab } from "./presentations-tab";
 
 /**
@@ -54,6 +55,15 @@ function renderTab(baseUnit: string) {
     </I18nextProvider>,
   );
 }
+
+// Carlos (2026-11-01): toda columna de acciones lleva su título.
+describe("PresentationsTab — la columna de acciones", () => {
+  it("la última columna se titula «Acciones» y sus botones van en una línea", () => {
+    renderTab("unit");
+
+    expectRowActionsColumn(screen.getByRole("button", { name: "Editar" }));
+  });
+});
 
 describe("PresentationsTab — la unidad base se nombra, no se codifica", () => {
   it("la columna dice el nombre en PLURAL, no el código", () => {

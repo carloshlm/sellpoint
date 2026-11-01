@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
@@ -391,6 +392,14 @@ describe("Imprimir el ticket (F4-TICKET-02)", () => {
     mocked.listPosWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
     mocked.listSales.mockResolvedValue(pagina([venta()]));
     mocked.printTicket.mockResolvedValue(undefined);
+  });
+
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y Reimprimir va en ella", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByText("VTA-000001");
+
+    expectRowActionsColumn(screen.getByRole("button", { name: "Reimprimir" }));
   });
 
   it("desde el historial se reimprime cualquier venta", async () => {

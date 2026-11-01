@@ -11,6 +11,7 @@ import {
 } from "@/components/purchase-orders/purchase-order-lines-table";
 import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { ApiError } from "@/lib/api";
 import { describeLineIssues, type LineIssue, lineIssuesOf } from "@/lib/field-errors";
@@ -396,7 +397,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                   <th className="p-2">{t("purchases.lines.lot")}</th>
                   <th className="p-2">{t("purchases.lines.expiresAt")}</th>
                   <th className="p-2 text-right">{t("purchases.lines.amount")}</th>
-                  {editable && <th className="p-2" />}
+                  {editable && <RowActionsTh className="p-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -561,7 +562,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                         {linea.lineTotal === null ? "—" : dinero(linea.lineTotal)}
                       </td>
                       {editable && (
-                        <td className="p-2 text-right">
+                        <td className={`p-2 ${ROW_ACTIONS_CELL}`}>
                           <Button
                             type="button"
                             variant="ghost"

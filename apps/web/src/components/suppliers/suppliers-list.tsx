@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -62,10 +62,12 @@ export function SuppliersList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      {/* `flex-wrap`: en un celular angosto los botones bajan de línea en vez
+          de salirse de la pantalla (Carlos, 2026-11-01). */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("suppliers.list.title")}</h1>
         {canManage && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setImporting(true)}>
               {t("suppliers.import.button")}
             </Button>
@@ -154,7 +156,7 @@ export function SuppliersList() {
               <TableHead className="px-2">{t("suppliers.list.columns.phone")}</TableHead>
               <TableHead className="px-2">{t("suppliers.list.columns.email")}</TableHead>
               <TableHead className="px-2">{t("suppliers.list.columns.status")}</TableHead>
-              {canManage && <TableHead className="px-2" />}
+              {canManage && <RowActionsHead className="px-2" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -175,7 +177,7 @@ export function SuppliersList() {
                   </Badge>
                 </TableCell>
                 {canManage && (
-                  <TableCell className="px-2 text-right whitespace-nowrap">
+                  <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                     <Link
                       to="/suppliers/$supplierId"
                       params={{ supplierId: supplier.id }}

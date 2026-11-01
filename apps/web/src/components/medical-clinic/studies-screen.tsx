@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
-import { RowAction } from "@/components/ui/row-action";
+import { ROW_ACTIONS_CELL, RowAction, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -147,7 +147,7 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
               <TableHead className="px-2">{t("medicalClinic.studies.columns.cost")}</TableHead>
               <TableHead className="px-2">{t("medicalClinic.studies.columns.price")}</TableHead>
               <TableHead className="px-2">{t("medicalClinic.studies.columns.status")}</TableHead>
-              {canManage && <TableHead className="px-2" />}
+              {canManage && <RowActionsHead className="px-2" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -171,7 +171,7 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
                   </Badge>
                 </TableCell>
                 {canManage && (
-                  <TableCell className="px-2 text-right whitespace-nowrap">
+                  <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                     <RowAction
                       intent="edit"
                       onClick={() => {

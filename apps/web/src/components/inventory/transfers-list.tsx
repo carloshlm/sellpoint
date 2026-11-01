@@ -8,6 +8,7 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
@@ -219,7 +220,7 @@ export function TransfersList() {
                 ) : (
                   <th className="px-2 py-2 font-medium">{t("inventory.transfers.days")}</th>
                 )}
-                <th className="px-2 py-2 font-medium" />
+                <RowActionsTh className="px-2 py-2 font-medium" />
               </tr>
             </thead>
             <tbody>
@@ -280,43 +281,47 @@ export function TransfersList() {
                       )}
                     </td>
                   )}
-                  <td className="flex justify-end gap-2 py-2">
-                    {/* Recepción ya empezada: el diálogo no tiene nada que
+                  {/* La celda sigue siendo celda (antes era `flex` y perdía su
+                      lugar en la tabla); el `flex` va adentro. */}
+                  <td className={`px-2 py-2 ${ROW_ACTIONS_CELL}`}>
+                    <div className="flex justify-end gap-2">
+                      {/* Recepción ya empezada: el diálogo no tiene nada que
                         anunciar —el borrador existe— y repetir "Recibir" hace
                         parecer que el clic anterior se perdió. Se va derecho
                         al documento, con su folio a la vista. */}
-                    {tab === "incoming" &&
-                      has("inventory:movement") &&
-                      (row.receipt === null ? (
+                      {tab === "incoming" &&
+                        has("inventory:movement") &&
+                        (row.receipt === null ? (
+                          <button
+                            type="button"
+                            onClick={() => setRecibiendo(row)}
+                            className="rounded-md border border-input px-3 py-1.5 text-sm"
+                          >
+                            {t("inventory.transfers.receive")}
+                          </button>
+                        ) : (
+                          <Link
+                            to="/movements/documents/$documentId"
+                            params={{ documentId: row.receipt.id }}
+                            data-testid="continue-receipt"
+                            className="rounded-md border border-input px-3 py-1.5 text-sm"
+                          >
+                            {t("inventory.transfers.continueReceipt", {
+                              folio: row.receipt.folio,
+                            })}
+                          </Link>
+                        ))}
+                      {/* Sobre un cancelado no hay nada que volver a cancelar. */}
+                      {!enCancelados && has("inventory:manage") && (
                         <button
                           type="button"
-                          onClick={() => setRecibiendo(row)}
+                          onClick={() => setCancelando(row)}
                           className="rounded-md border border-input px-3 py-1.5 text-sm"
                         >
-                          {t("inventory.transfers.receive")}
+                          {t("inventory.transfers.cancel")}
                         </button>
-                      ) : (
-                        <Link
-                          to="/movements/documents/$documentId"
-                          params={{ documentId: row.receipt.id }}
-                          data-testid="continue-receipt"
-                          className="rounded-md border border-input px-3 py-1.5 text-sm"
-                        >
-                          {t("inventory.transfers.continueReceipt", {
-                            folio: row.receipt.folio,
-                          })}
-                        </Link>
-                      ))}
-                    {/* Sobre un cancelado no hay nada que volver a cancelar. */}
-                    {!enCancelados && has("inventory:manage") && (
-                      <button
-                        type="button"
-                        onClick={() => setCancelando(row)}
-                        className="rounded-md border border-input px-3 py-1.5 text-sm"
-                      >
-                        {t("inventory.transfers.cancel")}
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

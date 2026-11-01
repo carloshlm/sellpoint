@@ -94,7 +94,8 @@
     "edit": "Edit",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",
-    "delete": "Delete"
+    "delete": "Delete",
+    "column": "Actions"
   },
   "profile": {
     "title": "My profile",

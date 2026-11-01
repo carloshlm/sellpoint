@@ -7,6 +7,7 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useCartStore } from "@/stores/cart.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
@@ -164,6 +165,20 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
    * F9-CLINIC-16 — una cotización emitida por un módulo dice de dónde vino.
    * El POS no sabe qué es «medical_clinic»: traduce la clave si existe.
    */
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y Reimprimir / Cancelar van en una línea", async () => {
+    mocked.listQuotes.mockResolvedValue({
+      rows: [cotizacion({ id: "q2", folio: "COT-000002" })],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderRuta("/pos/quotes", ["pos:quote"]);
+    await screen.findByText("COT-000002");
+
+    expectRowActionsColumn(screen.getByRole("button", { name: "Reimprimir" }));
+  });
+
   it("la lista dice de dónde vino una cotización emitida por un módulo", async () => {
     mocked.listQuotes.mockResolvedValue({
       rows: [

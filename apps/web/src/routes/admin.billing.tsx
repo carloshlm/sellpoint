@@ -10,6 +10,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -193,7 +194,7 @@ function AdminBilling() {
               <TableHead>{t("common.billing.admin.status")}</TableHead>
               <TableHead>{t("common.billing.admin.dueAt")}</TableHead>
               <TableHead>{t("common.billing.admin.lastPayment")}</TableHead>
-              <TableHead />
+              <RowActionsHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -222,7 +223,7 @@ function AdminBilling() {
                   <TableCell className="whitespace-nowrap">
                     {fecha(fila.lastPaymentAt, fila.timezone)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={ROW_ACTIONS_CELL}>
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"

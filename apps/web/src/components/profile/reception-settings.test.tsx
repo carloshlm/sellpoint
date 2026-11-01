@@ -9,6 +9,7 @@ import * as servicesApi from "@/lib/services/api";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { ReceptionSettings } from "./reception-settings";
 
@@ -252,6 +253,14 @@ describe("«Configuración Recepción» en Mi perfil (F9-RECEP-18)", () => {
       expect(servicios.listServices).toHaveBeenCalledWith(
         expect.objectContaining({ query: "espec" }),
       );
+    });
+
+    // Carlos (2026-11-01): toda columna de acciones lleva su título.
+    it("la última columna se titula «Acciones» y «Quitar» va en ella", async () => {
+      conLista([enLista(CONSULTA)]);
+      renderCard(admin());
+
+      expectRowActionsColumn(await screen.findByRole("button", { name: "Quitar Consulta médica" }));
     });
 
     it("Quitar uno y Guardar manda la lista sin él", async () => {

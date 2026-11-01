@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
@@ -134,7 +135,7 @@ export function ExpiringList() {
                 <th className="px-2 py-2 font-medium">{t("inventory.expiring.expiresAt")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.expiring.warehouse")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.expiring.quantity")}</th>
-                <th className="px-2 py-2 font-medium" />
+                <RowActionsTh className="px-2 py-2 font-medium" />
               </tr>
             </thead>
             <tbody>
@@ -209,7 +210,7 @@ function Fila({ row }: { row: ExpiringRow }) {
       </td>
       <td className="px-2 py-2">{row.warehouse.name}</td>
       <td className="px-2 py-2">{row.quantity}</td>
-      <td className="px-2 py-2 text-right">
+      <td className={`px-2 py-2 ${ROW_ACTIONS_CELL}`}>
         {has("inventory:movement") && (
           <button
             type="button"
@@ -220,7 +221,9 @@ function Fila({ row }: { row: ExpiringRow }) {
             {t("inventory.expiring.discard")}
           </button>
         )}
-        {error !== null && <p className="text-destructive text-xs">{error}</p>}
+        {/* El botón va en una línea; el error, en cambio, sí se parte: sin
+            `whitespace-normal` estiraría la columna a lo ancho del mensaje. */}
+        {error !== null && <p className="whitespace-normal text-destructive text-xs">{error}</p>}
       </td>
     </tr>
   );

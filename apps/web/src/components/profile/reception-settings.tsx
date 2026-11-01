@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ROW_ACTIONS_CELL, RowActionsHead } from "@/components/ui/row-action";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
@@ -250,7 +251,7 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
                         <TableHead className="px-2 text-right">
                           {t("reception.settings.turnServicesColumns.price")}
                         </TableHead>
-                        <TableHead className="px-2" />
+                        <RowActionsHead className="px-2" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -267,7 +268,7 @@ export function ReceptionSettings({ user }: { user: AuthUser }) {
                           <TableCell className="px-2 text-right tabular-nums">
                             <Money value={servicio.price} />
                           </TableCell>
-                          <TableCell className="px-2 text-right">
+                          <TableCell className={`px-2 ${ROW_ACTIONS_CELL}`}>
                             <Button
                               type="button"
                               variant="ghost"

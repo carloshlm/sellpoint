@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { MyBilling } from "@/lib/billing/api";
@@ -23,7 +24,9 @@ export type PaymentRow = MyBilling["payments"][number];
  * la tabla, que era donde se mezclaban las de todos.
  *
  * `renderAction` es lo único que difiere entre las dos pantallas: el
- * backoffice anula desde acá; el cliente solo mira.
+ * backoffice anula desde acá; el cliente solo mira. Va en la MISMA celda que
+ * «Ver», bajo un solo encabezado «Acciones» y en una línea (Carlos,
+ * 2026-11-01): antes eran dos columnas sin título.
  */
 export function PaymentHistoryTable({
   payments,
@@ -73,8 +76,7 @@ export function PaymentHistoryTable({
               <th className="px-2 py-1">{t("common.billing.payment.period")}</th>
               <th className="px-2 py-1 text-right">{t("common.billing.payment.discount")}</th>
               <th className="px-2 py-1 text-right">{t("common.billing.payment.amount")}</th>
-              <th className="px-2 py-1" />
-              {renderAction ? <th className="px-2 py-1" /> : null}
+              <RowActionsTh className="px-2 py-1" />
             </tr>
           </thead>
           <tbody>
@@ -99,23 +101,23 @@ export function PaymentHistoryTable({
                 <td className={`${celda(pago)} text-right font-medium tabular-nums`}>
                   {dinero(pago.amount, pago.currency)}
                 </td>
-                <td className="px-2 py-1 text-right">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    aria-pressed={pago.id === selectedId}
-                    // El texto visible es «Ver»; el nombre accesible dice CUÁL pago,
-                    // para que un lector de pantalla no oiga diez botones iguales.
-                    aria-label={t("common.billing.payment.viewOf", { date: fecha(pago.paidAt) })}
-                    onClick={() => setSelectedId(pago.id)}
-                  >
-                    {t("common.billing.payment.view")}
-                  </Button>
+                <td className={`px-2 py-1 ${ROW_ACTIONS_CELL}`}>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      aria-pressed={pago.id === selectedId}
+                      // El texto visible es «Ver»; el nombre accesible dice CUÁL pago,
+                      // para que un lector de pantalla no oiga diez botones iguales.
+                      aria-label={t("common.billing.payment.viewOf", { date: fecha(pago.paidAt) })}
+                      onClick={() => setSelectedId(pago.id)}
+                    >
+                      {t("common.billing.payment.view")}
+                    </Button>
+                    {renderAction?.(pago)}
+                  </div>
                 </td>
-                {renderAction ? (
-                  <td className="px-2 py-1 text-right">{renderAction(pago)}</td>
-                ) : null}
               </tr>
             ))}
           </tbody>

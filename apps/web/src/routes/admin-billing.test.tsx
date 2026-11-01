@@ -9,6 +9,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
 vi.mock("@/lib/billing/api", async (importOriginal) => ({
@@ -163,6 +164,14 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
    * Y como uno DETERMINA al otro, teclear los dos sería pedirle al dueño que
    * haga la resta a mano: escribir uno completa el otro.
    */
+  // Carlos (2026-11-01): toda columna de acciones lleva su título.
+  it("la última columna se titula «Acciones» y sus botones van en una línea", async () => {
+    await renderAdmin(true);
+    await screen.findByText("Acme");
+
+    expectRowActionsColumn(screen.getByRole("button", { name: "Registrar pago" }));
+  });
+
   it("propone el cargo del negocio al abrir el modal", async () => {
     await renderAdmin(true);
     const user = userEvent.setup();
@@ -254,6 +263,24 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     await waitFor(() => {
       expect(mockedVoid).toHaveBeenCalledWith("t1", "p1", "transferencia rebotada");
     });
+  });
+
+  // Carlos (2026-11-01): una sola columna de acciones con su título; «Ver» y
+  // «Anular» van juntos en ella, en una línea.
+  it("en el historial del expediente, «Ver» y «Anular» comparten la columna «Acciones»", async () => {
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Acme" }));
+    const expediente = await screen.findByTestId("tenant-detail");
+
+    const anular = within(expediente).getByRole("button", { name: "Anular" });
+    expectRowActionsColumn(anular);
+    const fila = anular.closest("tr") as HTMLElement;
+    expect(
+      within(fila)
+        .getByRole("button", { name: /^Ver pago del/ })
+        .closest("td"),
+    ).toBe(anular.closest("td"));
   });
 
   /**
