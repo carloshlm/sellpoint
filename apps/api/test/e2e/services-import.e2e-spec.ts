@@ -95,7 +95,94 @@ describe("Importar servicios por Excel", () => {
       .expect(200);
 
     const rows = await celdas(res.body as Buffer);
-    expect(rows[0]).toEqual(["codigo", "nombre", "costo", "precio", "impuesto"]);
+    expect(rows[0]).toEqual(["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"]);
+  });
+
+  /**
+   * Carlos (2026-11-01): la plantilla no traía la descripción, que el formulario
+   * sí tiene. Va después del nombre, se exporta y se importa. Un archivo viejo,
+   * SIN la columna, no toca la descripción que ya tenía el servicio.
+   */
+  it("la descripción va después del nombre: se exporta, se importa y un archivo viejo no la borra", async () => {
+    const token = await ownerToken();
+    const subir = async (filas: string[][]) =>
+      request(app.getHttpServer())
+        .post("/services/import")
+        .set("Authorization", bearer(token))
+        .send({ content: await xlsxBase64(filas) })
+        .expect(200);
+    const descripcionDe = async (code: string) => {
+      const lista = await request(app.getHttpServer())
+        .get("/services")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (lista.body as { rows: { code: string; description: string | null }[] }).rows;
+      return filas.find((s) => s.code === code)?.description;
+    };
+
+    await subir([
+      ["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"],
+      ["DESC-01", "Consulta", "Valoración inicial con signos vitales", "50", "250"],
+    ]);
+    expect(await descripcionDe("DESC-01")).toBe("Valoración inicial con signos vitales");
+
+    const plantilla = await request(app.getHttpServer())
+      .get("/services/import/template")
+      .set("Authorization", bearer(token))
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    const filas = await celdas(plantilla.body as Buffer);
+    expect(filas.find((f) => f[0] === "DESC-01")?.[2]).toBe(
+      "Valoración inicial con signos vitales",
+    );
+
+    // Un archivo de antes, sin la columna: actualiza el precio y la descripción sigue.
+    await subir([
+      ["codigo", "nombre", "costo", "precio", "impuesto"],
+      ["DESC-01", "Consulta", "50", "300"],
+    ]);
+    expect(await descripcionDe("DESC-01")).toBe("Valoración inicial con signos vitales");
+
+    // Con la columna, la celda manda: se cambia, y vacía la borra.
+    await subir([
+      ["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"],
+      ["DESC-01", "Consulta", "Incluye receta", "50", "300"],
+    ]);
+    expect(await descripcionDe("DESC-01")).toBe("Incluye receta");
+    await subir([
+      ["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"],
+      ["DESC-01", "Consulta", "", "50", "300"],
+    ]);
+    expect(await descripcionDe("DESC-01")).toBeNull();
+  });
+
+  it("una descripción de más de 2000 caracteres es error de su fila, como en el formulario", async () => {
+    const token = await ownerToken();
+    const res = await request(app.getHttpServer())
+      .post("/services/import")
+      .set("Authorization", bearer(token))
+      .send({
+        content: await xlsxBase64([
+          ["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"],
+          ["LARGA-01", "Consulta", "x".repeat(2001), "50", "250"],
+        ]),
+        dryRun: true,
+      })
+      .expect(200);
+
+    expect(res.body).toMatchObject({ valid: 0, failed: 1 });
+    expect((res.body as { errors: { field?: string; message: string }[] }).errors[0]).toMatchObject(
+      {
+        field: "descripcion",
+        message: "services.import_description_too_long",
+        itemCode: "LARGA-01",
+      },
+    );
   });
 
   it("crea por código nuevo (ofrecido en todos los almacenes) y actualiza por código existente", async () => {

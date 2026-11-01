@@ -132,6 +132,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
     expect(await encabezado("/services/import/template", "en", "xlsx")).toEqual([
       "code",
       "name",
+      "description",
       "cost",
       "price",
       "tax",
@@ -167,6 +168,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
     expect(await encabezado("/services/import/template", "es", "xlsx")).toEqual([
       "codigo",
       "nombre",
+      "descripcion",
       "costo",
       "precio",
       "impuesto",

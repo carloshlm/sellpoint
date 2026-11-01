@@ -14,5 +14,6 @@
   "import_missing_required": "Faltan el código o el nombre",
   "import_duplicate_code": "El código se repite dentro del archivo",
   "import_invalid_money": "El monto no es válido (positivo, hasta 2 decimales)",
-  "import_invalid_attributes": "Hay campos personalizados inválidos"
+  "import_invalid_attributes": "Hay campos personalizados inválidos",
+  "import_description_too_long": "La descripción pasa de 2000 caracteres"
 }

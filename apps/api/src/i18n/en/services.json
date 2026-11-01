@@ -14,5 +14,6 @@
   "import_missing_required": "Code or name is missing",
   "import_duplicate_code": "The code is repeated within the file",
   "import_invalid_money": "The amount is not valid (positive, up to 2 decimals)",
-  "import_invalid_attributes": "There are invalid custom fields"
+  "import_invalid_attributes": "There are invalid custom fields",
+  "import_description_too_long": "The description is longer than 2,000 characters"
 }

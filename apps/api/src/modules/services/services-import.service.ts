@@ -31,7 +31,23 @@ import { type FieldDefinition, validateRecordAttributes } from "../catalogs/vali
 // El orden lo dictó Carlos (2026-09-01): código, nombre, costo, precio de
 // venta y al final los campos personalizados del catálogo de servicios.
 // F4-TAX-11: `impuesto` lleva el CÓDIGO del grupo; vacío = el default del negocio.
-const STANDARD_COLUMNS = ["codigo", "nombre", "costo", "precio", "impuesto"] as const;
+/**
+ * `descripcion` va después del nombre (Carlos, 2026-11-01): el formulario la
+ * tiene y la plantilla no. Si un archivo viejo no trae la columna, la
+ * descripción guardada no se toca; si la trae, la celda manda (vacía = sin
+ * descripción).
+ */
+const STANDARD_COLUMNS = [
+  "codigo",
+  "nombre",
+  "descripcion",
+  "costo",
+  "precio",
+  "impuesto",
+] as const;
+
+/** El mismo tope que el formulario (`upsert-service.dto.ts`). */
+const DESCRIPTION_MAX = 2000;
 
 /** Las que en el xlsx van como NÚMERO; el código y el impuesto son texto. */
 const NUMERIC_COLUMNS = ["costo", "precio"] as const;
@@ -54,6 +70,8 @@ interface ParsedRow {
   row: number;
   code: string;
   name: string;
+  /** `undefined` = el archivo no trae la columna: no se toca la guardada. */
+  description: string | null | undefined;
   cost: number | null;
   price: number | null;
   /** F4-TAX-11: null = hereda el default (la celda vino vacía). */
@@ -95,10 +113,11 @@ export class ServicesImportService {
             [
               "CONS-01",
               "Consulta general",
+              "Valoración inicial y signos vitales",
               "50",
               "250",
               impuestos.defaultCode ?? "",
-              ...header.slice(5).map(() => ""),
+              ...header.slice(STANDARD_COLUMNS.length).map(() => ""),
             ],
           ];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
@@ -154,6 +173,22 @@ export class ServicesImportService {
         return;
       }
       vistos.add(code);
+
+      let description: string | null | undefined;
+      if (header.includes("descripcion")) {
+        const texto = value("descripcion");
+        if (texto.length > DESCRIPTION_MAX) {
+          errors.push(
+            conCodigo({
+              row: rowNumber,
+              field: "descripcion",
+              message: "services.import_description_too_long",
+            }),
+          );
+          return;
+        }
+        description = texto || null;
+      }
 
       const money: { costo: number | null; precio: number | null } = { costo: null, precio: null };
       for (const column of ["costo", "precio"] as const) {
@@ -211,6 +246,7 @@ export class ServicesImportService {
         row: rowNumber,
         code,
         name,
+        description,
         cost: money.costo,
         price: money.precio,
         taxGroupId: impuesto.kind === "group" ? impuesto.id : null,
@@ -258,6 +294,7 @@ export class ServicesImportService {
             where: { id: item.existingId },
             data: {
               name: item.name,
+              ...(item.description !== undefined ? { description: item.description } : {}),
               ...(item.cost !== null ? { cost: item.cost } : {}),
               ...(item.price !== null ? { price: item.price } : {}),
               // Vacío = hereda: se escribe NULL a propósito (ver resolveTaxGroupCode).
@@ -272,6 +309,7 @@ export class ServicesImportService {
             tenantId: user.tenantId,
             code: item.code,
             name: item.name,
+            description: item.description ?? null,
             cost: item.cost,
             price: item.price,
             taxGroupId: item.taxGroupId,
@@ -323,6 +361,7 @@ export class ServicesImportService {
     const rows = services.map((service) => [
       service.code,
       service.name,
+      service.description ?? "",
       service.cost?.toString() ?? "",
       service.price?.toString() ?? "",
       // Vacío = hereda el default; el código solo cuando hay override.
