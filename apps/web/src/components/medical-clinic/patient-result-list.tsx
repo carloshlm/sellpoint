@@ -87,13 +87,14 @@ export function PatientResultList({
               (hit.customerId !== null &&
               hit.lastRecord !== null &&
               hit.lastRecord.lockReason === null ? (
-                <Link
-                  to="/medical-clinic/records/$recordId"
-                  params={{ recordId: hit.lastRecord.id }}
-                  className={BOTON_CONTINUAR}
-                >
-                  {t("medicalClinic.attend.continue", { folio: hit.lastRecord.folio })}
-                </Link>
+                <Button asChild className="w-full sm:w-64">
+                  <Link
+                    to="/medical-clinic/records/$recordId"
+                    params={{ recordId: hit.lastRecord.id }}
+                  >
+                    {t("medicalClinic.attend.continue", { folio: hit.lastRecord.folio })}
+                  </Link>
+                </Button>
               ) : (
                 <Button
                   type="button"
@@ -110,7 +111,3 @@ export function PatientResultList({
     </ul>
   );
 }
-
-/** Mismo peso visual que «Iniciar consulta»: es la acción principal de la tarjeta. */
-const BOTON_CONTINUAR =
-  "inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring sm:w-64";

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
@@ -139,14 +140,13 @@ export function DocumentList({ type }: DocumentListProps) {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-semibold text-xl">{t(`inventory.documentType.${type}`)}</h1>
         {canCreate && (
-          <button
+          <Button
             type="button"
             onClick={() => void crear()}
             disabled={warehouseId === null || createDocument.isPending}
-            className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm font-medium disabled:opacity-50"
           >
             {t("inventory.list.create")}
-          </button>
+          </Button>
         )}
       </header>
 

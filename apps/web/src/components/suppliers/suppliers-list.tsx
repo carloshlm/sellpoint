@@ -25,9 +25,6 @@ import type { Supplier } from "@/lib/suppliers/api";
 import { useRemoveSupplier, useSuppliers, useUpdateSupplier } from "@/lib/suppliers/hooks";
 import { downloadSupplierImportTemplate, runSupplierImport } from "@/lib/suppliers/import-api";
 
-const BOTON_PRIMARIO =
-  "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
-
 /**
  * F9-SUPPL-08 — el listado de proveedores (molde: clientes de Recepción,
  * componente `Table`). Alfabético, con buscador y paginado del API; activo o
@@ -71,9 +68,9 @@ export function SuppliersList() {
             <Button variant="outline" onClick={() => setImporting(true)}>
               {t("suppliers.import.button")}
             </Button>
-            <Link to="/suppliers/new" className={BOTON_PRIMARIO}>
-              {t("suppliers.list.new")}
-            </Link>
+            <Button asChild>
+              <Link to="/suppliers/new">{t("suppliers.list.new")}</Link>
+            </Button>
           </div>
         )}
       </div>

@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Money } from "@/components/common/money";
 import { MoneyInput } from "@/components/form/money-input";
+import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
@@ -244,18 +245,14 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           )}
           {puedeConfirmar && (
             <>
-              <button
-                type="button"
-                onClick={() => setDialog("cancel")}
-                className="rounded-md border border-input px-3 py-2 text-sm"
-              >
+              <Button variant="outline" type="button" onClick={() => setDialog("cancel")}>
                 {t("inventory.document.cancel")}
-              </button>
+              </Button>
               {/* En un conteo (Carlos, 2026-11-01) el botón dice «Confirmar
                   inventario» y se queda arriba junto a «Anular», pero apagado
                   hasta que se sube la plantilla: las líneas de un conteo solo
                   entran así, y sin líneas no hay nada que aprobar. */}
-              <button
+              <Button
                 type="button"
                 onClick={() => setDialog("confirm")}
                 disabled={conErrores || sinLineas || faltaCabecera || confirmDocument.isPending}
@@ -264,10 +261,9 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     ? t("inventory.document.confirmCountNeedsUpload")
                     : undefined
                 }
-                className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm font-medium disabled:opacity-50"
               >
                 {esConteo ? t("inventory.document.confirmCount") : t("inventory.document.confirm")}
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -293,12 +289,9 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           </div>
           <div className="flex items-center gap-2">
             {document.reasonCode === "transfer" && (
-              <Link
-                to="/movements/transfers"
-                className="rounded-md border border-input px-3 py-2 text-sm"
-              >
-                {t("inventory.document.goToTransfers")}
-              </Link>
+              <Button asChild variant="outline">
+                <Link to="/movements/transfers">{t("inventory.document.goToTransfers")}</Link>
+              </Button>
             )}
             {/* El botón de imprimir vive UNA vez, en la cabecera (Carlos,
                 2026-09-15): repetirlo acá daba dos botones iguales a un palmo

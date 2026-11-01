@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
@@ -16,9 +17,6 @@ import type { PurchaseOrderRow } from "@/lib/purchase-orders/api";
 import { usePurchaseOrders } from "@/lib/purchase-orders/hooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
-
-const BOTON_PRIMARIO =
-  "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
 
 /** Los chips de estado: los siete de VISTA (con «Facturada», derivado) más dos que el API entiende como filtros. */
 type Filtro = "todas" | "pendingOnly" | "pendingInvoice" | PurchaseOrderRow["status"];
@@ -81,12 +79,12 @@ export function PurchaseOrderList() {
 
   return (
     <section className="flex flex-col gap-4" data-testid="purchase-order-list">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("purchaseOrders.list.title")}</h1>
         {canManage && (
-          <Link to="/purchase-orders/new" className={BOTON_PRIMARIO}>
-            {t("purchaseOrders.list.new")}
-          </Link>
+          <Button asChild>
+            <Link to="/purchase-orders/new">{t("purchaseOrders.list.new")}</Link>
+          </Button>
         )}
       </div>
 

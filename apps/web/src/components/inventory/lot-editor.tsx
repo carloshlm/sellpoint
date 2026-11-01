@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import type { StockLotRow } from "@/lib/inventory/kardex-api";
 import { updateLot } from "@/lib/inventory/kardex-api";
@@ -106,7 +107,7 @@ export function LotEditor({
       )}
 
       <div className="flex gap-2">
-        <button
+        <Button
           type="button"
           disabled={guardar.isPending || (!cambiaCodigo && !cambiaFecha)}
           onClick={() => {
@@ -118,17 +119,12 @@ export function LotEditor({
             }
             guardar.mutate();
           }}
-          className="rounded-md bg-primary px-3 py-2 text-primary-foreground text-sm disabled:opacity-50"
         >
           {t("inventory.kardex.save")}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md border border-input px-3 py-2 text-sm"
-        >
+        </Button>
+        <Button variant="outline" type="button" onClick={onClose}>
           {t("common.form.cancel")}
-        </button>
+        </Button>
       </div>
 
       {confirmando && (

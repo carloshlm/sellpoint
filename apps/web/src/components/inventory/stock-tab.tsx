@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -258,15 +259,12 @@ export function StockTab({ productId }: { productId: string }) {
       )}
       {has("inventory:movement") && (
         <div className="flex gap-2">
-          <Link
-            to="/movements/entries"
-            className="rounded-md border border-input px-3 py-2 text-sm"
-          >
-            {t("inventory.kardex.registerEntry")}
-          </Link>
-          <Link to="/movements/exits" className="rounded-md border border-input px-3 py-2 text-sm">
-            {t("inventory.kardex.registerExit")}
-          </Link>
+          <Button asChild variant="outline">
+            <Link to="/movements/entries">{t("inventory.kardex.registerEntry")}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/movements/exits">{t("inventory.kardex.registerExit")}</Link>
+          </Button>
         </div>
       )}
     </div>

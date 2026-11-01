@@ -1,6 +1,7 @@
 import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/auth/permissions";
 import { formatBusinessTime } from "@/lib/inventory/format-date";
 import { useSession, useSessionTotals } from "@/lib/pos/hooks";
@@ -92,26 +93,23 @@ export function SellerPanel() {
       <div className="flex flex-wrap gap-2">
         {/* Los accesos de siempre, por permiso: el mostrador entra a vender
             con un clic, no buscando en el menú. */}
-        <Link
-          to="/pos"
-          className="rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground text-sm"
-        >
-          {abierto ? t("pos.nav.sell") : t("pos.session.open")}
-        </Link>
+        <Button asChild>
+          <Link to="/pos">{abierto ? t("pos.nav.sell") : t("pos.session.open")}</Link>
+        </Button>
         {has("pos:quote") && (
-          <Link to="/pos/quotes" className="rounded-md border px-3 py-2 text-sm">
-            {t("pos.nav.quote")}
-          </Link>
+          <Button asChild variant="outline">
+            <Link to="/pos/quotes">{t("pos.nav.quote")}</Link>
+          </Button>
         )}
         {has("pos:view") && (
-          <Link to="/pos/sales" className="rounded-md border px-3 py-2 text-sm">
-            {t("pos.nav.history")}
-          </Link>
+          <Button asChild variant="outline">
+            <Link to="/pos/sales">{t("pos.nav.history")}</Link>
+          </Button>
         )}
         {abierto && (
-          <Link to="/pos/close" className="rounded-md border px-3 py-2 text-sm">
-            {t("pos.nav.close")}
-          </Link>
+          <Button asChild variant="outline">
+            <Link to="/pos/close">{t("pos.nav.close")}</Link>
+          </Button>
         )}
       </div>
     </section>

@@ -11,6 +11,7 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { AppLayout } from "@/components/layout/app-layout";
 import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { TurnNumberDialog } from "@/components/reception/turn-number-dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
@@ -61,9 +62,6 @@ function CustomersPage() {
   );
 }
 
-const BOTON_PRIMARIO =
-  "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
-
 function CustomersContent() {
   const { t, i18n } = useTranslation();
   const entidad = useReceptionEntity();
@@ -103,12 +101,12 @@ function CustomersContent() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("reception.customers.title", entidad.vars)}</h1>
         {canManage && (
-          <Link to="/reception/customers/new" className={BOTON_PRIMARIO}>
-            {t("reception.customers.new")}
-          </Link>
+          <Button asChild>
+            <Link to="/reception/customers/new">{t("reception.customers.new")}</Link>
+          </Button>
         )}
       </div>
 

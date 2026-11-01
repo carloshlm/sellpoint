@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import {
   downloadDocumentPdf,
   downloadDocumentSpreadsheet,
@@ -52,30 +53,30 @@ export function PrintDocumentButton({ documentId, folio }: PrintDocumentButtonPr
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex flex-wrap justify-end gap-2">
-        <button
+        <Button
+          variant="outline"
           type="button"
           onClick={() => void conElPapel(downloadDocumentSpreadsheet, "excel")}
           disabled={busy}
-          className="rounded-md border border-input px-3 py-2 text-sm disabled:opacity-50"
         >
           {t("inventory.document.downloadExcel")}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           type="button"
           onClick={() => void conElPapel(downloadDocumentPdf)}
           disabled={busy}
-          className="rounded-md border border-input px-3 py-2 text-sm disabled:opacity-50"
         >
           {t("inventory.document.savePdf")}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           type="button"
           onClick={() => void conElPapel(printDocumentPdf)}
           disabled={busy}
-          className="rounded-md border border-input px-3 py-2 text-sm disabled:opacity-50"
         >
           {t("inventory.document.print")}
-        </button>
+        </Button>
       </div>
       {failed !== null && (
         <span className="text-destructive text-xs">

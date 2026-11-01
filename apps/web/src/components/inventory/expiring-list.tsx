@@ -58,7 +58,7 @@ export function ExpiringList() {
     <section className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-semibold text-xl">{t("inventory.expiring.title")}</h1>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <button
             type="button"
             onClick={() => setFiltro("expired")}

@@ -23,9 +23,6 @@ import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
 
-const BOTON_PRIMARIO =
-  "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
-
 /**
  * F9-EXP-13 — el listado de gastos (molde: `sales-history.tsx`): buscador con
  * debounce, estado, estado de pago, categoría y rango de fechas del negocio;
@@ -92,9 +89,9 @@ export function ExpensesList() {
             {t("expenses.list.export")}
           </Button>
           {canManage && (
-            <Link to="/expenses/new" className={BOTON_PRIMARIO}>
-              {t("expenses.list.new")}
-            </Link>
+            <Button asChild>
+              <Link to="/expenses/new">{t("expenses.list.new")}</Link>
+            </Button>
           )}
         </div>
       </div>

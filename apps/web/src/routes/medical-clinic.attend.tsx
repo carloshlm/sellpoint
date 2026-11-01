@@ -11,6 +11,7 @@ import {
   PatientSearchForm,
   type SearchMode,
 } from "@/components/medical-clinic/patient-search-form";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -21,9 +22,6 @@ import { useCreateRecord, usePatientSearch } from "@/lib/medical-clinic/hooks";
 export const Route = createFileRoute("/medical-clinic/attend")({
   component: AttendPage,
 });
-
-const BOTON_PRIMARIO =
-  "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
 
 /**
  * Qué decir cuando la búsqueda no trajo a nadie. El turno inexistente tiene
@@ -113,12 +111,12 @@ function AttendContent() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("medicalClinic.attend.title")}</h1>
         {canStart && (
-          <Link to="/medical-clinic/patients/new" className={BOTON_PRIMARIO}>
-            {t("medicalClinic.attend.newPatient")}
-          </Link>
+          <Button asChild>
+            <Link to="/medical-clinic/patients/new">{t("medicalClinic.attend.newPatient")}</Link>
+          </Button>
         )}
       </div>
 

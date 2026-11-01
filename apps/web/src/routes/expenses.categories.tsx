@@ -80,7 +80,7 @@ function CategoriesContent() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("expenses.categories.title")}</h1>
         {canManage && !creating && !editing && (
           <Button

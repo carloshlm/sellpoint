@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { ROW_ACTIONS_CELL, RowAction, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
@@ -16,9 +17,6 @@ import type { PurchaseRow } from "@/lib/purchases/api";
 import { usePurchases } from "@/lib/purchases/hooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
-
-const BOTON_PRIMARIO =
-  "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
 
 type Estado = "todas" | PurchaseRow["status"];
 
@@ -60,12 +58,12 @@ export function PurchaseList() {
 
   return (
     <section className="flex flex-col gap-4" data-testid="purchase-list">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("purchases.list.title")}</h1>
         {canManage && (
-          <Link to="/purchases/new" className={BOTON_PRIMARIO}>
-            {t("purchases.list.new")}
-          </Link>
+          <Button asChild>
+            <Link to="/purchases/new">{t("purchases.list.new")}</Link>
+          </Button>
         )}
       </div>
 

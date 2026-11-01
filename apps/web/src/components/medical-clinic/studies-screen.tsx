@@ -63,10 +63,10 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t(`medicalClinic.studies.${kind}.title`)}</h1>
         {canManage && !creating && !editing && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {/* Mismo par de botones que Servicios: importar al lado de agregar. */}
             <Button variant="outline" onClick={() => setImportando(true)}>
               {t(`medicalClinic.studies.${kind}.import.title`)}

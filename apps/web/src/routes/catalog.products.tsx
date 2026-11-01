@@ -429,7 +429,7 @@ function ProductDetailPanel({
 
   return (
     <div ref={panelRef} className="flex flex-col gap-6">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{product.name}</h1>
           <p className="text-sm text-muted-foreground">{product.sku}</p>
