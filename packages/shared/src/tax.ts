@@ -31,8 +31,9 @@ import { z } from "zod";
  *   siempre.
  *
  * Half-up en todos los cortes (medio centavo sube), que es lo que SAT y CRA
- * aceptan por línea. Sin impuestos compuestos: ningún mercado objetivo los
- * usa (el QST dejó de serlo en 2013).
+ * aceptan. Sin impuestos compuestos: ningún mercado objetivo los usa (el QST
+ * dejó de serlo en 2013). Un documento entero (venta, cotización) no suma
+ * renglones redondeados: `splitDocumentTax` calcula por tasa sobre la suma.
  */
 export const TAX_MODES = ["included", "excluded"] as const;
 export type TaxMode = (typeof TAX_MODES)[number];
@@ -134,6 +135,118 @@ export function splitLineTax(input: {
     taxCents: Number(impuesto),
     byComponent: components.map((c, i) => ({ code: c.code, taxCents: Number(porComponente[i]) })),
   };
+}
+
+export interface DocumentTaxLine {
+  amountCents: number;
+  components: readonly TaxComponent[];
+}
+
+export interface DocumentTaxSplit {
+  lines: { netCents: number; taxCents: number }[];
+  netCents: number;
+  taxCents: number;
+  byComponent: { code: string; name: string; rate: string; netCents: number; taxCents: number }[];
+}
+
+/**
+ * El impuesto de un documento entero (Carlos, 2026-11-01): por TASA, sobre la
+ * suma de los renglones que la comparten, y repartido después entre ellos.
+ *
+ * Redondear cada renglón por su lado acumulaba hasta medio centavo por
+ * renglón: el ticket VTA-000109 decía «IVA 16% $15.18» donde la cuenta a mano,
+ * 110 − 110/1.16, da $15.17, y en una venta larga la diferencia crece. Ahora:
+ *
+ * 1. Los renglones se juntan por su lista de componentes (código y tasa), sin
+ *    importar cómo se llame el grupo ni si la tasa dice «16» o «16.00».
+ * 2. `splitLineTax` corre UNA vez sobre la suma de cada conjunto: un solo
+ *    redondeo por tasa.
+ * 3. Ese impuesto se reparte entre los renglones del conjunto en proporción a
+ *    su importe, en centavos exactos (fracción mayor primero; empate, el
+ *    primero), así `Σ por renglón ≡ Σ por componente` sigue cuadrando.
+ *
+ * Los componentes se acumulan por código Y tasa (el IVA 0% y el 16% comparten
+ * `VAT`), en el orden en que aparecen.
+ */
+export function splitDocumentTax(input: {
+  lines: readonly DocumentTaxLine[];
+  mode: TaxMode;
+}): DocumentTaxSplit {
+  const { lines, mode } = input;
+  const claveDe = (c: TaxComponent) => `${c.code}|${rateToScaled(c.rate)}`;
+  const conjuntos = new Map<string, { components: readonly TaxComponent[]; indices: number[] }>();
+  lines.forEach((linea, i) => {
+    if (!Number.isSafeInteger(linea.amountCents) || linea.amountCents < 0) {
+      throw new RangeError(`amountCents must be a non-negative integer: ${linea.amountCents}`);
+    }
+    const firma = linea.components.map(claveDe).join(",");
+    const conjunto = conjuntos.get(firma) ?? { components: linea.components, indices: [] };
+    conjunto.indices.push(i);
+    conjuntos.set(firma, conjunto);
+  });
+
+  const porLinea = lines.map((l) => ({ netCents: l.amountCents, taxCents: 0 }));
+  const componentes = new Map<string, DocumentTaxSplit["byComponent"][number]>();
+  for (const { components, indices } of conjuntos.values()) {
+    const importes = indices.map((i) => lines[i]?.amountCents ?? 0);
+    const split = splitLineTax({
+      amountCents: importes.reduce((acc, a) => acc + a, 0),
+      mode,
+      components,
+    });
+    const partes = repartirCentavos(split.taxCents, importes);
+    indices.forEach((i, k) => {
+      const importe = importes[k] ?? 0;
+      const impuesto = partes[k] ?? 0;
+      porLinea[i] = {
+        netCents: mode === "included" ? importe - impuesto : importe,
+        taxCents: impuesto,
+      };
+    });
+    components.forEach((c, j) => {
+      const clave = claveDe(c);
+      const acumulado = componentes.get(clave) ?? {
+        code: c.code,
+        name: c.name,
+        rate: c.rate,
+        netCents: 0,
+        taxCents: 0,
+      };
+      acumulado.netCents += split.netCents;
+      acumulado.taxCents += split.byComponent[j]?.taxCents ?? 0;
+      componentes.set(clave, acumulado);
+    });
+  }
+
+  return {
+    lines: porLinea,
+    netCents: porLinea.reduce((acc, l) => acc + l.netCents, 0),
+    taxCents: porLinea.reduce((acc, l) => acc + l.taxCents, 0),
+    byComponent: [...componentes.values()],
+  };
+}
+
+/**
+ * Reparte `totalCents` en proporción a `pesos`, en centavos exactos: la parte
+ * entera de cada uno y después los centavos que sobran, uno por uno, a las
+ * fracciones más grandes (empate: el primero). En `bigint`, como el resto del
+ * archivo: comparar fracciones en coma flotante puede desempatar al revés.
+ */
+function repartirCentavos(totalCents: number, pesos: readonly number[]): number[] {
+  const suma = pesos.reduce((acc, p) => acc + BigInt(p), 0n);
+  if (totalCents === 0 || suma === 0n) return pesos.map(() => 0);
+  const total = BigInt(totalCents);
+  const partes = pesos.map((p) => (total * BigInt(p)) / suma);
+  let sobrante = total - partes.reduce((acc, p) => acc + p, 0n);
+  const porFraccion = pesos
+    .map((p, i) => ({ i, fraccion: (total * BigInt(p)) % suma }))
+    .sort((a, b) => (a.fraccion === b.fraccion ? a.i - b.i : a.fraccion > b.fraccion ? -1 : 1));
+  for (const { i } of porFraccion) {
+    if (sobrante <= 0n) break;
+    partes[i] = (partes[i] ?? 0n) + 1n;
+    sobrante -= 1n;
+  }
+  return partes.map(Number);
 }
 
 /**

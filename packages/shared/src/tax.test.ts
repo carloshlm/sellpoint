@@ -5,6 +5,7 @@ import {
   MAX_TAX_COMPONENTS,
   netUnitCostCents,
   rateToScaled,
+  splitDocumentTax,
   splitLineTax,
   TAX_MODES,
   TAX_RATE_SCALE,
@@ -156,6 +157,111 @@ describe("splitLineTax — los bordes", () => {
     ).toThrow();
     expect(() => splitLineTax({ amountCents: -1, mode: "excluded", components: [GST] })).toThrow();
     expect(() => splitLineTax({ amountCents: 1.5, mode: "excluded", components: [GST] })).toThrow();
+  });
+});
+
+/**
+ * Carlos (2026-11-01), el ticket VTA-000109 de la farmacia: Agua $70 y
+ * Jarritos $40 al 16%, ADVIL $46 y OLANZAPINA $72 al 0%. Redondeado renglón
+ * por renglón, el IVA era $9.66 + $5.52 = $15.18; la cuenta a mano,
+ * 110 − 110/1.16, da $15.17. El impuesto de un documento sale por tasa, sobre
+ * la suma de sus renglones, y después se reparte entre ellos.
+ */
+describe("splitDocumentTax — el impuesto por tasa, sobre la suma de los renglones", () => {
+  const IVA0 = { code: "VAT", name: "IVA 0%", rate: "0" };
+  const IVA16 = { code: "VAT", name: "IVA 16%", rate: "16" };
+
+  it("el ticket de la farmacia: $110 al 16% llevan $15.17 de IVA, no $15.18", () => {
+    const r = splitDocumentTax({
+      mode: "included",
+      lines: [
+        { amountCents: 4600, components: [IVA0] },
+        { amountCents: 7000, components: [IVA16] },
+        { amountCents: 7200, components: [IVA0] },
+        { amountCents: 4000, components: [IVA16] },
+      ],
+    });
+    expect(r.taxCents).toBe(1517);
+    expect(r.netCents).toBe(21283);
+    expect(r.lines).toEqual([
+      { netCents: 4600, taxCents: 0 },
+      { netCents: 6035, taxCents: 965 },
+      { netCents: 7200, taxCents: 0 },
+      { netCents: 3448, taxCents: 552 },
+    ]);
+    expect(r.byComponent).toEqual([
+      { code: "VAT", name: "IVA 0%", rate: "0", netCents: 11800, taxCents: 0 },
+      { code: "VAT", name: "IVA 16%", rate: "16", netCents: 9483, taxCents: 1517 },
+    ]);
+  });
+
+  it("cada tasa es `splitLineTax` sobre su suma, y Σ por renglón = Σ por componente = el impuesto", () => {
+    const lines = Array.from({ length: 9 }, (_, i) => ({
+      amountCents: 137 * i + 1,
+      components: i % 3 === 0 ? [IVA16] : i % 3 === 1 ? [GST, PST] : [],
+    }));
+    const suma = (n: number) =>
+      lines.filter((_, i) => i % 3 === n).reduce((acc, l) => acc + l.amountCents, 0);
+    for (const mode of TAX_MODES) {
+      const r = splitDocumentTax({ mode, lines });
+      const iva = splitLineTax({ amountCents: suma(0), mode, components: [IVA16] });
+      const canada = splitLineTax({ amountCents: suma(1), mode, components: [GST, PST] });
+      expect(r.taxCents).toBe(iva.taxCents + canada.taxCents);
+      expect(r.byComponent.map((c) => [c.code, c.netCents, c.taxCents])).toEqual([
+        ["VAT", iva.netCents, iva.taxCents],
+        ["GST", canada.netCents, canada.byComponent[0]?.taxCents],
+        ["PST", canada.netCents, canada.byComponent[1]?.taxCents],
+      ]);
+      expect(r.lines.reduce((acc, l) => acc + l.taxCents, 0)).toBe(r.taxCents);
+      r.lines.forEach((l, i) => {
+        const importe = lines[i]?.amountCents ?? 0;
+        expect(l.netCents).toBe(mode === "included" ? importe - l.taxCents : importe);
+        if (i % 3 === 2) expect(l.taxCents).toBe(0);
+      });
+    }
+  });
+
+  it("la misma tasa con otro nombre o escrita «16.00» es la misma tasa; se queda el primer nombre", () => {
+    const general = { code: "VAT", name: "IVA general", rate: "16.00" };
+    const r = splitDocumentTax({
+      mode: "included",
+      lines: [
+        { amountCents: 7000, components: [IVA16] },
+        { amountCents: 4000, components: [general] },
+      ],
+    });
+    expect(r.byComponent).toEqual([
+      { code: "VAT", name: "IVA 16%", rate: "16", netCents: 9483, taxCents: 1517 },
+    ]);
+  });
+
+  it("el centavo que sobra va a la fracción mayor y, en empate, al primer renglón", () => {
+    const r = splitDocumentTax({
+      mode: "included",
+      lines: [100, 100, 100].map((amountCents) => ({ amountCents, components: [IVA16] })),
+    });
+    expect(r.taxCents).toBe(41);
+    expect(r.lines.map((l) => l.taxCents)).toEqual([14, 14, 13]);
+  });
+
+  it("sin renglones todo es cero, y un importe negativo o con fracción se rechaza", () => {
+    expect(splitDocumentTax({ mode: "included", lines: [] })).toEqual({
+      lines: [],
+      netCents: 0,
+      taxCents: 0,
+      byComponent: [],
+    });
+    for (const amountCents of [-1, 1.5]) {
+      expect(() =>
+        splitDocumentTax({
+          mode: "excluded",
+          lines: [
+            { amountCents: 100, components: [GST] },
+            { amountCents, components: [GST] },
+          ],
+        }),
+      ).toThrow(RangeError);
+    }
   });
 });
 

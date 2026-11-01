@@ -72,6 +72,34 @@ describe("tasas distintas del mismo componente: un renglón por tasa", () => {
     expect(totales.taxTotal.toFixed(2)).toBe("13.79");
   });
 
+  /**
+   * Carlos (2026-11-01), VTA-000109: redondeado renglón por renglón, el IVA de
+   * Agua ($70) y Jarritos ($40) era $9.66 + $5.52 = $15.18; la cuenta a mano,
+   * 110 − 110/1.16, da $15.17. El IVA sale de la suma de cada tasa y se
+   * reparte después entre los renglones.
+   */
+  it("VTA-000109: $110 al 16% llevan $15.17 de IVA y el subtotal sin IVA es $212.83", () => {
+    const t = armarTotales(
+      [
+        linea("23", "2", "0", IVA0),
+        linea("14", "5", "0", IVA16),
+        linea("24", "3", "0", IVA0),
+        linea("20", "2", "0", IVA16),
+      ],
+      "included",
+    );
+    expect(t.total.toFixed(2)).toBe("228.00");
+    expect(t.taxTotal.toFixed(2)).toBe("15.17");
+    expect(t.total.minus(t.taxTotal).toFixed(2)).toBe("212.83");
+    expect(t.lines.map((l) => l.taxAmount.toFixed(2))).toEqual(["0.00", "9.65", "0.00", "5.52"]);
+    expect(
+      t.byComponent.map((c) => [c.name, c.base.toFixed(2), c.amount.toFixed(2), c.sortOrder]),
+    ).toEqual([
+      ["IVA 0%", "118.00", "0.00", 0],
+      ["IVA 16%", "94.83", "15.17", 1],
+    ]);
+  });
+
   it("la misma tasa en dos líneas sigue siendo UN renglón", () => {
     const totales = armarTotales([linea("116", "1", "0", IVA16), linea("58", "1", "0", IVA16)]);
 
@@ -168,7 +196,7 @@ describe("modo excluido (Canadá, EE. UU.): el impuesto se suma", () => {
     ]);
   });
 
-  it("los componentes se acumulan DESDE las líneas: Σ tax_amount es Σ por componente, línea por línea", () => {
+  it("el reparto cuadra: Σ tax_amount de las líneas es Σ por componente", () => {
     const lineas = Array.from({ length: 7 }, (_, i) =>
       linea((i * 3.37 + 0.01).toFixed(2), "1", "0", GST_PST),
     );

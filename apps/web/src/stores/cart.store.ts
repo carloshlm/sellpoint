@@ -3,7 +3,7 @@ import {
   multiplyMoney,
   parseQuantity,
   prorateDiscountCents,
-  splitLineTax,
+  splitDocumentTax,
   type TaxMode,
 } from "@sellpoint/shared";
 import { create } from "zustand";
@@ -462,9 +462,9 @@ export interface ImpuestosDelCarrito {
 
 /**
  * F4-TAX-16 — el impuesto del carrito, con la MISMA función que usa el
- * servidor (`splitLineTax`, shared): línea por línea, en centavos, con el
- * mismo redondeo. Si el carrito dividiera por su cuenta, el cajero vería un
- * total y el papel imprimiría otro.
+ * servidor (`splitDocumentTax`, shared): por tasa sobre la suma, en
+ * centavos, con el mismo redondeo. Si el carrito dividiera por su cuenta, el
+ * cajero vería un total y el papel imprimiría otro.
  */
 /**
  * F4-DISC — el descuento del ticket repartido entre las líneas, en centavos,
@@ -483,41 +483,22 @@ export function impuestosDelCarrito(
   mode: TaxMode,
   discountCents = 0,
 ): ImpuestosDelCarrito {
-  const componentes = new Map<
-    string,
-    { code: string; name: string; rate: string; cents: number }
-  >();
-  let taxCents = 0;
-  let baseCents = 0;
   const partes = descuentoPorLinea(lines, discountCents);
-  for (const [i, line] of lines.entries()) {
-    const amountCents = Math.round(totalDeLinea(line) * 100) - (partes[i] ?? 0);
-    const components = line.tax?.components ?? [];
-    const split = splitLineTax({ amountCents, mode, components });
-    taxCents += split.taxCents;
-    baseCents += split.netCents;
-    components.forEach((c, i) => {
-      // Por componente Y tasa, como el servidor (`armarTotales`): el IVA 0% y el
-      // 16% comparten el componente `VAT` (Carlos, 2026-11-01).
-      const clave = `${c.code}|${Number(c.rate)}`;
-      const acumulado = componentes.get(clave) ?? {
-        code: c.code,
-        name: c.name,
-        rate: c.rate,
-        cents: 0,
-      };
-      acumulado.cents += split.byComponent[i]?.taxCents ?? 0;
-      componentes.set(clave, acumulado);
-    });
-  }
+  const reparto = splitDocumentTax({
+    mode,
+    lines: lines.map((line, i) => ({
+      amountCents: Math.round(totalDeLinea(line) * 100) - (partes[i] ?? 0),
+      components: line.tax?.components ?? [],
+    })),
+  });
   return {
-    total: taxCents / 100,
-    base: baseCents / 100,
-    byComponent: [...componentes.values()].map((c) => ({
+    total: reparto.taxCents / 100,
+    base: reparto.netCents / 100,
+    byComponent: reparto.byComponent.map((c) => ({
       code: c.code,
       name: c.name,
       rate: c.rate,
-      amount: c.cents / 100,
+      amount: c.taxCents / 100,
     })),
   };
 }

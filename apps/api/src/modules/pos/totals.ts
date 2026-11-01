@@ -1,5 +1,5 @@
 import { UnprocessableEntityException } from "@nestjs/common";
-import { splitLineTax, type TaxMode } from "@sellpoint/shared";
+import { splitDocumentTax, type TaxMode } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 
 /**
@@ -30,9 +30,14 @@ import { Prisma } from "../../generated/prisma/client";
  *
  * `included`: la línea ES lo que se paga; el impuesto va dentro y el total no
  * cambia por que exista. `excluded`: la línea es la base; el impuesto se suma.
- * La división vive en `splitLineTax` (shared): la misma que usa el carrito.
- * Los componentes se acumulan por código y tasa DESDE las líneas — nunca se
- * recalculan sobre el total — así `Σ tax_amount ≡ Σ sale_taxes.amount`.
+ *
+ * ── El impuesto sale por tasa, no renglón por renglón ─────────────────
+ *
+ * `splitDocumentTax` (shared, la misma que usa el carrito) calcula cada tasa
+ * sobre la suma de sus líneas y reparte ese impuesto entre ellas en centavos
+ * exactos (Carlos, 2026-11-01: el IVA de VTA-000109 era $15.18 sumando
+ * renglones redondeados y $15.17 a mano). El reparto conserva
+ * `Σ tax_amount ≡ Σ sale_taxes.amount`.
  */
 export interface GrupoResuelto {
   id: string;
@@ -84,13 +89,12 @@ export function armarTotales(
   lineas: LineaFacturable[],
   mode: TaxMode = "included",
 ): TotalesDocumento {
-  const componentes = new Map<string, ComponenteTotalizado>();
   let subtotal = new Prisma.Decimal(0);
   let discount = new Prisma.Decimal(0);
   let taxTotal = new Prisma.Decimal(0);
   let total = new Prisma.Decimal(0);
 
-  const lines = lineas.map((linea, i) => {
+  const bases = lineas.map((linea, i) => {
     const bruto = linea.unitPrice
       .times(linea.quantity)
       .toDecimalPlaces(DOS, Prisma.Decimal.ROUND_HALF_UP);
@@ -101,35 +105,20 @@ export function armarTotales(
         args: { lineIndex: i },
       });
     }
-    const componentesDeLinea = linea.grupo?.rates ?? [];
-    const split = splitLineTax({
+    return { linea, bruto, base };
+  });
+
+  const reparto = splitDocumentTax({
+    mode,
+    lines: bases.map(({ linea, base }) => ({
       amountCents: centavos(base),
-      mode,
-      components: componentesDeLinea,
-    });
-    const taxAmount = desdeCentavos(split.taxCents);
+      components: linea.grupo?.rates ?? [],
+    })),
+  });
+
+  const lines = bases.map(({ linea, bruto, base }, i) => {
+    const taxAmount = desdeCentavos(reparto.lines[i]?.taxCents ?? 0);
     const lineTotal = mode === "excluded" ? base.plus(taxAmount) : base;
-
-    componentesDeLinea.forEach((rate, orden) => {
-      const parte = split.byComponent[orden];
-      // Por componente Y tasa (Carlos, 2026-11-01): los grupos de IVA de México
-      // (16, 8 y 0%) comparten el componente `VAT`, y juntar solo por código
-      // dejaba UN renglón con el nombre y la tasa del primero y la suma de
-      // todos: «IVA 0% $17.24» en una venta que mezclaba 0% y 16%.
-      const clave = `${rate.code}|${new Prisma.Decimal(rate.rate).toString()}`;
-      const acumulado = componentes.get(clave) ?? {
-        code: rate.code,
-        name: rate.name,
-        rate: rate.rate,
-        base: new Prisma.Decimal(0),
-        amount: new Prisma.Decimal(0),
-        sortOrder: componentes.size,
-      };
-      acumulado.base = acumulado.base.plus(desdeCentavos(split.netCents));
-      acumulado.amount = acumulado.amount.plus(desdeCentavos(parte?.taxCents ?? 0));
-      componentes.set(clave, acumulado);
-    });
-
     subtotal = subtotal.plus(bruto);
     discount = discount.plus(linea.discount);
     taxTotal = taxTotal.plus(taxAmount);
@@ -137,5 +126,16 @@ export function armarTotales(
     return { lineTotal, taxAmount, taxGroupCode: linea.grupo?.code ?? null };
   });
 
-  return { lines, subtotal, discount, taxTotal, total, byComponent: [...componentes.values()] };
+  // Por componente Y tasa (Carlos, 2026-11-01): los grupos de IVA de México
+  // (16, 8 y 0%) comparten el componente `VAT`; cada tasa es su renglón.
+  const byComponent = reparto.byComponent.map((c, sortOrder) => ({
+    code: c.code,
+    name: c.name,
+    rate: c.rate,
+    base: desdeCentavos(c.netCents),
+    amount: desdeCentavos(c.taxCents),
+    sortOrder,
+  }));
+
+  return { lines, subtotal, discount, taxTotal, total, byComponent };
 }

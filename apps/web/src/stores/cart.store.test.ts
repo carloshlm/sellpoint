@@ -455,6 +455,10 @@ describe("el impuesto del carrito (F4-TAX-16)", () => {
       { code: "PST", name: "PST 7%", rate: "7" },
     ],
   };
+  const IVA0: LookupItemTax = {
+    groupCode: "VAT0",
+    components: [{ code: "VAT", name: "IVA 0%", rate: "0" }],
+  };
   const servicio = (price: string, tax: LookupItemTax | null): CartLine => ({
     key: `svc-${price}-${tax?.groupCode ?? "none"}`,
     type: "service",
@@ -495,10 +499,6 @@ describe("el impuesto del carrito (F4-TAX-16)", () => {
    * papel.
    */
   it("IVA 0% y 16% en el mismo carrito: un renglón por tasa, como el ticket", () => {
-    const IVA0: LookupItemTax = {
-      groupCode: "VAT0",
-      components: [{ code: "VAT", name: "IVA 0%", rate: "0" }],
-    };
     const lineas = [servicio("150", IVA0), servicio("125", IVA)];
     const impuestos = impuestosDelCarrito(lineas, "included");
     expect(impuestos.byComponent).toEqual([
@@ -506,6 +506,28 @@ describe("el impuesto del carrito (F4-TAX-16)", () => {
       { code: "VAT", name: "IVA 16%", rate: "16", amount: 17.24 },
     ]);
     expect(impuestos.total).toBe(17.24);
+  });
+
+  /**
+   * Carlos (2026-11-01), VTA-000109: el IVA del 16% sale de la suma de esa
+   * tasa (110 − 110/1.16 = $15.17), no de redondear cada renglón ($15.18). El
+   * cobro tiene que decir lo mismo que el papel.
+   */
+  it("VTA-000109: $110 al 16% llevan $15.17 de IVA, como el ticket", () => {
+    const lineas = [
+      servicio("46", IVA0),
+      servicio("70", IVA),
+      servicio("72", IVA0),
+      servicio("40", IVA),
+    ];
+    const impuestos = impuestosDelCarrito(lineas, "included");
+    expect(impuestos.total).toBe(15.17);
+    expect(impuestos.base).toBe(212.83);
+    expect(impuestos.byComponent).toEqual([
+      { code: "VAT", name: "IVA 0%", rate: "0", amount: 0 },
+      { code: "VAT", name: "IVA 16%", rate: "16", amount: 15.17 },
+    ]);
+    expect(totalDelCarrito(lineas, "included")).toBe(228);
   });
 
   it("sin impuesto (null o exento) no suma nada en ningún modo", () => {
