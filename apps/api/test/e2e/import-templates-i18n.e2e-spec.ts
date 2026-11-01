@@ -227,7 +227,17 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
         "en",
         "csv",
       ),
-    ).toEqual(["sku", "name", "unit", "lot", "expiry", "location", "expected", "counted"]);
+    ).toEqual([
+      "sku",
+      "name",
+      "unit",
+      "tracks_lots",
+      "lot",
+      "expiry",
+      "location",
+      "expected",
+      "counted",
+    ]);
   });
 
   /**

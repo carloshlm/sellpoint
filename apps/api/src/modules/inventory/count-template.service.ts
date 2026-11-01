@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
-import { localizeHeaders } from "../../common/spreadsheet/import-headers";
+import { localizeHeaders, yesNoLabel } from "../../common/spreadsheet/import-headers";
 import {
   columnIndexes,
   type SpreadsheetFormat,
@@ -21,11 +21,16 @@ import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope
  * quien cuenta: sin ellas, contar es adivinar a qué corresponde un SKU. La
  * importación lee por NOMBRE de columna e ignora las que no conoce, así que
  * agregarlas no rompe el round-trip.
+ *
+ * `controla_lotes` (Carlos, 2026-10-31), justo antes de `lote`: con todo el
+ * catálogo en la planilla, quien cuenta no sabía a cuáles ponerles lote y
+ * caducidad. Dice SI o NO por producto, como la plantilla de productos.
  */
 const COLUMNAS = [
   "sku",
   "nombre",
   "unidad",
+  "controla_lotes",
   "lote",
   "caducidad",
   "ubicacion",
@@ -153,10 +158,12 @@ export class CountTemplateService {
         // que está en lotes. Se daba como 0 y la farmacia veía en ceros un
         // inventario que en «Stock por sucursal» decía 9.
         const sinLote = todos.reduce((resto, fila) => resto.minus(fila.quantity), saldo);
+        const controlaLotes = yesNoLabel(producto.tracksLots, locale);
         const filaSinLote = (teorico: string) => [
           producto.sku,
           producto.name,
           producto.baseUnit,
+          controlaLotes,
           "",
           "",
           "",
@@ -177,6 +184,7 @@ export class CountTemplateService {
             producto.sku,
             producto.name,
             producto.baseUnit,
+            controlaLotes,
             fila.lot.lotCode,
             fila.lot.expiresAt?.toISOString().slice(0, 10) ?? "",
             fila.location,

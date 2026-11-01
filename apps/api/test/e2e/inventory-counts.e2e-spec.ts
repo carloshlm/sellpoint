@@ -236,6 +236,29 @@ describe("Inventario físico (F3-COUNT)", () => {
     });
 
     /**
+     * Carlos (2026-10-31): «no sé a cuales debo ponerles lote y caducidad y a
+     * cuales no». La columna «controla_lotes» va justo antes de «lote» y dice
+     * SI o NO por producto, igual que en la plantilla de productos.
+     */
+    it("«controla_lotes» va antes de «lote»: SI en los que llevan lote, NO en los demás", async () => {
+      const { token, warehouseId, lotesSku, simpleSku } = await escenario();
+
+      const filas = await plantilla(token, warehouseId);
+      const header = (filas[0] ?? []).map((c) => c.trim().toLowerCase());
+      const col = (nombre: string) => header.indexOf(nombre);
+
+      expect(col("controla_lotes")).toBeGreaterThan(-1);
+      expect(col("controla_lotes")).toBe(col("lote") - 1);
+      const de = (sku: string) =>
+        filas
+          .slice(1)
+          .filter((f) => f[col("sku")] === sku)
+          .map((f) => f[col("controla_lotes")]);
+      expect(de(lotesSku)).toEqual(["SI", "SI", "SI"]);
+      expect(de(simpleSku)).toEqual(["NO"]);
+    });
+
+    /**
      * Un producto marcado con lotes pero todavía sin ninguno sale igual, con la
      * fila vacía: es la única forma de cargar el PRIMER lote desde la planilla.
      */
@@ -352,6 +375,7 @@ describe("Inventario físico (F3-COUNT)", () => {
           "sku",
           "nombre",
           "unidad",
+          "controla_lotes",
           "lote",
           "caducidad",
           "ubicacion",

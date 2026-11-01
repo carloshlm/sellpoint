@@ -23,7 +23,8 @@ como borrador: nada se ajusta hasta que lo confirmas.
    **teórico**). Los productos con lote traen una fila por lote, y una fila con
    el lote vacío para lo que todavía no tiene lote: por ejemplo, lo que ya
    tenías cuando encendiste el control por lote. Al contarlo, escribe su lote y
-   su caducidad.
+   su caducidad. La columna **controla_lotes** te dice en cuáles: **SI** lleva
+   lote y caducidad; **NO** se cuenta sin ellos.
 3. Imprime la hoja o llévala en la tableta, cuenta y escribe lo que encontraste
    en la columna **contado**. Si no hay nada, escribe **0**.
 4. Guarda el archivo, vuelve a SellPointy, presiona **Elegir archivo** y súbelo.
