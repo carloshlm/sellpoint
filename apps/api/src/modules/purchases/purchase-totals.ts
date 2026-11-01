@@ -46,7 +46,7 @@ const CERO = new Prisma.Decimal(0);
  *
  * Líneas y cargos entran JUNTOS a `armarTotales` (el cargo es una línea de
  * `quantity: 1`) y no en dos llamadas: los componentes de impuesto se acumulan
- * por código desde todas las partidas, así que `Σ tax_amount ≡ Σ
+ * por código y tasa desde todas las partidas, así que `Σ tax_amount ≡ Σ
  * purchase_taxes.amount` — con dos llamadas habría que sumar dos mapas y el
  * desglose del PDF podría discrepar del total por un centavo de redondeo.
  *

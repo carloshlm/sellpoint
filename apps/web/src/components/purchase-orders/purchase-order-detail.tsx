@@ -367,7 +367,7 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
         )}
         {order.taxes.map((tax) => (
           <Total
-            key={tax.code}
+            key={`${tax.code}|${tax.rate}`}
             label={`${taxLineLabel(tax.name, tax.rate)} · ${t("purchaseOrders.totals.estimated")}`}
             value={dinero(tax.amount)}
           />

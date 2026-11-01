@@ -321,8 +321,12 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
       ["16", "VAT16"],
     ]);
     expect(v.taxTotal).toBe("24.59");
-    // Un solo componente `VAT` en el papel, con la suma de los dos.
-    expect(v.taxes.map((t) => [t.code, t.amount])).toEqual([["VAT", "24.59"]]);
+    // Un renglón POR TASA (Carlos, 2026-11-01): el 8% y el 16% comparten el
+    // componente `VAT`, pero juntarlos ponía la suma bajo el nombre de uno.
+    expect(v.taxes.map((t) => [t.code, Number(t.rate), t.amount])).toEqual([
+      ["VAT", 8, "8.59"],
+      ["VAT", 16, "16"],
+    ]);
   });
 
   it("el papel: México dice «Subtotal / IVA 16% / Total»; Columbia Británica lista la línea NETA y GST y PST aparte (F4-TAX-13)", async () => {

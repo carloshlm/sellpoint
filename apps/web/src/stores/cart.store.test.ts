@@ -488,6 +488,26 @@ describe("el impuesto del carrito (F4-TAX-16)", () => {
     expect(totalDelCarrito(lineas, "excluded")).toBe(112);
   });
 
+  /**
+   * Carlos (2026-11-01), VTA-000033: 0% y 16% comparten el componente `VAT`.
+   * Juntar por código mostraba «IVA 0% incluido $17.24» en el cobro; el
+   * servidor ya separa por tasa, y el carrito tiene que decir lo mismo que el
+   * papel.
+   */
+  it("IVA 0% y 16% en el mismo carrito: un renglón por tasa, como el ticket", () => {
+    const IVA0: LookupItemTax = {
+      groupCode: "VAT0",
+      components: [{ code: "VAT", name: "IVA 0%", rate: "0" }],
+    };
+    const lineas = [servicio("150", IVA0), servicio("125", IVA)];
+    const impuestos = impuestosDelCarrito(lineas, "included");
+    expect(impuestos.byComponent).toEqual([
+      { code: "VAT", name: "IVA 0%", rate: "0", amount: 0 },
+      { code: "VAT", name: "IVA 16%", rate: "16", amount: 17.24 },
+    ]);
+    expect(impuestos.total).toBe(17.24);
+  });
+
   it("sin impuesto (null o exento) no suma nada en ningún modo", () => {
     for (const mode of ["included", "excluded"] as const) {
       const lineas = [

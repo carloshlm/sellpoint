@@ -277,7 +277,11 @@ function Totals({ lines }: { lines: CartLine[] }) {
           </span>
         </p>
         {impuestos.byComponent.map((c) => (
-          <p key={c.code} className="flex justify-between text-sm" data-testid="cart-tax">
+          <p
+            key={`${c.code}|${c.rate}`}
+            className="flex justify-between text-sm"
+            data-testid="cart-tax"
+          >
             <span>{c.name}</span>
             <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
           </p>
@@ -304,7 +308,7 @@ function Totals({ lines }: { lines: CartLine[] }) {
         .filter((c) => c.amount > 0)
         .map((c) => (
           <p
-            key={c.code}
+            key={`${c.code}|${c.rate}`}
             className="flex justify-between text-muted-foreground text-xs"
             data-testid="cart-tax-included"
           >

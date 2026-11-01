@@ -31,7 +31,7 @@ import { Prisma } from "../../generated/prisma/client";
  * `included`: la línea ES lo que se paga; el impuesto va dentro y el total no
  * cambia por que exista. `excluded`: la línea es la base; el impuesto se suma.
  * La división vive en `splitLineTax` (shared): la misma que usa el carrito.
- * Los componentes se acumulan por código DESDE las líneas — nunca se
+ * Los componentes se acumulan por código y tasa DESDE las líneas — nunca se
  * recalculan sobre el total — así `Σ tax_amount ≡ Σ sale_taxes.amount`.
  */
 export interface GrupoResuelto {
@@ -112,7 +112,11 @@ export function armarTotales(
 
     componentesDeLinea.forEach((rate, orden) => {
       const parte = split.byComponent[orden];
-      const clave = rate.code;
+      // Por componente Y tasa (Carlos, 2026-11-01): los grupos de IVA de México
+      // (16, 8 y 0%) comparten el componente `VAT`, y juntar solo por código
+      // dejaba UN renglón con el nombre y la tasa del primero y la suma de
+      // todos: «IVA 0% $17.24» en una venta que mezclaba 0% y 16%.
+      const clave = `${rate.code}|${new Prisma.Decimal(rate.rate).toString()}`;
       const acumulado = componentes.get(clave) ?? {
         code: rate.code,
         name: rate.name,

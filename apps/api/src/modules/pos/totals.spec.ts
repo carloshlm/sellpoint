@@ -36,6 +36,50 @@ const GST_PST: GrupoResuelto = {
   ],
 };
 const EXENTO: GrupoResuelto = { id: "g3", code: "EXEMPT", name: "Exento", rates: [] };
+const IVA0: GrupoResuelto = {
+  id: "g4",
+  code: "VAT0",
+  name: "IVA 0%",
+  rates: [{ code: "VAT", name: "IVA 0%", rate: "0" }],
+};
+
+/**
+ * Carlos (2026-11-01), el ticket VTA-000033 de la farmacia: una venta con
+ * productos al 0% (A) y al 16% (B) decía «IVA 0% $17.24». Los tres grupos de
+ * IVA de México comparten el componente `VAT`, y el motor juntaba por código:
+ * un solo renglón, con el nombre y la tasa del PRIMERO y la suma de todos.
+ * Cada tasa es su propio renglón, con su base y su impuesto.
+ */
+describe("tasas distintas del mismo componente: un renglón por tasa", () => {
+  it("IVA 0% y 16% en la misma venta: dos renglones, cada uno con su base", () => {
+    const totales = armarTotales(
+      [linea("150", "1", "0", IVA0), linea("100", "1", "0", IVA16), linea("23", "1", "0", IVA0)],
+      "included",
+    );
+
+    expect(
+      totales.byComponent.map((c) => [
+        c.code,
+        c.name,
+        c.rate,
+        c.base.toFixed(2),
+        c.amount.toFixed(2),
+      ]),
+    ).toEqual([
+      ["VAT", "IVA 0%", "0", "173.00", "0.00"],
+      ["VAT", "IVA 16%", "16", "86.21", "13.79"],
+    ]);
+    expect(totales.taxTotal.toFixed(2)).toBe("13.79");
+  });
+
+  it("la misma tasa en dos líneas sigue siendo UN renglón", () => {
+    const totales = armarTotales([linea("116", "1", "0", IVA16), linea("58", "1", "0", IVA16)]);
+
+    expect(totales.byComponent.map((c) => [c.name, c.amount.toFixed(2)])).toEqual([
+      ["IVA 16%", "24.00"],
+    ]);
+  });
+});
 
 describe("sin impuesto: la aritmética de siempre (refactor puro, F4-TAX-06)", () => {
   it("tres líneas con descuento dan el mismo subtotal, descuento y total que antes", () => {

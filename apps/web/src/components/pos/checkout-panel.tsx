@@ -201,7 +201,11 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
             <span className="tabular-nums">{formatMoney(impuestos.base, currency, locale)}</span>
           </p>
           {impuestos.byComponent.map((c) => (
-            <p key={c.code} className="flex justify-between" data-testid="checkout-tax">
+            <p
+              key={`${c.code}|${c.rate}`}
+              className="flex justify-between"
+              data-testid="checkout-tax"
+            >
               <span>{c.name}</span>
               <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
             </p>
@@ -235,7 +239,7 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
           .filter((c) => c.amount > 0)
           .map((c) => (
             <p
-              key={c.code}
+              key={`${c.code}|${c.rate}`}
               className="-mt-3 flex justify-between text-muted-foreground text-xs"
               data-testid="checkout-tax-included"
             >

@@ -2378,7 +2378,7 @@ model PurchaseTax {
   tenant   Tenant   @relation(fields: [tenantId], references: [id])
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
-  @@unique([purchaseId, code])
+  @@unique([purchaseId, code, rate])
   @@index([tenantId])
   @@map("purchase_taxes")
 }
@@ -2510,7 +2510,7 @@ model PurchaseOrderTax {
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
-  @@unique([purchaseOrderId, code])
+  @@unique([purchaseOrderId, code, rate])
   @@index([tenantId])
   @@map("purchase_order_taxes")
 }
@@ -2755,7 +2755,7 @@ model SaleTax {
   tenant Tenant @relation(fields: [tenantId], references: [id])
   sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
-  @@unique([saleId, code])
+  @@unique([saleId, code, rate])
   @@index([tenantId])
   @@map("sale_taxes")
 }
@@ -2777,7 +2777,7 @@ model QuoteTax {
   tenant Tenant @relation(fields: [tenantId], references: [id])
   quote  Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
-  @@unique([quoteId, code])
+  @@unique([quoteId, code, rate])
   @@index([tenantId])
   @@map("quote_taxes")
 }

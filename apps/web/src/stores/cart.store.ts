@@ -497,14 +497,17 @@ export function impuestosDelCarrito(
     taxCents += split.taxCents;
     baseCents += split.netCents;
     components.forEach((c, i) => {
-      const acumulado = componentes.get(c.code) ?? {
+      // Por componente Y tasa, como el servidor (`armarTotales`): el IVA 0% y el
+      // 16% comparten el componente `VAT` (Carlos, 2026-11-01).
+      const clave = `${c.code}|${Number(c.rate)}`;
+      const acumulado = componentes.get(clave) ?? {
         code: c.code,
         name: c.name,
         rate: c.rate,
         cents: 0,
       };
       acumulado.cents += split.byComponent[i]?.taxCents ?? 0;
-      componentes.set(c.code, acumulado);
+      componentes.set(clave, acumulado);
     });
   }
   return {

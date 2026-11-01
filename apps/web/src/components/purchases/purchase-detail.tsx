@@ -403,7 +403,7 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
         )}
         {purchase.taxes.map((tax) => (
           <Total
-            key={tax.code}
+            key={`${tax.code}|${tax.rate}`}
             label={taxLineLabel(tax.name, tax.rate)}
             value={dinero(tax.amount)}
           />
