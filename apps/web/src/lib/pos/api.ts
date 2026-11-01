@@ -82,9 +82,19 @@ export async function listQuoteWarehouses(): Promise<PosWarehouse[]> {
  * F10-MANFIX-10: el esperado es fondo inicial + ventas cash − gastos cash, y
  * lo calcula el API; la pantalla solo lo pinta, junto al renglón del fondo.
  */
+/** Un gasto en efectivo que salió del cajón del turno. */
+export interface SessionCashExpenseItem {
+  id: string;
+  folio: string;
+  description: string;
+  total: string;
+  createdBy: { id: string; name: string };
+}
+
 export interface SessionArqueo {
   totals: SessionTotal[];
-  cashExpenses: { total: string; count: number };
+  /** Con cada gasto del cajón y quién lo registró (Carlos, 2026-11-01). */
+  cashExpenses: { total: string; count: number; items: SessionCashExpenseItem[] };
   openingCash: string;
   expectedCash: string;
 }

@@ -1,3 +1,4 @@
+import { shortName } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 
 export interface SessionCashExpenses {
@@ -6,7 +7,25 @@ export interface SessionCashExpenses {
   count: number;
 }
 
+/** Un gasto que salió del cajón, como lo ve el cajero en su arqueo. */
+export interface SessionCashExpenseItem {
+  id: string;
+  folio: string;
+  description: string;
+  /** El total del gasto, como texto decimal. */
+  total: string;
+  createdBy: { id: string; name: string };
+}
+
+/** Los gastos del cajón de UN turno: el total, la cuenta y cada uno. */
+export interface SessionCashExpensesDetail extends SessionCashExpenses {
+  items: SessionCashExpenseItem[];
+}
+
 type Tx = Pick<Prisma.TransactionClient, "expense">;
+
+/** Lo que salió del cajón: activo, pagado y en efectivo. */
+const DEL_CAJON = { status: "active", paymentStatus: "paid", paymentMethod: "cash" } as const;
 
 /**
  * F9-EXP-09 — los gastos en EFECTIVO que salieron del cajón de uno o varios
@@ -42,9 +61,7 @@ export async function gastosEnEfectivoPorSesion(
     where: {
       tenantId,
       cashboxSessionId: { in: [...sessionIds] },
-      status: "active",
-      paymentStatus: "paid",
-      paymentMethod: "cash",
+      ...DEL_CAJON,
     },
     _sum: { total: true },
     _count: { _all: true },
@@ -57,6 +74,38 @@ export async function gastosEnEfectivoPorSesion(
     });
   }
   return resultado;
+}
+
+/**
+ * Cada gasto en efectivo que salió del cajón de UN turno, con quién lo
+ * registró (Carlos, 2026-11-01). El Encargado puede cargarle un gasto al
+ * turno de otro cajero; ese cajero tiene que poder reconocerlo al cerrar, y un
+ * total suelto no le dice cuál es ni quién lo puso. El mismo filtro que el
+ * total, del más viejo al más nuevo.
+ */
+export async function gastosDelCajon(
+  tx: Tx,
+  tenantId: string,
+  sessionId: string,
+): Promise<SessionCashExpenseItem[]> {
+  const filas = await tx.expense.findMany({
+    where: { tenantId, cashboxSessionId: sessionId, ...DEL_CAJON },
+    orderBy: [{ createdAt: "asc" }, { folio: "asc" }],
+    select: {
+      id: true,
+      folio: true,
+      description: true,
+      total: true,
+      creator: { select: { id: true, firstName: true, lastName: true } },
+    },
+  });
+  return filas.map((f) => ({
+    id: f.id,
+    folio: f.folio,
+    description: f.description,
+    total: f.total.toString(),
+    createdBy: { id: f.creator.id, name: shortName(f.creator) },
+  }));
 }
 
 /** Sin gastos: lo que devuelve un turno del que no salió nada. */

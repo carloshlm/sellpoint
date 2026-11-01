@@ -361,6 +361,88 @@ describe("Gastos (F9-EXP)", () => {
       });
     });
 
+    /**
+     * Carlos (2026-11-01): cargar un gasto al turno de OTRO cajero es tarea de
+     * quien supervisa la caja —«Ver reportes», como el Encargado y el
+     * Administrador—. La pantalla ya escondía los turnos ajenos sin ese
+     * permiso; ahora también el servidor lo exige, al registrar y al pagar. Y
+     * el arqueo del cajero detalla cada gasto que salió de su cajón, con quién
+     * lo registró: si alguien le carga uno, lo reconoce al cerrar.
+     */
+    it("el turno de otro solo con «Ver reportes», y el arqueo detalla cada gasto con quién lo registró", async () => {
+      await api(negocio.token)
+        .post("/roles", {
+          name: "Gastos sin reportes",
+          permissionCodes: ["pos:sell", "expenses:read", "expenses:manage"],
+        })
+        .expect(201);
+      const sinReportes = await usuarioConRol(
+        app,
+        negocio,
+        { nombre: "Gastos sin reportes" },
+        "exp-sinrep",
+      );
+      const cajero = await usuarioConRol(app, negocio, "manager", "exp-ajeno");
+      const abrirTurno = async (token: string) => {
+        const res = await request(app.getHttpServer())
+          .post("/pos/session")
+          .set("Authorization", bearer(token))
+          .send({ warehouseId: almacenId })
+          .expect(201);
+        return (res.body as { id: string }).id;
+      };
+      const turnoAjeno = await abrirTurno(cajero);
+      const turnoPropio = await abrirTurno(sinReportes);
+      const delCajon = (sesionId: string, extra: Record<string, unknown> = {}) =>
+        gasto({
+          paymentMethod: "cash",
+          cashboxSessionId: sesionId,
+          warehouseId: almacenId,
+          amount: 30,
+          ...extra,
+        });
+
+      const ajeno = await api(sinReportes).post("/expenses", delCajon(turnoAjeno)).expect(403);
+      expect(ajeno.body).toMatchObject({ code: "expenses.session_not_own" });
+      await api(sinReportes).post("/expenses", delCajon(turnoPropio)).expect(201);
+
+      // Pagar del cajón ajeno un gasto pendiente: la misma regla.
+      const pendiente = await api(sinReportes)
+        .post("/expenses", gasto({ warehouseId: almacenId }))
+        .expect(201);
+      const pago = await api(sinReportes)
+        .post(`/expenses/${(pendiente.body as { id: string }).id}/pay`, {
+          paymentMethod: "cash",
+          cashboxSessionId: turnoAjeno,
+        })
+        .expect(403);
+      expect(pago.body).toMatchObject({ code: "expenses.session_not_own" });
+
+      // El Administrador sí: supervisa la caja.
+      const delAdmin = await api(negocio.token)
+        .post("/expenses", delCajon(turnoAjeno, { description: "Garrafón de agua" }))
+        .expect(201);
+
+      const arqueo = await request(app.getHttpServer())
+        .get("/pos/session/totals")
+        .set("Authorization", bearer(cajero))
+        .expect(200);
+      const creado = delAdmin.body as { id: string; folio: string };
+      expect((arqueo.body as { cashExpenses: unknown }).cashExpenses).toEqual({
+        total: "30",
+        count: 1,
+        items: [
+          {
+            id: creado.id,
+            folio: creado.folio,
+            description: "Garrafón de agua",
+            total: "30",
+            createdBy: { id: negocio.userId, name: "Ana Pérez" },
+          },
+        ],
+      });
+    });
+
     it("un gasto en efectivo sale del turno abierto; cerrado o de otro cajero no", async () => {
       const turno = await request(app.getHttpServer())
         .post("/pos/session")

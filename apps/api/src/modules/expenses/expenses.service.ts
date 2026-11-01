@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -589,8 +590,8 @@ export class ExpensesService {
     sessionId: string,
     warehouseId: string,
   ): Promise<void> {
-    const filas = await tx.$queryRaw<{ status: string; warehouse_id: string }[]>`
-      SELECT status, warehouse_id FROM cashbox_sessions
+    const filas = await tx.$queryRaw<{ status: string; warehouse_id: string; opened_by: string }[]>`
+      SELECT status, warehouse_id, opened_by FROM cashbox_sessions
        WHERE id = ${sessionId}::uuid AND tenant_id = ${user.tenantId}::uuid
        FOR UPDATE`;
     const sesion = filas[0];
@@ -598,6 +599,13 @@ export class ExpensesService {
       throw new ConflictException({ message: "expenses.session_not_open" });
     }
     assertWarehouseInScope(scope, sesion.warehouse_id);
+    // El turno de OTRO cajero solo lo toca quien supervisa la caja (Carlos,
+    // 2026-11-01): «Ver reportes», como el Encargado y el Administrador. La
+    // pantalla ya escondía los turnos ajenos; sin esta guarda, una petición
+    // directa le cargaba un gasto al cajón de cualquiera.
+    if (sesion.opened_by !== user.userId && !user.permissions.includes("reports:read")) {
+      throw new ForbiddenException({ message: "expenses.session_not_own" });
+    }
   }
 
   private async assertCategoriaActiva(

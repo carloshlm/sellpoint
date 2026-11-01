@@ -32,10 +32,17 @@ En **Gastos** › **Registrar gasto**, esa persona:
 En **Caja de origen** solo aparecen los turnos abiertos. Un gasto que se
 registra después de que cerraste tu turno ya no puede salir de tu cajón.
 
+El turno de **otra persona** solo lo puede elegir quien supervisa la caja: quien
+tiene el permiso **Ver reportes** (de fábrica, **Administrador** y
+**Encargado**). Quien solo puede registrar gastos ve únicamente su propio
+turno.
+
 ## Cómo se ve en tu cierre
 
 Al cerrar tu turno (capítulo 5), el gasto aparece en **Gastos en efectivo**,
-con signo de menos, y ya está restado del **Efectivo esperado**:
+con signo de menos, y ya está restado del **Efectivo esperado**. Debajo viene
+cada gasto con su folio, su descripción, quién lo registró y su monto, para que
+reconozcas cada salida de tu cajón:
 
 ![El gasto del cajón en el cierre de turno de Luis](screen:drawer-expense-close)
 

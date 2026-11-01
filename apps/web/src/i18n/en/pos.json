@@ -26,6 +26,7 @@
     "cashExpenses": "Cash expenses",
     "expenseCount": "{{count}} expenses",
     "expenseCount_one": "1 expense",
+    "expenseBy": "Recorded by {{name}}",
     "expectedCash": "Expected cash",
     "openingCash": "Opening cash",
     "openingCashLabel": "Opening cash (optional)",

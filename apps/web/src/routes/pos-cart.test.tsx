@@ -138,7 +138,7 @@ describe("El carrito del POS (F4-CART)", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "0",
     });
@@ -491,7 +491,7 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "0",
     });
@@ -1031,7 +1031,7 @@ describe("el impuesto en el carrito y en el cobro (F4-TAX-17)", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "0",
     });

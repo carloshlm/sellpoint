@@ -14,6 +14,7 @@
   "paid_immutable": "Un gasto pagado no cambia de monto, descuento ni impuesto. Si hay un error, anúlalo y regístralo de nuevo.",
   "session_closed": "Ese gasto salió de un turno de caja que ya se cerró y no se puede anular. Registra un gasto de ajuste.",
   "session_not_open": "Ese turno de caja no está abierto o no es de la sucursal del gasto.",
+  "session_not_own": "Solo puedes registrar gastos en tu propio turno de caja. Para usar el de otra persona necesitas el permiso «Ver reportes».",
   "session_needs_cash": "Solo un gasto en efectivo puede salir de un turno de caja.",
   "discount_exceeds_amount": "El descuento supera el monto del gasto.",
   "date_in_future": "La fecha del gasto no puede ser posterior a hoy: un gasto es un papel que ya existe.",

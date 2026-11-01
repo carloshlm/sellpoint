@@ -333,7 +333,7 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
     mocked.listQuoteWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
     mocked.getSessionTotals.mockResolvedValue({
       totals: [],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "0",
     });

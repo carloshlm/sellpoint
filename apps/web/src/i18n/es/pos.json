@@ -26,6 +26,7 @@
     "cashExpenses": "Gastos en efectivo",
     "expenseCount": "{{count}} gastos",
     "expenseCount_one": "1 gasto",
+    "expenseBy": "Registró {{name}}",
     "expectedCash": "Efectivo esperado",
     "openingCash": "Fondo inicial",
     "openingCashLabel": "Fondo inicial (opcional)",

@@ -89,7 +89,7 @@ beforeEach(() => {
       { method: "cash", total: "1200.50", count: 4 },
       { method: "card", total: "800.00", count: 2 },
     ],
-    cashExpenses: { total: "0", count: 0 },
+    cashExpenses: { total: "0", count: 0, items: [] },
     openingCash: "0",
     expectedCash: "1200.50",
   });

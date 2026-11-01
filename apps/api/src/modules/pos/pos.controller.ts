@@ -137,7 +137,7 @@ export class PosController {
     return sesion === null
       ? {
           totals: [],
-          cashExpenses: { total: "0", count: 0 },
+          cashExpenses: { total: "0", count: 0, items: [] },
           openingCash: "0",
           expectedCash: "0",
         }

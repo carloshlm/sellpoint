@@ -87,7 +87,7 @@ beforeEach(() => {
   mocked.listPosWarehouses.mockResolvedValue([{ id: "w1", name: "Almacén Centro" }]);
   mocked.getSessionTotals.mockResolvedValue({
     totals: [],
-    cashExpenses: { total: "0", count: 0 },
+    cashExpenses: { total: "0", count: 0, items: [] },
     openingCash: "0",
     expectedCash: "0",
   });
@@ -284,7 +284,7 @@ describe("/pos/close — el arqueo", () => {
         { method: "card", total: "80.00", count: 1 },
         { method: "transfer", total: "0", count: 0 },
       ],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "150.00",
     });
@@ -305,7 +305,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "150.00",
     });
@@ -327,7 +327,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "500.00", count: 2 }],
-      cashExpenses: { total: "200.00", count: 1 },
+      cashExpenses: { total: "200.00", count: 1, items: [] },
       openingCash: "0",
       expectedCash: "300.00",
     });
@@ -353,7 +353,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion({ openingCash: "500" }) });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "500",
       expectedCash: "650",
     });
@@ -374,7 +374,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "150.00",
     });
@@ -395,7 +395,7 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
-      cashExpenses: { total: "0", count: 0 },
+      cashExpenses: { total: "0", count: 0, items: [] },
       openingCash: "0",
       expectedCash: "150.00",
     });

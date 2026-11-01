@@ -1,4 +1,9 @@
-import { efectivoEsperado, gastosEnEfectivoPorSesion, sinGastos } from "./cashbox-expenses";
+import {
+  efectivoEsperado,
+  gastosDelCajon,
+  gastosEnEfectivoPorSesion,
+  sinGastos,
+} from "./cashbox-expenses";
 
 /**
  * F9-EXP-09 — los gastos en efectivo del cajón: una consulta para varios
@@ -57,5 +62,46 @@ describe("gastosEnEfectivoPorSesion (F9-EXP-09)", () => {
     expect(efectivoEsperado({ fondo: "500", ventas: "430.50", gastos: "90" })).toBe("840.5");
     // Un fondo sin ventas: lo que hay que contar es el fondo mismo.
     expect(efectivoEsperado({ fondo: "200.25", ventas: "0", gastos: "0" })).toBe("200.25");
+  });
+});
+
+/**
+ * Carlos (2026-11-01): el arqueo de un turno detalla cada gasto del cajón con
+ * quién lo registró, con el MISMO filtro que el total.
+ */
+describe("gastosDelCajon", () => {
+  const findMany = jest.fn();
+  const tx = { expense: { findMany } } as never;
+
+  it("trae cada gasto activo, pagado y en efectivo del turno, con nombre y primer apellido de quien lo registró", async () => {
+    findMany.mockResolvedValue([
+      {
+        id: "e1",
+        folio: "GAS-000012",
+        description: "Garrafón de agua",
+        total: { toString: () => "50" },
+        creator: { id: "u1", firstName: "Ana", lastName: "Pérez" },
+      },
+    ]);
+
+    await expect(gastosDelCajon(tx, "t1", "s1")).resolves.toEqual([
+      {
+        id: "e1",
+        folio: "GAS-000012",
+        description: "Garrafón de agua",
+        total: "50",
+        createdBy: { id: "u1", name: "Ana Pérez" },
+      },
+    ]);
+    expect(findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: {
+        tenantId: "t1",
+        cashboxSessionId: "s1",
+        status: "active",
+        paymentStatus: "paid",
+        paymentMethod: "cash",
+      },
+      orderBy: [{ createdAt: "asc" }, { folio: "asc" }],
+    });
   });
 });

@@ -9,8 +9,9 @@ import {
 } from "../inventory/warehouse-scope.helpers";
 import {
   efectivoEsperado,
+  gastosDelCajon,
   gastosEnEfectivoPorSesion,
-  type SessionCashExpenses,
+  type SessionCashExpensesDetail,
   sinGastos,
 } from "./cashbox-expenses";
 import { type SessionTotal, totalesEnCero, totalesPorSesion } from "./cashbox-totals";
@@ -37,7 +38,8 @@ import type { CloseSessionDto, OpenSessionDto } from "./dto/open-session.dto";
  */
 export interface SessionArqueo {
   totals: SessionTotal[];
-  cashExpenses: SessionCashExpenses;
+  /** El total, la cuenta y cada gasto del cajón, con quién lo registró. */
+  cashExpenses: SessionCashExpensesDetail;
   /** F10-MANFIX-10: el fondo inicial del turno, como texto decimal («0» sin fondo). */
   openingCash: string;
   /** Fondo + ventas en efectivo − gastos en efectivo: contra esto se cuenta el cajón. */
@@ -152,12 +154,13 @@ export class CashboxService {
     tenantId: string,
     session: TurnoDelArqueo,
   ): Promise<SessionArqueo> {
-    const [porMetodo, gastos] = await Promise.all([
+    const [porMetodo, gastos, items] = await Promise.all([
       totalesPorSesion(tx, tenantId, [session.id]),
       gastosEnEfectivoPorSesion(tx, tenantId, [session.id]),
+      gastosDelCajon(tx, tenantId, session.id),
     ]);
     const totals = porMetodo.get(session.id) ?? totalesEnCero();
-    const cashExpenses = gastos.get(session.id) ?? sinGastos();
+    const cashExpenses = { ...(gastos.get(session.id) ?? sinGastos()), items };
     const openingCash = session.openingCash.toString();
     const ventasCash = totals.find((t) => t.method === "cash")?.total ?? "0";
     return {

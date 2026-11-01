@@ -1501,7 +1501,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
         expect(res.body).toEqual({
           totals: [],
-          cashExpenses: { total: "0", count: 0 },
+          cashExpenses: { total: "0", count: 0, items: [] },
           openingCash: "0",
           expectedCash: "0",
         });

@@ -42,7 +42,7 @@ export function CloseSession({ session }: { session: CashboxSession }) {
   // F9-EXP-10: se cuenta contra el efectivo ESPERADO (fondo + ventas − gastos
   // del cajón), no contra las ventas en efectivo: un gasto pagado del cajón no
   // es un faltante del cajero, y el fondo no es un sobrante.
-  const gastos = data?.cashExpenses ?? { total: "0", count: 0 };
+  const gastos = data?.cashExpenses ?? { total: "0", count: 0, items: [] };
   const fondo = Number(data?.openingCash ?? session.openingCash);
   const esperado = Number(data?.expectedCash ?? 0);
   const declarado = contado.trim() === "" ? null : Number(contado);
@@ -90,6 +90,29 @@ export function CloseSession({ session }: { session: CashboxSession }) {
               −{dinero(Number(gastos.total))}
             </span>
           </div>
+        )}
+        {/* Cada gasto, con quién lo registró (Carlos, 2026-11-01): el
+            Encargado puede cargarle uno al turno de otro cajero, y un total
+            suelto no le dice al cajero cuál es ni quién lo puso. */}
+        {gastos.items.length > 0 && (
+          <ul
+            aria-label={t("pos.session.cashExpenses")}
+            className="flex flex-col gap-1 border-l-2 pl-3 text-muted-foreground text-xs"
+          >
+            {gastos.items.map((gasto) => (
+              <li key={gasto.id} className="flex justify-between gap-3">
+                <span className="min-w-0 break-words">
+                  <span className="font-medium text-foreground">{gasto.folio}</span>
+                  {" · "}
+                  {gasto.description}
+                  <span className="block">
+                    {t("pos.session.expenseBy", { name: gasto.createdBy.name })}
+                  </span>
+                </span>
+                <span className="shrink-0">−{dinero(Number(gasto.total))}</span>
+              </li>
+            ))}
+          </ul>
         )}
         <div className="flex justify-between border-t pt-1">
           <span>{t("pos.session.expectedCash")}</span>
