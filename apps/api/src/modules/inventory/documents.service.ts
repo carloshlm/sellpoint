@@ -616,11 +616,27 @@ export class DocumentsService {
       const repetidaDe = new Map<number, number>();
       if (esConteo && document.lines.length > 0) {
         const conLote = document.lines.filter((l) => l.lotCode !== null);
+        // La fila SIN lote de un producto que SÍ se controla por lote vale lo
+        // que no tiene lote: el saldo menos sus lotes, como en la plantilla y
+        // en la importación (Carlos, 2026-11-01, el Queso Oaxaca).
+        const sinLoteIds = [
+          ...new Set(document.lines.filter((l) => l.lotCode === null).map((l) => l.productId)),
+        ];
+        const conControlDeLote = new Set(
+          sinLoteIds.length === 0
+            ? []
+            : (
+                await tx.product.findMany({
+                  where: { tenantId: user.tenantId, id: { in: sinLoteIds }, tracksLots: true },
+                  select: { id: true },
+                })
+              ).map((p) => p.id),
+        );
         const cubetas = await loadCountBuckets(
           tx,
           user.tenantId,
           document.warehouseId,
-          [...new Set(conLote.map((l) => l.productId))],
+          [...new Set([...conLote.map((l) => l.productId), ...conControlDeLote])],
           false,
         );
         const porLote = new Map<string, Prisma.Decimal>();
@@ -660,9 +676,12 @@ export class DocumentsService {
         }
 
         for (const line of document.lines) {
+          const saldo = saldoPorProducto.get(line.productId) ?? new Prisma.Decimal(0);
           const teorico =
             line.lotCode === null
-              ? (saldoPorProducto.get(line.productId) ?? new Prisma.Decimal(0))
+              ? conControlDeLote.has(line.productId)
+                ? saldo.minus(sumBuckets(cubetas.get(line.productId) ?? []))
+                : saldo
               : (porLote.get(
                   `${line.productId}|${bucketKeyByCode(line.lotCode, (line.location ?? "").trim())}`,
                 ) ?? new Prisma.Decimal(0));

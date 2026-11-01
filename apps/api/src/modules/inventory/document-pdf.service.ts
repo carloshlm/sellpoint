@@ -3,7 +3,7 @@ import type { InventoryDocumentType } from "@sellpoint/shared";
 import { type Currency, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
-import type { Prisma } from "../../generated/prisma/client";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import {
@@ -31,6 +31,7 @@ type PdfDocumentSource = {
   status: string;
   lines: {
     lineNo: number;
+    productId: string;
     quantity: Prisma.Decimal | null;
     theoretical: Prisma.Decimal | null;
     counted: Prisma.Decimal | null;
@@ -42,6 +43,8 @@ type PdfDocumentSource = {
     presentation: { name: string; factor: Prisma.Decimal } | null;
   }[];
   movements: {
+    productId: string;
+    direction: string;
     quantity: Prisma.Decimal;
     unitCost: Prisma.Decimal | null;
     location: string | null;
@@ -60,6 +63,52 @@ type PdfDocumentSource = {
  * y entrada de lo contado) y ninguno sabe qué se contó; su papel son sus
  * líneas, con el teórico que se vio al capturar y lo contado, siempre.
  */
+/** La cubeta de un conteo: producto, lote y ubicación, como las agrupa la aprobación. */
+const cubeta = (productId: string, lotCode: string | null, location: string | null) =>
+  `${productId}|${lotCode ?? ""}|${(location ?? "").trim()}`;
+
+/**
+ * Lo que un conteo CONFIRMADO movió en cada cubeta: entradas menos salidas.
+ * Vacío en un borrador o un anulado, que no movieron nada.
+ */
+function netoDelConteo(document: PdfDocumentSource): Map<string, Prisma.Decimal> {
+  const neto = new Map<string, Prisma.Decimal>();
+  if (document.type !== "physical_count" || document.status !== "confirmed") {
+    return neto;
+  }
+  for (const m of document.movements) {
+    const clave = cubeta(m.productId, m.lot?.lotCode ?? null, m.location);
+    const cantidad = m.direction === "entry" ? m.quantity : m.quantity.negated();
+    neto.set(clave, (neto.get(clave) ?? new Prisma.Decimal(0)).plus(cantidad));
+  }
+  return neto;
+}
+
+/**
+ * El teórico de una línea de conteo en el papel (Carlos, 2026-11-01).
+ *
+ * En un conteo confirmado es el que se APLICÓ: lo contado menos lo que el
+ * conteo movió en su cubeta. Es exacto aunque el lote se haya corregido en
+ * pantalla después de subir la planilla, y arregla también los conteos ya
+ * confirmados: el Queso Oaxaca de Carlos decía 448.8 (el total del producto)
+ * en la fila de sus 33 kg sin lote, con una diferencia de −415.8 que nunca
+ * pasó. Sin contado (omitida) o sin confirmar, el teórico que se vio al
+ * capturar la fila (`quantity`; `theoretical` es la columna dedicada).
+ */
+function teoricoDeConteo(
+  document: PdfDocumentSource,
+  l: PdfDocumentSource["lines"][number],
+  netoPorCubeta: Map<string, Prisma.Decimal>,
+): string | null {
+  if (document.status === "confirmed" && l.counted !== null) {
+    const movido = netoPorCubeta.get(cubeta(l.productId, l.lotCode, l.location));
+    return new Prisma.Decimal(l.counted.toString())
+      .minus(movido ?? new Prisma.Decimal(0))
+      .toString();
+  }
+  return (l.theoretical ?? l.quantity)?.toString() ?? null;
+}
+
 export function pdfRowsFor(document: PdfDocumentSource): PdfRow[] {
   const esConteo = document.type === "physical_count";
   if (!esConteo && document.status === "confirmed" && document.movements.length > 0) {
@@ -84,6 +133,7 @@ export function pdfRowsFor(document: PdfDocumentSource): PdfRow[] {
       counted: null,
     }));
   }
+  const netoPorCubeta = netoDelConteo(document);
   return document.lines.map((l) => ({
     lineNo: l.lineNo,
     sku: l.product.sku,
@@ -96,9 +146,7 @@ export function pdfRowsFor(document: PdfDocumentSource): PdfRow[] {
     lotCode: l.lotCode,
     expiresAt: l.expiresAt,
     location: l.location,
-    // En un conteo `quantity` guarda el teórico que se VIO al capturar la fila
-    // (ver document-import.service); `theoretical` es la columna dedicada.
-    theoretical: esConteo ? ((l.theoretical ?? l.quantity)?.toString() ?? null) : null,
+    theoretical: esConteo ? teoricoDeConteo(document, l, netoPorCubeta) : null,
     counted: l.counted?.toString() ?? null,
   }));
 }

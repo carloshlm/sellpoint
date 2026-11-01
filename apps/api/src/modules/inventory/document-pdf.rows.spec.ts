@@ -13,6 +13,7 @@ describe("pdfRowsFor", () => {
   const producto = { sku: "A-1", name: "Jabón", baseUnit: "unit" };
   const linea = {
     lineNo: 1,
+    productId: "p1",
     quantity: new Prisma.Decimal("200"),
     theoretical: null,
     counted: new Prisma.Decimal("185"),
@@ -28,6 +29,7 @@ describe("pdfRowsFor", () => {
     quantity: string,
     presentation: { name: string; factor: Prisma.Decimal } | null = null,
   ) => ({
+    productId: "p1",
     quantity: new Prisma.Decimal(quantity),
     direction,
     unitCost: null,
@@ -47,6 +49,52 @@ describe("pdfRowsFor", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ theoretical: "200", counted: "185", lotCode: "ST1" });
+  });
+
+  /**
+   * Carlos (2026-11-01), el Queso Oaxaca: la fila de los 33 kg sin lote se
+   * subió vacía y su lote (ST2) se puso en pantalla, así que el teórico
+   * capturado era el TOTAL del producto (448.8). El papel decía −415.8; la
+   * aprobación hizo +33. El teórico de un confirmado es el que se aplicó.
+   */
+  it("un conteo confirmado imprime el teórico que se APLICÓ, no el capturado", () => {
+    const rows = pdfRowsFor({
+      type: "physical_count",
+      status: "confirmed",
+      lines: [
+        {
+          ...linea,
+          lineNo: 1,
+          lotCode: "ST2",
+          quantity: new Prisma.Decimal("448.8"),
+          counted: new Prisma.Decimal("33"),
+        },
+        {
+          ...linea,
+          lineNo: 2,
+          lotCode: "ST1",
+          quantity: new Prisma.Decimal("448.8"),
+          counted: new Prisma.Decimal("448.8"),
+        },
+      ],
+      movements: [{ ...movimiento("entry", "33"), lot: { lotCode: "ST2", expiresAt: null } }],
+    });
+
+    expect(rows.map((r) => [r.lotCode, r.theoretical, r.counted])).toEqual([
+      ["ST2", "0", "33"],
+      ["ST1", "448.8", "448.8"],
+    ]);
+  });
+
+  it("un conteo anulado no movió nada: conserva el teórico que se vio al capturar", () => {
+    const rows = pdfRowsFor({
+      type: "physical_count",
+      status: "canceled",
+      lines: [linea],
+      movements: [],
+    });
+
+    expect(rows[0]).toMatchObject({ theoretical: "200", counted: "185" });
   });
 
   it("una entrada confirmada sí sale de sus movimientos, uno por lote", () => {

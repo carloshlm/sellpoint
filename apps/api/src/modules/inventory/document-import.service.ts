@@ -14,6 +14,7 @@ import {
   serializeSpreadsheet,
 } from "../../common/spreadsheet/spreadsheet";
 import { parseSpreadsheetDate } from "../../common/spreadsheet/spreadsheet-date";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { DocumentsService } from "./documents.service";
@@ -142,9 +143,10 @@ export class DocumentImportService {
       ];
       const productos = await tx.product.findMany({
         where: { tenantId: user.tenantId, sku: { in: skus } },
-        select: { id: true, sku: true },
+        select: { id: true, sku: true, tracksLots: true },
       });
       const porSku = new Map(productos.map((p) => [p.sku.toLowerCase(), p.id]));
+      const conControlDeLote = new Set(productos.filter((p) => p.tracksLots).map((p) => p.id));
 
       const presentaciones = await tx.productPresentation.findMany({
         where: { tenantId: user.tenantId, productId: { in: [...porSku.values()] } },
@@ -267,14 +269,26 @@ export class DocumentImportService {
             l.quantity.toString(),
           ]),
         );
-        for (const r of guardables) {
-          const clave = `${r.productId}|${r.lotCode ?? ""}|${r.location ?? ""}`;
-          teoricoAlCapturar.set(
-            r.row,
-            r.lotCode === null
-              ? (porProducto.get(r.productId as string) ?? "0")
-              : (porLote.get(clave) ?? "0"),
+        const enLotes = new Map<string, Prisma.Decimal>();
+        for (const l of lotes) {
+          enLotes.set(
+            l.lot.productId,
+            (enLotes.get(l.lot.productId) ?? new Prisma.Decimal(0)).plus(l.quantity),
           );
+        }
+        for (const r of guardables) {
+          const productId = r.productId as string;
+          const clave = `${productId}|${r.lotCode ?? ""}|${r.location ?? ""}`;
+          // La fila SIN lote de un producto que SÍ se controla por lote vale lo
+          // que no tiene lote (el total menos sus lotes), igual que en la
+          // plantilla. Con el total, el Queso Oaxaca de Carlos (2026-11-01)
+          // salía con 448.8 de teórico en la fila de sus 33 kg sin lote.
+          const sinLote = conControlDeLote.has(productId)
+            ? new Prisma.Decimal(porProducto.get(productId) ?? "0")
+                .minus(enLotes.get(productId) ?? new Prisma.Decimal(0))
+                .toString()
+            : (porProducto.get(productId) ?? "0");
+          teoricoAlCapturar.set(r.row, r.lotCode === null ? sinLote : (porLote.get(clave) ?? "0"));
         }
       }
       let lineNo = desde._max.lineNo ?? 0;

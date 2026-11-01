@@ -1347,6 +1347,107 @@ describe("Inventario físico (F3-COUNT)", () => {
       expect(Number(stock.find((s) => s.productId === simpleId)?.quantity)).toBe(0);
     });
 
+    /**
+     * Carlos (2026-11-01), el Queso Oaxaca: lote ST1 y 33 kg sin lote. La fila
+     * sin lote de la plantilla se subió con lote vacío y su lote se puso en
+     * pantalla. El Excel del conteo confirmado le dio a esa fila el teórico
+     * del producto ENTERO (448.8) y una diferencia de −415.8 que no pasó.
+     * El ajuste estaba bien; el papel mentía.
+     */
+    it("la fila sin lote vale lo que no tiene lote, y el Excel confirmado dice el teórico que se aplicó", async () => {
+      const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
+      // Lotes que suman 30 (9 + 20 + 1) y 33 sin lote: 63 en total.
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId: lotesId, warehouseId },
+          data: { quantity: 63 },
+        }),
+      );
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          `${lotesSku},ZZZ-JUL,,B-2,9`,
+          `${lotesSku},BBB-SEP,,A-1,20`,
+          `${lotesSku},AAA-DIC,,C-3,1`,
+          `${lotesSku},,,,33`,
+        ].join("\n"),
+      );
+
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (
+        previa.body as { rows: { id: string; lotCode: string | null; theoretical: string }[] }
+      ).rows;
+      const sinLote = filas.find((f) => f.lotCode === null);
+      expect(sinLote?.theoretical).toBe("33");
+
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${sinLote?.id}`)
+        .set("Authorization", bearer(token))
+        .send({ lotCode: "NUEVO", expiresAt: "2050-01-01" })
+        .expect(200);
+      await aprobar(token, id).expect(201);
+
+      const xlsx = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}/xlsx`)
+        .set("Authorization", bearer(token))
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+      const hoja = await parseSpreadsheet((xlsx.body as Buffer).toString("base64"), "xlsx");
+      const encabezado = hoja[0] ?? [];
+      const col = (nombre: string) => encabezado.indexOf(nombre);
+      const fila = (lote: string) => hoja.find((f) => f[col("Lote")] === lote) ?? [];
+      const cifras = (lote: string) =>
+        ["Teórico", "Contado", "Diferencia"].map((c) => Number(fila(lote)[col(c)]));
+
+      expect(cifras("NUEVO")).toEqual([0, 33, 33]);
+      expect(cifras("ZZZ-JUL")).toEqual([9, 9, 0]);
+    });
+
+    it("al subir, la fila sin lote guarda lo que no tiene lote: lo dice el papel de un anulado", async () => {
+      const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId: lotesId, warehouseId },
+          data: { quantity: 63 },
+        }),
+      );
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${lotesSku},,,,33`,
+      );
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/cancel`)
+        .set("Authorization", bearer(token))
+        .send({ reason: "se prueba el papel del anulado" })
+        .expect(200);
+
+      const xlsx = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}/xlsx`)
+        .set("Authorization", bearer(token))
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+      const hoja = await parseSpreadsheet((xlsx.body as Buffer).toString("base64"), "xlsx");
+      const col = (nombre: string) => (hoja[0] ?? []).indexOf(nombre);
+
+      expect(Number(hoja[1]?.[col("Teórico")])).toBe(33);
+    });
+
     it("la previa de un conteo nunca dice «no hay suficiente existencia»", async () => {
       const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
       // El producto en 10 con lotes que suman 30: la previa vieja encadenaba
