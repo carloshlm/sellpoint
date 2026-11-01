@@ -92,8 +92,11 @@ export function SaleScreen({ session }: SaleScreenProps) {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
+      {/* `grid-cols-1` y `min-w-0`: una columna de grid crece hasta lo que mide
+          su contenido, y un renglón largo del buscador sacaba la venta entera
+          de la pantalla del celular (Carlos, 2026-11-01). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-4">
           {cobrando ? (
             <CheckoutPanel
               onDone={(venta) => {
@@ -107,7 +110,7 @@ export function SaleScreen({ session }: SaleScreenProps) {
           )}
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <CartPanel />
 
           {!cobrando && (

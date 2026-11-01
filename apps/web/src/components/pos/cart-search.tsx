@@ -182,7 +182,12 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
           <li key={`${item.type}:${item.id}`}>
             <Button
               variant="outline"
-              className="h-auto w-full justify-between py-2 text-left"
+              // `whitespace-normal`: el botón no parte el texto por omisión, y un
+              // nombre largo («California Pistachios Unsalted Dry-Roasted to
+              // Perfection») ensanchaba la columna entera en el celular: el
+              // precio y «Cobrar» quedaban fuera de la pantalla (Carlos,
+              // 2026-11-01). El nombre se parte; el precio nunca se encoge.
+              className="h-auto w-full justify-between gap-3 whitespace-normal py-2 text-left"
               onClick={() => {
                 // Una cotización no es una línea: abre su confirmación.
                 if (item.type === "quote") {
@@ -192,15 +197,15 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
                 agregarYLimpiar(item);
               }}
             >
-              <span className="flex flex-col">
-                <span className="font-medium">
+              <span className="flex min-w-0 flex-col">
+                <span className="break-words font-medium">
                   {item.type === "quote"
                     ? item.folio
                     : item.type === "concept"
                       ? item.description
                       : item.name}
                 </span>
-                <span className="text-muted-foreground text-xs">
+                <span className="break-words text-muted-foreground text-xs">
                   {item.type === "product" && (
                     <>
                       {item.sku}
@@ -230,7 +235,7 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
                   {item.type === "quote" && t(`pos.quote.status.${item.status}`)}
                 </span>
               </span>
-              <span className="tabular-nums">
+              <span className="shrink-0 tabular-nums">
                 {item.type === "product" &&
                   formatMoney(
                     Number(item.presentations.find((p) => p.isDefaultSale)?.price ?? 0),
