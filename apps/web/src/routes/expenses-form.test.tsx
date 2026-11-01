@@ -141,6 +141,18 @@ afterEach(() => {
 });
 
 describe("Gastos — formulario (F9-EXP-14)", () => {
+  /**
+   * Que «Categorías» gane en su página no puede apagar «Gastos» en las suyas:
+   * en «Registrar gasto» el menú sigue diciendo dónde estás.
+   */
+  it("el menú enciende «Gastos» también en «Registrar gasto»", async () => {
+    await renderNuevo();
+    await screen.findByRole("heading", { name: "Registrar gasto" });
+
+    expect(screen.getByRole("link", { name: "Gastos" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Categorías" })).not.toHaveClass("active");
+  });
+
   it("vive en una tarjeta con su título, y el primer campo en la MISMA tarjeta", async () => {
     await renderNuevo();
     const titulo = await screen.findByRole("heading", { name: "Registrar gasto" });

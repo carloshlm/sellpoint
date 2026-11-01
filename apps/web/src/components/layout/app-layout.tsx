@@ -1,5 +1,11 @@
 import type { InventoryDocumentType } from "@sellpoint/shared";
-import { Link, type LinkProps, useMatch, useNavigate } from "@tanstack/react-router";
+import {
+  Link,
+  type LinkProps,
+  useMatch,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
 import {
   ArrowDownToLine,
   ArrowLeftRight,
@@ -126,6 +132,19 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // F9-RECEP-18: el menú de los módulos llega RESUELTO (módulo, permiso y
   // configuración del negocio); el layout no sabe de ningún módulo.
   const modulos = useModuleNav();
+  // En los menús de módulos un destino puede ser prefijo de otro (`/expenses` y
+  // `/expenses/categories`): el router enciende los dos (Carlos, 2026-11-01).
+  // Gana el MÁS específico que contiene la ruta actual, y solo ese; así
+  // «Gastos» sigue encendido en «Registrar gasto» o en el detalle de un gasto.
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const enlaceDeModuloActivo = React.useMemo(
+    () =>
+      modulos
+        .flatMap((grupo) => grupo.links.map((link) => link.to))
+        .filter((to) => pathname === to || pathname.startsWith(`${to}/`))
+        .sort((a, b) => b.length - a.length)[0],
+    [modulos, pathname],
+  );
   const openPlansModal = useBillingStore((state) => state.openPlansModal);
   const navLock = (
     label: string,
@@ -568,8 +587,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   <Link
                     key={link.to}
                     to={link.to as LinkProps["to"]}
+                    // El router solo enciende la coincidencia exacta; el resto
+                    // lo decide `enlaceDeModuloActivo`, uno solo a la vez.
+                    activeOptions={{ exact: true }}
                     aria-label={link.label}
-                    className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                    aria-current={link.to === enlaceDeModuloActivo ? "page" : undefined}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground${link.to === enlaceDeModuloActivo ? " active" : ""}`}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
                     {expanded && <span className="truncate">{link.label}</span>}

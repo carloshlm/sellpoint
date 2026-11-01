@@ -79,6 +79,19 @@ afterEach(() => {
 });
 
 describe("Categorías de gasto (F9-EXP-03)", () => {
+  /**
+   * Carlos (2026-11-01): en Categorías el menú encendía «Gastos» Y
+   * «Categorías». `/expenses` es prefijo de `/expenses/categories`; gana el
+   * enlace más específico y se enciende uno solo.
+   */
+  it("el menú enciende solo «Categorías», no también «Gastos»", async () => {
+    await renderCategorias(["expenses:read", "expenses:manage"]);
+    await screen.findAllByTestId(/^expense-category-/);
+
+    expect(screen.getByRole("link", { name: "Categorías" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Gastos" })).not.toHaveClass("active");
+  });
+
   it("lista las categorías con su estado, en el orden del API", async () => {
     await renderCategorias(["expenses:read", "expenses:manage"]);
     const filas = await screen.findAllByTestId(/^expense-category-/);
