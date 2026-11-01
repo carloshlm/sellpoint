@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
+import { useCartStore } from "@/stores/cart.store";
 import {
   type CashboxSession,
   type CreateQuoteInput,
@@ -103,7 +104,14 @@ export function useCloseSession() {
     { declaredCash: number; note?: string }
   >({
     mutationFn: (input) => closeSession(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY }),
+    onSuccess: () => {
+      // El carrito es del turno: cerrarlo lo vacía, también lo guardado, para
+      // que no reaparezca en el siguiente (Carlos, 2026-11-01). Vive AQUÍ y no
+      // en el `mutate` de la pantalla: al cerrar, la pantalla se desmonta y
+      // React Query ya no llama los callbacks de un `mutate` sin dueño.
+      useCartStore.getState().clear();
+      return queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY });
+    },
   });
 }
 

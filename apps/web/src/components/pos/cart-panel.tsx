@@ -1,6 +1,7 @@
 import { type Currency, formatMoney, formatSoldQuantity } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Numpad } from "@/components/pos/numpad";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth.store";
@@ -30,6 +31,7 @@ export function CartPanel() {
   const lines = useCartStore((s) => s.lines);
   const [seleccionada, setSeleccionada] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [vaciando, setVaciando] = useState(false);
   const lastAdded = useCartStore((s) => s.lastAdded);
 
   // Con el teclado abierto, la selección pasa al producto que se acaba de
@@ -71,6 +73,34 @@ export function CartPanel() {
           />
         ))}
       </ul>
+
+      {/* El carrito sobrevive a una recarga y dura el turno (Carlos,
+          2026-11-01): limpiarlo completo es una acción explícita, con
+          confirmación — veinte productos quitados por un clic de más se
+          vuelven a escanear con el cliente enfrente. */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="self-end text-muted-foreground"
+        onClick={() => setVaciando(true)}
+      >
+        {t("pos.cart.clear")}
+      </Button>
+      {vaciando && (
+        <ConfirmDialog
+          title={t("pos.cart.clearTitle")}
+          body={t("pos.cart.clearBody", { count: lines.length })}
+          confirmLabel={t("pos.cart.clearConfirm")}
+          cancelLabel={t("common.form.cancel")}
+          onConfirm={() => {
+            useCartStore.getState().clear();
+            setSeleccionada(null);
+            setAviso(null);
+            setVaciando(false);
+          }}
+          onCancel={() => setVaciando(false)}
+        />
+      )}
 
       <Totals lines={lines} />
 

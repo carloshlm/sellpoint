@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { type CartLine, useCartStore } from "@/stores/cart.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
@@ -275,6 +276,17 @@ describe("/pos — la puerta del punto de venta", () => {
   });
 });
 
+const CARRITO_GUARDADO: CartLine = {
+  key: "service:s1",
+  type: "service",
+  serviceId: "s1",
+  code: "CONS",
+  name: "Consulta",
+  price: "300",
+  quantity: "1",
+  tax: null,
+};
+
 describe("/pos/close — el arqueo", () => {
   it("muestra lo calculado POR MÉTODO, con su conteo de ventas", async () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
@@ -316,6 +328,27 @@ describe("/pos/close — el arqueo", () => {
     // El formato es el del tenant (MXN): lo que el cajero LEE, no el número crudo.
     expect(screen.getByTestId("cash-difference")).toHaveTextContent("-$20.00");
     expect(screen.getByRole("button", { name: /cerrar turno/i })).toBeEnabled();
+  });
+
+  /**
+   * Carlos (2026-11-01): el carrito guardado es del TURNO. Cerrarlo lo vacía,
+   * también lo guardado en el navegador, para que no reaparezca en el turno
+   * siguiente.
+   */
+  it("cerrar el turno vacía el carrito que había quedado guardado", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.closeSession.mockResolvedValue({} as never);
+    useCartStore.getState().claim("t1:u1", "s1");
+    useCartStore.getState().setQuoteId("q-pendiente");
+    useCartStore.setState({ lines: [CARRITO_GUARDADO] });
+
+    const user = await renderRuta("/pos/close");
+    await user.type(await screen.findByLabelText(/efectivo contado/i), "150");
+    await user.click(screen.getByRole("button", { name: /cerrar turno/i }));
+
+    await waitFor(() => expect(mocked.closeSession).toHaveBeenCalled());
+    await waitFor(() => expect(useCartStore.getState().lines).toEqual([]));
+    expect(useCartStore.getState().quoteId).toBeNull();
   });
 
   /**

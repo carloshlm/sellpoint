@@ -6,7 +6,9 @@ import {
   splitDocumentTax,
   type TaxMode,
 } from "@sellpoint/shared";
+import { useLayoutEffect } from "react";
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { LookupItem, LookupItemTax, LookupPresentation } from "@/lib/pos/api";
 import { useAuthStore } from "./auth.store";
 
@@ -127,6 +129,16 @@ interface CartState {
    * avisos. El panel le pasa ahí la selección (Carlos, 2026-11-01).
    */
   lastAdded: { key: string; seq: number } | null;
+  /** El sello de dueño del carrito guardado: `tenantId:userId`. */
+  owner: string | null;
+  /** El turno en que se armó; `null` si se armó sin turno (una cotización). */
+  sessionId: string | null;
+  /**
+   * Reclama el carrito guardado para quien está en la pantalla. Lo de otra
+   * cuenta se descarta; en la venta (con `sessionId`), también lo de otro
+   * turno. Uno armado sin turno se adopta.
+   */
+  claim: (owner: string, sessionId?: string) => void;
   add: (item: LookupItem, options?: { presentationId?: string; quantity?: string }) => void;
   remove: (key: string) => void;
   setQuantity: (key: string, quantity: string) => void;
@@ -180,181 +192,266 @@ function trasAgregar(state: CartState, key: string, lines: CartLine[]): Partial<
   return { lines, lastAdded: { key, seq: (state.lastAdded?.seq ?? 0) + 1 } };
 }
 
-export const useCartStore = create<CartState>((set) => ({
-  lines: [],
-  quoteId: null,
-  errorSku: null,
-  lastAdded: null,
+/**
+ * Carlos (2026-11-01): con un ticket de muchos productos, recargar la página
+ * borraba el carrito. Se guarda en el navegador con el MISMO patrón que el
+ * borrador de la carga rápida (`quick-catalog.store.ts`): `persist`, solo los
+ * datos, un cambio de forma descarta y el sello de dueño (`claim`).
+ *
+ * ── Dos sellos: la cuenta y el turno ────────────────────────────────────
+ *
+ * La cuenta, para que quien entra después en la misma computadora no vea el
+ * carrito ajeno. El turno, porque el carrito es de ESE turno: el de uno ya
+ * cerrado no reaparece en el siguiente. La cotización usa el mismo carrito y
+ * se arma sin turno: por eso reclama solo con la cuenta, y la venta adopta lo
+ * que se armó ahí.
+ *
+ * ── Si el navegador no deja guardar ─────────────────────────────────────
+ *
+ * Modo privado o cuota llena: el carrito sigue en memoria, como antes de
+ * guardarse. Perderlo en una recarga es lo de siempre, no un error nuevo.
+ */
+const VERSION = 1;
+const SIN_CARRITO = { lines: [], quoteId: null, errorSku: null, lastAdded: null } as const;
+const almacen = createJSONStorage<CartState>(() => localStorage);
 
-  add: (item, options) =>
-    set((state) => {
-      const cantidad = options?.quantity ?? "1";
-
-      if (item.type === "quote") {
-        // Una cotización no es una línea: se vuelca con `F4-QUOTE-04`, que
-        // agrega SUS líneas una por una. Ignorarla acá es más honesto que
-        // inventar un renglón que el ticket no sabría imprimir.
-        return state;
-      }
-
-      if (item.type === "concept") {
-        const key = claveDe({ type: "concept", id: item.id });
-        const existente = state.lines.find((l) => l.key === key);
-        if (existente !== undefined) {
-          return trasAgregar(
-            state,
-            key,
-            state.lines.map((l) =>
-              l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
-            ),
-          );
-        }
-        const nueva: CartConceptLine = {
-          key,
-          type: "concept",
-          tax: item.tax ?? null,
-          quoteLineId: item.id,
-          description: item.description,
-          unitPrice: item.unitPrice,
-          quantity: cantidad,
-        };
-        return trasAgregar(state, key, [...state.lines, nueva]);
-      }
-
-      if (item.type === "service") {
-        const key = claveDe({ type: "service", id: item.id, quoteLineId: item.quoteLineId });
-        const existente = state.lines.find((l) => l.key === key);
-        if (existente !== undefined) {
-          return trasAgregar(
-            state,
-            key,
-            state.lines.map((l) =>
-              l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
-            ),
-          );
-        }
-        const nueva: CartServiceLine = {
-          key,
-          type: "service",
-          tax: item.tax ?? null,
-          serviceId: item.id,
-          ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
-          code: item.code,
-          name: item.name,
-          price: item.price,
-          quantity: cantidad,
-        };
-        return trasAgregar(state, key, [...state.lines, nueva]);
-      }
-
-      // `matchedPresentationId` gana sobre la predeterminada: si el acierto vino
-      // de escanear la caja de 12, la línea nace siendo la caja. Preseleccionar
-      // la pieza cobraría una en vez de doce.
-      const presentationId = presentacionInicial(
-        item.presentations,
-        options?.presentationId ?? item.matchedPresentationId,
-      );
-      if (presentationId === undefined) {
-        // Sin presentación vendible no hay con qué cobrar. El API tampoco lo
-        // ofrece, así que llegar acá significaría un catálogo cambiado a mitad
-        // de venta — agregar la línea igual solo movería el error a la caja.
-        return state;
-      }
-
-      const key = claveDe({
-        type: "product",
-        id: item.id,
-        presentationId,
-        quoteLineId: item.quoteLineId,
-      });
-      const existente = state.lines.find((l) => l.key === key);
-      if (existente !== undefined) {
-        return trasAgregar(
-          state,
-          key,
-          state.lines.map((l) =>
-            l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
-          ),
-        );
-      }
-
-      const nueva: CartProductLine = {
-        key,
-        type: "product",
-        tax: item.tax ?? null,
-        ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
-        productId: item.id,
-        sku: item.sku,
-        name: item.name,
-        baseUnit: item.baseUnit,
-        isComposite: item.isComposite,
-        available: item.available,
-        presentationId,
-        presentations: item.presentations,
-        quantity: cantidad,
-      };
-      return trasAgregar(state, key, [...state.lines, nueva]);
-    }),
-
-  remove: (key) =>
-    set((state) => ({ lines: state.lines.filter((l) => l.key !== key), errorSku: null })),
-
-  setQuantity: (key, quantity) =>
-    set((state) => ({
-      lines: state.lines.map((l) => (l.key === key ? { ...l, quantity } : l)),
-      // Corregir la cantidad borra la marca del rechazo: el mensaje hablaba del
-      // estado anterior y dejarlo puesto haría creer que la corrección tampoco
-      // sirvió.
+export const useCartStore = create<CartState>()(
+  persist(
+    (set) => ({
+      lines: [],
+      quoteId: null,
       errorSku: null,
-    })),
+      lastAdded: null,
+      owner: null,
+      sessionId: null,
 
-  /**
-   * Cambiar la presentación **cambia la identidad de la línea**, porque la
-   * clave la incluye. Si ya hay un renglón de esa otra presentación, los dos se
-   * FUNDEN: dejar dos renglones de "Caja ×12" en el mismo ticket sería un
-   * error de captura que el cajero tendría que corregir a mano.
-   */
-  setPresentation: (key, presentationId) =>
-    set((state) => {
-      const linea = state.lines.find((l) => l.key === key);
-      if (linea === undefined || linea.type !== "product") {
-        return state;
-      }
-      if (!linea.presentations.some((p) => p.id === presentationId)) {
-        return state;
-      }
+      claim: (owner, sessionId) =>
+        set((state) => {
+          const ajeno = state.owner !== owner;
+          const deOtroTurno =
+            sessionId !== undefined && state.sessionId !== null && state.sessionId !== sessionId;
+          if (ajeno || deOtroTurno) {
+            return { ...SIN_CARRITO, lines: [], owner, sessionId: sessionId ?? null };
+          }
+          // Un carrito VACÍO reclamado sin turno (la cotización) nace sin
+          // turno: si conservara el del turno ya cerrado, la venta del turno
+          // siguiente lo tomaría por viejo y lo descartaría.
+          if (sessionId === undefined && state.lines.length === 0) {
+            return { sessionId: null };
+          }
+          return { sessionId: sessionId ?? state.sessionId };
+        }),
 
-      const nuevaClave = claveDe({ type: "product", id: linea.productId, presentationId });
-      if (nuevaClave === key) {
-        return state;
-      }
+      add: (item, options) =>
+        set((state) => {
+          const cantidad = options?.quantity ?? "1";
 
-      const destino = state.lines.find((l) => l.key === nuevaClave);
-      if (destino !== undefined) {
-        return {
-          lines: state.lines
-            .filter((l) => l.key !== key)
-            .map((l) =>
-              l.key === nuevaClave
-                ? { ...l, quantity: addQuantities(l.quantity, linea.quantity) }
-                : l,
+          if (item.type === "quote") {
+            // Una cotización no es una línea: se vuelca con `F4-QUOTE-04`, que
+            // agrega SUS líneas una por una. Ignorarla acá es más honesto que
+            // inventar un renglón que el ticket no sabría imprimir.
+            return state;
+          }
+
+          if (item.type === "concept") {
+            const key = claveDe({ type: "concept", id: item.id });
+            const existente = state.lines.find((l) => l.key === key);
+            if (existente !== undefined) {
+              return trasAgregar(
+                state,
+                key,
+                state.lines.map((l) =>
+                  l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
+                ),
+              );
+            }
+            const nueva: CartConceptLine = {
+              key,
+              type: "concept",
+              tax: item.tax ?? null,
+              quoteLineId: item.id,
+              description: item.description,
+              unitPrice: item.unitPrice,
+              quantity: cantidad,
+            };
+            return trasAgregar(state, key, [...state.lines, nueva]);
+          }
+
+          if (item.type === "service") {
+            const key = claveDe({ type: "service", id: item.id, quoteLineId: item.quoteLineId });
+            const existente = state.lines.find((l) => l.key === key);
+            if (existente !== undefined) {
+              return trasAgregar(
+                state,
+                key,
+                state.lines.map((l) =>
+                  l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
+                ),
+              );
+            }
+            const nueva: CartServiceLine = {
+              key,
+              type: "service",
+              tax: item.tax ?? null,
+              serviceId: item.id,
+              ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
+              code: item.code,
+              name: item.name,
+              price: item.price,
+              quantity: cantidad,
+            };
+            return trasAgregar(state, key, [...state.lines, nueva]);
+          }
+
+          // `matchedPresentationId` gana sobre la predeterminada: si el acierto vino
+          // de escanear la caja de 12, la línea nace siendo la caja. Preseleccionar
+          // la pieza cobraría una en vez de doce.
+          const presentationId = presentacionInicial(
+            item.presentations,
+            options?.presentationId ?? item.matchedPresentationId,
+          );
+          if (presentationId === undefined) {
+            // Sin presentación vendible no hay con qué cobrar. El API tampoco lo
+            // ofrece, así que llegar acá significaría un catálogo cambiado a mitad
+            // de venta — agregar la línea igual solo movería el error a la caja.
+            return state;
+          }
+
+          const key = claveDe({
+            type: "product",
+            id: item.id,
+            presentationId,
+            quoteLineId: item.quoteLineId,
+          });
+          const existente = state.lines.find((l) => l.key === key);
+          if (existente !== undefined) {
+            return trasAgregar(
+              state,
+              key,
+              state.lines.map((l) =>
+                l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
+              ),
+            );
+          }
+
+          const nueva: CartProductLine = {
+            key,
+            type: "product",
+            tax: item.tax ?? null,
+            ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
+            productId: item.id,
+            sku: item.sku,
+            name: item.name,
+            baseUnit: item.baseUnit,
+            isComposite: item.isComposite,
+            available: item.available,
+            presentationId,
+            presentations: item.presentations,
+            quantity: cantidad,
+          };
+          return trasAgregar(state, key, [...state.lines, nueva]);
+        }),
+
+      remove: (key) =>
+        set((state) => ({ lines: state.lines.filter((l) => l.key !== key), errorSku: null })),
+
+      setQuantity: (key, quantity) =>
+        set((state) => ({
+          lines: state.lines.map((l) => (l.key === key ? { ...l, quantity } : l)),
+          // Corregir la cantidad borra la marca del rechazo: el mensaje hablaba del
+          // estado anterior y dejarlo puesto haría creer que la corrección tampoco
+          // sirvió.
+          errorSku: null,
+        })),
+
+      /**
+       * Cambiar la presentación **cambia la identidad de la línea**, porque la
+       * clave la incluye. Si ya hay un renglón de esa otra presentación, los dos se
+       * FUNDEN: dejar dos renglones de "Caja ×12" en el mismo ticket sería un
+       * error de captura que el cajero tendría que corregir a mano.
+       */
+      setPresentation: (key, presentationId) =>
+        set((state) => {
+          const linea = state.lines.find((l) => l.key === key);
+          if (linea === undefined || linea.type !== "product") {
+            return state;
+          }
+          if (!linea.presentations.some((p) => p.id === presentationId)) {
+            return state;
+          }
+
+          const nuevaClave = claveDe({ type: "product", id: linea.productId, presentationId });
+          if (nuevaClave === key) {
+            return state;
+          }
+
+          const destino = state.lines.find((l) => l.key === nuevaClave);
+          if (destino !== undefined) {
+            return {
+              lines: state.lines
+                .filter((l) => l.key !== key)
+                .map((l) =>
+                  l.key === nuevaClave
+                    ? { ...l, quantity: addQuantities(l.quantity, linea.quantity) }
+                    : l,
+                ),
+            };
+          }
+
+          return {
+            lines: state.lines.map((l) =>
+              l.key === key ? { ...l, key: nuevaClave, presentationId } : l,
             ),
-        };
-      }
+          };
+        }),
 
-      return {
-        lines: state.lines.map((l) =>
-          l.key === key ? { ...l, key: nuevaClave, presentationId } : l,
-        ),
-      };
+      setQuoteId: (quoteId) => set({ quoteId }),
+
+      setErrorSku: (errorSku) => set({ errorSku }),
+
+      clear: () => set({ ...SIN_CARRITO, lines: [] }),
     }),
-
-  setQuoteId: (quoteId) => set({ quoteId }),
-
-  setErrorSku: (errorSku) => set({ errorSku }),
-
-  clear: () => set({ lines: [], quoteId: null, errorSku: null, lastAdded: null }),
-}));
+    {
+      name: "sellpoint.cart",
+      version: VERSION,
+      storage: {
+        getItem: (name) => {
+          try {
+            return almacen?.getItem(name) ?? null;
+          } catch {
+            // Modo privado o almacenamiento bloqueado: se arranca en blanco.
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            almacen?.setItem(name, value);
+          } catch {
+            // Sin espacio o sin permiso: el carrito sigue en memoria.
+          }
+        },
+        removeItem: (name) => {
+          try {
+            almacen?.removeItem(name);
+          } catch {
+            // No poder borrar no rompe nada: el sello de dueño ya lo descarta.
+          }
+        },
+      },
+      // Solo el carrito y su sello: `errorSku` y `lastAdded` describen ESTA
+      // pantalla, y de la sesión no se guarda nada.
+      partialize: (state) =>
+        ({
+          lines: state.lines,
+          quoteId: state.quoteId,
+          owner: state.owner,
+          sessionId: state.sessionId,
+        }) as unknown as CartState,
+      migrate: () =>
+        ({ lines: [], quoteId: null, owner: null, sessionId: null }) as unknown as CartState,
+    },
+  ),
+);
 
 /**
  * El carrito muere con la sesión (Carlos, 2026-10-31): cerró sesión con un
@@ -380,6 +477,20 @@ useAuthStore.subscribe((state) => {
     useCartStore.getState().clear();
   }
 });
+
+/**
+ * Reclama el carrito guardado al entrar a una pantalla que lo usa: la venta
+ * con su turno, la cotización sin él. `useLayoutEffect` y no `useEffect`: el
+ * carrito de otra cuenta no llega a pintarse ni un instante.
+ */
+export function useClaimCart(sessionId?: string): void {
+  const owner = useAuthStore((s) => (s.user ? `${s.user.tenant.id}:${s.user.id}` : null));
+  useLayoutEffect(() => {
+    if (owner !== null) {
+      useCartStore.getState().claim(owner, sessionId);
+    }
+  }, [owner, sessionId]);
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Derivados

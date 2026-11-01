@@ -6,7 +6,7 @@ import { CartSearch } from "@/components/pos/cart-search";
 import { Button } from "@/components/ui/button";
 import { useCreateQuote, useQuoteWarehouses } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
-import { aLineasDeVenta, useCartStore } from "@/stores/cart.store";
+import { aLineasDeVenta, useCartStore, useClaimCart } from "@/stores/cart.store";
 
 /**
  * F4-QUOTE-03 — armar una cotización.
@@ -46,6 +46,8 @@ export function QuoteBuilder({
 
   const lines = useCartStore((s) => s.lines);
   const clear = useCartStore((s) => s.clear);
+  // Sin turno: una cotización no lo pide, y conserva lo que el carrito traiga.
+  useClaimCart();
   const generar = useCreateQuote();
   const sucursales = useQuoteWarehouses();
 

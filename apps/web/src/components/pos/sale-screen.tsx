@@ -7,7 +7,7 @@ import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { SessionBar } from "@/components/pos/session-bar";
 import { Button } from "@/components/ui/button";
 import type { CashboxSession } from "@/lib/pos/api";
-import { useCartStore } from "@/stores/cart.store";
+import { useCartStore, useClaimCart } from "@/stores/cart.store";
 
 /**
  * F4-UI-01 — la pantalla de venta.
@@ -38,6 +38,9 @@ interface SaleScreenProps {
 
 export function SaleScreen({ session }: SaleScreenProps) {
   const { t } = useTranslation();
+  // El carrito guardado es de este turno: el de otro turno o de otra cuenta
+  // se descarta al entrar (Carlos, 2026-11-01).
+  useClaimCart(session.id);
   const lines = useCartStore((s) => s.lines);
   const [cobrando, setCobrando] = useState(false);
   const [ultima, setUltima] = useState<ClosedSale | null>(null);

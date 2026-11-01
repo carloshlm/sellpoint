@@ -598,3 +598,118 @@ describe("el carrito muere con la sesión", () => {
     expect(useCartStore.getState().lines).toHaveLength(1);
   });
 });
+
+/**
+ * Carlos (2026-11-01): con un ticket de muchos productos, recargar la página
+ * borraba el carrito. Ahora se guarda en el navegador, con el sello de quién
+ * lo armó y en qué turno, hasta que se cobra, se vacía o el turno se cierra.
+ */
+describe("el carrito sobrevive a una recarga", () => {
+  const CLAVE = "sellpoint.cart";
+  const guardado = () =>
+    (JSON.parse(localStorage.getItem(CLAVE) ?? "{}") as { state?: Record<string, unknown> }).state;
+  const recargar = async () => {
+    vi.resetModules();
+    return (await import("./cart.store")).useCartStore;
+  };
+
+  beforeEach(() => {
+    useAuthStore.getState().clearAuth();
+    useCartStore.getState().clear();
+    localStorage.clear();
+  });
+
+  it("recargar la página conserva los productos, sus cantidades y la cotización", async () => {
+    useCartStore.getState().claim("t1:u1", "s1");
+    useCartStore.getState().add(AGUA, { quantity: "3" });
+    useCartStore.getState().setQuoteId("q1");
+
+    const recargado = await recargar();
+
+    expect(recargado.getState().lines).toEqual(useCartStore.getState().lines);
+    expect(recargado.getState().lines[0]?.quantity).toBe("3");
+    expect(recargado.getState().quoteId).toBe("q1");
+    // Solo los datos del carrito y su sello: nada de la sesión.
+    expect(Object.keys(guardado() ?? {}).sort()).toEqual([
+      "lines",
+      "owner",
+      "quoteId",
+      "sessionId",
+    ]);
+  });
+
+  it("otra cuenta no ve el carrito: un dueño distinto lo descarta, el mismo lo conserva", () => {
+    useCartStore.getState().claim("t1:u1", "s1");
+    useCartStore.getState().add(AGUA);
+
+    useCartStore.getState().claim("t1:u1", "s1");
+    expect(useCartStore.getState().lines).toHaveLength(1);
+
+    useCartStore.getState().claim("t1:u2", "s9");
+    expect(useCartStore.getState().lines).toEqual([]);
+    expect(guardado()?.owner).toBe("t1:u2");
+  });
+
+  it("en la venta, el carrito de OTRO turno se descarta; uno armado sin turno se adopta", () => {
+    // La cotización se arma sin turno y conserva lo que haya.
+    useCartStore.getState().claim("t1:u1");
+    useCartStore.getState().add(AGUA);
+
+    useCartStore.getState().claim("t1:u1", "s1");
+    expect(useCartStore.getState().lines).toHaveLength(1);
+    expect(guardado()?.sessionId).toBe("s1");
+
+    // Volver a la cotización no lo toca.
+    useCartStore.getState().claim("t1:u1");
+    expect(useCartStore.getState().lines).toHaveLength(1);
+
+    // Un turno nuevo empieza con el carrito vacío.
+    useCartStore.getState().claim("t1:u1", "s2");
+    expect(useCartStore.getState().lines).toEqual([]);
+  });
+
+  it("una cotización armada después de cerrar el turno se conserva al abrir el siguiente", () => {
+    useCartStore.getState().claim("t1:u1", "s1");
+    useCartStore.getState().add(AGUA);
+    // Cerrar el turno vacía el carrito.
+    useCartStore.getState().clear();
+
+    // Sin turno, en la cotización.
+    useCartStore.getState().claim("t1:u1");
+    useCartStore.getState().add(AGUA);
+
+    // El turno nuevo la adopta.
+    useCartStore.getState().claim("t1:u1", "s2");
+    expect(useCartStore.getState().lines).toHaveLength(1);
+  });
+
+  it("vaciar el carrito lo deja vacío también después de recargar", async () => {
+    useCartStore.getState().claim("t1:u1", "s1");
+    useCartStore.getState().add(AGUA);
+    useCartStore.getState().clear();
+
+    expect((await recargar()).getState().lines).toEqual([]);
+  });
+
+  it("dejar la identidad borra también lo guardado", () => {
+    useAuthStore.getState().setAuth("jwt-a", buildAuthUser({ id: "user-a" }));
+    useCartStore.getState().add(AGUA);
+    expect(guardado()?.lines).toHaveLength(1);
+
+    useAuthStore.getState().clearAuth();
+
+    expect(guardado()?.lines).toEqual([]);
+  });
+
+  it("si el navegador no deja guardar, el carrito sigue funcionando en memoria", () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("cuota llena", "QuotaExceededError");
+    });
+    try {
+      useCartStore.getState().add(AGUA);
+      expect(useCartStore.getState().lines).toHaveLength(1);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+});

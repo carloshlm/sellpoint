@@ -49,8 +49,15 @@ Cada renglón del carrito muestra el producto, la cantidad, el importe y una
   granel, el teclado trae punto decimal: escribe **1.5** para kilo y medio o
   **0.350** para 350 gramos. En lo que se vende por pieza, y en los servicios,
   solo van números enteros.
+- **Vaciar el carrito.** **Vaciar carrito** quita todos los productos de una
+  vez. Te pide confirmarlo antes de quitarlos.
 
 ![Kilo y medio de frijol, tecleado en la pantalla](screen:sale-weight)
+
+El carrito se guarda en tu navegador mientras tu turno está abierto. Si recargas
+la página o se cierra la pestaña, al volver a **Venta** los productos siguen
+ahí. Se vacía al cobrar, al presionar **Vaciar carrito** o al cerrar el turno.
+Si otra persona entra con su cuenta en la misma computadora, no ve tu carrito.
 
 ## Si no hay existencias
 
