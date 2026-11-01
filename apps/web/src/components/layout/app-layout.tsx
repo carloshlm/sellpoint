@@ -1,4 +1,5 @@
-import { Link, type LinkProps, useNavigate } from "@tanstack/react-router";
+import type { InventoryDocumentType } from "@sellpoint/shared";
+import { Link, type LinkProps, useMatch, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDownToLine,
   ArrowLeftRight,
@@ -36,6 +37,7 @@ import { TermsGate } from "@/components/legal/terms-gate";
 import { useLogout } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
+import { useDocument } from "@/lib/inventory/hooks";
 import { SUPPLIERS_LINK, SUPPLIERS_MODULES } from "@/lib/modules/nav";
 import { useModuleNav } from "@/lib/modules/use-module-nav";
 import { useAuthStore } from "@/stores/auth.store";
@@ -92,8 +94,29 @@ function BrandLogo({ nombra }: { nombra: boolean }) {
   );
 }
 
+/**
+ * La sección del menú de cada tipo de documento de inventario. El detalle vive
+ * en `/movements/documents/:id`, fuera de las rutas del menú, así que ningún
+ * item se encendía al abrir un inventario o una entrada y uno se perdía
+ * (Carlos, 2026-10-31). La decide el tipo del documento abierto.
+ */
+const MENU_POR_TIPO_DE_DOCUMENTO: Record<InventoryDocumentType, string> = {
+  entry: "/movements/entries",
+  exit: "/movements/exits",
+  physical_count: "/movements/counts",
+};
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
+  const documentoAbierto = useMatch({
+    from: "/movements/documents/$documentId",
+    shouldThrow: false,
+  });
+  // La misma consulta que la pantalla del detalle: el caché la comparte, así
+  // que encender el menú no cuesta otra petición.
+  const { data: documento } = useDocument(documentoAbierto?.params.documentId ?? null);
+  const seccionDelDocumento =
+    documentoAbierto && documento ? MENU_POR_TIPO_DE_DOCUMENTO[documento.type] : undefined;
   const { has } = usePermissions();
   // F7-WEB-07: el PERMISO decide si el ROL puede; el FEATURE si el PLAN
   // incluye. Lo que el plan no incluye se muestra CON CANDADO (no se
@@ -472,7 +495,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                     key={to}
                     to={to}
                     aria-label={t(label)}
-                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                    // En el detalle de un documento el router no enciende nada:
+                    // se enciende a mano la sección de su tipo.
+                    aria-current={seccionDelDocumento === to ? "page" : undefined}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground${seccionDelDocumento === to ? " active" : ""}`}
                   >
                     <Icon className="size-4 shrink-0" aria-hidden="true" />
                     {expanded && <span className="truncate">{t(label)}</span>}

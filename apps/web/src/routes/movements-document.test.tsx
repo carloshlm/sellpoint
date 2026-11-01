@@ -463,6 +463,32 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-10-31): en el detalle de un inventario el menú no resaltaba
+   * «Inventario» y uno se pierde. El detalle vive en `/movements/documents/:id`,
+   * fuera de las rutas del menú: la sección la decide el TIPO del documento.
+   */
+  describe("el menú enciende la sección del documento abierto", () => {
+    it.each([
+      ["physical_count", "Inventario"],
+      ["entry", "Entradas"],
+      ["exit", "Salidas"],
+    ] as const)("un documento %s enciende «%s», y solo ese", async (type, seccion) => {
+      mocked.getDocument.mockResolvedValue(detalle({ type }));
+
+      await renderDoc();
+
+      await screen.findByText("PAR-500");
+      const menu = screen.getByRole("link", { name: seccion });
+      await waitFor(() => expect(menu).toHaveAttribute("aria-current", "page"));
+      expect(menu).toHaveClass("active");
+      const encendidos = screen
+        .getAllByRole("link")
+        .filter((link) => link.getAttribute("aria-current") === "page");
+      expect(encendidos).toEqual([menu]);
+    });
+  });
+
   describe("la cara del confirmado", () => {
     it("no renderiza inputs ni el botón de confirmar", async () => {
       mocked.getDocument.mockResolvedValue(
