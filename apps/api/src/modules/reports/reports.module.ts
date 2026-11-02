@@ -12,6 +12,8 @@ import { KardexExportService } from "./kardex-export.service";
 import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
+import { SalesLinesExportService } from "./sales-lines-export.service";
+import { SalesLinesReportService } from "./sales-lines-report.service";
 import { SalesReportService } from "./sales-report.service";
 import { ShiftsExportService } from "./shifts-export.service";
 import { ShiftsReportService } from "./shifts-report.service";
@@ -39,6 +41,8 @@ import { TaxReportService } from "./tax-report.service";
     StockExportService,
     SalesReportService,
     SalesExportService,
+    SalesLinesReportService,
+    SalesLinesExportService,
     ShiftsReportService,
     ShiftsExportService,
     TaxReportService,

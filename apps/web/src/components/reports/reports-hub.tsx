@@ -5,11 +5,13 @@ import {
   ClipboardList,
   FileSpreadsheet,
   Package,
+  PackageSearch,
   Percent,
   ScrollText,
   Timer,
   Truck,
   Users,
+  Wrench,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -55,6 +57,16 @@ const TARJETAS: readonly TarjetaDeReporte[] = [
   // que es más útil que bajar el universo entero desde el hub.
   { key: "stock", icon: Package, to: "/reports/stock", permiso: "reports:read" },
   { key: "sales", icon: FileSpreadsheet, to: "/reports/sales", permiso: "reports:read" },
+  // Ventas con más resolución: una línea de ticket por renglón. Mismo permiso
+  // que Ventas; el catálogo de servicios solo pide un permiso (`services:read`)
+  // y Ventas por producto tampoco pide el de productos.
+  {
+    key: "salesByProduct",
+    icon: PackageSearch,
+    to: "/reports/sales-by-product",
+    permiso: "reports:read",
+  },
+  { key: "salesByService", icon: Wrench, to: "/reports/sales-by-service", permiso: "reports:read" },
   // F5-SHIFT-04: cada turno con su arqueo; quien lee ventas lee cierres.
   { key: "shifts", icon: ClipboardCheck, to: "/reports/shifts", permiso: "reports:read" },
   // F4-TAX-21: lo cobrado por impuesto y tasa; quien lee ventas lo declara.

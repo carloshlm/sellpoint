@@ -2,11 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useAdminTenantScope } from "@/lib/admin/scope";
 import type { ApiError } from "@/lib/api";
 import {
+  getSalesLinesReport,
   getSalesReport,
   getShiftDetail,
   getShiftsReport,
   getStockReport,
   getTaxReport,
+  type SalesLineKind,
+  type SalesLinesPage,
   type SalesReportPage,
   type SalesReportQuery,
   type ShiftDetail,
@@ -42,6 +45,21 @@ export function useSalesReport(query: SalesReportQuery) {
   return useQuery<SalesReportPage, ApiError>({
     queryKey: [...SALES_REPORT_KEY, tenantId, query],
     queryFn: () => (tenantId === null ? getSalesReport(query) : getSalesReport(query, reportsPath)),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export const SALES_LINES_REPORT_KEY = ["reports", "sales-lines"] as const;
+
+/**
+ * «Ventas por producto» y «Ventas por servicio». Sin el alcance del backoffice:
+ * su expediente no tiene estas dos pantallas (el API no las espeja bajo
+ * `/admin/tenants/:id`).
+ */
+export function useSalesLinesReport(kind: SalesLineKind, query: SalesReportQuery) {
+  return useQuery<SalesLinesPage, ApiError>({
+    queryKey: [...SALES_LINES_REPORT_KEY, kind, query],
+    queryFn: () => getSalesLinesReport(kind, query),
     placeholderData: (previous) => previous,
   });
 }

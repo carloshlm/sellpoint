@@ -1,3 +1,4 @@
+import { localCalendarDate } from "@sellpoint/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -86,6 +87,30 @@ const filaVenta = (
   ...overrides,
 });
 
+const filaLinea = (overrides: Partial<reportsApi.SalesLineRow> = {}): reportsApi.SalesLineRow => ({
+  id: "si1",
+  saleId: "s1",
+  folio: "VTA-000001",
+  createdAt: "2026-08-24T16:00:00.000Z",
+  status: "completed",
+  warehouseId: "w1",
+  warehouse: { id: "w1", name: "Central" },
+  seller: { id: "u1", name: "Ana Pérez" },
+  code: "AGUA-001",
+  barcode: "7501234567890",
+  name: "Agua mineral",
+  quantity: "1",
+  baseUnit: "unit",
+  presentation: { name: "Caja ×12", factor: "12", allowFractionalInput: false },
+  unitPrice: "130.00",
+  taxAmount: "17.93",
+  lineTotal: "130.00",
+  ...overrides,
+});
+
+/** El día del negocio de la dueña de prueba (`buildTenantBlock`: Ciudad de México). */
+const hoyDelNegocio = () => localCalendarDate("America/Mexico_City", new Date());
+
 const turno = (overrides: Partial<reportsApi.ShiftRow> = {}): reportsApi.ShiftRow => ({
   id: "cs1",
   status: "closed",
@@ -139,6 +164,46 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     });
     mocked.downloadStockReport.mockResolvedValue(undefined);
     mocked.downloadSalesReport.mockResolvedValue(undefined);
+    mocked.getSalesLinesReport.mockImplementation(async (kind) => ({
+      rows:
+        kind === "product"
+          ? [
+              filaLinea(),
+              filaLinea({
+                id: "si2",
+                saleId: "s2",
+                folio: "VTA-000002",
+                status: "canceled",
+                code: "LIBRO-001",
+                barcode: null,
+                name: "Libro de cuentos",
+                quantity: "3",
+                presentation: { name: "Pieza", factor: "1", allowFractionalInput: false },
+                unitPrice: "50.00",
+                taxAmount: "0.00",
+                lineTotal: "150.00",
+              }),
+            ]
+          : [
+              filaLinea({
+                code: "ENVIO",
+                barcode: null,
+                name: "Envío a domicilio",
+                quantity: "2",
+                baseUnit: null,
+                presentation: null,
+                unitPrice: "35.00",
+                taxAmount: "9.66",
+                lineTotal: "70.00",
+              }),
+            ],
+      totals:
+        kind === "product" ? { tax: "17.93", total: "130.00" } : { tax: "9.66", total: "70.00" },
+      total: kind === "product" ? 2 : 1,
+      page: 1,
+      pageSize: 20,
+    }));
+    mocked.downloadSalesLinesReport.mockResolvedValue(undefined);
     mocked.getShiftsReport.mockResolvedValue({ rows: [turno()], total: 1, page: 1, pageSize: 20 });
     mocked.getShiftDetail.mockResolvedValue({
       ...turno(),
@@ -443,6 +508,8 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await screen.findByText("VTA-000001");
       const user = userEvent.setup();
 
+      // «Desde» abre en hoy (Carlos, 2026-11-02): se borra antes de teclear otra fecha.
+      await user.clear(screen.getByLabelText(/desde/i));
       await user.type(screen.getByLabelText(/desde/i), "2026-08-01");
 
       await waitFor(() =>
@@ -488,6 +555,205 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await renderRuta("/reports/sales", ["pos:view"]);
 
       await waitFor(() => expect(screen.queryByText("VTA-000001")).not.toBeInTheDocument());
+    });
+  });
+
+  /**
+   * «Ventas por producto» y «Ventas por servicio»: la MISMA pantalla con un
+   * `kind`. Una línea de ticket por renglón, con los filtros de Ventas.
+   */
+  describe.each([
+    {
+      kind: "product" as const,
+      path: "/reports/sales-by-product",
+      titulo: "Ventas por producto",
+      columnas: [
+        "Fecha",
+        "Folio",
+        "Vendió",
+        "Sucursal",
+        "Código interno",
+        "Código de barras",
+        "Producto",
+        "Cantidad",
+        "Precio unitario",
+        "Impuesto",
+        "Total",
+      ],
+      nombre: "Agua mineral",
+      codigo: "AGUA-001",
+      // La cantidad se escribe como en el ticket: la caja y lo que trae.
+      cantidad: "1 Caja ×12 (12 piezas)",
+    },
+    {
+      kind: "service" as const,
+      path: "/reports/sales-by-service",
+      titulo: "Ventas por servicio",
+      columnas: [
+        "Fecha",
+        "Folio",
+        "Vendió",
+        "Sucursal",
+        "Código",
+        "Servicio",
+        "Cantidad",
+        "Precio unitario",
+        "Impuesto",
+        "Total",
+      ],
+      nombre: "Envío a domicilio",
+      codigo: "ENVIO",
+      // Un servicio no tiene unidad: el número a secas, como en el ticket.
+      cantidad: "2",
+    },
+  ])("$titulo", ({ kind, path, titulo, columnas, nombre, codigo, cantidad }) => {
+    it("pide las líneas de su tipo y las pinta con sus columnas, en orden", async () => {
+      await renderRuta(path);
+
+      expect(await screen.findByRole("heading", { name: titulo })).toBeInTheDocument();
+      await screen.findByText(nombre);
+      expect(mocked.getSalesLinesReport).toHaveBeenCalledWith(
+        kind,
+        expect.objectContaining({ page: 1, pageSize: 20 }),
+      );
+      expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual(columnas);
+
+      const fila = screen.getByText(nombre).closest("tr") as HTMLElement;
+      expect(within(fila).getByText(codigo)).toBeInTheDocument();
+      expect(within(fila).getByText(cantidad)).toBeInTheDocument();
+      expect(within(fila).getByText("Ana Pérez")).toBeInTheDocument();
+      expect(within(fila).getByText("Central")).toBeInTheDocument();
+    });
+
+    it("el dinero va a la derecha y con cifras de ancho fijo; el pie suma Impuesto y Total", async () => {
+      await renderRuta(path);
+      const fila = (await screen.findByText(nombre)).closest("tr") as HTMLElement;
+
+      const celdas = within(fila).getAllByRole("cell");
+      for (const celda of celdas.slice(-3)) {
+        expect(celda).toHaveClass("text-right", "tabular-nums");
+      }
+      const pie = screen.getByTestId("sales-lines-report-totals");
+      expect(within(pie).getByText("Impuesto")).toBeInTheDocument();
+      expect(within(pie).getByText("Total")).toBeInTheDocument();
+      expect(within(pie).getByText(kind === "product" ? /17\.93/ : /9\.66/)).toBeInTheDocument();
+    });
+
+    it("«Desde» abre en hoy y la primera consulta lo lleva, sin «Hasta»", async () => {
+      await renderRuta(path);
+      await screen.findByText(nombre);
+
+      expect(screen.getByLabelText(/desde/i)).toHaveValue(hoyDelNegocio());
+      expect(screen.getByLabelText(/hasta/i)).toHaveValue("");
+      const primera = mocked.getSalesLinesReport.mock.calls[0]?.[1] ?? {};
+      expect(primera).toMatchObject({ from: hoyDelNegocio() });
+      expect(primera).not.toHaveProperty("to");
+    });
+
+    it("«Limpiar fechas» pide todas las fechas y no vuelve a hoy", async () => {
+      await renderRuta(path);
+      await screen.findByText(nombre);
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "Limpiar fechas" }));
+
+      await waitFor(() => {
+        const ultima = mocked.getSalesLinesReport.mock.lastCall?.[1] ?? {};
+        expect(ultima).not.toHaveProperty("from");
+        expect(ultima).not.toHaveProperty("to");
+      });
+      expect(screen.getByLabelText(/desde/i)).toHaveValue("");
+    });
+
+    it("sucursal y estado viajan al API, y la sucursal abre en Todas", async () => {
+      await renderRuta(path);
+      await screen.findByText(nombre);
+      const user = userEvent.setup();
+      expect(mocked.getSalesLinesReport.mock.calls[0]?.[1]).not.toHaveProperty("warehouseId");
+
+      await user.selectOptions(screen.getByLabelText(/estado/i), "canceled");
+      await user.selectOptions(screen.getByLabelText(/sucursal/i), "w2");
+
+      await waitFor(() =>
+        expect(mocked.getSalesLinesReport).toHaveBeenLastCalledWith(
+          kind,
+          expect.objectContaining({ status: "canceled", warehouseId: "w2", page: 1 }),
+        ),
+      );
+    });
+
+    it("exportar baja su Excel con los filtros vigentes, pero NO la paginación", async () => {
+      await renderRuta(path);
+      await screen.findByText(nombre);
+      const user = userEvent.setup();
+
+      await user.selectOptions(screen.getByLabelText(/estado/i), "completed");
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() =>
+        expect(mocked.downloadSalesLinesReport).toHaveBeenCalledWith(
+          kind,
+          expect.objectContaining({ status: "completed", from: hoyDelNegocio() }),
+        ),
+      );
+      const enviado = mocked.downloadSalesLinesReport.mock.calls[0]?.[1] ?? {};
+      expect(enviado).not.toHaveProperty("page");
+      expect(enviado).not.toHaveProperty("pageSize");
+    });
+
+    it("sin `reports:read` no se entra", async () => {
+      await renderRuta(path, ["pos:view"]);
+
+      await waitFor(() => expect(screen.queryByText(nombre)).not.toBeInTheDocument());
+      expect(mocked.getSalesLinesReport).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ventas por producto: los detalles de la línea", () => {
+    it("una línea sin código de barras deja la celda vacía y la anulada lleva su marca", async () => {
+      await renderRuta("/reports/sales-by-product");
+      const libro = (await screen.findByText("Libro de cuentos")).closest("tr") as HTMLElement;
+
+      const celdas = within(libro).getAllByRole("cell");
+      // Quinta y sexta columnas: Código interno y Código de barras.
+      expect(celdas[4]).toHaveTextContent("LIBRO-001");
+      expect(celdas[5]).toHaveTextContent(/^$/);
+      expect(within(libro).getByText("Cancelada")).toBeInTheDocument();
+      const agua = screen.getByText("Agua mineral").closest("tr") as HTMLElement;
+      expect(within(agua).queryByText("Cancelada")).not.toBeInTheDocument();
+      expect(within(agua).getByText("7501234567890")).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Carlos (2026-11-02): Ventas abre con lo de HOY, y «Limpiar fechas» sigue
+   * mostrando todas las fechas.
+   */
+  describe("ventas por período abre en hoy", () => {
+    it("«Desde» abre en hoy y la primera consulta lo lleva, sin «Hasta»", async () => {
+      await renderRuta("/reports/sales");
+      await screen.findByText("VTA-000001");
+
+      expect(screen.getByLabelText(/desde/i)).toHaveValue(hoyDelNegocio());
+      expect(screen.getByLabelText(/hasta/i)).toHaveValue("");
+      const primera = mocked.getSalesReport.mock.calls[0]?.[0] ?? {};
+      expect(primera).toMatchObject({ from: hoyDelNegocio() });
+      expect(primera).not.toHaveProperty("to");
+    });
+
+    it("«Limpiar fechas» pide todas las fechas y no vuelve a hoy", async () => {
+      await renderRuta("/reports/sales");
+      await screen.findByText("VTA-000001");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "Limpiar fechas" }));
+
+      await waitFor(() => {
+        const ultima = mocked.getSalesReport.mock.lastCall?.[0] ?? {};
+        expect(ultima).not.toHaveProperty("from");
+        expect(ultima).not.toHaveProperty("to");
+      });
+      expect(screen.getByLabelText(/desde/i)).toHaveValue("");
     });
   });
 

@@ -80,6 +80,30 @@ export const INSIGHTS: Screen[] = [
     ],
   },
   {
+    id: "reports-sales-by-product",
+    chapter: REPORTS,
+    as: "owner",
+    path: "/reports/sales-by-product",
+    // Abre con las ventas de HOY, y la demo vende hoy en dos turnos: el
+    // título, los filtros y las primeras líneas, como en Ventas.
+    target: (page) => [
+      page.getByTestId("sales-by-product-report").locator("h1"),
+      page.getByRole("row").nth(6),
+    ],
+  },
+  {
+    id: "reports-sales-by-service",
+    chapter: REPORTS,
+    as: "owner",
+    path: "/reports/sales-by-service",
+    // Los servicios de hoy (la recarga y el envío del turno de Luis) caben
+    // con su pie: la pantalla entera.
+    prepare: async (page) => {
+      await page.getByRole("row").nth(1).waitFor();
+    },
+    target: (page) => [page.getByTestId("sales-by-service-report")],
+  },
+  {
     id: "reports-shifts",
     chapter: REPORTS,
     as: "owner",

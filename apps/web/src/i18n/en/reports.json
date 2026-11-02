@@ -10,6 +10,14 @@
       "title": "Sales",
       "detail": "Sales for the period by seller, store and payment method."
     },
+    "salesByProduct": {
+      "title": "Sales by product",
+      "detail": "Every product sold, receipt by receipt: quantity, price, tax and total."
+    },
+    "salesByService": {
+      "title": "Sales by service",
+      "detail": "Every service sold, receipt by receipt: quantity, price, tax and total."
+    },
     "kardex": {
       "title": "Ledger",
       "detail": "Pick a product and see its movements with the balance after each one."
@@ -52,6 +60,15 @@
     "status": "Status",
     "total": "Total",
     "warehouse": "Store"
+  },
+  "salesLines": {
+    "product": "Product",
+    "service": "Service",
+    "quantity": "Quantity",
+    "unitPrice": "Price",
+    "tax": "Tax",
+    "total": "Total",
+    "totalsLabel": "Period totals"
   },
   "stock": {
     "avgCost": "Average cost",

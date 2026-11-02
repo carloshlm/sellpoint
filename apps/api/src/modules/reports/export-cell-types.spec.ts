@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { CatalogExportService } from "./catalog-export.service";
 import { KardexExportService } from "./kardex-export.service";
 import { SalesExportService } from "./sales-export.service";
+import { SalesLinesExportService } from "./sales-lines-export.service";
 import { ShiftsExportService } from "./shifts-export.service";
 import { StockExportService } from "./stock-export.service";
 import { TaxExportService } from "./tax-export.service";
@@ -90,6 +91,168 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
     esTexto(sheet, "Folio", "VTA-000001");
     esTexto(sheet, "Código de barras", "001000000018");
     esTexto(sheet, "Fecha", "2026-10-31");
+  });
+
+  describe("ventas por producto y por servicio: una línea de ticket por renglón", () => {
+    const linea = (overrides: Record<string, unknown> = {}) => ({
+      folio: "VTA-000007",
+      createdAt: "2026-10-31T16:30:00.000Z",
+      status: "completed",
+      seller: { name: "Ana" },
+      warehouse: { name: "Centro" },
+      code: "0042",
+      barcode: "7501234567890",
+      name: "Agua mineral",
+      quantity: "12",
+      baseUnit: "unit",
+      presentation: { name: "Pieza", factor: "1", allowFractionalInput: false },
+      unitPrice: "12.00",
+      taxAmount: "19.86",
+      lineTotal: "144.00",
+      ...overrides,
+    });
+    const lineas = (fila: Record<string, unknown>) => ({
+      count: jest.fn().mockResolvedValue(1),
+      timeZone: jest.fn().mockResolvedValue("America/Mexico_City"),
+      all: jest.fn().mockResolvedValue([fila]),
+    });
+
+    it("producto: cantidad, precio, impuesto y total son números; los dos códigos y la fecha, texto", async () => {
+      const servicio = new SalesLinesExportService(doble(lineas(linea())));
+
+      const { body, filename } = await servicio.build(
+        USER,
+        SCOPE,
+        doble({ format: "xlsx" }),
+        "product",
+      );
+      const sheet = await hoja(body);
+
+      expect(filename).toBe("ventas-por-producto.xlsx");
+      expect(sheet.name).toBe("Ventas por producto");
+      expect((sheet.getRow(1).values as unknown[]).slice(1)).toEqual([
+        "Fecha",
+        "Folio",
+        "Vendió",
+        "Sucursal",
+        "Código interno",
+        "Código de barras",
+        "Producto",
+        "Cantidad",
+        "Precio unitario",
+        "Impuesto",
+        "Total",
+        "Estado",
+      ]);
+      esNumero(sheet, "Cantidad", 12);
+      esNumero(sheet, "Precio unitario", 12);
+      esNumero(sheet, "Impuesto", 19.86);
+      esNumero(sheet, "Total", 144);
+      esTexto(sheet, "Folio", "VTA-000007");
+      esTexto(sheet, "Código interno", "0042");
+      esTexto(sheet, "Código de barras", "7501234567890");
+      // La hora del NEGOCIO (Ciudad de México), no la del servidor.
+      esTexto(sheet, "Fecha", "2026-10-31 10:30");
+      // La última columna dice el estado, con las palabras del Excel de Ventas.
+      esTexto(sheet, "Estado", "Cobrada");
+    });
+
+    it("producto en inglés: los encabezados y la hoja van en el idioma de quien descarga", async () => {
+      const servicio = new SalesLinesExportService(doble(lineas(linea({ barcode: null }))));
+
+      const { body, filename } = await servicio.build(
+        USER,
+        SCOPE,
+        doble({ format: "xlsx" }),
+        "product",
+        "en",
+      );
+      const sheet = await hoja(body);
+
+      expect(filename).toBe("sales-by-product.xlsx");
+      expect(sheet.name).toBe("Sales by product");
+      expect((sheet.getRow(1).values as unknown[]).slice(1)).toEqual([
+        "Date",
+        "Receipt number",
+        "Sold by",
+        "Store",
+        "Internal code",
+        "Barcode",
+        "Product",
+        "Quantity",
+        "Price",
+        "Tax",
+        "Total",
+        "Status",
+      ]);
+      esNumero(sheet, "Price", 12);
+      // Sin código de barras: la celda va VACÍA, no un guion.
+      esTexto(sheet, "Barcode", "");
+      esTexto(sheet, "Status", "Charged");
+    });
+
+    it("servicio: sin código de barras; su código y el nombre del servicio, texto", async () => {
+      const servicio = new SalesLinesExportService(
+        doble(
+          lineas(
+            linea({
+              code: "ENVIO",
+              barcode: null,
+              name: "Envío a domicilio",
+              quantity: "1.5",
+              baseUnit: null,
+              presentation: null,
+              unitPrice: "35.00",
+              taxAmount: "7.24",
+              lineTotal: "52.50",
+              status: "canceled",
+            }),
+          ),
+        ),
+      );
+
+      const es = await servicio.build(USER, SCOPE, doble({ format: "xlsx" }), "service");
+      const sheet = await hoja(es.body);
+      expect(es.filename).toBe("ventas-por-servicio.xlsx");
+      expect(sheet.name).toBe("Ventas por servicio");
+      expect((sheet.getRow(1).values as unknown[]).slice(1)).toEqual([
+        "Fecha",
+        "Folio",
+        "Vendió",
+        "Sucursal",
+        "Código",
+        "Servicio",
+        "Cantidad",
+        "Precio unitario",
+        "Impuesto",
+        "Total",
+        "Estado",
+      ]);
+      esNumero(sheet, "Cantidad", 1.5);
+      esNumero(sheet, "Total", 52.5);
+      esTexto(sheet, "Código", "ENVIO");
+      esTexto(sheet, "Servicio", "Envío a domicilio");
+      esTexto(sheet, "Estado", "Anulada");
+
+      const en = await servicio.build(USER, SCOPE, doble({ format: "xlsx" }), "service", "en");
+      const hojaEn = await hoja(en.body);
+      expect(en.filename).toBe("sales-by-service.xlsx");
+      expect(hojaEn.name).toBe("Sales by service");
+      expect((hojaEn.getRow(1).values as unknown[]).slice(1)).toEqual([
+        "Date",
+        "Receipt number",
+        "Sold by",
+        "Store",
+        "Code",
+        "Service",
+        "Quantity",
+        "Price",
+        "Tax",
+        "Total",
+        "Status",
+      ]);
+      esTexto(hojaEn, "Status", "Canceled");
+    });
   });
 
   it("impuestos: tasa, base, impuesto cobrado y tickets son números, en los dos idiomas", async () => {

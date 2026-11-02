@@ -104,6 +104,61 @@ export async function getSalesReport(
   return data;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Ventas por producto y por servicio: una línea de ticket por renglón
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Qué líneas lee el reporte; es lo único que cambia entre las dos pantallas. */
+export type SalesLineKind = "product" | "service";
+
+export interface SalesLineRow {
+  id: string;
+  saleId: string;
+  folio: string;
+  createdAt: string;
+  status: string;
+  warehouseId: string;
+  warehouse: { id: string; name: string };
+  seller: { id: string; name: string };
+  /** El código interno del producto (`sku`) o el código del servicio. */
+  code: string | null;
+  /** El de la presentación vendida; null en servicios y en productos sin código. */
+  barcode: string | null;
+  name: string;
+  /** En la presentación vendida, como la tecleó el cajero. */
+  quantity: string;
+  /** Null en un servicio, que no tiene unidad. */
+  baseUnit: string | null;
+  presentation: { name: string; factor: string; allowFractionalInput: boolean } | null;
+  unitPrice: string;
+  taxAmount: string;
+  /** Lo que cobró la línea: después de su descuento y de su parte del del ticket. */
+  lineTotal: string;
+}
+
+export interface SalesLinesPage {
+  rows: SalesLineRow[];
+  /** Del PERÍODO entero y solo lo cobrado; null cuando no hay nada cobrado. */
+  totals: { tax: string; total: string } | null;
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const RUTA_DE_LINEAS: Record<SalesLineKind, string> = {
+  product: "/reports/sales-by-product",
+  service: "/reports/sales-by-service",
+};
+
+/** Los mismos filtros que Ventas (`SalesReportQuery`). */
+export async function getSalesLinesReport(
+  kind: SalesLineKind,
+  query: SalesReportQuery,
+): Promise<SalesLinesPage> {
+  const { data } = await api.get<SalesLinesPage>(RUTA_DE_LINEAS[kind], { params: query });
+  return data;
+}
+
 async function bajar(
   ruta: string,
   base: string,
@@ -234,6 +289,15 @@ export function downloadSalesReport(
   basePath = "/reports",
 ): Promise<void> {
   return bajar(`${basePath}/sales/export`, "ventas", format, query);
+}
+
+export function downloadSalesLinesReport(
+  kind: SalesLineKind,
+  query: SalesReportQuery = {},
+  format: ReportFormat = "xlsx",
+): Promise<void> {
+  const base = kind === "product" ? "ventas-por-producto" : "ventas-por-servicio";
+  return bajar(`${RUTA_DE_LINEAS[kind]}/export`, base, format, query);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

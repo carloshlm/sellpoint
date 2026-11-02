@@ -113,7 +113,7 @@ export class ShiftsExportService {
  * «2026-09-06 17:30» en la zona del negocio: lo que se lee en una hoja. El
  * locale sueco da ese formato ISO sin tener que armarlo a mano.
  */
-function fechaHoraLocal(iso: string, timeZone: string): string {
+export function fechaHoraLocal(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone,
     year: "numeric",

@@ -23,6 +23,8 @@ Excel en ese momento o te llevan a la pantalla donde ya vive esa información.
 |---|---|
 | **Stock por sucursal** | Abre el reporte de existencias, con su costo promedio y su valor sin impuesto. |
 | **Ventas** | Abre el reporte de ventas del periodo. |
+| **Ventas por producto** | Abre cada producto vendido, ticket por ticket. |
+| **Ventas por servicio** | Abre cada servicio vendido, ticket por ticket. |
 | **Cierres de turno** | Abre cada turno con su arqueo. |
 | **Impuestos cobrados** | Abre lo cobrado por cada impuesto y tasa. |
 | **Kardex** | Te lleva a **Productos**: abre un producto y su pestaña de kardex, que tiene su propio botón de Excel (capítulo 22). Desde Pro. |
@@ -40,7 +42,11 @@ Cada reporte tiene arriba sus filtros, y la tabla cambia en cuanto eliges uno:
   **Sucursal asignada** (capítulo 32): así puedes ver el negocio completo.
   Para ver solo una, elígela en la lista; **Todas las sucursales** se queda
   como opción para volver a ella.
-- **Desde** y **Hasta**, para el rango de fechas. **Limpiar fechas** las borra.
+- **Desde** y **Hasta**, para el rango de fechas. **Ventas**, **Ventas por
+  producto** y **Ventas por servicio** abren con **Desde** en el día de hoy y
+  **Hasta** vacío: al entrar ves lo que se vendió hoy. **Limpiar fechas** borra
+  las dos fechas y la tabla muestra todas las fechas; para ver otro día o un
+  periodo, elige sus fechas.
 
 La tabla muestra 20 renglones por página; usa **Anterior** y **Siguiente** para
 moverte.
@@ -55,6 +61,33 @@ la **Sucursal**, el **Estado** y la forma de **Pago**. Con **Estado** puedes ver
 
 Al pie aparece cuánto entró por cada forma de pago. Esos totales son de **todo
 el periodo filtrado**, no solo de la página que estás viendo.
+
+## Ventas por producto y por servicio
+
+![El reporte de ventas por producto](screen:reports-sales-by-product)
+
+**Ventas por producto** muestra cada línea de cada ticket: la **Fecha**, el
+**Folio**, quién la cobró (**Vendió**), la **Sucursal**, el **Código interno** y
+el **Código de barras** del producto, el **Producto**, la **Cantidad**, el
+**Precio unitario**, el **Impuesto** y el **Total** de esa línea. Si el producto
+no tiene código de barras, esa columna queda vacía. La **Cantidad** se lee como
+en el ticket: si se vendió en caja, dice cuántas cajas y cuántas piezas trae.
+
+El **Total** es lo que cobró esa línea, ya con su descuento y con la parte que
+le tocó del descuento del ticket. Por eso los productos y los servicios de un
+ticket, juntos, suman lo que se cobró en él.
+
+![El reporte de ventas por servicio](screen:reports-sales-by-service)
+
+**Ventas por servicio** es el mismo reporte para los servicios: lleva el
+**Código** del servicio y la columna **Servicio** en lugar de los dos códigos y
+del **Producto**.
+
+Los dos tienen los filtros de **Ventas** —**Sucursal**, **Estado**, **Desde** y
+**Hasta**— y abren con lo vendido hoy. Una venta cancelada aparece con la marca
+**Cancelada** junto a su folio. Al pie verás el **Impuesto** y el **Total** de
+todo el periodo filtrado, sin las ventas canceladas. El Excel trae las mismas
+columnas.
 
 ## Cierres de turno
 

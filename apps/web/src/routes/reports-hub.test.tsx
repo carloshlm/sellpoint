@@ -26,6 +26,8 @@ const RUTAS_EXISTENTES = [
   "/movements/transfers",
   "/reports",
   "/reports/sales",
+  "/reports/sales-by-product",
+  "/reports/sales-by-service",
   "/reports/shifts",
   "/reports/stock",
   "/reports/taxes",
@@ -74,11 +76,49 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     mocked.downloadCatalogReport.mockResolvedValue(undefined);
   });
 
-  it("con `reports:read` se ven las diez tarjetas", async () => {
+  it("con `reports:read` se ven las doce tarjetas", async () => {
     await renderRuta("/reports", ["reports:read", "inventory:read"]);
 
     const hub = await screen.findByTestId("reports-hub");
-    expect(within(hub).getAllByRole("listitem")).toHaveLength(10);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(12);
+  });
+
+  /**
+   * «Ventas por producto» y «Ventas por servicio» van justo después de
+   * «Ventas»: son la misma consulta con más resolución, una línea de ticket
+   * por renglón.
+   */
+  it("Ventas por producto y Ventas por servicio siguen a Ventas y llevan a su pantalla", async () => {
+    await renderRuta("/reports", ["reports:read"]);
+
+    const hub = await screen.findByTestId("reports-hub");
+    const titulos = within(hub)
+      .getAllByRole("listitem")
+      .map((tarjeta) => tarjeta.querySelector("a, button")?.getAttribute("aria-label"));
+    expect(titulos.slice(0, 4)).toEqual([
+      "Stock por sucursal",
+      "Ventas",
+      "Ventas por producto",
+      "Ventas por servicio",
+    ]);
+    expect(screen.getByRole("link", { name: "Ventas por producto" })).toHaveAttribute(
+      "href",
+      "/reports/sales-by-product",
+    );
+    expect(screen.getByRole("link", { name: "Ventas por servicio" })).toHaveAttribute(
+      "href",
+      "/reports/sales-by-service",
+    );
+    expect(
+      within(hub).getByText(
+        "Cada producto vendido, ticket por ticket: cantidad, precio, impuesto y total.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(hub).getByText(
+        "Cada servicio vendido, ticket por ticket: cantidad, precio, impuesto y total.",
+      ),
+    ).toBeInTheDocument();
   });
 
   /**
@@ -169,7 +209,7 @@ describe("Hub de reportes (F5-HUB-02)", () => {
 
     const hub = await screen.findByTestId("reports-hub");
     expect(within(hub).queryByRole("link", { name: /vencimientos/i })).not.toBeInTheDocument();
-    expect(within(hub).getAllByRole("listitem")).toHaveLength(8);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(10);
   });
 
   it("sin `reports:read` la ruta rebota", async () => {

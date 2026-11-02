@@ -106,7 +106,13 @@ export class SalesReportService {
     return this.prisma.withTenantContext(user.tenantId, (tx) => tx.sale.count({ where }));
   }
 
-  private async where(user: AuthUser, scope: UserScope, query: SalesReportQueryDto) {
+  /**
+   * El `where` de las ventas con el alcance encima. Público porque «Ventas por
+   * producto» y «Ventas por servicio» (`SalesLinesReportService`) filtran las
+   * MISMAS ventas: una segunda copia del alcance y de la zona del negocio
+   * diría otra cosa el día que una de las dos cambie.
+   */
+  async where(user: AuthUser, scope: UserScope, query: SalesReportQueryDto) {
     if (query.warehouseId !== undefined) {
       // 403 y no una lista vacía: «ese almacén no vendió nada» sería mentira.
       assertWarehouseInScope(scope, query.warehouseId);

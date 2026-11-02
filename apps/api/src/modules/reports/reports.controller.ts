@@ -46,6 +46,8 @@ import {
 import { KardexExportService } from "./kardex-export.service";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
+import { SalesLinesExportService } from "./sales-lines-export.service";
+import { type SaleLineKind, SalesLinesReportService } from "./sales-lines-report.service";
 import { SalesReportService } from "./sales-report.service";
 import { ShiftsExportService } from "./shifts-export.service";
 import { ShiftsReportService } from "./shifts-report.service";
@@ -81,6 +83,8 @@ export class ReportsController {
     private readonly taxReport: TaxReportService,
     private readonly taxExport: TaxExportService,
     private readonly salesExport: SalesExportService,
+    private readonly salesLines: SalesLinesReportService,
+    private readonly salesLinesExport: SalesLinesExportService,
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
     private readonly i18n: I18nService,
@@ -269,6 +273,74 @@ export class ReportsController {
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)
       .send(file.body);
+  }
+
+  /**
+   * «Ventas por producto» y «Ventas por servicio»: el reporte de Ventas con una
+   * línea de ticket por renglón. Mismos filtros, mismo permiso y mismo alcance
+   * que `/reports/sales`; dos rutas sobre UN service que solo cambia qué
+   * líneas lee.
+   */
+  @Get("sales-by-product")
+  @RequirePermissions("reports:read")
+  salesByProduct(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(salesReportQuerySchema, "reports.invalid_query"))
+    query: SalesReportQueryDto,
+  ) {
+    return this.salesLines.list(user, scope, query, "product");
+  }
+
+  @Get("sales-by-product/export")
+  @RequirePermissions("reports:read")
+  async salesByProductExport(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(salesExportQuerySchema, "reports.invalid_query"))
+    query: SalesExportQueryDto,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    await this.bajarLineas(user, scope, query, "product", request, response);
+  }
+
+  @Get("sales-by-service")
+  @RequirePermissions("reports:read")
+  salesByService(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(salesReportQuerySchema, "reports.invalid_query"))
+    query: SalesReportQueryDto,
+  ) {
+    return this.salesLines.list(user, scope, query, "service");
+  }
+
+  @Get("sales-by-service/export")
+  @RequirePermissions("reports:read")
+  async salesByServiceExport(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(salesExportQuerySchema, "reports.invalid_query"))
+    query: SalesExportQueryDto,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    await this.bajarLineas(user, scope, query, "service", request, response);
+  }
+
+  private async bajarLineas(
+    user: AuthUser,
+    scope: UserScope,
+    query: SalesExportQueryDto,
+    kind: SaleLineKind,
+    request: RequestWithLocale,
+    response: Response,
+  ) {
+    this.descargar(
+      response,
+      await this.salesLinesExport.build(user, scope, query, kind, getLocale(request)),
+    );
   }
 
   /**

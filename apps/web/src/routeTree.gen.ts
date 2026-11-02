@@ -50,6 +50,8 @@ import { Route as PurchasesNewRouteImport } from './routes/purchases.new'
 import { Route as ReceptionTurnsRouteImport } from './routes/reception.turns'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
+import { Route as ReportsSalesByProductRouteImport } from './routes/reports.sales-by-product'
+import { Route as ReportsSalesByServiceRouteImport } from './routes/reports.sales-by-service'
 import { Route as ReportsShiftsRouteImport } from './routes/reports.shifts'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
 import { Route as ReportsTaxesRouteImport } from './routes/reports.taxes'
@@ -285,6 +287,16 @@ const ReportsSalesRoute = ReportsSalesRouteImport.update({
   path: '/reports/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsSalesByProductRoute = ReportsSalesByProductRouteImport.update({
+  id: '/reports/sales-by-product',
+  path: '/reports/sales-by-product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsSalesByServiceRoute = ReportsSalesByServiceRouteImport.update({
+  id: '/reports/sales-by-service',
+  path: '/reports/sales-by-service',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsShiftsRoute = ReportsShiftsRouteImport.update({
   id: '/reports/shifts',
   path: '/reports/shifts',
@@ -473,6 +485,8 @@ export interface FileRoutesByFullPath {
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
+  '/reports/sales-by-product': typeof ReportsSalesByProductRoute
+  '/reports/sales-by-service': typeof ReportsSalesByServiceRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
@@ -544,6 +558,8 @@ export interface FileRoutesByTo {
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
+  '/reports/sales-by-product': typeof ReportsSalesByProductRoute
+  '/reports/sales-by-service': typeof ReportsSalesByServiceRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
@@ -616,6 +632,8 @@ export interface FileRoutesById {
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
+  '/reports/sales-by-product': typeof ReportsSalesByProductRoute
+  '/reports/sales-by-service': typeof ReportsSalesByServiceRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
@@ -689,6 +707,8 @@ export interface FileRouteTypes {
     | '/purchases/new'
     | '/reception/turns'
     | '/reports/sales'
+    | '/reports/sales-by-product'
+    | '/reports/sales-by-service'
     | '/reports/shifts'
     | '/reports/stock'
     | '/reports/taxes'
@@ -760,6 +780,8 @@ export interface FileRouteTypes {
     | '/purchases/new'
     | '/reception/turns'
     | '/reports/sales'
+    | '/reports/sales-by-product'
+    | '/reports/sales-by-service'
     | '/reports/shifts'
     | '/reports/stock'
     | '/reports/taxes'
@@ -831,6 +853,8 @@ export interface FileRouteTypes {
     | '/purchases/new'
     | '/reception/turns'
     | '/reports/sales'
+    | '/reports/sales-by-product'
+    | '/reports/sales-by-service'
     | '/reports/shifts'
     | '/reports/stock'
     | '/reports/taxes'
@@ -903,6 +927,8 @@ export interface RootRouteChildren {
   PurchasesNewRoute: typeof PurchasesNewRoute
   ReceptionTurnsRoute: typeof ReceptionTurnsRoute
   ReportsSalesRoute: typeof ReportsSalesRoute
+  ReportsSalesByProductRoute: typeof ReportsSalesByProductRoute
+  ReportsSalesByServiceRoute: typeof ReportsSalesByServiceRoute
   ReportsShiftsRoute: typeof ReportsShiftsRoute
   ReportsStockRoute: typeof ReportsStockRoute
   ReportsTaxesRoute: typeof ReportsTaxesRoute
@@ -1227,6 +1253,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsSalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/sales-by-product': {
+      id: '/reports/sales-by-product'
+      path: '/reports/sales-by-product'
+      fullPath: '/reports/sales-by-product'
+      preLoaderRoute: typeof ReportsSalesByProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/sales-by-service': {
+      id: '/reports/sales-by-service'
+      path: '/reports/sales-by-service'
+      fullPath: '/reports/sales-by-service'
+      preLoaderRoute: typeof ReportsSalesByServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/shifts': {
       id: '/reports/shifts'
       path: '/reports/shifts'
@@ -1463,6 +1503,8 @@ const rootRouteChildren: RootRouteChildren = {
   PurchasesNewRoute: PurchasesNewRoute,
   ReceptionTurnsRoute: ReceptionTurnsRoute,
   ReportsSalesRoute: ReportsSalesRoute,
+  ReportsSalesByProductRoute: ReportsSalesByProductRoute,
+  ReportsSalesByServiceRoute: ReportsSalesByServiceRoute,
   ReportsShiftsRoute: ReportsShiftsRoute,
   ReportsStockRoute: ReportsStockRoute,
   ReportsTaxesRoute: ReportsTaxesRoute,

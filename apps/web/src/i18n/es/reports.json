@@ -10,6 +10,14 @@
       "title": "Ventas",
       "detail": "Ventas del período por vendedor, sucursal y forma de pago."
     },
+    "salesByProduct": {
+      "title": "Ventas por producto",
+      "detail": "Cada producto vendido, ticket por ticket: cantidad, precio, impuesto y total."
+    },
+    "salesByService": {
+      "title": "Ventas por servicio",
+      "detail": "Cada servicio vendido, ticket por ticket: cantidad, precio, impuesto y total."
+    },
     "kardex": {
       "title": "Kardex",
       "detail": "Elige un producto y mira sus movimientos con el saldo tras cada uno."
@@ -52,6 +60,15 @@
     "status": "Estado",
     "total": "Total",
     "warehouse": "Sucursal"
+  },
+  "salesLines": {
+    "product": "Producto",
+    "service": "Servicio",
+    "quantity": "Cantidad",
+    "unitPrice": "Precio unitario",
+    "tax": "Impuesto",
+    "total": "Total",
+    "totalsLabel": "Totales del período"
   },
   "stock": {
     "avgCost": "Costo promedio",

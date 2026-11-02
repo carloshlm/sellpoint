@@ -1,11 +1,10 @@
 import { formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
-import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
+import { SalesFilterBar, useSalesFilters } from "@/components/reports/sales-filters";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
-import { downloadSalesReport, type SalesReportQuery } from "@/lib/reports/api";
+import { downloadSalesReport } from "@/lib/reports/api";
 import { useSalesReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -26,25 +25,11 @@ export function SalesReport() {
   // van al negocio mirado; el filtro de almacén no aplica (sería el del admin).
   const { reportsPath, tenantId: negocioAjeno } = useAdminTenantScope();
 
-  const [warehouseId, setWarehouseId] = useState<string | null>(null);
-  const [estado, setEstado] = useState<"todas" | "completed" | "canceled">("todas");
-  const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
-  const [page, setPage] = useState(1);
+  // Los filtros —y el rango con que abre: desde hoy— son los mismos de
+  // Ventas por producto y por servicio.
+  const { filtros, page, setPage, barra } = useSalesFilters();
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortDir, setSortDir] = useState<"asc" | "desc" | undefined>(undefined);
-
-  /**
-   * Los FILTROS van separados de la paginación: el endpoint de export no
-   * pagina y su schema es `.strict()`, así que mandarle `page` responde 400.
-   */
-  const filtros: SalesReportQuery = {
-    ...(warehouseId !== null && { warehouseId }),
-    ...(estado !== "todas" && { status: estado }),
-    // Solo viajan con valor: mandar `from: ""` haría que el API rechace la
-    // consulta por formato.
-    ...(rango.from !== "" && { from: rango.from }),
-    ...(rango.to !== "" && { to: rango.to }),
-  };
 
   const { data, isPending, error } = useSalesReport({ ...filtros, page, pageSize: 20 });
 
@@ -76,52 +61,11 @@ export function SalesReport() {
     total: formatMoney(Number(venta.total), currency, locale),
   }));
 
-  function alFiltrar(accion: () => void) {
-    accion();
-    setPage(1);
-  }
-
   return (
     <section className="flex flex-col gap-4" data-testid="sales-report">
       <h1 className="font-semibold text-xl">{t("reports.hub.sales.title")}</h1>
 
-      <div className="flex flex-wrap items-end gap-3">
-        {negocioAjeno === null && (
-          <label htmlFor="sales-report-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">{t("reports.sales.warehouse")}</span>
-            <WarehouseSelect
-              id="sales-report-warehouse"
-              value={warehouseId}
-              // F10-MANFIX-02: "" es «Todas las sucursales» (allowAll) — se
-              // traduce a `null` para que `filtros` NO mande `warehouseId`.
-              onChange={(valor) => alFiltrar(() => setWarehouseId(valor === "" ? null : valor))}
-              scoped
-              allowAll
-            />
-          </label>
-        )}
-
-        <label htmlFor="sales-report-status" className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">{t("reports.sales.status")}</span>
-          <select
-            id="sales-report-status"
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            value={estado}
-            onChange={(e) => alFiltrar(() => setEstado(e.target.value as typeof estado))}
-          >
-            <option value="todas">{t("pos.history.all")}</option>
-            <option value="completed">{t("pos.history.completed")}</option>
-            <option value="canceled">{t("pos.history.canceled")}</option>
-          </select>
-        </label>
-
-        <DateRangeFilter
-          id="sales-report"
-          from={rango.from}
-          to={rango.to}
-          onChange={(nuevo) => alFiltrar(() => setRango(nuevo))}
-        />
-      </div>
+      <SalesFilterBar id="sales-report" showWarehouse={negocioAjeno === null} {...barra} />
 
       <ReportTable
         columns={columnas}
