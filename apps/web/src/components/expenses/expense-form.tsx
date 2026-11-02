@@ -403,14 +403,20 @@ export function ExpenseForm({
           )}
         </div>
       )}
+      {/* Al editar, lo mismo que al registrar (Carlos, 2026-11-01): un
+          pendiente pide «Vence» y no la cuenta —de un pendiente todavía no
+          salió dinero; la cuenta se anota al marcarlo como pagado—, y uno
+          pagado muestra su cuenta. */}
       {editando && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            label={t("expenses.form.account")}
-            hint={t("expenses.form.accountHint")}
-            value={accountRef}
-            onChange={(e) => setAccountRef(e.target.value)}
-          />
+          {pagado && (
+            <TextField
+              label={t("expenses.form.account")}
+              hint={t("expenses.form.accountHint")}
+              value={accountRef}
+              onChange={(e) => setAccountRef(e.target.value)}
+            />
+          )}
           {!pagado && (
             <DateField
               label={t("expenses.form.dueDate")}

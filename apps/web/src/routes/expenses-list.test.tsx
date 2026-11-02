@@ -261,4 +261,36 @@ describe("Gastos — listado (F9-EXP-13)", () => {
       }),
     );
   });
+
+  /**
+   * Carlos (2026-11-01): al editar, un gasto pendiente pide lo mismo que al
+   * registrarlo —«Vence»— y no «Cuenta de caja o banco». La cuenta dice de
+   * dónde salió el dinero, y de un pendiente todavía no ha salido: se anota al
+   * marcarlo como pagado. Uno pagado sigue mostrando su cuenta.
+   */
+  it("editar un gasto pendiente pide el vencimiento y no la cuenta", async () => {
+    await renderEn("/expenses/g1", ["expenses:read", "expenses:manage"]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Editar" }));
+
+    expect(await screen.findByLabelText("Vence")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Cuenta de caja o banco")).not.toBeInTheDocument();
+  });
+
+  it("editar un gasto pagado muestra su cuenta y no el vencimiento", async () => {
+    mocked.getExpense.mockResolvedValue(
+      gasto({
+        paymentStatus: "paid",
+        paymentMethod: "transfer",
+        paidAt: "2026-09-11T18:00:00.000Z",
+        accountRef: "BBVA",
+      }),
+    );
+    await renderEn("/expenses/g1", ["expenses:read", "expenses:manage"]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Editar" }));
+
+    expect(await screen.findByLabelText("Cuenta de caja o banco")).toHaveValue("BBVA");
+    expect(screen.queryByLabelText("Vence")).not.toBeInTheDocument();
+  });
 });

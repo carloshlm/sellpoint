@@ -76,7 +76,8 @@ con fecha de hoy.
 Con **Editar** corriges los datos de un gasto. La **Sucursal** no se puede
 cambiar después de guardar, y una vez pagado tampoco el monto, el descuento ni
 el impuesto: si hay un error en alguno de esos, **Anúlalo** y regístralo de
-nuevo.
+nuevo. Mientras está pendiente, el formulario pide **Vence** y no la **Cuenta de
+caja o banco**: la cuenta se anota al marcarlo como pagado.
 
 **Anular** pide un motivo, que queda en el historial. El gasto deja de contar en
 los totales, pero no se borra. Un gasto que salió del cajón de un turno que ya se
