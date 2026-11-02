@@ -341,6 +341,30 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
         .set(auth())
         .send({ file, format: "csv", mode });
 
+    /**
+     * Una caducidad por venir, relativa a hoy: una entrada ya no recibe
+     * mercancía caducada (2026-11-02), y una fecha fija acaba en el pasado.
+     * El día se corre hasta pasar del 12 para que `DD/MM` no se pueda leer
+     * como `MM/DD`: así la prueba sigue fijando que manda el día primero.
+     */
+    const porVenir = (() => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() + 45);
+      while (d.getUTCDate() <= 12) {
+        d.setUTCDate(d.getUTCDate() + 1);
+      }
+      const iso = d.toISOString().slice(0, 10);
+      const [anio, mes, diaDelMes] = iso.split("-");
+      return { iso, dmy: `${diaDelMes}/${mes}/${anio}` };
+    })();
+    const ayer = (() => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+
     it("la plantilla trae las columnas del tipo", async () => {
       const res = await request(app.getHttpServer())
         .get("/inventory/documents/template?type=entry&format=csv")
@@ -409,6 +433,9 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       entrada.celda("presentacion").value = "";
       entrada.celda("lote").value = "0042";
       entrada.celda("costo_unitario").value = 8.5;
+      // La caducidad de ejemplo de la plantilla ya pasó, y una entrada no
+      // recibe mercancía caducada (2026-11-02): se teclea una por venir.
+      entrada.celda("caducidad").value = porVenir.iso;
       const llenada = Buffer.from(await entrada.workbook.xlsx.writeBuffer()).toString("base64");
 
       const id = await nuevoBorrador();
@@ -438,16 +465,16 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
 
     /**
      * Carlos (2026-11-01): la caducidad va con formato Texto, así que lo
-     * tecleado llega como texto. «15/08/2026» es el 15 de agosto; lo que no es
-     * una fecha clara se marca en su fila y la línea se guarda sin caducidad,
-     * para corregirla en pantalla (nunca un error del servidor).
+     * tecleado llega como texto. `DD/MM/AAAA` se lee con el día primero; lo
+     * que no es una fecha clara se marca en su fila y la línea se guarda sin
+     * caducidad, para corregirla en pantalla (nunca un error del servidor).
      */
     it("la caducidad escrita como texto se entiende, y la que no es fecha se marca en su fila", async () => {
       const id = await nuevoBorrador();
       const res = await importar(
         id,
         csv([
-          [sku, "", "3", "10", "L-AGO", "15/08/2026", ""],
+          [sku, "", "3", "10", "L-AGO", porVenir.dmy, ""],
           [sku, "", "1", "10", "L-FEB", "31/02/2026", ""],
         ]),
         "replace",
@@ -464,8 +491,58 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
         .expect(200);
       const filas = (detalle.body as { rows: { lotCode: string; expiresAt: string | null }[] })
         .rows;
-      expect(filas.find((f) => f.lotCode === "L-AGO")?.expiresAt).toMatch(/^2026-08-15/);
+      expect(filas.find((f) => f.lotCode === "L-AGO")?.expiresAt).toMatch(
+        new RegExp(`^${porVenir.iso}`),
+      );
       expect(filas.find((f) => f.lotCode === "L-FEB")?.expiresAt).toBeNull();
+    });
+
+    /**
+     * Carlos (2026-11-02): un lote se guardó con 0027-10-01. La planilla ya
+     * no deja pasar el año de dos cifras como 0027 (lo lee como 20AA), pero sí
+     * un 1999 o un 2150: se marca en su fila y la línea se guarda SIN esa
+     * caducidad, igual que una fecha que no se entiende.
+     */
+    it("una caducidad con el año fuera de 2000–2099 se marca en su fila y no se guarda", async () => {
+      const id = await nuevoBorrador();
+      const res = await importar(
+        id,
+        csv([[sku, "", "3", "10", "L-1999", "1999-12-31", ""]]),
+        "replace",
+      ).expect(200);
+
+      expect(res.body).toMatchObject({ imported: 1, withErrors: 1 });
+      expect((res.body as { rows: { error: string | null }[] }).rows[0]?.error).toBe(
+        "inventory.expiry_year_out_of_range",
+      );
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      expect(
+        (detalle.body as { rows: { expiresAt: string | null }[] }).rows[0]?.expiresAt,
+      ).toBeNull();
+    });
+
+    it("en una entrada, una caducidad que ya pasó se marca en su fila y no se guarda", async () => {
+      const id = await nuevoBorrador();
+      const res = await importar(
+        id,
+        csv([[sku, "", "3", "10", "L-AYER", ayer, ""]]),
+        "replace",
+      ).expect(200);
+
+      expect(res.body).toMatchObject({ imported: 1, withErrors: 1 });
+      expect((res.body as { rows: { error: string | null }[] }).rows[0]?.error).toBe(
+        "inventory.expiry_in_past",
+      );
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      expect(
+        (detalle.body as { rows: { expiresAt: string | null }[] }).rows[0]?.expiresAt,
+      ).toBeNull();
     });
 
     it("una salida no pide costo unitario: no tiene precio de compra", async () => {

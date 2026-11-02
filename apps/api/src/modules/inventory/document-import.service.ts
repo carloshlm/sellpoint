@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
 import {
+  documentRejectsPastExpiry,
   type InventoryDocumentType,
   type Locale,
+  lotExpiryProblem,
   normalizeCode,
   normalizeLotCode,
 } from "@sellpoint/shared";
@@ -136,6 +138,8 @@ export class DocumentImportService {
         select: { country: true },
       });
       const diaPrimero = country !== "US";
+      // Lo caducado solo pesa en una entrada de mercancía; el año, siempre.
+      const rechazaPasada = documentRejectsPastExpiry(document);
 
       // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; una planilla con `abc` tiene que encontrar a `ABC`.
       const skus = [
@@ -198,8 +202,14 @@ export class DocumentImportService {
               )?.id ?? null);
 
         // Una fecha que no se entiende se marca en la fila y la línea se guarda
-        // sin caducidad: la previa pide corregirla antes de confirmar.
+        // sin caducidad: la previa pide corregirla antes de confirmar. Lo
+        // mismo una fecha que se entiende pero no sirve (Carlos, 2026-11-02):
+        // un año fuera de 2000–2099, o una ya pasada en una entrada.
         const caducidad = parseSpreadsheetDate(raw[idx("caducidad")] ?? "", diaPrimero);
+        const problemaCaducidad =
+          caducidad.date === null
+            ? null
+            : lotExpiryProblem(caducidad.date, { rejectPast: rechazaPasada });
         return {
           row,
           productId,
@@ -213,7 +223,7 @@ export class DocumentImportService {
           // «ST9» entraban como DOS lotes del mismo producto — existencias
           // partidas y FEFO tratándolos por separado (Carlos, 2026-09-01).
           lotCode: lote === null ? null : normalizeLotCode(lote) || null,
-          expiresAt: caducidad.date,
+          expiresAt: problemaCaducidad === null ? caducidad.date : null,
           location: texto(raw[idx("ubicacion")]),
           counted: num(raw[idx("contado")]),
           error:
@@ -223,7 +233,11 @@ export class DocumentImportService {
                 ? "inventory.presentation_invalid"
                 : caducidad.invalid
                   ? "inventory.expiry_invalid"
-                  : contadoInvalido(raw[idx("contado")]),
+                  : problemaCaducidad === "year_out_of_range"
+                    ? "inventory.expiry_year_out_of_range"
+                    : problemaCaducidad === "in_past"
+                      ? "inventory.expiry_in_past"
+                      : contadoInvalido(raw[idx("contado")]),
         };
       });
 

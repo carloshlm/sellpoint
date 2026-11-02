@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { MovementDirection, MovementReason } from "@sellpoint/shared";
-import { endOfDayUtc, startOfDayUtc } from "@sellpoint/shared";
+import { endOfDayUtc, lotExpiryToday, startOfDayUtc } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -284,8 +284,7 @@ export class KardexService {
       // lote vencido hace un año salía marcado «vence pronto». No es cosmético
       // — FEFO lo despacha PRIMERO, así que es justo el que alguien va a dejar
       // salir creyendo que todavía sirve.
-      const hoy = new Date();
-      hoy.setUTCHours(0, 0, 0, 0);
+      const hoy = lotExpiryToday();
       const enTreintaDias = new Date(hoy);
       enTreintaDias.setUTCDate(enTreintaDias.getUTCDate() + 30);
 

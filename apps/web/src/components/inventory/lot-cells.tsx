@@ -1,4 +1,4 @@
-import { normalizeLotCode } from "@sellpoint/shared";
+import { LOT_EXPIRY_MAX_DATE, lotExpiryTodayIso, normalizeLotCode } from "@sellpoint/shared";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { DateField } from "@/components/form/date-field";
@@ -19,6 +19,10 @@ import { useProductLots } from "@/lib/inventory/kardex-hooks";
  * caducidad SIGUE al lote del REGISTRO (con o sin existencias) — si ya existe,
  * su fecha se pone siempre; si no, se limpia, porque es del lote y no de la
  * línea. El ref evita pisar la fecha que el usuario corrija a mano.
+ *
+ * El calendario de la caducidad va de hoy a 2099 (Carlos, 2026-11-02): una
+ * compra o una recepción no traen mercancía caducada, y un año fuera de rango
+ * es un error de captura. Lo que se teclee igual lo revisa el API.
  */
 export function LotCells({
   productId,
@@ -88,6 +92,8 @@ export function LotCells({
           label={expiresLabel}
           className="[&>label]:sr-only"
           value={expiresAt}
+          min={lotExpiryTodayIso()}
+          max={LOT_EXPIRY_MAX_DATE}
           disabled={!editable}
           error={expiresError}
           onChange={(event) => onExpiresAt(event.target.value)}

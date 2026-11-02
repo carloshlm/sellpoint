@@ -36,6 +36,7 @@ import type {
   UpdatePurchaseDto,
   UpdateReceptionDto,
 } from "./dto/purchase.dto";
+import { assertCaducidadDeEntrada } from "./lot-rules";
 import { gruposPorCodigo, type LineaLista, PurchaseLinesService } from "./purchase-lines.service";
 import { costoBrutoPorUnidad } from "./purchase-totals";
 
@@ -531,6 +532,8 @@ export class PurchasesService {
             });
           }
         }
+        // La caducidad pudo pasar mientras la compra era borrador.
+        assertCaducidadDeEntrada(linea.expiresAt, linea.lineNo, `lines.${linea.lineNo}.expiresAt`);
       }
 
       // Primero el contenido (totales, impuestos y `unit_cost_net`)…

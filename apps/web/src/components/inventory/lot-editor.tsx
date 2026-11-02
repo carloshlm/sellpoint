@@ -1,4 +1,4 @@
-import { normalizeLotCode } from "@sellpoint/shared";
+import { LOT_EXPIRY_MAX_DATE, LOT_EXPIRY_MIN_DATE, normalizeLotCode } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -89,6 +89,10 @@ export function LotEditor({
             id={`${id}-expires`}
             name="expiresAt"
             type="date"
+            // De 2000 a 2099, y sin tope de hoy (Carlos, 2026-11-02): aquí se
+            // corrige un lote que de verdad caducó, o el 0027 de una captura.
+            min={LOT_EXPIRY_MIN_DATE}
+            max={LOT_EXPIRY_MAX_DATE}
             value={expiresAt}
             onChange={(event) => setExpiresAt(event.target.value)}
             className="rounded-md border border-input bg-background px-3 py-2 text-sm"

@@ -1122,7 +1122,7 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       await request(app.getHttpServer())
         .post(`/inventory/documents/${carga}/lines`)
         .set(auth())
-        .send({ productId: loteado.id, quantity: 10, lotCode: "L-777", expiresAt: "2027-01-31" })
+        .send({ productId: loteado.id, quantity: 10, lotCode: "L-777", expiresAt: "2037-01-31" })
         .expect(201);
       await request(app.getHttpServer())
         .post(`/inventory/documents/${carga}/confirm`)
@@ -1167,7 +1167,7 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       // Quien descarga el camión tiene que VER la fecha para cotejarla. Que el
       // lote la tenga guardada no alcanza: recibir a ciegas es no recibir.
       expect(fila?.expiresAt).not.toBeNull();
-      expect(String(fila?.expiresAt)).toContain("2027-01-31");
+      expect(String(fila?.expiresAt)).toContain("2037-01-31");
     });
 
     /**
@@ -1437,7 +1437,7 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
         productId: loteadoId,
         quantity: 6,
         lotCode: "L-S8",
-        expiresAt: "2027-03-31",
+        expiresAt: "2037-03-31",
       });
       await confirmar(carga).expect(201);
 
@@ -1475,7 +1475,7 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
         productId: loteadoId,
         quantity: 4,
         lotCode: "L-S8B",
-        expiresAt: "2027-03-31",
+        expiresAt: "2037-03-31",
       });
       await confirmar(carga).expect(201);
 

@@ -100,7 +100,7 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
     await api(negocio.token)
       .put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
         lines: [
-          { purchaseOrderLineId: orden.lines[0]?.id, quantity, lotCode, expiresAt: "2027-12-31" },
+          { purchaseOrderLineId: orden.lines[0]?.id, quantity, lotCode, expiresAt: "2037-12-31" },
         ],
       })
       .expect(200);
@@ -194,7 +194,7 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
       orderedUnitCost: "120",
       priceVariance: "0",
       lotCode: "L-A",
-      expiresAt: "2027-12-31",
+      expiresAt: "2037-12-31",
       presentationId: cajaId,
       purchaseOrderLineId: orden.lines[0]?.id,
     });
@@ -213,7 +213,7 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
               unitCost: 125,
               taxGroupId: ivaId,
               lotCode: "L-A",
-              expiresAt: "2027-12-31",
+              expiresAt: "2037-12-31",
               purchaseOrderLineId: orden.lines[0]?.id,
             },
           ],
@@ -385,7 +385,7 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
               quantity: 8,
               unitCost: 120,
               lotCode: "L-D",
-              expiresAt: "2027-12-31",
+              expiresAt: "2037-12-31",
               purchaseOrderLineId: orden.lines[0]?.id,
             },
           ],

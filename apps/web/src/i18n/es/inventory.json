@@ -167,6 +167,8 @@
   "insufficient_stock": "No hay suficiente existencia de «{{sku}}»: hay {{available}} y se piden {{requested}}.",
   "lot_required": "Este producto se controla por lote: falta indicar cuál.",
   "expiry_required": "Este producto se controla por lote: falta la fecha de caducidad del lote.",
+  "expiry_year_out_of_range": "La caducidad {{expiresAt}} no es válida: revisa el año.",
+  "expiry_in_past": "La caducidad {{expiresAt}} ya pasó: no se puede dar entrada a mercancía caducada.",
   "lot_not_tracked": "Este producto no se controla por lote.",
   "count_duplicate_row": "Esta fila repite el lote y la ubicación de la fila {{lineNo}}: deja una sola.",
   "count_required": "Falta el contado: escribe cuántas piezas hay (0 si no hay ninguna).",

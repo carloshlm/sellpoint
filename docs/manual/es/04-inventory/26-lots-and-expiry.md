@@ -26,7 +26,10 @@ marca con error si el producto es nuevo o todavía no llevaba lote.
 
 - **Al recibir mercancía**, la entrada te pide el **Lote** y su **Caducidad** en
   cada línea (capítulo 23, «Entradas y salidas»). Lo mismo al recibir una
-  orden de compra (capítulo 29, «Órdenes de compra y recepciones»).
+  orden de compra (capítulo 29, «Órdenes de compra y recepciones»). La
+  caducidad lleva el año completo, entre 2000 y 2099, y no puede ser de antes
+  de hoy, porque no se recibe mercancía caducada (con **Editar lote** sí puedes
+  poner una fecha pasada, para corregir un lote que de verdad caducó).
 - **Al vender o dar salida**, SellPointy descuenta primero lo que no tiene lote
   (por ejemplo, lo que ya tenías cuando encendiste el control por lote) y
   después el lote que vence antes. No tienes que elegirlo: la salida te muestra

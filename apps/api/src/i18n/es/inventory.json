@@ -32,6 +32,8 @@
   "lot_not_tracked": "Este producto no se controla por lote.",
   "lot_required": "Este producto se controla por lote: falta indicar cuál.",
   "expiry_required": "Este producto se controla por lote: falta la fecha de caducidad del lote.",
+  "expiry_year_out_of_range": "La caducidad {expiresAt} no es válida: revisa el año.",
+  "expiry_in_past": "La caducidad {expiresAt} ya pasó: no se puede dar entrada a mercancía caducada.",
   "note_required": "Falta la explicación: este motivo pide una nota.",
   "shortage_note_required": "Recibiste menos de lo que se envió: escribe en la nota qué pasó con la diferencia.",
   "presentation_invalid": "La presentación elegida no corresponde a este producto o está desactivada.",

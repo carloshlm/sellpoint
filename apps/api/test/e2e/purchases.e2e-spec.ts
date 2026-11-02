@@ -519,7 +519,7 @@ describe("Compras (F9-PURCH)", () => {
         .expect(422);
       expect(sinCaducidad.body).toMatchObject({ code: "purchases.expiry_required" });
 
-      await conLinea({ lotCode: "NUEVO-07", expiresAt: "2029-01-01" });
+      await conLinea({ lotCode: "NUEVO-07", expiresAt: "2039-01-01" });
       await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
     });
 
@@ -534,7 +534,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 3,
               unitCost: 120,
               lotCode: "E2E-LOTE-01",
-              expiresAt: "2029-12-31",
+              expiresAt: "2039-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -566,7 +566,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 3,
               unitCost: 139.2,
               lotCode: "E2E-LOTE-01",
-              expiresAt: "2029-12-31",
+              expiresAt: "2039-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -593,7 +593,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 1,
               unitCost: 50,
               lotCode: "E2E-LOTE-01",
-              expiresAt: "2029-12-31",
+              expiresAt: "2039-12-31",
             },
           ],
         })
@@ -645,7 +645,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 4,
               unitCost: 25,
               lotCode: "E2E-LOTE-01",
-              expiresAt: "2029-12-31",
+              expiresAt: "2039-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -692,7 +692,7 @@ describe("Compras (F9-PURCH)", () => {
               discount,
               taxGroupId: ivaId,
               lotCode: "L-2026",
-              expiresAt: "2027-01-31",
+              expiresAt: "2037-01-31",
             },
           ],
         })
@@ -965,7 +965,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 1,
               unitCost,
               lotCode: "E2E-LOTE-01",
-              expiresAt: "2029-12-31",
+              expiresAt: "2039-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -1038,7 +1038,7 @@ describe("Compras (F9-PURCH)", () => {
       // Solo la caducidad también es «lote»: no hay caducidad sin lote.
       await api(negocio.token)
         .put(`/purchases/${compra.id}/lines`, {
-          lines: [{ productId: sinLote.id, quantity: 1, unitCost: 10, expiresAt: "2027-01-31" }],
+          lines: [{ productId: sinLote.id, quantity: 1, unitCost: 10, expiresAt: "2037-01-31" }],
         })
         .expect(422);
       // Sin lote ni caducidad, el mismo producto entra sin problema.
@@ -1060,7 +1060,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 5,
               unitCost: 10,
               lotCode: "L-2026",
-              expiresAt: "2027-01-31",
+              expiresAt: "2037-01-31",
             },
           ],
         })
@@ -1091,11 +1091,11 @@ describe("Compras (F9-PURCH)", () => {
   describe("fechas de hoy para atrás y la caducidad del lote conocido (Carlos, 2026-09-11)", () => {
     it("ni la factura ni la recepción pueden ser de mañana", async () => {
       await api(negocio.token)
-        .post("/purchases", { supplierId: proveedorId, purchaseDate: "2031-01-01" })
+        .post("/purchases", { supplierId: proveedorId, purchaseDate: "2041-01-01" })
         .expect(422);
       const compra = await nuevaCompra("2026-01-10");
       const rebote = await api(negocio.token)
-        .patch(`/purchases/${compra.id}`, { receivedDate: "2031-01-01" })
+        .patch(`/purchases/${compra.id}`, { receivedDate: "2041-01-01" })
         .expect(422);
       expect((rebote.body as { message: string }).message).toContain("receivedDate");
       // Ayer sí: el papel ya llegó.
@@ -1112,14 +1112,14 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 1,
               unitCost: 10,
               lotCode: "E2E-LOTE-01",
-              expiresAt: "2029-12-31",
+              expiresAt: "2039-12-31",
             },
           ],
         })
         .expect(200);
       await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
       await api(negocio.token)
-        .patch(`/purchases/${compra.id}/reception`, { receivedDate: "2031-01-01" })
+        .patch(`/purchases/${compra.id}/reception`, { receivedDate: "2041-01-01" })
         .expect(422);
     });
 
@@ -1132,7 +1132,7 @@ describe("Compras (F9-PURCH)", () => {
             tenantId: negocio.tenantId,
             productId: productoId,
             lotCode: "HIST-01",
-            expiresAt: new Date("2028-05-31"),
+            expiresAt: new Date("2038-05-31"),
           },
         }),
       );
@@ -1154,7 +1154,7 @@ describe("Compras (F9-PURCH)", () => {
         .expect(200);
       expect(
         (heredada.body as { lines: { lotCode: string; expiresAt: string | null }[] }).lines[0],
-      ).toMatchObject({ lotCode: "HIST-01", expiresAt: "2028-05-31" });
+      ).toMatchObject({ lotCode: "HIST-01", expiresAt: "2038-05-31" });
 
       // Con OTRA fecha: rebota nombrando la línea. La caducidad es del lote.
       const rebote = await api(negocio.token)
@@ -1166,7 +1166,7 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 1,
               unitCost: 10,
               lotCode: "HIST-01",
-              expiresAt: "2029-01-01",
+              expiresAt: "2039-01-01",
             },
           ],
         })
@@ -1183,11 +1183,129 @@ describe("Compras (F9-PURCH)", () => {
               quantity: 1,
               unitCost: 10,
               lotCode: "HIST-01",
-              expiresAt: "2028-05-31",
+              expiresAt: "2038-05-31",
             },
           ],
         })
         .expect(200);
+    });
+  });
+
+  /**
+   * La caducidad de lo que se compra (Carlos, 2026-11-02). En producción un
+   * lote se guardó con 0027-10-01: en el campo de fecha basta teclear «27» en
+   * el año. El año va de 2000 a 2099, y una compra no trae mercancía ya
+   * caducada — tampoco la que hereda la fecha de un lote que ya existe.
+   */
+  describe("la caducidad de lo que se compra (2026-11-02)", () => {
+    /** Un día a N de hoy, con el corte UTC de la caducidad. */
+    const dia = (dias: number): string => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d.toISOString().slice(0, 10);
+    };
+    const linea = (extra: object) => ({
+      productId: productoId,
+      presentationId: piezaId,
+      quantity: 2,
+      unitCost: 10,
+      ...extra,
+    });
+    const lineasDe = (purchaseId: string) =>
+      prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.purchaseLine.findMany({ where: { purchaseId }, select: { expiresAt: true } }),
+      );
+
+    it("el año 0027 rebota con 400 nombrando la línea y la fecha, y no guarda nada", async () => {
+      const compra = await nuevaCompra();
+
+      const res = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [linea({ lotCode: "MAT-27", expiresAt: "0027-10-01" })],
+        })
+        .expect(400);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_year_out_of_range" });
+      expect((res.body as { message: string }).message).toContain("Línea 1");
+      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect(await lineasDe(compra.id)).toHaveLength(0);
+    });
+
+    it("una caducidad que ya pasó rebota con 422, y no guarda nada", async () => {
+      const compra = await nuevaCompra();
+
+      const res = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [linea({ lotCode: "MAT-AYER", expiresAt: dia(-1) })],
+        })
+        .expect(422);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain("Línea 1");
+      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect(await lineasDe(compra.id)).toHaveLength(0);
+    });
+
+    it("la caducidad HEREDADA de un lote ya caducado también rebota", async () => {
+      await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.productLot.create({
+          data: {
+            tenantId: negocio.tenantId,
+            productId: productoId,
+            lotCode: "CAD-VIEJO",
+            expiresAt: new Date(`${dia(-1)}T00:00:00.000Z`),
+          },
+        }),
+      );
+      const compra = await nuevaCompra();
+
+      // Sin fecha: la línea heredaría la del lote, que ya pasó.
+      const res = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, { lines: [linea({ lotCode: "CAD-VIEJO" })] })
+        .expect(422);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect(await lineasDe(compra.id)).toHaveLength(0);
+    });
+
+    it("una compra cuya caducidad pasó mientras era borrador no se confirma", async () => {
+      const compra = await nuevaCompra();
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [linea({ lotCode: "MAT-ESPERA", expiresAt: dia(1) })],
+        })
+        .expect(200);
+      // El borrador se quedó abierto hasta que la fecha pasó.
+      await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.purchaseLine.updateMany({
+          where: { purchaseId: compra.id },
+          data: { expiresAt: new Date(`${dia(-1)}T00:00:00.000Z`) },
+        }),
+      );
+
+      const res = await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(422);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain("Línea 1");
+      const detalle = await api(negocio.token).get(`/purchases/${compra.id}`).expect(200);
+      expect(detalle.body).toMatchObject({ status: "draft" });
+    });
+
+    it("con una caducidad por venir, la compra se guarda y se confirma como siempre", async () => {
+      const compra = await nuevaCompra();
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [linea({ lotCode: "MAT-BIEN", expiresAt: dia(400) })],
+        })
+        .expect(200);
+
+      await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
+
+      expect(
+        (await lineasDe(compra.id)).map((l) => l.expiresAt?.toISOString().slice(0, 10)),
+      ).toEqual([dia(400)]);
     });
   });
 });

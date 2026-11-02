@@ -729,7 +729,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
               tenantId,
               productId: producto.id,
               lotCode: "PRONTO",
-              expiresAt: new Date("2027-01-01"),
+              expiresAt: new Date("2037-01-01"),
             },
           }),
           tx.productLot.create({
@@ -737,7 +737,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
               tenantId,
               productId: producto.id,
               lotCode: "TARDE",
-              expiresAt: new Date("2027-12-01"),
+              expiresAt: new Date("2037-12-01"),
             },
           }),
         ]);
@@ -801,7 +801,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
     it("cambiar la caducidad cambia de qué lote sale la próxima salida", async () => {
       const { token, productId, warehouseId, tardeId } = await conDosLotes();
 
-      // Antes: sale "pronto" (2027-01-01). Se corrige "tarde" a 2026-06-01,
+      // Antes: sale "pronto" (2037-01-01). Se corrige "tarde" a 2026-06-01,
       // que pasa a vencer primero.
       await editar(token, productId, tardeId, { expiresAt: "2026-06-01" }).expect(200);
 
@@ -832,8 +832,52 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       expect(entrada).not.toBeNull();
       // Sin el `before` nadie podría explicar por qué el orden de salida
       // cambió de un día para el otro.
-      expect(entrada?.before).toEqual(expect.objectContaining({ expiresAt: "2027-12-01" }));
+      expect(entrada?.before).toEqual(expect.objectContaining({ expiresAt: "2037-12-01" }));
       expect(entrada?.after).toEqual(expect.objectContaining({ expiresAt: "2026-06-01" }));
+    });
+
+    /**
+     * La caducidad de un lote (Carlos, 2026-11-02): el año va de 2000 a 2099
+     * también aquí, que es justo donde se corrige el 0027 que dejó la captura.
+     * Una fecha PASADA, en cambio, se acepta: «Editar lote» corrige un lote
+     * que de verdad caducó, y la regla de no recibir lo caducado es de las
+     * entradas.
+     */
+    describe("la caducidad que se corrige (2026-11-02)", () => {
+      const caducidadDe = async (tenantId: string, lotId: string) =>
+        (
+          await prisma.withTenantContext(tenantId, (tx) =>
+            tx.productLot.findUniqueOrThrow({ where: { id: lotId }, select: { expiresAt: true } }),
+          )
+        ).expiresAt
+          ?.toISOString()
+          .slice(0, 10);
+
+      it("una fecha pasada se acepta: corrige un lote que de verdad caducó", async () => {
+        const { token, tenantId, productId, prontoId } = await conDosLotes();
+        const haceUnMes = new Date();
+        haceUnMes.setUTCHours(0, 0, 0, 0);
+        haceUnMes.setUTCDate(haceUnMes.getUTCDate() - 30);
+        const fecha = haceUnMes.toISOString().slice(0, 10);
+
+        const res = await editar(token, productId, prontoId, { expiresAt: fecha }).expect(200);
+
+        expect(res.body).toMatchObject({ expiresAt: fecha });
+        expect(await caducidadDe(tenantId, prontoId)).toBe(fecha);
+      });
+
+      it("el año 0027 se rechaza con 400 nombrando la fecha, y el lote no cambia", async () => {
+        const { token, tenantId, productId, prontoId } = await conDosLotes();
+        const antes = await caducidadDe(tenantId, prontoId);
+
+        const res = await editar(token, productId, prontoId, { expiresAt: "0027-10-01" }).expect(
+          400,
+        );
+
+        expect(res.body).toMatchObject({ code: "inventory.expiry_year_out_of_range" });
+        expect((res.body as { message: string }).message).toContain("0027-10-01");
+        expect(await caducidadDe(tenantId, prontoId)).toBe(antes);
+      });
     });
 
     it("quitar la caducidad manda el lote al final del orden", async () => {

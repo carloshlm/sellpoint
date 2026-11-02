@@ -31,5 +31,7 @@
   "received_before_receipts": "{field}: the receipt date can't be earlier than the last invoiced receipt ({receiptDate}).",
   "received_before_order": "{field}: the receipt date can't be earlier than the order date ({orderDate}).",
   "lot_required": "Line {line}: this product is tracked by lot and the lot is missing.",
-  "expiry_required": "Line {line}: this product is tracked by lot and the lot's expiry date is missing."
+  "expiry_required": "Line {line}: this product is tracked by lot and the lot's expiry date is missing.",
+  "expiry_year_out_of_range": "Line {line}: the expiry date {expiresAt} is not valid: check the year.",
+  "expiry_in_past": "Line {line}: the expiry date {expiresAt} has already passed: expired merchandise can't be received."
 }

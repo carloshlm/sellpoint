@@ -167,6 +167,8 @@
   "insufficient_stock": "Not enough stock of \"{{sku}}\": there are {{available}} and {{requested}} were requested.",
   "lot_required": "This product is tracked by lot: please indicate which one.",
   "expiry_required": "This product is tracked by lot: the lot's expiry date is missing.",
+  "expiry_year_out_of_range": "The expiry date {{expiresAt}} is not valid: check the year.",
+  "expiry_in_past": "The expiry date {{expiresAt}} has already passed: expired merchandise can't be received.",
   "lot_not_tracked": "This product isn't tracked by lot.",
   "count_duplicate_row": "This row repeats the lot and location of row {{lineNo}}: keep only one.",
   "count_required": "Count missing: enter how many units there are (0 if none).",

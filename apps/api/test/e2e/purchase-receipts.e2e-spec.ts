@@ -152,7 +152,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
           tenantId: negocio.tenantId,
           productId: producto.id,
           lotCode: "HIST-01",
-          expiresAt: new Date("2028-05-31"),
+          expiresAt: new Date("2038-05-31"),
         },
       });
       return {
@@ -206,7 +206,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
 
   it("60 de 100 → parcialmente recibida; los otros 40 → recibida; anular la de 40 vuelve atrás", async () => {
     const orden = await ordenEmitida(100);
-    const primera = await recibir(orden, 60, { lotCode: "l-a", expiresAt: "2027-01-31" });
+    const primera = await recibir(orden, 60, { lotCode: "l-a", expiresAt: "2037-01-31" });
     const confirmada = (await confirmar(orden, primera).expect(200)).body as Recepcion & {
       status: string;
     };
@@ -218,7 +218,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       pending: "40",
     });
 
-    const segunda = await recibir(orden, 40, { lotCode: "L-B", expiresAt: "2027-02-28" });
+    const segunda = await recibir(orden, 40, { lotCode: "L-B", expiresAt: "2037-02-28" });
     await confirmar(orden, segunda).expect(200);
     expect(await estadoDe(orden)).toMatchObject({ status: "received" });
 
@@ -238,7 +238,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
     const orden = await ordenEmitida(100);
     await confirmar(
       orden,
-      await recibir(orden, 60, { lotCode: "L-C", expiresAt: "2029-01-01" }),
+      await recibir(orden, 60, { lotCode: "L-C", expiresAt: "2039-01-01" }),
     ).expect(200);
     const recepcion = await nuevaRecepcion(orden.id);
     const rebote = await api(negocio.token)
@@ -257,7 +257,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
 
   it("la carrera del andén: dos borradores de 60 sobre 100 — el segundo rebota aunque se capturó antes", async () => {
     const orden = await ordenEmitida(100);
-    const a = await recibir(orden, 60, { lotCode: "L-D", expiresAt: "2029-01-01" });
+    const a = await recibir(orden, 60, { lotCode: "L-D", expiresAt: "2039-01-01" });
     // Desde 2026-09-12 el API no abre un segundo borrador (409); el que llegue a
     // existir (dos POST en el mismo instante, o un dato viejo) lo frena el `confirm`,
     // que es la validación que MANDA. Se inserta directo para fijar esa segunda barrera.
@@ -277,7 +277,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
                 purchaseOrderLineId: orden.lines[0]?.id ?? "",
                 quantity: 60,
                 lotCode: "L-E",
-                expiresAt: new Date("2029-01-01"),
+                expiresAt: new Date("2039-01-01"),
               },
             ],
           },
@@ -299,7 +299,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
         .get(`/purchase-orders/${orden.id}/receipts/${recepcion.id}`)
         .expect(200)
     ).body as Recepcion;
-    expect(detalle.lines[0]).toMatchObject({ expiresAt: "2028-05-31" });
+    expect(detalle.lines[0]).toMatchObject({ expiresAt: "2038-05-31" });
     await api(negocio.token)
       .put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
         lines: [
@@ -307,7 +307,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
             purchaseOrderLineId: orden.lines[0]?.id,
             quantity: 5,
             lotCode: "HIST-01",
-            expiresAt: "2029-01-01",
+            expiresAt: "2039-01-01",
           },
         ],
       })
@@ -350,7 +350,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
             purchaseOrderLineId: orden.lines[0]?.id,
             quantity: 5,
             lotCode: "NUEVO-01",
-            expiresAt: "2029-01-01",
+            expiresAt: "2039-01-01",
           },
         ],
       })
@@ -364,7 +364,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
     const recepcion = await nuevaRecepcion(orden.id);
     await api(negocio.token)
       .patch(`/purchase-orders/${orden.id}/receipts/${recepcion.id}`, {
-        receivedDate: "2031-01-01",
+        receivedDate: "2041-01-01",
       })
       .expect(422);
     await api(negocio.token)
@@ -417,7 +417,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       await tx.stockLot.count(),
     ]);
     const orden = await ordenEmitida(10);
-    const recepcion = await recibir(orden, 10, { lotCode: "L-F", expiresAt: "2027-06-30" });
+    const recepcion = await recibir(orden, 10, { lotCode: "L-F", expiresAt: "2037-06-30" });
     await confirmar(orden, recepcion).expect(200);
     const despues = await prisma.withTenantContext(negocio.tenantId, async (tx) => [
       await tx.stockMovement.count(),
@@ -450,5 +450,91 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
         reason: "no debería",
       })
       .expect(409);
+  });
+
+  /**
+   * La caducidad de lo que llega (Carlos, 2026-11-02): el año va de 2000 a
+   * 2099 y una recepción no trae mercancía ya caducada. Mismas reglas y mismos
+   * mensajes que la compra: la recepción es de la misma familia.
+   */
+  describe("la caducidad de lo que llega (2026-11-02)", () => {
+    /** Un día a N de hoy, con el corte UTC de la caducidad. */
+    const dia = (dias: number): string => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d.toISOString().slice(0, 10);
+    };
+    const guardarLineas = (orden: Orden, recepcion: Pick<Recepcion, "id">, extra: object) =>
+      api(negocio.token).put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
+        lines: [{ purchaseOrderLineId: orden.lines[0]?.id, quantity: 5, ...extra }],
+      });
+    const lineasDe = (receiptId: string) =>
+      prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.purchaseReceiptLine.findMany({
+          where: { receiptId },
+          select: { lotCode: true, expiresAt: true },
+        }),
+      );
+
+    it("el año 0027 rebota con 400 nombrando la línea y la fecha, y la línea no cambia", async () => {
+      const orden = await ordenEmitida(10);
+      const recepcion = await nuevaRecepcion(orden.id);
+      const antes = await lineasDe(recepcion.id);
+
+      const res = await guardarLineas(orden, recepcion, {
+        lotCode: "MAT-27",
+        expiresAt: "0027-10-01",
+      }).expect(400);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_year_out_of_range" });
+      expect((res.body as { message: string }).message).toContain("Línea 1");
+      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect(await lineasDe(recepcion.id)).toEqual(antes);
+    });
+
+    it("una caducidad que ya pasó rebota con 422, y la línea no cambia", async () => {
+      const orden = await ordenEmitida(10);
+      const recepcion = await nuevaRecepcion(orden.id);
+      const antes = await lineasDe(recepcion.id);
+
+      const res = await guardarLineas(orden, recepcion, {
+        lotCode: "MAT-AYER",
+        expiresAt: dia(-1),
+      }).expect(422);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect(await lineasDe(recepcion.id)).toEqual(antes);
+    });
+
+    it("una recepción cuya caducidad pasó mientras era borrador no se confirma", async () => {
+      const orden = await ordenEmitida(10);
+      const recepcion = await recibir(orden, 5, { lotCode: "MAT-ESPERA", expiresAt: dia(1) });
+      await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.purchaseReceiptLine.updateMany({
+          where: { receiptId: recepcion.id },
+          data: { expiresAt: new Date(`${dia(-1)}T00:00:00.000Z`) },
+        }),
+      );
+
+      const res = await confirmar(orden, recepcion).expect(422);
+
+      expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain("Línea 1");
+      expect(await estadoDe(orden)).toMatchObject({
+        status: "open",
+        lines: [expect.objectContaining({ quantityReceived: "0" })],
+      });
+    });
+
+    it("con una caducidad por venir, la recepción se confirma como siempre", async () => {
+      const orden = await ordenEmitida(10);
+      const recepcion = await recibir(orden, 5, { lotCode: "MAT-BIEN", expiresAt: dia(400) });
+
+      await confirmar(orden, recepcion).expect(200);
+
+      expect(await estadoDe(orden)).toMatchObject({ status: "partially_received" });
+    });
   });
 });

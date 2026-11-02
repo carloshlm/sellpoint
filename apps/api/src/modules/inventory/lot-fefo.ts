@@ -1,5 +1,5 @@
 import { UnprocessableEntityException } from "@nestjs/common";
-import { type MovementReason, rejectsExpiredLots } from "@sellpoint/shared";
+import { lotExpiryToday, type MovementReason, rejectsExpiredLots } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import type { ExpandedLine } from "./composition-expander";
 import { loadUnlottedRemainder } from "./count-buckets";
@@ -126,9 +126,7 @@ async function fetchCandidates(
  * mañana está vencido. Mismo criterio que la pestaña de existencias.
  */
 function comienzoDelDiaUtc(): Date {
-  const hoy = new Date();
-  hoy.setUTCHours(0, 0, 0, 0);
-  return hoy;
+  return lotExpiryToday();
 }
 
 /**

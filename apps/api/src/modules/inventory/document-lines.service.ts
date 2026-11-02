@@ -1,9 +1,15 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { type InventoryDocumentLine, Prisma } from "../../generated/prisma/client";
+import { documentRejectsPastExpiry } from "@sellpoint/shared";
+import {
+  type InventoryDocument,
+  type InventoryDocumentLine,
+  Prisma,
+} from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { DocumentsService } from "./documents.service";
 import type { ReplaceDocumentLinesDto, UpsertDocumentLineDto } from "./dto/document.dto";
+import { assertLotExpiry } from "./lot-expiry";
 
 /**
  * F3-DOC-04 — las líneas del borrador.
@@ -13,6 +19,12 @@ import type { ReplaceDocumentLinesDto, UpsertDocumentLineDto } from "./dto/docum
  * una línea a medio llenar es un estado legítimo mientras el documento sea
  * borrador, y rechazarla haría perder el trabajo que el borrador vino a
  * proteger. Lo que valida duro es el `confirm`; lo que avisa antes es la previa.
+ *
+ * Con UNA excepción, la caducidad tecleada (Carlos, 2026-11-02): un año fuera
+ * de 2000–2099 no es una línea a medio llenar sino un dato mal escrito, y una
+ * fecha ya pasada en una entrada de mercancía no se va a poder confirmar
+ * nunca. Las dos se rechazan al guardar, cuando quien la tecleó todavía tiene
+ * el campo enfrente.
  */
 @Injectable()
 export class DocumentLinesService {
@@ -33,7 +45,8 @@ export class DocumentLinesService {
     dto: UpsertDocumentLineDto,
   ): Promise<InventoryDocumentLine> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.documents.assertDraft(tx, user.tenantId, documentId);
+      const document = await this.documents.assertDraft(tx, user.tenantId, documentId);
+      assertCaducidadTecleada(document, dto.expiresAt);
 
       // Sin presentación EXPLÍCITA (undefined, no null), la línea nace con la
       // de factor 1 del producto: matemáticamente neutra (cantidad × 1), pero
@@ -103,7 +116,8 @@ export class DocumentLinesService {
     dto: Partial<UpsertDocumentLineDto>,
   ): Promise<InventoryDocumentLine> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.documents.assertDraft(tx, user.tenantId, documentId);
+      const document = await this.documents.assertDraft(tx, user.tenantId, documentId);
+      assertCaducidadTecleada(document, dto.expiresAt);
 
       const linea = await tx.inventoryDocumentLine.findFirst({ where: { id: lineId, documentId } });
       if (linea === null) {
@@ -147,7 +161,11 @@ export class DocumentLinesService {
     dto: ReplaceDocumentLinesDto,
   ): Promise<InventoryDocumentLine[]> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.documents.assertDraft(tx, user.tenantId, documentId);
+      const document = await this.documents.assertDraft(tx, user.tenantId, documentId);
+      // Antes de borrar: un rechazo deja el borrador como estaba.
+      dto.lines.forEach((line, index) => {
+        assertCaducidadTecleada(document, line.expiresAt, { lineIndex: index });
+      });
       await tx.inventoryDocumentLine.deleteMany({ where: { documentId } });
 
       if (dto.lines.length === 0) {
@@ -176,4 +194,25 @@ export class DocumentLinesService {
       });
     });
   }
+}
+
+/**
+ * La caducidad que viene en el cuerpo: el año siempre, y lo ya caducado solo
+ * en una entrada de mercancía (`documentRejectsPastExpiry`). Una salida o un
+ * conteo pueden nombrar un lote que ya caducó: es justo lo que se saca o se
+ * cuenta.
+ */
+function assertCaducidadTecleada(
+  document: InventoryDocument,
+  expiresAt: string | null | undefined,
+  args: Record<string, unknown> = {},
+): void {
+  if (!expiresAt) {
+    return;
+  }
+  assertLotExpiry(expiresAt, {
+    rejectPast: documentRejectsPastExpiry(document),
+    namespace: "inventory",
+    args: { ...args, field: "expiresAt" },
+  });
 }

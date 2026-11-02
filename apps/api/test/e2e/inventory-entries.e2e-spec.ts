@@ -733,7 +733,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       await request(app.getHttpServer())
         .patch(`/inventory/documents/${id}/lines/${(linea.body as { id: string }).id}`)
         .set(auth())
-        .send({ location: "R-07", lotCode: "L1", expiresAt: "2027-01-01" })
+        .send({ location: "R-07", lotCode: "L1", expiresAt: "2037-01-01" })
         .expect(200);
 
       await confirmar(id).expect(201);
@@ -748,6 +748,213 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       await confirmar(id).expect(201);
 
       expect(await ubicacionDe(productId)).toBe("E-11-01");
+    });
+  });
+
+  /**
+   * La caducidad de lo que ENTRA (Carlos, 2026-11-02). En producción un lote
+   * de «Materna c/30 tabletas» se guardó con 0027-10-01: en el campo de fecha
+   * basta teclear «27» en el año. Dos reglas: el año va de 2000 a 2099, y una
+   * entrada de mercancía no trae algo ya caducado (caducar HOY, sí).
+   */
+  describe("la caducidad de lo que entra (2026-11-02)", () => {
+    let conLote: string;
+
+    beforeAll(async () => {
+      const creado = await request(app.getHttpServer())
+        .post("/products")
+        .set(auth())
+        .send({ sku: `CAD-${randomUUID().slice(0, 8)}`, name: "Materna c/30", tracksLots: true })
+        .expect(201);
+      conLote = (creado.body as { id: string }).id;
+    });
+
+    /** Un día a N de hoy, con el corte UTC de la caducidad, como lo manda la pantalla. */
+    const dia = (dias: number): string => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d.toISOString().slice(0, 10);
+    };
+    const comoDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+
+    const lineasDe = (documentId: string) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        tx.inventoryDocumentLine.findMany({ where: { documentId }, select: { expiresAt: true } }),
+      );
+    const estadoDe = async (documentId: string) =>
+      (
+        await prisma.withTenantContext(tenantId, (tx) =>
+          tx.inventoryDocument.findUniqueOrThrow({
+            where: { id: documentId },
+            select: { status: true },
+          }),
+        )
+      ).status;
+    const movimientosDe = (documentId: string) =>
+      prisma.withTenantContext(tenantId, (tx) => tx.stockMovement.count({ where: { documentId } }));
+    const lotesDe = (lotCode: string) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.findMany({
+          where: { productId: conLote, lotCode },
+          select: { expiresAt: true },
+        }),
+      );
+    const crearLote = (lotCode: string, expiresAt: string) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.create({
+          data: { tenantId, productId: conLote, lotCode, expiresAt: comoDate(expiresAt) },
+        }),
+      );
+
+    it("una línea con el año 0027 se rechaza con 400 nombrando la fecha, y no se guarda", async () => {
+      const id = await borrador({ reasonCode: "invoice", reference: "F-0027" });
+
+      const res = await agregar(id, {
+        productId: conLote,
+        quantity: 3,
+        unitCost: 10,
+        lotCode: "M-27",
+        expiresAt: "0027-10-01",
+      }).expect(400);
+
+      expect(res.body).toMatchObject({ code: "inventory.expiry_year_out_of_range" });
+      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect((res.body as { message: string }).message).toContain("revisa el año");
+      expect(await lineasDe(id)).toHaveLength(0);
+    });
+
+    it("corregir la caducidad de una línea a ayer da 422 y la línea conserva la que tenía", async () => {
+      const id = await borrador({ reasonCode: "invoice", reference: "F-AYER" });
+      const linea = await agregar(id, {
+        productId: conLote,
+        quantity: 3,
+        unitCost: 10,
+        lotCode: "M-AYER",
+        expiresAt: dia(30),
+      }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${(linea.body as { id: string }).id}`)
+        .set(auth())
+        .send({ expiresAt: dia(-1) })
+        .expect(422);
+
+      expect(res.body).toMatchObject({ code: "inventory.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect((await lineasDe(id)).map((l) => l.expiresAt?.toISOString().slice(0, 10))).toEqual([
+        dia(30),
+      ]);
+    });
+
+    it("caducar HOY se permite: el día que caduca, el lote todavía sirve", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Caduca hoy" });
+      await agregar(id, {
+        productId: conLote,
+        quantity: 1,
+        lotCode: "M-HOY",
+        expiresAt: dia(0),
+      }).expect(201);
+
+      await confirmar(id).expect(201);
+
+      expect(await estadoDe(id)).toBe("confirmed");
+    });
+
+    it("una caducidad futura sigue confirmando, y el lote nace con ella", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Futura" });
+      await agregar(id, {
+        productId: conLote,
+        quantity: 2,
+        lotCode: "M-FUTURA",
+        expiresAt: dia(400),
+      }).expect(201);
+
+      await confirmar(id).expect(201);
+
+      const [lote] = await lotesDe("M-FUTURA");
+      expect(lote?.expiresAt?.toISOString().slice(0, 10)).toBe(dia(400));
+    });
+
+    it("un borrador cuya caducidad pasó mientras esperaba ya no se confirma", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Se quedó abierto" });
+      await agregar(id, {
+        productId: conLote,
+        quantity: 2,
+        lotCode: "M-ESPERA",
+        expiresAt: dia(1),
+      }).expect(201);
+      // El borrador se quedó abierto hasta que la fecha pasó: se simula
+      // moviendo la caducidad de la línea a ayer.
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.inventoryDocumentLine.updateMany({
+          where: { documentId: id },
+          data: { expiresAt: comoDate(dia(-1)) },
+        }),
+      );
+
+      // La previa ya lo marca sobre la fila…
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      expect((detalle.body as { rows: { errors: { code: string }[] }[] }).rows[0]?.errors).toEqual([
+        expect.objectContaining({ code: "inventory.expiry_in_past" }),
+      ]);
+      // …y el confirm lo rechaza sin mover nada.
+      const res = await confirmar(id).expect(422);
+      expect(res.body).toMatchObject({ code: "inventory.expiry_in_past" });
+      expect(await estadoDe(id)).toBe("draft");
+      expect(await movimientosDe(id)).toBe(0);
+      expect(await lotesDe("M-ESPERA")).toHaveLength(0);
+    });
+
+    it("la caducidad HEREDADA de un lote ya caducado también cuenta", async () => {
+      await crearLote("M-VIEJO", dia(-1));
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Heredada" });
+      // La línea trae solo el código: la fecha es la del lote que ya existe.
+      await agregar(id, { productId: conLote, quantity: 2, lotCode: "M-VIEJO" }).expect(201);
+
+      const res = await confirmar(id).expect(422);
+
+      expect(res.body).toMatchObject({ code: "inventory.expiry_in_past" });
+      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect(await estadoDe(id)).toBe("draft");
+      expect(await movimientosDe(id)).toBe(0);
+    });
+
+    it("un lote guardado con el año 0027 no recibe más mercancía hasta corregirlo", async () => {
+      // El caso de producción: el lote YA quedó con el año mal escrito.
+      await crearLote("M-0027", "0027-10-01");
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Lote mal fechado" });
+      await agregar(id, { productId: conLote, quantity: 2, lotCode: "M-0027" }).expect(201);
+
+      const res = await confirmar(id).expect(400);
+
+      expect(res.body).toMatchObject({ code: "inventory.expiry_year_out_of_range" });
+      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect(await estadoDe(id)).toBe("draft");
+      expect(await movimientosDe(id)).toBe(0);
+    });
+
+    it("una salida no cambia: su línea guarda una caducidad pasada", async () => {
+      const res = await request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set(auth())
+        .send({ type: "exit", warehouseId })
+        .expect(201);
+      const id = (res.body as { id: string }).id;
+
+      await agregar(id, {
+        productId: conLote,
+        quantity: 1,
+        lotCode: "M-VIEJO",
+        expiresAt: dia(-1),
+      }).expect(201);
+
+      expect((await lineasDe(id)).map((l) => l.expiresAt?.toISOString().slice(0, 10))).toEqual([
+        dia(-1),
+      ]);
     });
   });
 });

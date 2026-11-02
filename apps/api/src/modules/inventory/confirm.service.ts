@@ -1,5 +1,10 @@
 import { ForbiddenException, Injectable, UnprocessableEntityException } from "@nestjs/common";
-import { REASON_RULES, SELECTABLE_ENTRY_REASONS, SELECTABLE_EXIT_REASONS } from "@sellpoint/shared";
+import {
+  documentRejectsPastExpiry,
+  REASON_RULES,
+  SELECTABLE_ENTRY_REASONS,
+  SELECTABLE_EXIT_REASONS,
+} from "@sellpoint/shared";
 import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -102,7 +107,14 @@ export class ConfirmService {
           expiresAt: l.expiresAt,
           location: l.location,
         })),
-        { direction, reasonCode, allowEmptyQuantity: document.type === "physical_count" },
+        {
+          direction,
+          reasonCode,
+          allowEmptyQuantity: document.type === "physical_count",
+          // Un borrador puede esperar hasta que su caducidad pase: se revisa
+          // otra vez aquí, no solo al guardar la línea (Carlos, 2026-11-02).
+          rejectPastExpiry: documentRejectsPastExpiry(document),
+        },
       );
 
       // 2. Un compuesto sale como sus componentes (solo en salidas).

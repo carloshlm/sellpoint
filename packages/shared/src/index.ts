@@ -13,6 +13,7 @@ export * from "./i18n";
 export * from "./icd10";
 export * from "./inventory";
 export * from "./lot-code";
+export * from "./lot-expiry";
 export * from "./medical-clinic";
 export * from "./medical-measures";
 export * from "./modules";

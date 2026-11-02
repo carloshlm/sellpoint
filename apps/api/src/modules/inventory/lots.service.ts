@@ -1,9 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { lotExpiryToday } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertLotExpiry } from "./lot-expiry";
 import { assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 export interface LotStockRow {
@@ -180,6 +182,11 @@ export class LotsService {
    * Un lote NO se borra. Los movimientos lo referencian y el histórico no se
    * reescribe (FK `Restrict`); sin saldo simplemente deja de aparecer con
    * `withStock=true`, que es el comportamiento que la pantalla ya usa.
+   *
+   * La fecha nueva respeta el año 2000–2099 (Carlos, 2026-11-02): aquí es
+   * donde se corrige el 0027 que dejó la captura, y no puede volver a entrar
+   * por la misma puerta. Una fecha PASADA sí se acepta: se corrige un lote
+   * que de verdad caducó, y lo que no recibe lo caducado son las entradas.
    */
   async updateLot(
     user: AuthUser,
@@ -188,6 +195,13 @@ export class LotsService {
     input: { lotCode?: string; expiresAt?: string | null },
     meta: { ip?: string; userAgent?: string } = {},
   ) {
+    if (input.expiresAt) {
+      assertLotExpiry(input.expiresAt, {
+        rejectPast: false,
+        namespace: "inventory",
+        args: { field: "expiresAt" },
+      });
+    }
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const lote = await tx.productLot.findFirst({
         where: { id: lotId, productId, tenantId: user.tenantId },
@@ -283,8 +297,7 @@ export class LotsService {
 
     // Medianoche UTC: `expires_at` es una columna DATE y compararla contra un
     // instante con hora correría el corte según el huso del servidor.
-    const hoy = new Date();
-    hoy.setUTCHours(0, 0, 0, 0);
+    const hoy = lotExpiryToday();
     const limite = new Date(hoy);
     limite.setUTCDate(limite.getUTCDate() + options.days);
     // `onlyExpired` es su propio filtro, no un plazo de cero días (Carlos,

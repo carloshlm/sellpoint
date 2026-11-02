@@ -126,4 +126,50 @@ describe("DTOs de movimiento (F3-CORE-02)", () => {
       expect(createExitSchema.safeParse(salida({ warehouseId: "abc" })).success).toBe(false);
     });
   });
+
+  /**
+   * La caducidad (Carlos, 2026-11-02): un lote se guardó con 0027-10-01. El
+   * año va de 2000 a 2099 en cualquier movimiento, y una ENTRADA no trae
+   * mercancía ya caducada; una salida sí puede nombrar un lote vencido.
+   */
+  describe("la caducidad", () => {
+    const dia = (dias: number): string => {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d.toISOString().slice(0, 10);
+    };
+    const conCaducidad = (expiresAt: string) => [
+      linea({ unitCost: 10, lotCode: "M-1", expiresAt }),
+    ];
+    const mensajes = (result: { error?: { issues: { message: string }[] } }) =>
+      result.error?.issues.map((i) => i.message) ?? [];
+
+    it("el año 0027 se rechaza en la línea, también en una salida", () => {
+      const entradaMala = createEntrySchema.safeParse(
+        entrada({ lines: conCaducidad("0027-10-01") }),
+      );
+      const salidaMala = createExitSchema.safeParse(salida({ lines: conCaducidad("0027-10-01") }));
+
+      expect(rutas(entradaMala)).toEqual(["lines.0.expiresAt"]);
+      expect(mensajes(entradaMala)).toEqual(["inventory.expiry_year_out_of_range"]);
+      expect(mensajes(salidaMala)).toEqual(["inventory.expiry_year_out_of_range"]);
+    });
+
+    it("una entrada con caducidad de ayer se rechaza; caducar hoy, no", () => {
+      const ayer = createEntrySchema.safeParse(entrada({ lines: conCaducidad(dia(-1)) }));
+
+      expect(rutas(ayer)).toEqual(["lines.0.expiresAt"]);
+      expect(mensajes(ayer)).toEqual(["inventory.expiry_in_past"]);
+      expect(createEntrySchema.safeParse(entrada({ lines: conCaducidad(dia(0)) })).success).toBe(
+        true,
+      );
+    });
+
+    it("una salida puede nombrar un lote que ya caducó", () => {
+      expect(createExitSchema.safeParse(salida({ lines: conCaducidad(dia(-1)) })).success).toBe(
+        true,
+      );
+    });
+  });
 });

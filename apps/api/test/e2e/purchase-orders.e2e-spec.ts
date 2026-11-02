@@ -169,7 +169,7 @@ describe("Órdenes de compra (F9-PO)", () => {
 
     it("encendido el ajuste, las órdenes nacen con folio correlativo y en borrador", async () => {
       await api(negocio.token).patch("/tenants/me", { usesPurchaseOrders: true }).expect(200);
-      const primera = await nuevaOrden({ expectedDate: "2031-01-01" });
+      const primera = await nuevaOrden({ expectedDate: "2041-01-01" });
       const segunda = await nuevaOrden();
       expect(primera.folio).toBe("OCO-000001");
       expect(segunda.folio).toBe("OCO-000002");
@@ -178,7 +178,7 @@ describe("Órdenes de compra (F9-PO)", () => {
         status: "draft",
         taxMode: "excluded",
         supplierName: "Distribuidora Norte",
-        expectedDate: "2031-01-01",
+        expectedDate: "2041-01-01",
         total: "0",
         receipts: [],
         purchases: [],
@@ -201,14 +201,14 @@ describe("Órdenes de compra (F9-PO)", () => {
 
     it("la fecha del pedido es de hoy para atrás; la esperada es la única que puede ser mañana", async () => {
       await api(negocio.token)
-        .post("/purchase-orders", { supplierId: proveedorId, orderDate: "2031-01-01" })
+        .post("/purchase-orders", { supplierId: proveedorId, orderDate: "2041-01-01" })
         .expect(422);
       const orden = await nuevaOrden();
       await api(negocio.token)
-        .patch(`/purchase-orders/${orden.id}`, { expectedDate: "2031-06-30" })
+        .patch(`/purchase-orders/${orden.id}`, { expectedDate: "2041-06-30" })
         .expect(200);
       await api(negocio.token)
-        .patch(`/purchase-orders/${orden.id}`, { orderDate: "2031-06-30" })
+        .patch(`/purchase-orders/${orden.id}`, { orderDate: "2041-06-30" })
         .expect(422);
     });
 
@@ -437,13 +437,13 @@ describe("Órdenes de compra (F9-PO)", () => {
         .expect(409);
       const anotada = await api(negocio.token)
         .patch(`/purchase-orders/${orden.id}`, {
-          expectedDate: "2031-03-01",
+          expectedDate: "2041-03-01",
           notes: "confirmado por teléfono",
           supplierReference: "COT-77",
         })
         .expect(200);
       expect(anotada.body).toMatchObject({
-        expectedDate: "2031-03-01",
+        expectedDate: "2041-03-01",
         supplierReference: "COT-77",
       });
     });

@@ -1,6 +1,12 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
-import { type MovementDirection, type MovementReason, rejectsExpiredLots } from "@sellpoint/shared";
+import {
+  isLotExpiryPast,
+  type MovementDirection,
+  type MovementReason,
+  rejectsExpiredLots,
+} from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
+import { assertLotExpiry } from "./lot-expiry";
 
 /** Lo que el usuario capturó, antes de resolverse contra el catálogo. */
 export interface RawLine {
@@ -66,6 +72,14 @@ export interface ResolveOptions {
    * mueve lo decide `expandCount` (Carlos, 2026-09-01).
    */
   allowEmptyQuantity?: boolean;
+  /**
+   * Una entrada de MERCANCÍA no trae algo ya caducado (Carlos, 2026-11-02):
+   * la caducidad que la línea va a llevar —la tecleada o la HEREDADA del lote
+   * que ya existe— no puede ser de antes de hoy. Lo decide quien llama
+   * (`documentRejectsPastExpiry`), porque depende del tipo del documento y no
+   * solo del motivo: el conteo y la recepción de un traspaso, no.
+   */
+  rejectPastExpiry?: boolean;
 }
 
 type ProductRow = {
@@ -379,19 +393,34 @@ async function resolveLot(
     // Un lote heredado SIN fecha (de antes de la regla de abajo) no puede
     // seguir recibiendo mercancía a ciegas: o la línea trae la caducidad —y
     // el lote se la queda, porque la fecha es del lote— o la entrada no pasa.
-    if (options.direction === "entry" && guardada === null) {
-      if (pedida === null) {
-        throw new UnprocessableEntityException({
-          message: "inventory.expiry_required",
-          args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
-        });
-      }
-      if (!preview) {
-        await tx.productLot.update({
-          where: { id: existing.id },
-          data: { expiresAt: new Date(line.expiresAt as string) },
-        });
-      }
+    if (options.direction === "entry" && guardada === null && pedida === null) {
+      throw new UnprocessableEntityException({
+        message: "inventory.expiry_required",
+        args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
+      });
+    }
+    // La caducidad que la línea VA A LLEVAR (Carlos, 2026-11-02): la suya, o
+    // la del lote si no trae. Cuenta también la heredada: un lote que caducó
+    // ayer no recibe mercancía aunque la línea no lo diga. El año se revisa
+    // además siempre que la fecha se le vaya a ESCRIBIR al lote (el lote sin
+    // fecha), aunque la entrada sea un conteo: por ahí se coló el 0027.
+    const efectiva = pedida ?? guardada;
+    if (
+      options.direction === "entry" &&
+      efectiva !== null &&
+      (options.rejectPastExpiry === true || guardada === null)
+    ) {
+      assertLotExpiry(efectiva, {
+        rejectPast: options.rejectPastExpiry === true,
+        namespace: "inventory",
+        args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
+      });
+    }
+    if (options.direction === "entry" && guardada === null && !preview) {
+      await tx.productLot.update({
+        where: { id: existing.id },
+        data: { expiresAt: new Date(line.expiresAt as string) },
+      });
     }
     // Elegir el lote a mano NO es una llave maestra. FEFO ya se niega a tomar
     // un vencido para una venta; si esto no estuviera, bastaría con teclear el
@@ -405,9 +434,7 @@ async function resolveLot(
       rejectsExpiredLots(options.reasonCode) &&
       existing.expiresAt !== null
     ) {
-      const hoy = new Date();
-      hoy.setUTCHours(0, 0, 0, 0);
-      if (existing.expiresAt < hoy) {
+      if (isLotExpiryPast(existing.expiresAt)) {
         throw new UnprocessableEntityException({
           message: "inventory.expired_lot_not_sellable",
           args: {
@@ -431,6 +458,15 @@ async function resolveLot(
   if (options.direction === "entry" && !line.expiresAt) {
     throw new UnprocessableEntityException({
       message: "inventory.expiry_required",
+      args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
+    });
+  }
+  // La fecha con que el lote NACE (Carlos, 2026-11-02): el año siempre —es
+  // la que se le escribe—, y lo caducado cuando es mercancía que entra.
+  if (line.expiresAt) {
+    assertLotExpiry(line.expiresAt, {
+      rejectPast: options.direction === "entry" && options.rejectPastExpiry === true,
+      namespace: "inventory",
       args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
     });
   }

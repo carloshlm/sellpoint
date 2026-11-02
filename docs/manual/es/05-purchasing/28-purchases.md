@@ -36,7 +36,9 @@ compras hay y el total del rango. Los estados son:
 5. En **Productos de la factura**, busca cada producto y escribe la
    **Presentación**, la **Cantidad**, el **Costo unitario** y, si hubo, el
    **Descuento**. Si el producto se controla por lote, escribe también el
-   **Lote** y la **Caducidad**. Cada línea lleva el impuesto de su producto,
+   **Lote** y la **Caducidad**; la caducidad lleva el año completo, entre 2000
+   y 2099, y no puede ser de antes de hoy, porque no se compra mercancía
+   caducada. Cada línea lleva el impuesto de su producto,
    el mismo con el que se vende: una medicina al IVA 0% no suma IVA. Si el
    producto no tiene uno, lleva el predeterminado del negocio.
 6. Si la factura trae flete, maniobras o seguro, agrégalos en **Cargos

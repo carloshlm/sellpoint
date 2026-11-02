@@ -302,8 +302,8 @@ describe("Los candados de la lista comercial (F9-PLANLIST)", () => {
         })
         .expect(200);
       for (const [lotCode, expiresAt] of [
-        ["TARDE-01", "2027-12-31"],
-        ["PRONTO-01", "2027-03-31"],
+        ["TARDE-01", "2037-12-31"],
+        ["PRONTO-01", "2037-03-31"],
       ]) {
         await api(negocio.token)
           .post(`/inventory/documents/${entrada.id}/lines`, {

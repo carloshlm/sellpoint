@@ -14,7 +14,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
 import { derivesFractionalInput } from "../products/products.service";
-import { aplicarReglasDeLote } from "../purchases/lot-rules";
+import { aplicarReglasDeLote, assertCaducidadDeEntrada } from "../purchases/lot-rules";
 import type {
   CancelPurchaseReceiptDto,
   ReplacePurchaseReceiptLinesDto,
@@ -384,6 +384,8 @@ export class PurchaseReceiptsService {
             args: { field: `lines.${index + 1}.expiresAt`, line: index + 1 },
           });
         }
+        // La caducidad pudo pasar mientras la recepción era borrador.
+        assertCaducidadDeEntrada(linea.expiresAt, index + 1, `lines.${index + 1}.expiresAt`);
       });
       const bloqueadas = new Map((await lineasBloqueadas(tx, orderId)).map((l) => [l.id, l]));
       // Varias líneas de la recepción pueden apuntar a la misma línea de la

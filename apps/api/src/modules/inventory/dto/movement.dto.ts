@@ -1,8 +1,12 @@
 import {
   hasValidQuantityScale,
+  isLotExpiryYearInRange,
+  lotExpiryProblem,
+  type MovementReason,
   normalizeLotCode,
   QUANTITY_MAX,
   REASON_RULES,
+  rejectsPastExpiry,
   SELECTABLE_ENTRY_REASONS,
   SELECTABLE_EXIT_REASONS,
 } from "@sellpoint/shared";
@@ -55,13 +59,23 @@ export function countedAmount() {
     .refine(hasValidQuantityScale, "inventory.quantity_too_many_decimals");
 }
 
+/**
+ * La caducidad de un lote: una fecha `AAAA-MM-DD` con el año entre 2000 y
+ * 2099 (Carlos, 2026-11-02). Un lote se guardó con 0027-10-01 porque en el
+ * campo de fecha basta teclear «27» en el año, y `z.iso.date()` lo daba por
+ * bueno. Que no esté caducada lo exige la ENTRADA (`rejectExpiredEntries`).
+ */
+function expiryField() {
+  return z.iso.date().refine(isLotExpiryYearInRange, "inventory.expiry_year_out_of_range");
+}
+
 const movementLineSchema = z.object({
   productId: z.uuid(),
   presentationId: z.uuid().optional(),
   quantity: quantityAmount(),
   unitCost: moneyAmount().optional(),
   lotCode: lotCodeField().optional(),
-  expiresAt: z.iso.date().optional(),
+  expiresAt: expiryField().optional(),
   location: z.string().trim().max(64).optional(),
   lotId: z.uuid().optional(),
 });
@@ -88,7 +102,7 @@ type MovementBody = {
   reference?: string;
   reasonNote?: string;
   linkedWarehouseId?: string;
-  lines: { unitCost?: number }[];
+  lines: { unitCost?: number; expiresAt?: string }[];
 };
 
 /**
@@ -139,9 +153,35 @@ function applyReasonRules(body: MovementBody, ctx: z.RefinementCtx): void {
  * tránsito). Ofrecerlos acá dejaría armar un movimiento que el service rechaza
  * después con 422.
  */
+/**
+ * Una entrada no trae mercancía ya caducada (Carlos, 2026-11-02). Caducar HOY
+ * se permite: el día que caduca, el lote todavía sirve. Qué motivos lo
+ * rechazan lo dice `rejectsPastExpiry`, la misma lista del confirm.
+ */
+function rejectExpiredEntries(body: MovementBody, ctx: z.RefinementCtx): void {
+  if (!rejectsPastExpiry(body.reasonCode as MovementReason)) {
+    return;
+  }
+  body.lines.forEach((line, index) => {
+    // El año ya lo marcó `expiryField`: un 0027 es un error de captura, no
+    // una fecha pasada, y decir las dos cosas confundiría.
+    if (
+      line.expiresAt !== undefined &&
+      lotExpiryProblem(line.expiresAt, { rejectPast: true }) === "in_past"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["lines", index, "expiresAt"],
+        message: "inventory.expiry_in_past",
+      });
+    }
+  });
+}
+
 export const createEntrySchema = z
   .object({ ...headerShape, reasonCode: z.enum(SELECTABLE_ENTRY_REASONS) })
-  .superRefine(applyReasonRules);
+  .superRefine(applyReasonRules)
+  .superRefine(rejectExpiredEntries);
 
 export const createExitSchema = z
   .object({ ...headerShape, reasonCode: z.enum(SELECTABLE_EXIT_REASONS) })

@@ -1,5 +1,6 @@
 import { UnprocessableEntityException } from "@nestjs/common";
 import type { Prisma } from "../../generated/prisma/client";
+import { assertLotExpiry } from "../inventory/lot-expiry";
 
 /** Una partida con lo que trae del papel: producto, lote y caducidad (o nada). */
 export interface PartidaConLote {
@@ -27,6 +28,8 @@ type TxDeLotes = Pick<Prisma.TransactionClient, "product" | "productLot">;
  *  2. La caducidad es del LOTE, no de la línea: si el lote ya existe en el
  *     registro —con o sin existencias—, una línea sin fecha la HEREDA y una
  *     con otra fecha rebota (adivinar cuál está mal sería peor que preguntar).
+ *  3. La caducidad que la partida VA A LLEVAR —la tecleada o la heredada—
+ *     respeta `assertCaducidadDeEntrada` (Carlos, 2026-11-02).
  *
  * Los mensajes viven en el namespace `purchases`: la recepción es de la misma
  * familia y el texto es el mismo para las dos.
@@ -80,6 +83,25 @@ export async function aplicarReglasDeLote(
       }
       if (pedida === null) expiresAt = guardada;
     }
+    assertCaducidadDeEntrada(expiresAt, index + 1, `${campo(index)}.expiresAt`);
     return { lotCode: partida.lotCode ?? null, expiresAt };
   });
+}
+
+/**
+ * Una compra o una recepción meten mercancía al negocio (Carlos,
+ * 2026-11-02): su caducidad tiene el año entre 2000 y 2099 —un lote se guardó
+ * con 0027-10-01 porque en el campo de fecha basta teclear «27»— y no es de
+ * antes de hoy, porque no se compra algo ya caducado. Caducar HOY se permite.
+ *
+ * Se revisa al guardar las líneas y otra vez al CONFIRMAR: un borrador puede
+ * esperar hasta que la fecha pase.
+ */
+export function assertCaducidadDeEntrada(
+  expiresAt: Date | null,
+  line: number,
+  field: string,
+): void {
+  if (expiresAt === null) return;
+  assertLotExpiry(expiresAt, { rejectPast: true, namespace: "purchases", args: { field, line } });
 }

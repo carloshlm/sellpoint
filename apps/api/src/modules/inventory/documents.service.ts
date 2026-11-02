@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
+  documentRejectsPastExpiry,
   effectiveDocumentDateField,
   endOfDayUtc,
   FOLIO_PREFIXES,
@@ -465,6 +466,10 @@ export class DocumentsService {
           reasonCode: document.reasonCode ?? "adjustment",
           mode: "preview",
           allowEmptyQuantity: esConteo,
+          // La misma regla que el confirm: la previa marca la fila ANTES de
+          // que el confirm la rechace (un borrador que esperó a que su
+          // caducidad pasara, o el lote heredado que ya caducó).
+          rejectPastExpiry: esBorrador && documentRejectsPastExpiry(document),
         },
       );
 

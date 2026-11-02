@@ -62,7 +62,9 @@ a ser el costo del producto en tu catálogo.
 
 Si el producto se controla por lote, la entrada te pide el **Lote** y su
 **Caducidad**, y la salida elige sola el lote que vence primero (capítulo 26,
-«Lotes y próximos a vencer»).
+«Lotes y próximos a vencer»). En una entrada, la caducidad lleva el año
+completo, entre 2000 y 2099, y no puede ser de antes de hoy: SellPointy no da
+entrada a mercancía caducada, ni al capturar la línea ni al confirmar.
 
 ## Lo que ya no se puede cambiar
 

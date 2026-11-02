@@ -31,5 +31,7 @@
   "received_before_receipts": "{field}: la recepción no puede ser anterior a la última recepción facturada ({receiptDate}).",
   "received_before_order": "{field}: la recepción no puede ser anterior a la fecha del pedido ({orderDate}).",
   "lot_required": "Línea {line}: este producto se controla por lote y falta indicar el lote.",
-  "expiry_required": "Línea {line}: este producto se controla por lote y falta la fecha de caducidad del lote."
+  "expiry_required": "Línea {line}: este producto se controla por lote y falta la fecha de caducidad del lote.",
+  "expiry_year_out_of_range": "Línea {line}: la caducidad {expiresAt} no es válida: revisa el año.",
+  "expiry_in_past": "Línea {line}: la caducidad {expiresAt} ya pasó: no se puede dar entrada a mercancía caducada."
 }

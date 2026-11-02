@@ -568,9 +568,9 @@ describe("Kardex (F3-KARDEX-01)", () => {
       });
 
       await mover("entry", warehouseA, [
-        { productId: conLotes, quantity: 10, lotCode: "l1", expiresAt: "2027-01-01" },
-        { productId: conLotes, quantity: 20, lotCode: "l2", expiresAt: "2027-02-01" },
-        { productId: conLotes, quantity: 30, lotCode: "l3", expiresAt: "2027-03-01" },
+        { productId: conLotes, quantity: 10, lotCode: "l1", expiresAt: "2037-01-01" },
+        { productId: conLotes, quantity: 20, lotCode: "l2", expiresAt: "2037-02-01" },
+        { productId: conLotes, quantity: 30, lotCode: "l3", expiresAt: "2037-03-01" },
       ]);
 
       const res = await kardex(token, conLotes).expect(200);
@@ -752,8 +752,8 @@ describe("Kardex (F3-KARDEX-01)", () => {
       // Códigos elegidos para que el orden alfabético NO coincida con el
       // cronológico: si alguien ordenara por código, esto lo delata.
       await mover("entry", warehouseA, [
-        { productId: conLotes, quantity: 5, lotCode: "aaa-tarde", expiresAt: "2027-12-01" },
-        { productId: conLotes, quantity: 3, lotCode: "zzz-pronto", expiresAt: "2027-01-01" },
+        { productId: conLotes, quantity: 5, lotCode: "aaa-tarde", expiresAt: "2037-12-01" },
+        { productId: conLotes, quantity: 3, lotCode: "zzz-pronto", expiresAt: "2037-01-01" },
       ]);
 
       const res = await stock(token, conLotes).expect(200);
@@ -798,11 +798,20 @@ describe("Kardex (F3-KARDEX-01)", () => {
         return d.toISOString().slice(0, 10);
       };
 
+      // Una entrada ya no acepta mercancía caducada: el lote vencido entra con
+      // fecha futura y después se le pone la que ya pasó, como lo haría
+      // «Editar lote» con un lote que de verdad venció.
       await mover("entry", warehouseA, [
-        { productId: conLotes, quantity: 12, lotCode: "vencido", expiresAt: dias(-19) },
+        { productId: conLotes, quantity: 12, lotCode: "vencido", expiresAt: dias(30) },
         { productId: conLotes, quantity: 50, lotCode: "pronto", expiresAt: dias(3) },
         { productId: conLotes, quantity: 200, lotCode: "lejano", expiresAt: dias(400) },
       ]);
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.updateMany({
+          where: { productId: conLotes, lotCode: "VENCIDO" },
+          data: { expiresAt: new Date(`${dias(-19)}T00:00:00.000Z`) },
+        }),
+      );
 
       const res = await stock(token, conLotes).expect(200);
       const lotes = (
@@ -834,8 +843,8 @@ describe("Kardex (F3-KARDEX-01)", () => {
         return p.id;
       });
       await mover("entry", warehouseA, [
-        { productId: conLotes, quantity: 5, lotCode: "l1", expiresAt: "2027-01-01" },
-        { productId: conLotes, quantity: 3, lotCode: "l2", expiresAt: "2027-02-01" },
+        { productId: conLotes, quantity: 5, lotCode: "l1", expiresAt: "2037-01-01" },
+        { productId: conLotes, quantity: 3, lotCode: "l2", expiresAt: "2037-02-01" },
       ]);
 
       const res = await stock(token, conLotes).expect(200);
@@ -913,8 +922,8 @@ describe("Kardex (F3-KARDEX-01)", () => {
           tracksLots: true,
           total: "13",
           lotes: [
-            { code: "L-4", quantity: "4", expiresAt: "2027-05-01" },
-            { code: "L-0", quantity: "0", expiresAt: "2027-01-01" },
+            { code: "L-4", quantity: "4", expiresAt: "2037-05-01" },
+            { code: "L-0", quantity: "0", expiresAt: "2037-01-01" },
           ],
         });
 

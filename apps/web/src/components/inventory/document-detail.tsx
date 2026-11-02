@@ -1,9 +1,13 @@
 import {
   type Currency,
+  documentRejectsPastExpiry,
   effectiveDocumentDate,
   formatMoney,
   formatQuantity,
+  LOT_EXPIRY_MAX_DATE,
+  LOT_EXPIRY_MIN_DATE,
   localeToBcp47,
+  lotExpiryTodayIso,
   normalizeLotCode,
   REASON_RULES,
   unitLabelFor,
@@ -152,6 +156,12 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   // queda: ahí es la previa de cómo va a quedar el saldo.
   const conStock = !esConteo || document.status === "draft";
   const sinLineas = document.rows.length === 0;
+  // El calendario de la caducidad ofrece lo que el API acepta (Carlos,
+  // 2026-11-02): en una entrada de mercancía, de hoy en adelante; en las
+  // demás, cualquier día de 2000 a 2099. El API es la garantía.
+  const minCaducidad = documentRejectsPastExpiry(document)
+    ? lotExpiryTodayIso()
+    : LOT_EXPIRY_MIN_DATE;
 
   // La cabecera se valida ANTES de mandar: descubrir que faltaba la nota por
   // un 400 sería enterarse de un requisito que la pantalla nunca mostró.
@@ -451,6 +461,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     esConteo={esConteo}
                     conStock={conStock}
                     conColumnaFinal={conColumnaFinal}
+                    minCaducidad={minCaducidad}
                     registrarCampo={registrarCampo}
                   />
                 ))}
@@ -536,6 +547,7 @@ function LineRow({
   esConteo,
   conStock,
   conColumnaFinal,
+  minCaducidad,
   autoFocusQuantity,
   registrarCampo,
 }: {
@@ -552,6 +564,8 @@ function LineRow({
   conStock: boolean;
   /** La tabla tiene su última columna (quitar y avisos): la fila también, aunque vacía. */
   conColumnaFinal: boolean;
+  /** El `min` del calendario de la caducidad: hoy en una entrada de mercancía. */
+  minCaducidad: string;
   autoFocusQuantity: boolean;
   /** Deja este campo en el mapa del padre, con cómo devolverle su valor. */
   registrarCampo: (restaurar: (valor: string) => void) => (campo: HTMLInputElement | null) => void;
@@ -788,7 +802,15 @@ function LineRow({
   // servidor— y se muestra junto a los suyos, en la misma celda de la fila:
   // un aviso arriba no señala a ninguna línea en un documento de cuarenta.
   const errorCosto = costoInvalido ? t("products.invalid_amount") : null;
-  const conError = row.errors.length > 0 || errorCosto !== null;
+  // El rechazo de la caducidad al GUARDAR (Carlos, 2026-11-02): un año fuera
+  // de 2000–2099, o una fecha ya pasada en una entrada. El mensaje ya viene
+  // traducido del API y va con los demás de la fila; sin esto el autoguardado
+  // fallaba en silencio y la fecha tecleada se quedaba en pantalla como buena.
+  const errorCaducidad =
+    guardarCaducidad.error === null
+      ? null
+      : (guardarCaducidad.error as unknown as ApiError).message;
+  const conError = row.errors.length > 0 || errorCosto !== null || errorCaducidad !== null;
   const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
 
   return (
@@ -1013,6 +1035,9 @@ function LineRow({
                     ref={registrarCampo(setExpiresAt)}
                     type="date"
                     value={expiresAt}
+                    min={minCaducidad}
+                    max={LOT_EXPIRY_MAX_DATE}
+                    aria-invalid={errorCaducidad !== null ? true : undefined}
                     onChange={(event) => setExpiresAt(event.target.value)}
                     className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                   />
@@ -1088,6 +1113,7 @@ function LineRow({
                 {[
                   ...row.errors.map((error) => t(error.code, error.args)),
                   ...(errorCosto === null ? [] : [errorCosto]),
+                  ...(errorCaducidad === null ? [] : [errorCaducidad]),
                 ].join(" · ")}
               </span>
             )}

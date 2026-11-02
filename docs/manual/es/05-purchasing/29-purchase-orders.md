@@ -46,7 +46,9 @@ Cada vez que llega mercancía de la orden:
 1. Abre la orden y presiona **Registrar recepción**.
 2. La recepción nace con lo que falta de cada producto. Deja en **Llegó** lo que
    de verdad llegó: ajusta lo incompleto y quita lo que no vino. Si el producto
-   se controla por lote, escribe el **Lote** y la **Caducidad**.
+   se controla por lote, escribe el **Lote** y la **Caducidad**. La caducidad
+   lleva el año completo, entre 2000 y 2099, y no puede ser de antes de hoy: no
+   se recibe mercancía caducada.
 3. Si la mercancía trae **Remisión o packing slip**, anota su número para
    cotejarlo después con la factura.
 4. Presiona **Confirmar recepción**.
