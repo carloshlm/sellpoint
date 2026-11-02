@@ -1,6 +1,7 @@
 {
   "hub": {
     "title": "Reports",
+    "back": "Back to Reports",
     "downloadFailed": "We couldn't generate the file. Please try again.",
     "stock": {
       "title": "Stock by store",

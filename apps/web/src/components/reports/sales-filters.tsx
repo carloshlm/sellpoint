@@ -32,11 +32,20 @@ function useRangoInicial(): RangoDeFechas {
   return { from: localCalendarDate(zona, new Date()), to: "" };
 }
 
+interface SalesFiltersOptions {
+  /**
+   * Si la pantalla ofrece el filtro de Estado. Ventas sí; «Ventas por
+   * producto» y «Ventas por servicio» no (Carlos, 2026-11-02): listan solo lo
+   * cobrado y su API responde 400 si llega `status`.
+   */
+  showStatus?: boolean;
+}
+
 /**
  * Los filtros de las ventas y su página. Cambiar un filtro vuelve a la página
  * 1: quedarse en la 7 de otra consulta muestra filas que no son las pedidas.
  */
-export function useSalesFilters() {
+export function useSalesFilters({ showStatus = true }: SalesFiltersOptions = {}) {
   const rangoInicial = useRangoInicial();
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [estado, setEstado] = useState<Estado>("todas");
@@ -49,7 +58,7 @@ export function useSalesFilters() {
    */
   const filtros: SalesReportQuery = {
     ...(warehouseId !== null && { warehouseId }),
-    ...(estado !== "todas" && { status: estado }),
+    ...(showStatus && estado !== "todas" && { status: estado }),
     // Solo viajan con valor: mandar `from: ""` haría que el API rechace la
     // consulta por formato.
     ...(rango.from !== "" && { from: rango.from }),
@@ -66,6 +75,7 @@ export function useSalesFilters() {
     page,
     setPage,
     barra: {
+      showStatus,
       warehouseId,
       estado,
       rango,
@@ -81,6 +91,8 @@ interface SalesFilterBarProps {
   id: string;
   /** Desde el backoffice el filtro de almacén no aplica (sería el del admin). */
   showWarehouse: boolean;
+  /** En `false` no hay filtro de Estado; lo decide `useSalesFilters`. */
+  showStatus: boolean;
   warehouseId: string | null;
   estado: Estado;
   rango: RangoDeFechas;
@@ -89,10 +101,14 @@ interface SalesFilterBarProps {
   onRango: (valor: RangoDeFechas) => void;
 }
 
-/** Sucursal, Estado, Desde y Hasta: la barra de Ventas, compartida por sus dos detalles. */
+/**
+ * Sucursal, Estado, Desde y Hasta: la barra de Ventas, compartida por sus dos
+ * detalles, que no llevan Estado.
+ */
 export function SalesFilterBar({
   id,
   showWarehouse,
+  showStatus,
   warehouseId,
   estado,
   rango,
@@ -119,19 +135,21 @@ export function SalesFilterBar({
         </label>
       )}
 
-      <label htmlFor={`${id}-status`} className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">{t("reports.sales.status")}</span>
-        <select
-          id={`${id}-status`}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={estado}
-          onChange={(e) => onEstado(e.target.value as Estado)}
-        >
-          <option value="todas">{t("pos.history.all")}</option>
-          <option value="completed">{t("pos.history.completed")}</option>
-          <option value="canceled">{t("pos.history.canceled")}</option>
-        </select>
-      </label>
+      {showStatus && (
+        <label htmlFor={`${id}-status`} className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{t("reports.sales.status")}</span>
+          <select
+            id={`${id}-status`}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={estado}
+            onChange={(e) => onEstado(e.target.value as Estado)}
+          >
+            <option value="todas">{t("pos.history.all")}</option>
+            <option value="completed">{t("pos.history.completed")}</option>
+            <option value="canceled">{t("pos.history.canceled")}</option>
+          </select>
+        </label>
+      )}
 
       <DateRangeFilter id={id} from={rango.from} to={rango.to} onChange={onRango} />
     </div>

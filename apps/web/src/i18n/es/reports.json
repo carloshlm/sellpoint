@@ -1,6 +1,7 @@
 {
   "hub": {
     "title": "Reportes",
+    "back": "Volver a Reportes",
     "downloadFailed": "No pudimos generar el archivo. Vuelve a intentarlo.",
     "stock": {
       "title": "Stock por sucursal",

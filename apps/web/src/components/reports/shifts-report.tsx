@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
+import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,7 +142,7 @@ export function ShiftsReport() {
 
   return (
     <section className="flex flex-col gap-4" data-testid="shifts-report">
-      <h1 className="font-semibold text-xl">{t("reports.shifts.title")}</h1>
+      <ReportHeading title={t("reports.shifts.title")} />
 
       <div className="flex flex-wrap items-end gap-3">
         {negocioAjeno === null && (

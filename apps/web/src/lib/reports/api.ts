@@ -116,7 +116,6 @@ export interface SalesLineRow {
   saleId: string;
   folio: string;
   createdAt: string;
-  status: string;
   warehouseId: string;
   warehouse: { id: string; name: string };
   seller: { id: string; name: string };
@@ -136,9 +135,15 @@ export interface SalesLineRow {
   lineTotal: string;
 }
 
+/**
+ * Los filtros de Ventas SIN el estado: estos dos reportes listan solo lo
+ * cobrado y su API responde 400 si llega `status`.
+ */
+export type SalesLinesQuery = Omit<SalesReportQuery, "status">;
+
 export interface SalesLinesPage {
   rows: SalesLineRow[];
-  /** Del PERÍODO entero y solo lo cobrado; null cuando no hay nada cobrado. */
+  /** Del PERÍODO entero; null cuando no hay nada cobrado. */
   totals: { tax: string; total: string } | null;
   total: number;
   page: number;
@@ -150,10 +155,10 @@ const RUTA_DE_LINEAS: Record<SalesLineKind, string> = {
   service: "/reports/sales-by-service",
 };
 
-/** Los mismos filtros que Ventas (`SalesReportQuery`). */
+/** Los filtros de Ventas menos el estado (`SalesLinesQuery`). */
 export async function getSalesLinesReport(
   kind: SalesLineKind,
-  query: SalesReportQuery,
+  query: SalesLinesQuery,
 ): Promise<SalesLinesPage> {
   const { data } = await api.get<SalesLinesPage>(RUTA_DE_LINEAS[kind], { params: query });
   return data;
@@ -293,7 +298,7 @@ export function downloadSalesReport(
 
 export function downloadSalesLinesReport(
   kind: SalesLineKind,
-  query: SalesReportQuery = {},
+  query: SalesLinesQuery = {},
   format: ReportFormat = "xlsx",
 ): Promise<void> {
   const base = kind === "product" ? "ventas-por-producto" : "ventas-por-servicio";

@@ -1,10 +1,10 @@
 import { formatMoney, formatSoldQuantity, type Locale } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
+import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportColumn, ReportTable } from "@/components/reports/report-table";
 import { SalesFilterBar, useSalesFilters } from "@/components/reports/sales-filters";
-import { Badge } from "@/components/ui/badge";
 import { useScopedCurrency } from "@/lib/admin/scope";
-import { downloadSalesLinesReport, type SalesLineKind, type SalesLineRow } from "@/lib/reports/api";
+import { downloadSalesLinesReport, type SalesLineKind } from "@/lib/reports/api";
 import { useSalesLinesReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -25,14 +25,15 @@ const TEST_ID: Record<SalesLineKind, string> = {
  * LÍNEA de ticket por renglón. Una sola pantalla con un `kind`; cambian el
  * título, las columnas de código y el nombre de la columna del artículo.
  *
- * Los filtros, el rango con que abre, el orden y el criterio de las anuladas
- * son los de Ventas: las anuladas se listan MARCADAS y no suman en el pie.
+ * Los filtros, el rango con que abre y el orden son los de Ventas, menos el
+ * Estado: estos dos reportes listan SOLO lo cobrado (Carlos, 2026-11-02:
+ * «sólo debe mostrar las ventas cobradas»), así que no hay anuladas que marcar.
  */
 export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es") as Locale;
   const currency = useScopedCurrency();
-  const { filtros, page, setPage, barra } = useSalesFilters();
+  const { filtros, page, setPage, barra } = useSalesFilters({ showStatus: false });
 
   const { data, isPending, error } = useSalesLinesReport(kind, { ...filtros, page, pageSize: 20 });
 
@@ -65,7 +66,7 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
       dateStyle: "short",
       timeStyle: "short",
     }).format(new Date(linea.createdAt)),
-    folio: <Folio linea={linea} />,
+    folio: <span className="whitespace-nowrap">{linea.folio}</span>,
     sellerName: linea.seller.name,
     warehouseName: linea.warehouse.name,
     // Vacío y no un guion, como el código de barras de Ventas: la celda vacía
@@ -74,11 +75,16 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
     barcode: linea.barcode ?? "",
     name: linea.name,
     // Como la imprime el ticket: «1 Caja ×12 (12 piezas)», y un servicio, que
-    // no tiene unidad, con el número solo.
-    quantity:
-      linea.baseUnit === null
-        ? linea.quantity
-        : formatSoldQuantity(linea.quantity, linea.baseUnit, linea.presentation, locale),
+    // no tiene unidad, con el número solo. El espacio entre palabras va más
+    // ancho: en Plus Jakarta Sans a 14 px el normal mide 2.4 px y «2 piezas»
+    // se leía pegado (Carlos, 2026-11-02).
+    quantity: (
+      <span className="[word-spacing:0.2em]">
+        {linea.baseUnit === null
+          ? linea.quantity
+          : formatSoldQuantity(linea.quantity, linea.baseUnit, linea.presentation, locale)}
+      </span>
+    ),
     unitPrice: dinero(linea.unitPrice),
     tax: dinero(linea.taxAmount),
     total: dinero(linea.lineTotal),
@@ -86,7 +92,7 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
 
   return (
     <section className="flex flex-col gap-4" data-testid={TEST_ID[kind]}>
-      <h1 className="font-semibold text-xl">{t(`reports.hub.${HUB[kind]}.title`)}</h1>
+      <ReportHeading title={t(`reports.hub.${HUB[kind]}.title`)} />
 
       <SalesFilterBar id={`sales-by-${kind}`} showWarehouse {...barra} />
 
@@ -102,7 +108,7 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
         onExport={() => void downloadSalesLinesReport(kind, filtros)}
       />
 
-      {/* Del PERÍODO entero y solo lo cobrado, como el pie de Ventas. */}
+      {/* Del PERÍODO entero, como el pie de Ventas: suma lo que la tabla lista. */}
       {data?.totals != null && (
         <dl
           className="flex flex-wrap gap-4 rounded-lg border bg-card p-3 text-sm"
@@ -120,24 +126,5 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
         </dl>
       )}
     </section>
-  );
-}
-
-/**
- * El folio, y la marca de ANULADA cuando lo es: la línea se lista, como en
- * Ventas, pero no suma en el pie y quien lee la tabla tiene que saber por qué.
- */
-function Folio({ linea }: { linea: SalesLineRow }) {
-  const { t } = useTranslation();
-  return (
-    // La marca va DEBAJO del folio y no al lado: en una sola línea, una venta
-    // cancelada ensanchaba la columna de todas y el Total se salía de la
-    // pantalla en una laptop.
-    <span className="flex flex-col items-start gap-1">
-      <span className="whitespace-nowrap">{linea.folio}</span>
-      {linea.status === "canceled" && (
-        <Badge variant="destructive">{t("pos.history.canceled")}</Badge>
-      )}
-    </span>
   );
 }

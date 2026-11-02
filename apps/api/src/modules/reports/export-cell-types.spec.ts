@@ -97,7 +97,6 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
     const linea = (overrides: Record<string, unknown> = {}) => ({
       folio: "VTA-000007",
       createdAt: "2026-10-31T16:30:00.000Z",
-      status: "completed",
       seller: { name: "Ana" },
       warehouse: { name: "Centro" },
       code: "0042",
@@ -142,7 +141,6 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
         "Precio unitario",
         "Impuesto",
         "Total",
-        "Estado",
       ]);
       esNumero(sheet, "Cantidad", 12);
       esNumero(sheet, "Precio unitario", 12);
@@ -153,8 +151,6 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
       esTexto(sheet, "Código de barras", "7501234567890");
       // La hora del NEGOCIO (Ciudad de México), no la del servidor.
       esTexto(sheet, "Fecha", "2026-10-31 10:30");
-      // La última columna dice el estado, con las palabras del Excel de Ventas.
-      esTexto(sheet, "Estado", "Cobrada");
     });
 
     it("producto en inglés: los encabezados y la hoja van en el idioma de quien descarga", async () => {
@@ -183,12 +179,10 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
         "Price",
         "Tax",
         "Total",
-        "Status",
       ]);
       esNumero(sheet, "Price", 12);
       // Sin código de barras: la celda va VACÍA, no un guion.
       esTexto(sheet, "Barcode", "");
-      esTexto(sheet, "Status", "Charged");
     });
 
     it("servicio: sin código de barras; su código y el nombre del servicio, texto", async () => {
@@ -205,7 +199,6 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
               unitPrice: "35.00",
               taxAmount: "7.24",
               lineTotal: "52.50",
-              status: "canceled",
             }),
           ),
         ),
@@ -226,13 +219,11 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
         "Precio unitario",
         "Impuesto",
         "Total",
-        "Estado",
       ]);
       esNumero(sheet, "Cantidad", 1.5);
       esNumero(sheet, "Total", 52.5);
       esTexto(sheet, "Código", "ENVIO");
       esTexto(sheet, "Servicio", "Envío a domicilio");
-      esTexto(sheet, "Estado", "Anulada");
 
       const en = await servicio.build(USER, SCOPE, doble({ format: "xlsx" }), "service", "en");
       const hojaEn = await hoja(en.body);
@@ -249,9 +240,7 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
         "Price",
         "Tax",
         "Total",
-        "Status",
       ]);
-      esTexto(hojaEn, "Status", "Canceled");
     });
   });
 

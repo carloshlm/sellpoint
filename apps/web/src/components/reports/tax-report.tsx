@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
+import { ReportHeading } from "@/components/reports/report-heading";
 import { ReportTable } from "@/components/reports/report-table";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { downloadTaxReport, type TaxReportQuery } from "@/lib/reports/api";
@@ -62,7 +63,7 @@ export function TaxReport() {
 
   return (
     <section className="flex flex-col gap-4" data-testid="tax-report">
-      <h1 className="font-semibold text-xl">{t("reports.taxes.title")}</h1>
+      <ReportHeading title={t("reports.taxes.title")} />
 
       <div className="flex flex-wrap items-end gap-3">
         {negocioAjeno === null && (

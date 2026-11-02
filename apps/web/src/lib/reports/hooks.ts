@@ -10,6 +10,7 @@ import {
   getTaxReport,
   type SalesLineKind,
   type SalesLinesPage,
+  type SalesLinesQuery,
   type SalesReportPage,
   type SalesReportQuery,
   type ShiftDetail,
@@ -56,7 +57,7 @@ export const SALES_LINES_REPORT_KEY = ["reports", "sales-lines"] as const;
  * su expediente no tiene estas dos pantallas (el API no las espeja bajo
  * `/admin/tenants/:id`).
  */
-export function useSalesLinesReport(kind: SalesLineKind, query: SalesReportQuery) {
+export function useSalesLinesReport(kind: SalesLineKind, query: SalesLinesQuery) {
   return useQuery<SalesLinesPage, ApiError>({
     queryKey: [...SALES_LINES_REPORT_KEY, kind, query],
     queryFn: () => getSalesLinesReport(kind, query),

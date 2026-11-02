@@ -92,7 +92,6 @@ const filaLinea = (overrides: Partial<reportsApi.SalesLineRow> = {}): reportsApi
   saleId: "s1",
   folio: "VTA-000001",
   createdAt: "2026-08-24T16:00:00.000Z",
-  status: "completed",
   warehouseId: "w1",
   warehouse: { id: "w1", name: "Central" },
   seller: { id: "u1", name: "Ana Pérez" },
@@ -173,7 +172,6 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
                 id: "si2",
                 saleId: "s2",
                 folio: "VTA-000002",
-                status: "canceled",
                 code: "LIBRO-001",
                 barcode: null,
                 name: "Libro de cuentos",
@@ -665,21 +663,36 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       expect(screen.getByLabelText(/desde/i)).toHaveValue("");
     });
 
-    it("sucursal y estado viajan al API, y la sucursal abre en Todas", async () => {
+    it("la sucursal viaja al API y abre en Todas", async () => {
       await renderRuta(path);
       await screen.findByText(nombre);
       const user = userEvent.setup();
       expect(mocked.getSalesLinesReport.mock.calls[0]?.[1]).not.toHaveProperty("warehouseId");
 
-      await user.selectOptions(screen.getByLabelText(/estado/i), "canceled");
       await user.selectOptions(screen.getByLabelText(/sucursal/i), "w2");
 
       await waitFor(() =>
         expect(mocked.getSalesLinesReport).toHaveBeenLastCalledWith(
           kind,
-          expect.objectContaining({ status: "canceled", warehouseId: "w2", page: 1 }),
+          expect.objectContaining({ warehouseId: "w2", page: 1 }),
         ),
       );
+    });
+
+    it("no ofrece el filtro de Estado ni manda `status`: lista solo lo cobrado", async () => {
+      await renderRuta(path);
+      await screen.findByText(nombre);
+      const user = userEvent.setup();
+
+      expect(screen.queryByLabelText(/estado/i)).not.toBeInTheDocument();
+      await user.selectOptions(screen.getByLabelText(/sucursal/i), "w2");
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() => expect(mocked.downloadSalesLinesReport).toHaveBeenCalled());
+      for (const [, consulta] of mocked.getSalesLinesReport.mock.calls) {
+        expect(consulta).not.toHaveProperty("status");
+      }
+      expect(mocked.downloadSalesLinesReport.mock.calls[0]?.[1]).not.toHaveProperty("status");
     });
 
     it("exportar baja su Excel con los filtros vigentes, pero NO la paginación", async () => {
@@ -687,18 +700,29 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await screen.findByText(nombre);
       const user = userEvent.setup();
 
-      await user.selectOptions(screen.getByLabelText(/estado/i), "completed");
+      await user.selectOptions(screen.getByLabelText(/sucursal/i), "w2");
       await user.click(screen.getByRole("button", { name: /exportar/i }));
 
       await waitFor(() =>
         expect(mocked.downloadSalesLinesReport).toHaveBeenCalledWith(
           kind,
-          expect.objectContaining({ status: "completed", from: hoyDelNegocio() }),
+          expect.objectContaining({ warehouseId: "w2", from: hoyDelNegocio() }),
         ),
       );
       const enviado = mocked.downloadSalesLinesReport.mock.calls[0]?.[1] ?? {};
       expect(enviado).not.toHaveProperty("page");
       expect(enviado).not.toHaveProperty("pageSize");
+    });
+
+    it("la Cantidad separa el número de la unidad con un espacio más ancho", async () => {
+      await renderRuta(path);
+      const fila = (await screen.findByText(nombre)).closest("tr") as HTMLElement;
+
+      // En Plus Jakarta Sans a 14 px el espacio normal mide 2.4 px y «2 piezas»
+      // se leía pegado: la celda abre el espacio entre palabras.
+      const texto = within(fila).getByText(cantidad);
+      expect(texto.tagName).toBe("SPAN");
+      expect(texto).toHaveClass("[word-spacing:0.2em]");
     });
 
     it("sin `reports:read` no se entra", async () => {
@@ -710,17 +734,19 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
   });
 
   describe("ventas por producto: los detalles de la línea", () => {
-    it("una línea sin código de barras deja la celda vacía y la anulada lleva su marca", async () => {
+    it("una línea sin código de barras deja la celda vacía y el folio va solo, sin marca", async () => {
       await renderRuta("/reports/sales-by-product");
       const libro = (await screen.findByText("Libro de cuentos")).closest("tr") as HTMLElement;
 
       const celdas = within(libro).getAllByRole("cell");
+      // Segunda columna, el Folio: solo el texto, en una línea. Todas las
+      // líneas son de ventas cobradas, así que no hay marca de anulada.
+      expect(celdas[1]).toHaveTextContent(/^VTA-000002$/);
+      expect(within(libro).getByText("VTA-000002")).toHaveClass("whitespace-nowrap");
       // Quinta y sexta columnas: Código interno y Código de barras.
       expect(celdas[4]).toHaveTextContent("LIBRO-001");
       expect(celdas[5]).toHaveTextContent(/^$/);
-      expect(within(libro).getByText("Cancelada")).toBeInTheDocument();
       const agua = screen.getByText("Agua mineral").closest("tr") as HTMLElement;
-      expect(within(agua).queryByText("Cancelada")).not.toBeInTheDocument();
       expect(within(agua).getByText("7501234567890")).toBeInTheDocument();
     });
   });
@@ -1029,6 +1055,31 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
         expect(screen.getByLabelText(/sucursal/i)).toHaveValue("");
       },
     );
+  });
+
+  /**
+   * Carlos (2026-11-02): «agrega un link para regresar a la pantalla donde
+   * están todos los reportes». Cada reporte lo lleva junto a su título.
+   */
+  describe("cada reporte regresa a Reportes", () => {
+    it.each([
+      { path: "/reports/stock", titulo: "Stock por sucursal" },
+      { path: "/reports/sales", titulo: "Ventas" },
+      { path: "/reports/sales-by-product", titulo: "Ventas por producto" },
+      { path: "/reports/sales-by-service", titulo: "Ventas por servicio" },
+      { path: "/reports/shifts", titulo: "Cierres de turno" },
+      { path: "/reports/taxes", titulo: "Impuestos cobrados" },
+    ])("$titulo lleva «Volver a Reportes» junto al título", async ({ path, titulo }) => {
+      await renderRuta(path);
+
+      const encabezado = (await screen.findByRole("heading", { level: 1, name: titulo })).closest(
+        "header",
+      ) as HTMLElement;
+      expect(within(encabezado).getByRole("link", { name: "Volver a Reportes" })).toHaveAttribute(
+        "href",
+        "/reports",
+      );
+    });
   });
 
   /**

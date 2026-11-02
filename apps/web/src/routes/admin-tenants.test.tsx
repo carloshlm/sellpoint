@@ -46,6 +46,7 @@ vi.mock("@/lib/reports/api", async (importOriginal) => ({
   getSalesReport: vi.fn(),
   getStockReport: vi.fn(),
   getShiftsReport: vi.fn(),
+  getTaxReport: vi.fn(),
 }));
 vi.mock("@/lib/warehouses/api", () => ({
   listWarehouses: vi.fn().mockResolvedValue([]),
@@ -341,6 +342,36 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
         "/admin/tenants/t1/reports",
       ),
     );
+  });
+});
+
+describe("los reportes del expediente no llevan «Volver a Reportes»", () => {
+  /**
+   * Los cuatro reportes son los MISMOS componentes que el cliente, pero aquí
+   * `/reports` es la app propia del admin, no el hub del negocio mirado: el
+   * enlace no va.
+   */
+  it("ni en Ventas, ni en Inventario, ni en Cierres de turno, ni en Impuestos", async () => {
+    mockedShifts.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+    await renderEn("/admin/tenants/t1?tab=reports");
+    const pestana = await screen.findByTestId("tenant-reports");
+    const user = userEvent.setup();
+
+    for (const [tab, seccion] of [
+      [null, "sales-report"],
+      ["Inventario", "stock-report"],
+      ["Cierres de turno", "shifts-report"],
+      ["Impuestos", "tax-report"],
+    ] as const) {
+      if (tab !== null) {
+        await user.click(within(pestana).getByRole("tab", { name: tab }));
+      }
+      const reporte = await within(pestana).findByTestId(seccion);
+      expect(within(reporte).getByRole("heading", { level: 1 })).toBeInTheDocument();
+      expect(
+        within(pestana).queryByRole("link", { name: /volver a reportes|back to reports/i }),
+      ).toBeNull();
+    }
   });
 });
 

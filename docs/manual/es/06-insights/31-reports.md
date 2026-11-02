@@ -34,6 +34,9 @@ Excel en ese momento o te llevan a la pantalla donde ya vive esa información.
 | **Vencimientos** | Te lleva a **Próximos a vencer** (capítulo 26). En Plus. |
 | **En tránsito** | Te lleva a **Traspasos** (capítulo 24). Desde Pro. |
 
+Cada reporte que abre una tarjeta tiene, junto a su título, el botón **Volver a
+Reportes** para regresar a esta lista.
+
 ## Los filtros
 
 Cada reporte tiene arriba sus filtros, y la tabla cambia en cuanto eliges uno:
@@ -83,11 +86,11 @@ ticket, juntos, suman lo que se cobró en él.
 **Código** del servicio y la columna **Servicio** en lugar de los dos códigos y
 del **Producto**.
 
-Los dos tienen los filtros de **Ventas** —**Sucursal**, **Estado**, **Desde** y
-**Hasta**— y abren con lo vendido hoy. Una venta cancelada aparece con la marca
-**Cancelada** junto a su folio. Al pie verás el **Impuesto** y el **Total** de
-todo el periodo filtrado, sin las ventas canceladas. El Excel trae las mismas
-columnas.
+Los dos muestran **solo las ventas cobradas**: una venta cancelada no aparece.
+Por eso no tienen el filtro de **Estado**; sus filtros son **Sucursal**,
+**Desde** y **Hasta**, y abren con lo vendido hoy. Al pie verás el **Impuesto** y
+el **Total** de todo el periodo filtrado. El Excel trae las mismas columnas que
+la pantalla, sin columna de estado.
 
 ## Cierres de turno
 

@@ -5,7 +5,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import { descripcionDeFila } from "../pos/ticket.service";
-import type { SalesReportQueryDto } from "./dto/sales-report.dto";
+import type { SalesLinesQueryDto } from "./dto/sales-report.dto";
 import { SalesReportService } from "./sales-report.service";
 
 /**
@@ -21,7 +21,6 @@ export interface SalesLineRow {
   saleId: string;
   folio: string;
   createdAt: string;
-  status: string;
   warehouseId: string;
   warehouse: { id: string; name: string };
   seller: { id: string; name: string };
@@ -48,7 +47,7 @@ export interface SalesLineRow {
 
 export interface SalesLinesPage {
   rows: SalesLineRow[];
-  /** Del PERÍODO entero y solo de lo cobrado; null si no hay nada cobrado. */
+  /** Del PERÍODO entero; null si no hay nada cobrado. */
   totals: { tax: string; total: string } | null;
   total: number;
   page: number;
@@ -67,7 +66,6 @@ const COLUMNAS = {
       id: true,
       folio: true,
       createdAt: true,
-      status: true,
       warehouseId: true,
       warehouse: { select: { id: true, name: true } },
       seller: { select: { id: true, firstName: true, lastName: true } },
@@ -96,8 +94,10 @@ const ORDEN = [
  * LÍNEA de ticket por renglón.
  *
  * Filtra las mismas ventas que Ventas (`SalesReportService.where`: alcance,
- * calendario del negocio, sucursal y estado) y lee sus líneas. Las ANULADAS
- * se listan, como en Ventas, pero no suman en el pie.
+ * calendario del negocio y sucursal) y lee sus líneas, pero SOLO de las
+ * cobradas (Carlos, 2026-11-02: «sólo debe mostrar las ventas cobradas»): una
+ * anulada no aparece ni en los renglones, ni en el pie, ni en el Excel. Por
+ * eso aquí no hay filtro de estado.
  *
  * ── Por qué el Total de la línea es `line_total` ────────────────────────
  *
@@ -121,10 +121,10 @@ export class SalesLinesReportService {
   async list(
     user: AuthUser,
     scope: UserScope,
-    query: SalesReportQueryDto,
+    query: SalesLinesQueryDto,
     kind: SaleLineKind,
   ): Promise<SalesLinesPage> {
-    const { where, ventas } = await this.where(user, scope, query, kind);
+    const where = await this.where(user, scope, query, kind);
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const [total, filas, suma] = await Promise.all([
@@ -136,11 +136,10 @@ export class SalesLinesReportService {
           take: query.pageSize,
           select: COLUMNAS,
         }),
-        // El pie es del PERÍODO, no de la página, y sin las anuladas: plata
-        // revertida no entró. Un `AND` y no pisar `status`, para que filtrar
-        // las anuladas deje el pie vacío en vez de mostrar las cobradas.
+        // El pie es del PERÍODO, no de la página, con el MISMO `where` que
+        // los renglones: suma exactamente lo que la tabla lista.
         tx.saleItem.aggregate({
-          where: { ...where, sale: { AND: [ventas, { status: "completed" }] } },
+          where,
           _sum: { taxAmount: true, lineTotal: true },
         }),
       ]);
@@ -164,10 +163,10 @@ export class SalesLinesReportService {
   async count(
     user: AuthUser,
     scope: UserScope,
-    query: SalesReportQueryDto,
+    query: SalesLinesQueryDto,
     kind: SaleLineKind,
   ): Promise<number> {
-    const { where } = await this.where(user, scope, query, kind);
+    const where = await this.where(user, scope, query, kind);
     return this.prisma.withTenantContext(user.tenantId, (tx) => tx.saleItem.count({ where }));
   }
 
@@ -178,10 +177,10 @@ export class SalesLinesReportService {
   async all(
     user: AuthUser,
     scope: UserScope,
-    query: SalesReportQueryDto,
+    query: SalesLinesQueryDto,
     kind: SaleLineKind,
   ): Promise<SalesLineRow[]> {
-    const { where } = await this.where(user, scope, query, kind);
+    const where = await this.where(user, scope, query, kind);
     return this.prisma.withTenantContext(user.tenantId, async (tx) =>
       (await tx.saleItem.findMany({ where, orderBy: ORDEN, select: COLUMNAS })).map(aFila),
     );
@@ -196,20 +195,22 @@ export class SalesLinesReportService {
     return tenant?.timezone ?? "UTC";
   }
 
+  /**
+   * Las ventas que filtra Ventas, con `completed` encima en un `AND`: así no
+   * se pisa nada que el `where` compartido diga del estado (hoy nada, porque
+   * el schema no deja pasar `status`, pero la regla no depende de eso).
+   */
   private async where(
     user: AuthUser,
     scope: UserScope,
-    query: SalesReportQueryDto,
+    query: SalesLinesQueryDto,
     kind: SaleLineKind,
-  ): Promise<{ where: Prisma.SaleItemWhereInput; ventas: Prisma.SaleWhereInput }> {
+  ): Promise<Prisma.SaleItemWhereInput> {
     const ventas = await this.sales.where(user, scope, query);
     return {
-      ventas,
-      where: {
-        tenantId: user.tenantId,
-        serviceId: kind === "service" ? { not: null } : null,
-        sale: ventas,
-      },
+      tenantId: user.tenantId,
+      serviceId: kind === "service" ? { not: null } : null,
+      sale: { AND: [ventas, { status: "completed" }] },
     };
   }
 }
@@ -223,7 +224,6 @@ function aFila(linea: LineaLeida): SalesLineRow {
     saleId: sale.id,
     folio: sale.folio,
     createdAt: sale.createdAt.toISOString(),
-    status: sale.status,
     warehouseId: sale.warehouseId,
     warehouse: sale.warehouse,
     seller: { id: sale.seller.id, name: shortName(sale.seller) },

@@ -30,3 +30,17 @@ export const salesExportQuerySchema = salesReportQuerySchema
   .extend({ format: z.enum(["csv", "xlsx"]).default("xlsx") });
 
 export type SalesExportQueryDto = z.infer<typeof salesExportQuerySchema>;
+
+/**
+ * Los filtros de «Ventas por producto» y «Ventas por servicio»: los de Ventas
+ * SIN `status`. Esos dos reportes listan solo lo cobrado (Carlos, 2026-11-02:
+ * «sólo debe mostrar las ventas cobradas»), así que el estado no es un filtro
+ * y mandarlo responde 400: `.omit` conserva el `.strict()`.
+ */
+export const salesLinesQuerySchema = salesReportQuerySchema.omit({ status: true });
+
+export type SalesLinesQueryDto = z.infer<typeof salesLinesQuerySchema>;
+
+export const salesLinesExportQuerySchema = salesExportQuerySchema.omit({ status: true });
+
+export type SalesLinesExportQueryDto = z.infer<typeof salesLinesExportQuerySchema>;

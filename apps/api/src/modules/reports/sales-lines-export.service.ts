@@ -4,7 +4,7 @@ import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { columnIndexes } from "../../common/spreadsheet/spreadsheet";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
-import type { SalesExportQueryDto } from "./dto/sales-report.dto";
+import type { SalesLinesExportQueryDto } from "./dto/sales-report.dto";
 import { formatExportQuantity } from "./kardex-export.service";
 import {
   type SaleLineKind,
@@ -32,7 +32,6 @@ const ENCABEZADOS: Record<SaleLineKind, Record<Locale, string[]>> = {
       "Precio unitario",
       "Impuesto",
       "Total",
-      "Estado",
     ],
     en: [
       "Date",
@@ -46,7 +45,6 @@ const ENCABEZADOS: Record<SaleLineKind, Record<Locale, string[]>> = {
       "Price",
       "Tax",
       "Total",
-      "Status",
     ],
   },
   service: {
@@ -61,7 +59,6 @@ const ENCABEZADOS: Record<SaleLineKind, Record<Locale, string[]>> = {
       "Precio unitario",
       "Impuesto",
       "Total",
-      "Estado",
     ],
     en: [
       "Date",
@@ -74,19 +71,8 @@ const ENCABEZADOS: Record<SaleLineKind, Record<Locale, string[]>> = {
       "Price",
       "Tax",
       "Total",
-      "Status",
     ],
   },
-};
-
-/**
- * El estado de la venta, como lo escribe el Excel de Ventas («Anulada» y
- * «Cobrada»): sin esta columna una línea anulada no se distingue en el archivo
- * y la suma del Total no cuadra contra el pie ni contra la caja.
- */
-const ESTADOS: Record<Locale, { canceled: string; completed: string }> = {
-  es: { canceled: "Anulada", completed: "Cobrada" },
-  en: { canceled: "Canceled", completed: "Charged" },
 };
 
 /** Las que van como NÚMERO en el xlsx; los códigos, el folio y la fecha quedan como texto. */
@@ -107,7 +93,9 @@ const ARCHIVO: Record<SaleLineKind, Record<Locale, string>> = {
 
 /**
  * «Ventas por producto» y «Ventas por servicio» en Excel: las MISMAS líneas y
- * columnas que la pantalla, con los mismos filtros.
+ * columnas que la pantalla, con los mismos filtros. Sin columna de estado:
+ * los dos reportes listan solo lo cobrado, así que no hay anuladas que
+ * distinguir y la suma del Total cuadra contra el pie.
  *
  * La **Cantidad va como número** en la unidad en que se vendió —la misma del
  * Precio unitario—, para que Excel la sume y multiplique. La pantalla, en
@@ -120,7 +108,7 @@ export class SalesLinesExportService {
   async build(
     user: AuthUser,
     scope: UserScope,
-    query: SalesExportQueryDto,
+    query: SalesLinesExportQueryDto,
     kind: SaleLineKind,
     locale: Locale = "es",
   ) {
@@ -131,7 +119,7 @@ export class SalesLinesExportService {
       rows: async () => {
         const zona = await this.lines.timeZone(user);
         return (await this.lines.all(user, scope, consulta, kind)).map((linea) =>
-          fila(linea, kind, zona, locale),
+          fila(linea, kind, zona),
         );
       },
       header,
@@ -143,7 +131,7 @@ export class SalesLinesExportService {
   }
 }
 
-function fila(linea: SalesLineRow, kind: SaleLineKind, timeZone: string, locale: Locale): string[] {
+function fila(linea: SalesLineRow, kind: SaleLineKind, timeZone: string): string[] {
   // Vacío y no un guion: la celda vacía de una hoja de cálculo YA significa
   // «no hay dato» (mismo criterio que el código de barras de Ventas).
   const codigos = kind === "product" ? [linea.code ?? "", linea.barcode ?? ""] : [linea.code ?? ""];
@@ -159,6 +147,5 @@ function fila(linea: SalesLineRow, kind: SaleLineKind, timeZone: string, locale:
     linea.unitPrice,
     linea.taxAmount,
     linea.lineTotal,
-    linea.status === "canceled" ? ESTADOS[locale].canceled : ESTADOS[locale].completed,
   ];
 }

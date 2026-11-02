@@ -19,7 +19,6 @@ import { startTestApp } from "./support/start-test-app";
 
 interface Fila {
   folio: string;
-  status: string;
   warehouseId: string;
   warehouse: { name: string };
   seller: { name: string };
@@ -59,6 +58,9 @@ interface Pagina {
  *    TICKET, que se prorratea entre las dos líneas. $84.60.
  *  · Venta 3 (Norte, efectivo): Libro ×2. $100.00.
  *  · Venta 4 (Norte, efectivo): Agua ×1, ANULADA.
+ *
+ * Los dos reportes listan SOLO lo cobrado (Carlos, 2026-11-02: «sólo debe
+ * mostrar las ventas cobradas»): la venta 4 no aparece en ninguno.
  */
 describe("Ventas por producto y por servicio", () => {
   let app: INestApplication<App>;
@@ -96,13 +98,14 @@ describe("Ventas por producto y por servicio", () => {
       locale,
     });
 
-  /** Lo que cobró cada venta en las líneas de un tipo, leído de la base. */
+  /** Lo que cobró cada venta COBRADA en las líneas de un tipo, leído de la base. */
   async function cobradoPorTicket(kind: "product" | "service"): Promise<Map<string, string>> {
     const lineas = await prisma.withTenantContext(negocio.tenantId, (tx) =>
       tx.saleItem.findMany({
         where: {
           tenantId: negocio.tenantId,
           serviceId: kind === "service" ? { not: null } : null,
+          sale: { status: "completed" },
         },
         select: { lineTotal: true, sale: { select: { folio: true } } },
       }),
@@ -299,14 +302,13 @@ describe("Ventas por producto y por servicio", () => {
 
   describe("por producto", () => {
     it("una línea de producto por renglón, de la venta más nueva a la más vieja", async () => {
-      const [v1, v2, v3, v4] = folios;
+      const [v1, v2, v3] = folios;
       const { rows, total } = await pagina("/reports/sales-by-product");
 
-      expect(total).toBe(6);
+      expect(total).toBe(5);
       expect(
         rows.map((f) => [
           f.folio,
-          f.status,
           f.warehouse.name,
           f.seller.name,
           f.code,
@@ -320,22 +322,7 @@ describe("Ventas por producto y por servicio", () => {
         ]),
       ).toEqual([
         [
-          v4,
-          "canceled",
-          "Norte",
-          "Ana Pérez",
-          skuAgua,
-          barraPieza,
-          "Agua mineral",
-          "1",
-          "Pieza",
-          "12.00",
-          "1.66",
-          "12.00",
-        ],
-        [
           v3,
-          "completed",
           "Norte",
           "Ana Pérez",
           skuLibro,
@@ -350,7 +337,6 @@ describe("Ventas por producto y por servicio", () => {
         // El descuento del ticket ($9.40) ya viene prorrateado: $2.40 le tocan a esta línea.
         [
           v2,
-          "completed",
           expect.any(String),
           "Ana Pérez",
           skuAgua,
@@ -364,7 +350,6 @@ describe("Ventas por producto y por servicio", () => {
         ],
         [
           v1,
-          "completed",
           expect.any(String),
           "Ana Pérez",
           skuAgua,
@@ -379,7 +364,6 @@ describe("Ventas por producto y por servicio", () => {
         // Tres piezas de $12 menos $6 de descuento de línea.
         [
           v1,
-          "completed",
           expect.any(String),
           "Ana Pérez",
           skuAgua,
@@ -393,7 +377,6 @@ describe("Ventas por producto y por servicio", () => {
         ],
         [
           v1,
-          "completed",
           expect.any(String),
           "Ana Pérez",
           skuLibro,
@@ -407,12 +390,14 @@ describe("Ventas por producto y por servicio", () => {
         ],
       ]);
       // La presentación viaja con su factor: la pantalla la escribe como el ticket.
-      expect(rows[3]?.presentation).toEqual({
+      expect(rows[2]?.presentation).toEqual({
         name: "Caja ×12",
         factor: "12",
         allowFractionalInput: false,
       });
-      expect(rows[3]?.baseUnit).toBe("unit");
+      expect(rows[2]?.baseUnit).toBe("unit");
+      // Sin el estado de la venta: todas las que lista son cobradas.
+      expect(rows[0]).not.toHaveProperty("status");
     });
 
     it("no trae líneas de servicio", async () => {
@@ -430,22 +415,37 @@ describe("Ventas por producto y por servicio", () => {
       expect(totals).toEqual({ tax: "25.05", total: "331.60" });
     });
 
-    it("filtra por sucursal, estado y fechas", async () => {
-      const [, , v3, v4] = folios;
+    it("una venta anulada no aparece: ni en los renglones, ni en el pie, ni en el Excel", async () => {
+      const anulada = folios[3];
+      const { rows, totals } = await pagina("/reports/sales-by-product");
+      expect(rows.map((f) => f.folio)).not.toContain(anulada);
+
+      // El pie es la suma de lo listado: nada de lo anulado entra por otro lado.
+      const centavos = (campo: "taxAmount" | "lineTotal") =>
+        rows.reduce((suma, f) => suma + Math.round(Number(f[campo]) * 100), 0);
+      expect(totals).toEqual({
+        tax: (centavos("taxAmount") / 100).toFixed(2),
+        total: (centavos("lineTotal") / 100).toFixed(2),
+      });
+
+      const sheet = await hoja(
+        (await descargar(negocio.token, "/reports/sales-by-product/export").expect(200))
+          .body as Buffer,
+      );
+      const foliosDelExcel = (sheet.getColumn(2).values as unknown[]).slice(2);
+      expect(foliosDelExcel).toHaveLength(rows.length);
+      expect(foliosDelExcel).not.toContain(anulada);
+    });
+
+    it("filtra por sucursal y fechas", async () => {
+      const [, , v3] = folios;
       const norte = await pagina(`/reports/sales-by-product?warehouseId=${norteId}`);
-      expect(norte.rows.map((f) => f.folio)).toEqual([v4, v3]);
+      // Norte vendió dos veces, pero la venta 4 se anuló.
+      expect(norte.rows.map((f) => f.folio)).toEqual([v3]);
       expect(norte.rows.every((f) => f.warehouseId === norteId)).toBe(true);
 
-      const anuladas = await pagina("/reports/sales-by-product?status=canceled");
-      expect(anuladas.rows.map((f) => f.folio)).toEqual([v4]);
-      // Sin ventas cobradas en el filtro no hay pie que mostrar.
-      expect(anuladas.totals).toBeNull();
-
-      const cobradas = await pagina("/reports/sales-by-product?status=completed");
-      expect(cobradas.total).toBe(5);
-
       const desde2000 = await pagina("/reports/sales-by-product?from=2000-01-01");
-      expect(desde2000.total).toBe(6);
+      expect(desde2000.total).toBe(5);
       const otroDia = await pagina("/reports/sales-by-product?from=2000-01-01&to=2000-01-02");
       expect(otroDia.rows).toEqual([]);
       expect(otroDia.totals).toBeNull();
@@ -460,7 +460,7 @@ describe("Ventas por producto y por servicio", () => {
       const uno = await pagina("/reports/sales-by-product?page=1&pageSize=4");
       const dos = await pagina("/reports/sales-by-product?page=2&pageSize=4");
       expect(uno.rows).toHaveLength(4);
-      expect(dos.rows).toHaveLength(2);
+      expect(dos.rows).toHaveLength(1);
       expect([...uno.rows, ...dos.rows]).toEqual(primera.rows);
     });
 
@@ -484,19 +484,13 @@ describe("Ventas por producto y por servicio", () => {
         "Precio unitario",
         "Impuesto",
         "Total",
-        "Estado",
       ]);
-      expect(sheet.rowCount).toBe(7);
+      // Las cinco líneas cobradas; sin columna de Estado, porque no hay
+      // anuladas que distinguir.
+      expect(sheet.rowCount).toBe(6);
 
-      // La última columna marca el estado, como el Excel de Ventas: la anulada
-      // (la venta 4, primer renglón) se distingue de las cobradas.
-      expect(sheet.getRow(2).getCell(2).value).toBe(folios[3]);
-      expect(sheet.getRow(2).getCell(12).value).toBe("Anulada");
-      expect(sheet.getRow(2).getCell(12).numFmt).toBe("@");
-
-      // La caja de agua de la venta 1: el quinto renglón de datos.
-      const caja = sheet.getRow(5);
-      expect(caja.getCell(12).value).toBe("Cobrada");
+      // La caja de agua de la venta 1: el tercer renglón de datos.
+      const caja = sheet.getRow(4);
       expect(caja.getCell(2).value).toBe(folios[0]);
       expect(caja.getCell(1).value).toEqual(
         expect.stringMatching(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/),
@@ -535,7 +529,7 @@ describe("Ventas por producto y por servicio", () => {
         negocio.token,
         `/reports/sales-by-product/export?warehouseId=${norteId}`,
       ).expect(200);
-      expect((await hoja(norte.body as Buffer)).rowCount).toBe(3);
+      expect((await hoja(norte.body as Buffer)).rowCount).toBe(2);
 
       const en = await descargar(
         tokenCon(["reports:read"], "en"),
@@ -556,10 +550,7 @@ describe("Ventas por producto y por servicio", () => {
         "Price",
         "Tax",
         "Total",
-        "Status",
       ]);
-      expect(sheet.getRow(2).getCell(12).value).toBe("Canceled");
-      expect(sheet.getRow(3).getCell(12).value).toBe("Charged");
     });
   });
 
@@ -595,11 +586,9 @@ describe("Ventas por producto y por servicio", () => {
       expect(totalesPorFolio(rows)).toEqual(await cobradoPorTicket("service"));
     });
 
-    it("filtra por sucursal, estado y fechas", async () => {
+    it("filtra por sucursal y fechas", async () => {
       expect((await pagina(`/reports/sales-by-service?warehouseId=${norteId}`)).rows).toEqual([]);
       expect((await pagina(`/reports/sales-by-service?warehouseId=${centroId}`)).total).toBe(2);
-      expect((await pagina("/reports/sales-by-service?status=canceled")).rows).toEqual([]);
-      expect((await pagina("/reports/sales-by-service?status=completed")).total).toBe(2);
       expect(
         (await pagina("/reports/sales-by-service?from=2000-01-01&to=2000-01-02")).rows,
       ).toEqual([]);
@@ -621,11 +610,9 @@ describe("Ventas por producto y por servicio", () => {
         "Precio unitario",
         "Impuesto",
         "Total",
-        "Estado",
       ]);
       expect(sheet.rowCount).toBe(3);
       const envio = sheet.getRow(2);
-      expect(envio.getCell(11).value).toBe("Cobrada");
       expect(envio.getCell(5).value).toBe(codigoEnvio);
       expect(envio.getCell(5).numFmt).toBe("@");
       expect(envio.getCell(7).type).toBe(ExcelJS.ValueType.Number);
@@ -647,17 +634,35 @@ describe("Ventas por producto y por servicio", () => {
         "Price",
         "Tax",
         "Total",
-        "Status",
       ]);
     });
   });
 
-  it("entre los dos reportes, cada ticket cobra exactamente su total", async () => {
+  describe("solo lo cobrado, sin filtro de estado", () => {
+    const rutas = [
+      "/reports/sales-by-product",
+      "/reports/sales-by-product/export",
+      "/reports/sales-by-service",
+      "/reports/sales-by-service/export",
+    ];
+
+    it.each(rutas.flatMap((ruta) => [`${ruta}?status=completed`, `${ruta}?status=canceled`]))(
+      "%s responde 400: el estado ya no es un filtro",
+      async (url) => {
+        await get(negocio.token, url).expect(400);
+      },
+    );
+  });
+
+  it("entre los dos reportes, cada ticket cobrado cobra exactamente su total", async () => {
     const productos = totalesPorFolio((await pagina("/reports/sales-by-product")).rows);
     const servicios = totalesPorFolio((await pagina("/reports/sales-by-service")).rows);
-    const ventas = (await pagina("/reports/sales")) as unknown as {
+    // Ventas SÍ conserva su filtro de estado; la anulada no tiene líneas en
+    // ninguno de los dos reportes.
+    const ventas = (await pagina("/reports/sales?status=completed")) as unknown as {
       rows: { folio: string; total: string }[];
     };
+    expect(ventas.rows).toHaveLength(3);
 
     for (const venta of ventas.rows) {
       const suma =
@@ -692,7 +697,7 @@ describe("Ventas por producto y por servicio", () => {
       try {
         const suyo = await pagina("/reports/sales-by-product", acotado);
         expect(suyo.rows.every((f) => f.warehouseId === norteId)).toBe(true);
-        expect(suyo.total).toBe(2);
+        expect(suyo.total).toBe(1);
         expect((await pagina("/reports/sales-by-service", acotado)).rows).toEqual([]);
         await get(acotado, `/reports/sales-by-product?warehouseId=${centroId}`).expect(403);
       } finally {
