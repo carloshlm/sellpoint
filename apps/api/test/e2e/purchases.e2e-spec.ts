@@ -318,6 +318,75 @@ describe("Compras (F9-PURCH)", () => {
       expect(conUna.body).toMatchObject({ total: "1160", taxTotal: "160" });
     });
 
+    /**
+     * Carlos (2026-11-02), «Arcangel uriel»: dos medicinas al 0% salían con IVA
+     * 16% —la pantalla no manda el impuesto de la línea y el servidor tomaba el
+     * del NEGOCIO—, y el total no cuadraba con la factura. Sin impuesto en la
+     * línea, cada una lleva el de SU producto, como en la venta; uno explícito
+     * (o `null`, sin impuesto) sigue mandando.
+     */
+    it("sin impuesto en la línea, cada una lleva el de SU producto: la medicina al 0% no paga IVA", async () => {
+      const { medicinaId, aguaId } = await prisma.withTenantContext(
+        negocio.tenantId,
+        async (tx) => {
+          const iva0 = await tx.taxGroup.create({
+            data: {
+              tenantId: negocio.tenantId,
+              code: "IVA0_PUR",
+              name: "IVA 0%",
+              isDefault: false,
+            },
+          });
+          await tx.taxRate.create({
+            data: {
+              tenantId: negocio.tenantId,
+              taxGroupId: iva0.id,
+              code: "IVA",
+              name: "IVA",
+              rate: "0",
+            },
+          });
+          const medicina = await tx.product.create({
+            data: {
+              tenantId: negocio.tenantId,
+              sku: `MED-PUR-${Date.now()}`,
+              name: "Apixaban 5 mg c/20 tabletas",
+              taxGroupId: iva0.id,
+            },
+          });
+          const agua = await tx.product.create({
+            data: {
+              tenantId: negocio.tenantId,
+              sku: `AGUA-PUR-${Date.now()}`,
+              name: "Agua 1L",
+              taxGroupId: ivaId,
+            },
+          });
+          return { medicinaId: medicina.id, aguaId: agua.id };
+        },
+      );
+      const compra = await nuevaCompra();
+      const res = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            { productId: medicinaId, quantity: 3, unitCost: 152.31 },
+            { productId: aguaId, quantity: 10, unitCost: 10 },
+            // `null` explícito: sin impuesto, aunque el producto tenga uno.
+            { productId: aguaId, quantity: 1, unitCost: 50, taxGroupId: null },
+          ],
+        })
+        .expect(200);
+
+      // 456.93 al 0% + 100 al 16% + 50 sin impuesto: solo el agua paga $16.
+      expect(res.body).toMatchObject({ subtotal: "606.93", taxTotal: "16", total: "622.93" });
+      const detalle = await api(negocio.token).get(`/purchases/${compra.id}`).expect(200);
+      expect(
+        (detalle.body as { lines: { taxGroupCode: string | null }[] }).lines.map(
+          (l) => l.taxGroupCode,
+        ),
+      ).toEqual(["IVA0_PUR", "IVA16", null]);
+    });
+
     it("una línea sin cantidad se guarda y suma cero; el lote se normaliza", async () => {
       const compra = await nuevaCompra();
       const guardada = await api(negocio.token)

@@ -311,6 +311,65 @@ describe("Órdenes de compra (F9-PO)", () => {
       expect((otraVez.body as { taxes: unknown[] }).taxes).toHaveLength(1);
     });
 
+    /**
+     * Carlos (2026-11-02), «Arcangel uriel»: dos medicinas al 0% salían con IVA
+     * 16% —la pantalla no manda el impuesto de la línea y el servidor tomaba el
+     * del NEGOCIO—, y el total no cuadraba con la factura. Sin impuesto en la
+     * línea, cada una lleva el de SU producto, como en la venta; uno explícito
+     * (o `null`, sin impuesto) sigue mandando.
+     */
+    it("sin impuesto en la línea, cada una lleva el de SU producto: la medicina al 0% no paga IVA", async () => {
+      const { medicinaId, aguaId } = await prisma.withTenantContext(
+        negocio.tenantId,
+        async (tx) => {
+          const iva0 = await tx.taxGroup.create({
+            data: { tenantId: negocio.tenantId, code: "IVA0_PO", name: "IVA 0%", isDefault: false },
+          });
+          await tx.taxRate.create({
+            data: {
+              tenantId: negocio.tenantId,
+              taxGroupId: iva0.id,
+              code: "IVA",
+              name: "IVA",
+              rate: "0",
+            },
+          });
+          const medicina = await tx.product.create({
+            data: {
+              tenantId: negocio.tenantId,
+              sku: `MED-PO-${Date.now()}`,
+              name: "Apixaban 5 mg c/20 tabletas",
+              taxGroupId: iva0.id,
+            },
+          });
+          const agua = await tx.product.create({
+            data: {
+              tenantId: negocio.tenantId,
+              sku: `AGUA-PO-${Date.now()}`,
+              name: "Agua 1L",
+              taxGroupId: ivaId,
+            },
+          });
+          return { medicinaId: medicina.id, aguaId: agua.id };
+        },
+      );
+      const orden = await nuevaOrden();
+      const res = await api(negocio.token)
+        .put(`/purchase-orders/${orden.id}/lines`, {
+          lines: [
+            { productId: medicinaId, quantity: 3, unitCost: 152.31 },
+            { productId: aguaId, quantity: 10, unitCost: 10 },
+          ],
+        })
+        .expect(200);
+
+      // 456.93 al 0% + 100 al 16%: solo el agua paga $16.
+      expect(res.body).toMatchObject({ subtotal: "556.93", taxTotal: "16", total: "572.93" });
+      expect(
+        (res.body as { lines: { taxGroupCode: string | null }[] }).lines.map((l) => l.taxGroupCode),
+      ).toEqual(["IVA0_PO", "IVA16"]);
+    });
+
     it("una línea de cero no es un pedido, y una presentación ajena rebota", async () => {
       const orden = await nuevaOrden();
       await api(negocio.token)

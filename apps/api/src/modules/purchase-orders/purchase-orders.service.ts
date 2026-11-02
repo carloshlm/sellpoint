@@ -27,7 +27,7 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
-import { contextoFiscal } from "../pos/tax-resolver";
+import { contextoFiscal, grupoDe } from "../pos/tax-resolver";
 import { derivesFractionalInput } from "../products/products.service";
 import {
   armarCompraConGrupos,
@@ -773,17 +773,17 @@ export class PurchaseOrdersService {
         id: true,
         name: true,
         baseUnit: true,
+        taxGroupId: true,
         presentations: {
           select: { id: true, name: true, isActive: true, allowFractionalInput: true },
         },
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
-    const fiscal = await contextoFiscal(
-      tx,
-      tenantId,
-      lineas.map((l) => l.taxGroupId),
-    );
+    const fiscal = await contextoFiscal(tx, tenantId, [
+      ...lineas.map((l) => l.taxGroupId),
+      ...productos.map((p) => p.taxGroupId),
+    ]);
     return lineas.map((linea) => {
       const producto = porId.get(linea.productId);
       if (producto === undefined) {
@@ -814,11 +814,15 @@ export class PurchaseOrdersService {
         scaleMessage: "purchase_orders.quantity_too_many_decimals",
         args: { field: "quantity", product: producto.name },
       });
+      // Sin impuesto en la línea, el de SU producto —y si no tiene, el del
+      // negocio—, como en la venta (`grupoDe`). La pantalla no manda uno por
+      // línea: tomar siempre el del negocio cobraba IVA 16% a medicinas al 0%
+      // en «Arcangel uriel» (Carlos, 2026-11-02). Uno explícito, o `null`, manda.
       const grupo =
         linea.taxGroupId === null
           ? null
           : linea.taxGroupId === undefined
-            ? fiscal.porDefecto
+            ? grupoDe(fiscal, producto.taxGroupId)
             : (fiscal.grupos.get(linea.taxGroupId) ?? null);
       if (linea.taxGroupId != null && grupo === null) {
         throw new UnprocessableEntityException({ message: "catalogs.tax_group_unknown" });

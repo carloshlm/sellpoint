@@ -5,7 +5,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
-import { contextoFiscal } from "../pos/tax-resolver";
+import { contextoFiscal, grupoDe } from "../pos/tax-resolver";
 import type { GrupoResuelto } from "../pos/totals";
 import { derivesFractionalInput } from "../products/products.service";
 import type {
@@ -326,6 +326,7 @@ export class PurchaseLinesService {
         id: true,
         name: true,
         baseUnit: true,
+        taxGroupId: true,
         presentations: {
           select: { id: true, name: true, isActive: true, allowFractionalInput: true },
         },
@@ -342,11 +343,10 @@ export class PurchaseLinesService {
         expiresAt: l.expiresAt ?? null,
       })),
     );
-    const fiscal = await contextoFiscal(
-      tx,
-      tenantId,
-      lineas.map((l) => l.taxGroupId),
-    );
+    const fiscal = await contextoFiscal(tx, tenantId, [
+      ...lineas.map((l) => l.taxGroupId),
+      ...productos.map((p) => p.taxGroupId),
+    ]);
 
     return lineas.map((linea, index) => {
       const producto = porId.get(linea.productId);
@@ -378,11 +378,15 @@ export class PurchaseLinesService {
           args: { field: `lines.${index + 1}.quantity`, line: index + 1 },
         });
       }
+      // Sin impuesto en la línea, el de SU producto —y si no tiene, el del
+      // negocio—, como en la venta (`grupoDe`). La pantalla no manda uno por
+      // línea: tomar siempre el del negocio cobraba IVA 16% a medicinas al 0%
+      // en «Arcangel uriel» (Carlos, 2026-11-02). Uno explícito, o `null`, manda.
       const grupo =
         linea.taxGroupId === null
           ? null
           : linea.taxGroupId === undefined
-            ? fiscal.porDefecto
+            ? grupoDe(fiscal, producto.taxGroupId)
             : (fiscal.grupos.get(linea.taxGroupId) ?? null);
       if (linea.taxGroupId != null && grupo === null) {
         throw new UnprocessableEntityException({ message: "catalogs.tax_group_unknown" });
