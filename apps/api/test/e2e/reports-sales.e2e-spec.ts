@@ -311,6 +311,35 @@ describe("Reporte de ventas (F5-SALES)", () => {
     });
 
     /**
+     * Carlos (2026-11-02): con Estado = Cancelada el pie seguía diciendo lo
+     * cobrado del período, como si la tabla listara otra cosa. El pie suma lo
+     * que ENTRÓ de las ventas que la tabla lista; de las canceladas no entró
+     * nada, así que no trae totales.
+     */
+    it("con Estado = Cancelada el pie no trae totales: de una cancelada no entró dinero", async () => {
+      const cobradas = await request(app.getHttpServer())
+        .get("/reports/sales?status=completed")
+        .set(auth())
+        .expect(200);
+      const canceladas = await request(app.getHttpServer())
+        .get("/reports/sales?status=canceled")
+        .set(auth())
+        .expect(200);
+
+      const metodos = (body: unknown) =>
+        new Map(
+          (body as { totals: { paymentMethod: string; total: string }[] }).totals.map((t) => [
+            t.paymentMethod,
+            t.total,
+          ]),
+        );
+      expect(metodos(cobradas.body).get("cash")).toBe("100.00");
+      expect(metodos(cobradas.body).get("card")).toBe("250.00");
+      expect((canceladas.body as { rows: unknown[] }).rows).toHaveLength(1);
+      expect((canceladas.body as { totals: unknown[] }).totals).toEqual([]);
+    });
+
+    /**
      * Las tres ventas se crearon en la MISMA transacción, así que comparten
      * `created_at` al microsegundo —`transaction_timestamp()`— y el orden por
      * fecha no las separa. Ahí es donde el desempate por `id` deja de ser

@@ -63,7 +63,9 @@ la **Sucursal**, el **Estado** y la forma de **Pago**. Con **Estado** puedes ver
 **Todas**, solo las **Cobrada** o solo las **Cancelada**.
 
 Al pie aparece cuánto entró por cada forma de pago. Esos totales son de **todo
-el periodo filtrado**, no solo de la página que estás viendo.
+el periodo filtrado**, no solo de la página que estás viendo, y solo suman las
+ventas cobradas: si filtras solo las **Cancelada**, el pie no aparece, porque de
+una venta cancelada no entró dinero.
 
 ## Ventas por producto y por servicio
 

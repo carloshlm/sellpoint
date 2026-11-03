@@ -65,10 +65,13 @@ export class SalesReportService {
         // Los totales son del PERÍODO entero, no de la página: es el pie de la
         // tabla, y un pie que solo sumara lo visible sería un número inútil.
         // Las ANULADAS quedan fuera: revertida es plata que no entró, y
-        // sumarla haría que el reporte no cuadre contra la caja.
+        // sumarla haría que el reporte no cuadre contra la caja. `AND` y no
+        // `{ ...where, status }`: el spread PISABA el filtro de Estado, y con
+        // «Cancelada» el pie sumaba las cobradas que la tabla no lista
+        // (Carlos, 2026-11-02). Ahora con «Cancelada» no hay nada que sumar.
         tx.sale.groupBy({
           by: ["paymentMethod"],
-          where: { ...where, status: "completed" },
+          where: { AND: [where, { status: "completed" }] },
           _sum: { total: true },
         }),
       ]);
