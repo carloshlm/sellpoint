@@ -119,6 +119,10 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       "reports/shifts/00000000-0000-0000-0000-000000000000",
       "reports/taxes",
       "reports/taxes/export?format=csv",
+      "reports/sales-by-product",
+      "reports/sales-by-product/export?format=xlsx",
+      "reports/sales-by-service",
+      "reports/sales-by-service/export?format=xlsx",
     ]) {
       await request(app.getHttpServer())
         .get(ruta(sufijo))
@@ -230,6 +234,28 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
 
     const archivo = await comoAdmin("reports/shifts/export?format=csv").expect(200);
     expect(archivo.headers["content-disposition"]).toContain("cierres-de-turno");
+  });
+
+  /**
+   * Carlos (2026-11-02): «Ventas por producto» y «Ventas por servicio» también
+   * se leen y se bajan desde el expediente, con los filtros del cliente (sin
+   * Estado: solo lo cobrado).
+   */
+  it("las ventas por producto y por servicio son las de B, y se bajan", async () => {
+    const productos = await comoAdmin("reports/sales-by-product").expect(200);
+    const filas = (productos.body as { rows: { folio: string; quantity: string }[] }).rows;
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({ folio: expect.stringMatching(/^VTA-/), quantity: "1" });
+
+    const servicios = await comoAdmin("reports/sales-by-service").expect(200);
+    expect((servicios.body as { rows: unknown[] }).rows).toHaveLength(0);
+
+    await comoAdmin("reports/sales-by-product?status=completed").expect(400);
+
+    const archivo = await comoAdmin("reports/sales-by-product/export?format=xlsx").expect(200);
+    expect(archivo.headers["content-disposition"]).toContain("ventas-por-producto");
+    const otro = await comoAdmin("reports/sales-by-service/export?format=csv").expect(200);
+    expect(otro.headers["content-disposition"]).toContain("ventas-por-servicio");
   });
 
   it("las exportaciones bajan un archivo del negocio de la URL (F9-ADMIN-13)", async () => {

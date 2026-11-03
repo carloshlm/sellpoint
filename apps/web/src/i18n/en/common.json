@@ -468,6 +468,8 @@
         "reports": {
           "title": "Reports",
           "sales": "Sales",
+          "salesByProduct": "Sales by product",
+          "salesByService": "Sales by service",
           "stock": "Inventory",
           "shifts": "Shift closes",
           "taxes": "Taxes"

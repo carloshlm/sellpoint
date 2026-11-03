@@ -67,6 +67,8 @@ import { TaxReportService } from "./tax-report.service";
     ShiftsExportService,
     TaxReportService,
     TaxExportService,
+    SalesLinesReportService,
+    SalesLinesExportService,
   ],
 })
 export class ReportsModule {}

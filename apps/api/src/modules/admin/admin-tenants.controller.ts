@@ -33,8 +33,12 @@ import { DashboardProductsService } from "../reports/dashboard-products.service"
 import { DashboardSeriesService } from "../reports/dashboard-series.service";
 import {
   type SalesExportQueryDto,
+  type SalesLinesExportQueryDto,
+  type SalesLinesQueryDto,
   type SalesReportQueryDto,
   salesExportQuerySchema,
+  salesLinesExportQuerySchema,
+  salesLinesQuerySchema,
   salesReportQuerySchema,
 } from "../reports/dto/sales-report.dto";
 import {
@@ -56,6 +60,8 @@ import {
   taxReportQuerySchema,
 } from "../reports/dto/tax-report.dto";
 import { SalesExportService } from "../reports/sales-export.service";
+import { SalesLinesExportService } from "../reports/sales-lines-export.service";
+import { type SaleLineKind, SalesLinesReportService } from "../reports/sales-lines-report.service";
 import { SalesReportService } from "../reports/sales-report.service";
 import { ShiftsExportService } from "../reports/shifts-export.service";
 import { ShiftsReportService } from "../reports/shifts-report.service";
@@ -104,6 +110,8 @@ export class AdminTenantsController {
     private readonly shiftsExport: ShiftsExportService,
     private readonly taxReport: TaxReportService,
     private readonly taxExport: TaxExportService,
+    private readonly salesLines: SalesLinesReportService,
+    private readonly salesLinesExport: SalesLinesExportService,
   ) {}
 
   @Get(":tenantId/overview")
@@ -343,6 +351,53 @@ export class AdminTenantsController {
     await this.descargar(response, tenantId, file);
   }
 
+  // ── Ventas por producto y por servicio (Carlos, 2026-11-02) ─────────────
+  // Los filtros del cliente, sin Estado: los dos listan solo lo cobrado.
+
+  @Get(":tenantId/reports/sales-by-product")
+  salesByProduct(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(salesLinesQuerySchema, "reports.invalid_query"))
+    query: SalesLinesQueryDto,
+  ) {
+    return this.salesLines.list(platformAdminActor(tenantId, admin), SCOPE_ALL, query, "product");
+  }
+
+  @Get(":tenantId/reports/sales-by-product/export")
+  async salesByProductExport(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(salesLinesExportQuerySchema, "reports.invalid_query"))
+    query: SalesLinesExportQueryDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    await this.bajarLineas(tenantId, admin, query, "product", request, response);
+  }
+
+  @Get(":tenantId/reports/sales-by-service")
+  salesByService(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(salesLinesQuerySchema, "reports.invalid_query"))
+    query: SalesLinesQueryDto,
+  ) {
+    return this.salesLines.list(platformAdminActor(tenantId, admin), SCOPE_ALL, query, "service");
+  }
+
+  @Get(":tenantId/reports/sales-by-service/export")
+  async salesByServiceExport(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(salesLinesExportQuerySchema, "reports.invalid_query"))
+    query: SalesLinesExportQueryDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    await this.bajarLineas(tenantId, admin, query, "service", request, response);
+  }
+
   @Get(":tenantId/reports/stock/export")
   async stockExportFile(
     @UuidParam("tenantId") tenantId: string,
@@ -362,6 +417,24 @@ export class AdminTenantsController {
   }
 
   /** El archivo lleva el nombre del NEGOCIO, no el del admin que lo bajó. */
+  private async bajarLineas(
+    tenantId: string,
+    admin: AuthUser,
+    query: SalesLinesExportQueryDto,
+    kind: SaleLineKind,
+    request: Request,
+    response: Response,
+  ) {
+    const file = await this.salesLinesExport.build(
+      platformAdminActor(tenantId, admin),
+      SCOPE_ALL,
+      query,
+      kind,
+      getLocale(request as Request & RequestWithLocale),
+    );
+    await this.descargar(response, tenantId, file);
+  }
+
   private async descargar(
     response: Response,
     tenantId: string,

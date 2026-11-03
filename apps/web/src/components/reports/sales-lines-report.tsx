@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportColumn, ReportTable } from "@/components/reports/report-table";
 import { SalesFilterBar, useSalesFilters } from "@/components/reports/sales-filters";
-import { useScopedCurrency } from "@/lib/admin/scope";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { downloadSalesLinesReport, type SalesLineKind } from "@/lib/reports/api";
 import { useSalesLinesReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -33,6 +33,9 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es") as Locale;
   const currency = useScopedCurrency();
+  // Desde el expediente del backoffice, como Ventas: la consulta y el archivo
+  // van al negocio mirado y el filtro de almacén no aplica (sería el del admin).
+  const { reportsPath, tenantId: negocioAjeno } = useAdminTenantScope();
   const { filtros, page, setPage, barra } = useSalesFilters({ showStatus: false });
 
   const { data, isPending, error } = useSalesLinesReport(kind, { ...filtros, page, pageSize: 20 });
@@ -94,7 +97,7 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
     <section className="flex flex-col gap-4" data-testid={TEST_ID[kind]}>
       <ReportHeading title={t(`reports.hub.${HUB[kind]}.title`)} />
 
-      <SalesFilterBar id={`sales-by-${kind}`} showWarehouse {...barra} />
+      <SalesFilterBar id={`sales-by-${kind}`} showWarehouse={negocioAjeno === null} {...barra} />
 
       <ReportTable
         columns={columnas}
@@ -105,7 +108,11 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
         isPending={isPending}
         error={error === null ? null : (error?.message ?? null)}
         onQueryChange={(query) => setPage(query.page)}
-        onExport={() => void downloadSalesLinesReport(kind, filtros)}
+        onExport={() =>
+          void (negocioAjeno === null
+            ? downloadSalesLinesReport(kind, filtros)
+            : downloadSalesLinesReport(kind, filtros, "xlsx", reportsPath))
+        }
       />
 
       {/* Del PERÍODO entero, como el pie de Ventas: suma lo que la tabla lista. */}

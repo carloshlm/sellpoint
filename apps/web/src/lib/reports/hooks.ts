@@ -53,14 +53,17 @@ export function useSalesReport(query: SalesReportQuery) {
 export const SALES_LINES_REPORT_KEY = ["reports", "sales-lines"] as const;
 
 /**
- * «Ventas por producto» y «Ventas por servicio». Sin el alcance del backoffice:
- * su expediente no tiene estas dos pantallas (el API no las espeja bajo
- * `/admin/tenants/:id`).
+ * «Ventas por producto» y «Ventas por servicio». Desde el expediente del
+ * backoffice van a los del negocio mirado, como Ventas (Carlos, 2026-11-02).
  */
 export function useSalesLinesReport(kind: SalesLineKind, query: SalesLinesQuery) {
+  const { reportsPath, tenantId } = useAdminTenantScope();
   return useQuery<SalesLinesPage, ApiError>({
-    queryKey: [...SALES_LINES_REPORT_KEY, kind, query],
-    queryFn: () => getSalesLinesReport(kind, query),
+    queryKey: [...SALES_LINES_REPORT_KEY, tenantId, kind, query],
+    queryFn: () =>
+      tenantId === null
+        ? getSalesLinesReport(kind, query)
+        : getSalesLinesReport(kind, query, reportsPath),
     placeholderData: (previous) => previous,
   });
 }

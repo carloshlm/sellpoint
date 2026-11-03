@@ -468,6 +468,8 @@
         "reports": {
           "title": "Reportes",
           "sales": "Ventas",
+          "salesByProduct": "Ventas por producto",
+          "salesByService": "Ventas por servicio",
           "stock": "Inventario",
           "shifts": "Cierres de turno",
           "taxes": "Impuestos"

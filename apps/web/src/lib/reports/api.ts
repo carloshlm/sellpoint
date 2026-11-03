@@ -151,16 +151,22 @@ export interface SalesLinesPage {
 }
 
 const RUTA_DE_LINEAS: Record<SalesLineKind, string> = {
-  product: "/reports/sales-by-product",
-  service: "/reports/sales-by-service",
+  product: "/sales-by-product",
+  service: "/sales-by-service",
 };
 
-/** Los filtros de Ventas menos el estado (`SalesLinesQuery`). */
+/**
+ * Los filtros de Ventas menos el estado (`SalesLinesQuery`). `basePath` es el
+ * de los reportes del negocio mirado cuando se lee desde el backoffice.
+ */
 export async function getSalesLinesReport(
   kind: SalesLineKind,
   query: SalesLinesQuery,
+  basePath = "/reports",
 ): Promise<SalesLinesPage> {
-  const { data } = await api.get<SalesLinesPage>(RUTA_DE_LINEAS[kind], { params: query });
+  const { data } = await api.get<SalesLinesPage>(`${basePath}${RUTA_DE_LINEAS[kind]}`, {
+    params: query,
+  });
   return data;
 }
 
@@ -300,9 +306,10 @@ export function downloadSalesLinesReport(
   kind: SalesLineKind,
   query: SalesLinesQuery = {},
   format: ReportFormat = "xlsx",
+  basePath = "/reports",
 ): Promise<void> {
   const base = kind === "product" ? "ventas-por-producto" : "ventas-por-servicio";
-  return bajar(`${RUTA_DE_LINEAS[kind]}/export`, base, format, query);
+  return bajar(`${basePath}${RUTA_DE_LINEAS[kind]}/export`, base, format, query);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

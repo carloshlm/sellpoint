@@ -47,6 +47,8 @@ vi.mock("@/lib/reports/api", async (importOriginal) => ({
   getStockReport: vi.fn(),
   getShiftsReport: vi.fn(),
   getTaxReport: vi.fn(),
+  getSalesLinesReport: vi.fn(),
+  downloadSalesLinesReport: vi.fn(),
 }));
 vi.mock("@/lib/warehouses/api", () => ({
   listWarehouses: vi.fn().mockResolvedValue([]),
@@ -60,6 +62,8 @@ const mockedEnable = vi.mocked(billingApi.enableModule);
 const mockedKpis = vi.mocked(dashboardApi.getDashboardKpis);
 const mockedSales = vi.mocked(reportsApi.getSalesReport);
 const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
+const mockedSalesLines = vi.mocked(reportsApi.getSalesLinesReport);
+const mockedSalesLinesExport = vi.mocked(reportsApi.downloadSalesLinesReport);
 
 const demoUser = (isPlatformAdmin: boolean): AuthUser =>
   buildAuthUser({
@@ -194,6 +198,8 @@ beforeEach(() => {
     },
   });
   mockedSales.mockResolvedValue({ rows: [], totals: [], total: 0, page: 1, pageSize: 20 });
+  mockedSalesLines.mockResolvedValue({ rows: [], totals: null, total: 0, page: 1, pageSize: 20 });
+  mockedSalesLinesExport.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -351,7 +357,7 @@ describe("los reportes del expediente no llevan «Volver a Reportes»", () => {
    * `/reports` es la app propia del admin, no el hub del negocio mirado: el
    * enlace no va.
    */
-  it("ni en Ventas, ni en Inventario, ni en Cierres de turno, ni en Impuestos", async () => {
+  it("ni en Ventas, ni en las de producto y servicio, ni en Inventario, Cierres o Impuestos", async () => {
     mockedShifts.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
     await renderEn("/admin/tenants/t1?tab=reports");
     const pestana = await screen.findByTestId("tenant-reports");
@@ -359,6 +365,8 @@ describe("los reportes del expediente no llevan «Volver a Reportes»", () => {
 
     for (const [tab, seccion] of [
       [null, "sales-report"],
+      ["Ventas por producto", "sales-by-product-report"],
+      ["Ventas por servicio", "sales-by-service-report"],
       ["Inventario", "stock-report"],
       ["Cierres de turno", "shifts-report"],
       ["Impuestos", "tax-report"],
@@ -371,6 +379,48 @@ describe("los reportes del expediente no llevan «Volver a Reportes»", () => {
       expect(
         within(pestana).queryByRole("link", { name: /volver a reportes|back to reports/i }),
       ).toBeNull();
+    }
+  });
+});
+
+/**
+ * Carlos (2026-11-02): «Ventas por producto» y «Ventas por servicio» también
+ * van en el expediente, con los datos y el archivo del negocio mirado.
+ */
+describe("las ventas por producto y por servicio del negocio mirado", () => {
+  it("cada pestaña pide sus líneas y baja su archivo con el prefijo del expediente", async () => {
+    await renderEn("/admin/tenants/t1?tab=reports");
+    const pestana = await screen.findByTestId("tenant-reports");
+    const user = userEvent.setup();
+
+    for (const [tab, kind] of [
+      ["Ventas por producto", "product"],
+      ["Ventas por servicio", "service"],
+    ] as const) {
+      mockedSalesLines.mockClear();
+      mockedSalesLinesExport.mockClear();
+      await user.click(within(pestana).getByRole("tab", { name: tab }));
+      const reporte = await within(pestana).findByTestId(`sales-by-${kind}-report`);
+      await waitFor(() =>
+        expect(mockedSalesLines).toHaveBeenCalledWith(
+          kind,
+          expect.objectContaining({ page: 1 }),
+          "/admin/tenants/t1/reports",
+        ),
+      );
+      // Como Ventas: el backoffice no asume «hoy» ni ofrece el almacén del admin.
+      expect(mockedSalesLines.mock.calls[0]?.[1]).not.toHaveProperty("from");
+      expect(within(reporte).queryByLabelText("Sucursal")).toBeNull();
+
+      await user.click(within(reporte).getByRole("button", { name: "Exportar Excel" }));
+      await waitFor(() =>
+        expect(mockedSalesLinesExport).toHaveBeenCalledWith(
+          kind,
+          expect.any(Object),
+          "xlsx",
+          "/admin/tenants/t1/reports",
+        ),
+      );
     }
   });
 });
