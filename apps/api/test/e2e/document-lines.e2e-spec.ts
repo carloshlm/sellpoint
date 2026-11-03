@@ -417,7 +417,10 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       for (const nombre of ["sku", "presentacion", "lote", "caducidad", "ubicacion"]) {
         esTexto(entrada.celda(nombre), nombre);
       }
-      expect(entrada.celda("caducidad").value).toBe("2026-07-01");
+      // La caducidad de ejemplo es del año que viene (Carlos, 2026-11-02): una
+      // fija ya había pasado, y una entrada no recibe mercancía caducada.
+      const ejemplo = String(entrada.celda("caducidad").value);
+      expect(ejemplo).toBe(`${new Date().getUTCFullYear() + 1}-12-31`);
 
       const salida = await descargar("exit");
       expect(salida.celda("cantidad").value).toBe(1);
@@ -433,9 +436,7 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       entrada.celda("presentacion").value = "";
       entrada.celda("lote").value = "0042";
       entrada.celda("costo_unitario").value = 8.5;
-      // La caducidad de ejemplo de la plantilla ya pasó, y una entrada no
-      // recibe mercancía caducada (2026-11-02): se teclea una por venir.
-      entrada.celda("caducidad").value = porVenir.iso;
+      // La caducidad se queda la del ejemplo: la plantilla se sube tal cual.
       const llenada = Buffer.from(await entrada.workbook.xlsx.writeBuffer()).toString("base64");
 
       const id = await nuevoBorrador();
@@ -459,6 +460,8 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
           unitCost: "8.5",
           lotCode: "0042",
           location: "A-3",
+          // Llegó sin rebotar por caducada: la del ejemplo está por venir.
+          expiresAt: `${ejemplo}T00:00:00.000Z`,
         }),
       );
     });

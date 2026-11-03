@@ -42,11 +42,21 @@ const COLUMNS: Record<InventoryDocumentType, string[]> = {
  */
 const NUMERIC_COLUMNS = ["cantidad", "costo_unitario", "contado"];
 
-const EXAMPLE: Record<InventoryDocumentType, string[]> = {
-  entry: ["PAR-500", "Caja ×12", "3", "15.50", "st10", "2026-07-01", "A-3"],
-  exit: ["PAR-500", "Caja ×12", "1", "st10", "2026-07-01", "A-3"],
-  physical_count: ["PAR-500", "st10", "2026-07-01", "A-3", "9"],
-};
+/**
+ * La fila de ejemplo. Su caducidad es el 31 de diciembre del año que viene y
+ * no una fecha fija: la fija (2026-07-01) se quedó en el pasado, y una entrada
+ * no recibe mercancía caducada, así que la plantilla subida tal cual rebotaba
+ * (Carlos, 2026-11-02).
+ */
+function example(type: InventoryDocumentType, now = new Date()): string[] {
+  const caducidad = `${now.getUTCFullYear() + 1}-12-31`;
+  const filas: Record<InventoryDocumentType, string[]> = {
+    entry: ["PAR-500", "Caja ×12", "3", "15.50", "st10", caducidad, "A-3"],
+    exit: ["PAR-500", "Caja ×12", "1", "st10", caducidad, "A-3"],
+    physical_count: ["PAR-500", "st10", caducidad, "A-3", "9"],
+  };
+  return filas[type];
+}
 
 export interface ImportedRow {
   row: number;
@@ -88,7 +98,7 @@ export class DocumentImportService {
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     const file = await serializeSpreadsheet(
-      [localizeHeaders(COLUMNS[type], locale), EXAMPLE[type]],
+      [localizeHeaders(COLUMNS[type], locale), example(type)],
       format,
       {
         numericColumns: columnIndexes(COLUMNS[type], NUMERIC_COLUMNS),
