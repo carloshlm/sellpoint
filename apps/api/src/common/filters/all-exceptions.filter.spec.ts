@@ -261,6 +261,30 @@ describe("AllExceptionsFilter", () => {
    * filtro por una lista blanca de claves, el POS dejaría de señalar la línea
    * y nadie se enteraría hasta verlo en un mostrador.
    */
+  /**
+   * Carlos (2026-11-02): la caducidad de un mensaje se lee como en la
+   * pantalla, en el idioma de quien pregunta, y no en ISO.
+   */
+  it("escribe la caducidad de los `args` en el formato del idioma de la petición", () => {
+    for (const [locale, esperada] of [
+      ["es", "01/10/2027"],
+      ["en", "10/01/2027"],
+    ] as const) {
+      translateMock.mockClear();
+      filter.catch(
+        new UnprocessableEntityException({
+          message: "inventory.expiry_in_past",
+          args: { expiresAt: "2027-10-01" },
+        }),
+        buildHost({ method: "POST", url: "/inventory/documents", locale }),
+      );
+      expect(translateMock).toHaveBeenCalledWith("inventory.expiry_in_past", {
+        lang: locale,
+        args: { expiresAt: esperada },
+      });
+    }
+  });
+
   it("descarta `args` pero deja pasar los demás datos de la excepción", () => {
     translateMock.mockImplementation((key: string) => key);
 

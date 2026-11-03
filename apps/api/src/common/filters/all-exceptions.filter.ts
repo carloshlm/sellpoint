@@ -11,6 +11,7 @@ import { ThrottlerException } from "@nestjs/throttler";
 import * as Sentry from "@sentry/node";
 import { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
+import { formatCalendarDateArgs } from "../../i18n/calendar-date-args";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { isInvalidUuidInput } from "../prisma/invalid-uuid";
 
@@ -182,8 +183,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return null;
     }
 
-    // nestjs-i18n devuelve la clave misma cuando no hay entrada.
-    const translated = this.i18n.translate(value, { lang: locale, args });
+    // nestjs-i18n devuelve la clave misma cuando no hay entrada. La caducidad
+    // de los `args` llega en ISO y se escribe en el formato del idioma.
+    const translated = this.i18n.translate(value, {
+      lang: locale,
+      args: formatCalendarDateArgs(args, locale),
+    });
     if (typeof translated !== "string" || translated === value) {
       return null;
     }

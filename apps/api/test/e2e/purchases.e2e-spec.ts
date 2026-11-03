@@ -1205,6 +1205,8 @@ describe("Compras (F9-PURCH)", () => {
       d.setUTCDate(d.getUTCDate() + dias);
       return d.toISOString().slice(0, 10);
     };
+    // El mensaje escribe la caducidad como la pantalla: «01/10/2027».
+    const comoSeLee = (iso: string) => iso.split("-").reverse().join("/");
     const linea = (extra: object) => ({
       productId: productoId,
       presentationId: piezaId,
@@ -1228,7 +1230,7 @@ describe("Compras (F9-PURCH)", () => {
 
       expect(res.body).toMatchObject({ code: "purchases.expiry_year_out_of_range" });
       expect((res.body as { message: string }).message).toContain("Línea 1");
-      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect((res.body as { message: string }).message).toContain("01/10/0027");
       expect(await lineasDe(compra.id)).toHaveLength(0);
     });
 
@@ -1243,7 +1245,7 @@ describe("Compras (F9-PURCH)", () => {
 
       expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
       expect((res.body as { message: string }).message).toContain("Línea 1");
-      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect((res.body as { message: string }).message).toContain(comoSeLee(dia(-1)));
       expect(await lineasDe(compra.id)).toHaveLength(0);
     });
 
@@ -1266,7 +1268,7 @@ describe("Compras (F9-PURCH)", () => {
         .expect(422);
 
       expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
-      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect((res.body as { message: string }).message).toContain(comoSeLee(dia(-1)));
       expect(await lineasDe(compra.id)).toHaveLength(0);
     });
 

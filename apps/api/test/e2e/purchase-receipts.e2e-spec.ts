@@ -465,6 +465,8 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       d.setUTCDate(d.getUTCDate() + dias);
       return d.toISOString().slice(0, 10);
     };
+    // El mensaje escribe la caducidad como la pantalla: «01/10/2027».
+    const comoSeLee = (iso: string) => iso.split("-").reverse().join("/");
     const guardarLineas = (orden: Orden, recepcion: Pick<Recepcion, "id">, extra: object) =>
       api(negocio.token).put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
         lines: [{ purchaseOrderLineId: orden.lines[0]?.id, quantity: 5, ...extra }],
@@ -489,7 +491,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
 
       expect(res.body).toMatchObject({ code: "purchases.expiry_year_out_of_range" });
       expect((res.body as { message: string }).message).toContain("Línea 1");
-      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect((res.body as { message: string }).message).toContain("01/10/0027");
       expect(await lineasDe(recepcion.id)).toEqual(antes);
     });
 
@@ -504,7 +506,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       }).expect(422);
 
       expect(res.body).toMatchObject({ code: "purchases.expiry_in_past" });
-      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect((res.body as { message: string }).message).toContain(comoSeLee(dia(-1)));
       expect(await lineasDe(recepcion.id)).toEqual(antes);
     });
 

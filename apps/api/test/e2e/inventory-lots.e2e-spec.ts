@@ -875,7 +875,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
         );
 
         expect(res.body).toMatchObject({ code: "inventory.expiry_year_out_of_range" });
-        expect((res.body as { message: string }).message).toContain("0027-10-01");
+        expect((res.body as { message: string }).message).toContain("01/10/0027");
         expect(await caducidadDe(tenantId, prontoId)).toBe(antes);
       });
     });

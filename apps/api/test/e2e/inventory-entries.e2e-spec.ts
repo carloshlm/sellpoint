@@ -776,6 +776,8 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       d.setUTCDate(d.getUTCDate() + dias);
       return d.toISOString().slice(0, 10);
     };
+    // El mensaje escribe la caducidad como la pantalla: «01/10/2027».
+    const comoSeLee = (iso: string) => iso.split("-").reverse().join("/");
     const comoDate = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
 
     const lineasDe = (documentId: string) =>
@@ -819,7 +821,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       }).expect(400);
 
       expect(res.body).toMatchObject({ code: "inventory.expiry_year_out_of_range" });
-      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect((res.body as { message: string }).message).toContain("01/10/0027");
       expect((res.body as { message: string }).message).toContain("revisa el año");
       expect(await lineasDe(id)).toHaveLength(0);
     });
@@ -841,7 +843,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
         .expect(422);
 
       expect(res.body).toMatchObject({ code: "inventory.expiry_in_past" });
-      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect((res.body as { message: string }).message).toContain(comoSeLee(dia(-1)));
       expect((await lineasDe(id)).map((l) => l.expiresAt?.toISOString().slice(0, 10))).toEqual([
         dia(30),
       ]);
@@ -918,7 +920,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       const res = await confirmar(id).expect(422);
 
       expect(res.body).toMatchObject({ code: "inventory.expiry_in_past" });
-      expect((res.body as { message: string }).message).toContain(dia(-1));
+      expect((res.body as { message: string }).message).toContain(comoSeLee(dia(-1)));
       expect(await estadoDe(id)).toBe("draft");
       expect(await movimientosDe(id)).toBe(0);
     });
@@ -932,7 +934,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       const res = await confirmar(id).expect(400);
 
       expect(res.body).toMatchObject({ code: "inventory.expiry_year_out_of_range" });
-      expect((res.body as { message: string }).message).toContain("0027-10-01");
+      expect((res.body as { message: string }).message).toContain("01/10/0027");
       expect(await estadoDe(id)).toBe("draft");
       expect(await movimientosDe(id)).toBe(0);
     });
