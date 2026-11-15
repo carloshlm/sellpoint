@@ -176,7 +176,37 @@ export interface RecordPaymentInput {
   amountReceived: string;
   /** Lo perdonado en este pago; recibido + descuento = precio del plan. */
   discountAmount?: string;
+  /**
+   * «Cubre hasta» acordado (`YYYY-MM-DD`): solo cuando difiere del
+   * automático. Va con `agreedPrice` y el motivo en `notes`.
+   */
+  periodEnd?: string;
+  /** El precio del acuerdo: recibido + descuento tiene que dar esto. */
+  agreedPrice?: string;
   notes?: string;
+}
+
+/** «Debe pagar» y «Cubre del … al …»: la misma cuenta que hará el pago. */
+export interface PaymentQuote {
+  /** Primer día cubierto (`YYYY-MM-DD`, calendario del negocio). */
+  periodStart: string;
+  /** Último día cubierto sin acuerdo: el «Cubre hasta» automático. */
+  periodEnd: string;
+  gross: string;
+  discount: string;
+  net: string;
+  currency: string;
+}
+
+export async function getPaymentQuote(
+  tenantId: string,
+  query: { billingCycle: "monthly" | "yearly"; planCode?: string; paidAt: string },
+): Promise<PaymentQuote> {
+  const { data } = await api.get<PaymentQuote>(
+    `/admin/billing/tenants/${tenantId}/payments/quote`,
+    { params: query },
+  );
+  return data;
 }
 
 export async function recordPayment(tenantId: string, input: RecordPaymentInput) {

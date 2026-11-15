@@ -1,7 +1,7 @@
 import { localCalendarDate, scaledInteger } from "@sellpoint/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -20,8 +20,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
-import { getAdminTenants, recordPayment } from "@/lib/billing/api";
-import { formatDeadline, formatInstant } from "@/lib/billing/dates";
+import {
+  getAdminTenants,
+  getPaymentQuote,
+  type PaymentQuote,
+  recordPayment,
+} from "@/lib/billing/api";
+import { formatCalendarDay, formatDeadline, formatInstant } from "@/lib/billing/dates";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/admin/billing")({
@@ -74,6 +79,20 @@ function AdminBilling() {
   const [recibido, setRecibido] = useState("");
   const [descuento, setDescuento] = useState("0");
   const [error, setError] = useState<string | null>(null);
+  // El día del pago, controlado: la cotización depende de él (desde free el
+  // período arranca ese día, y el cupón vale según la fecha).
+  const [fechaPago, setFechaPago] = useState("");
+  // «Cubre hasta» (Carlos, 2026-11-14). Vacío hasta que llega la cotización;
+  // distinto del automático es un ACUERDO con su precio y su motivo.
+  const [hasta, setHasta] = useState("");
+  const [precioAcordado, setPrecioAcordado] = useState("");
+  // El admin tocó «Cubre hasta». Separado de la fecha: mientras se teclea, el
+  // campo pasa por vacío y eso no deshace el acuerdo ni su precio.
+  const [acuerdoAbierto, setAcuerdoAbierto] = useState(false);
+  const acuerdoAbiertoRef = useRef(acuerdoAbierto);
+  acuerdoAbiertoRef.current = acuerdoAbierto;
+  // El diálogo de la última cotización aplicada: abrirlo de nuevo rehace todo.
+  const pagandoAplicado = useRef<typeof pagando>(null);
 
   const { data } = useQuery({
     queryKey: ["admin", "billing", "tenants"],
@@ -82,15 +101,64 @@ function AdminBilling() {
   });
 
   /**
-   * El precio del plan que se está cobrando. Si el negocio no tiene
-   * suscripción, `planPago` es el del desplegable —el único que hay— y por
-   * eso el autocálculo funciona igual que para uno con plan vigente.
+   * «Debe pagar» y «Cubre del … al …» los dice el API, con la MISMA cuenta
+   * que va a exigir al registrar (Carlos, 2026-11-14: la pantalla armaba el
+   * precio con su propia copia y proponía 499 donde el API pedía 650).
+   *
+   * Si el negocio no tiene suscripción, `planPago` es el del desplegable —el
+   * único que hay— y la cotización sale igual.
    */
-  const cargoVigente = (): string | undefined =>
-    pagando?.charges.find((c) => c.planCode === planPago)?.[ciclo];
+  const { data: cotizacion, error: errorCotizacion } = useQuery<PaymentQuote, ApiError>({
+    queryKey: ["admin", "billing", "quote", pagando?.tenantId, ciclo, planPago, fechaPago],
+    queryFn: () =>
+      getPaymentQuote(pagando?.tenantId ?? "", {
+        billingCycle: ciclo,
+        planCode: planPago || undefined,
+        paidAt: fechaPago,
+      }),
+    enabled: pagando !== null && fechaPago !== "",
+  });
 
-  const monedaVigente = (): string | undefined =>
-    pagando?.charges.find((c) => c.planCode === planPago)?.currency;
+  /**
+   * Cada cotización nueva —otro ciclo, otro plan, otra fecha— rehace la cuenta
+   * automática. Un ACUERDO se respeta: su fecha y su precio los escribió el
+   * admin y no dependen de esas tres cosas. Abrir el diálogo de nuevo sí
+   * empieza de cero.
+   */
+  useEffect(() => {
+    if (!cotizacion || !pagando) {
+      return;
+    }
+    const reabierto = pagandoAplicado.current !== pagando;
+    pagandoAplicado.current = pagando;
+    if (acuerdoAbiertoRef.current && !reabierto) {
+      return;
+    }
+    setAcuerdoAbierto(false);
+    setHasta(cotizacion.periodEnd);
+    setPrecioAcordado("");
+    setRecibido(cotizacion.net);
+    setDescuento("0");
+  }, [cotizacion, pagando]);
+
+  /** Un «Cubre hasta» distinto del automático es un acuerdo. */
+  const acuerdo = cotizacion !== undefined && acuerdoAbierto && hasta !== cotizacion.periodEnd;
+
+  /** Contra qué cuadra la cuenta: el precio acordado o el de la cotización. */
+  const cargoVigente = (): string | undefined =>
+    acuerdo ? precioAcordado || "0" : cotizacion?.net;
+
+  /** Volver a la fecha y al precio automáticos. */
+  const sinAcuerdo = () => {
+    if (!cotizacion) {
+      return;
+    }
+    setAcuerdoAbierto(false);
+    setHasta(cotizacion.periodEnd);
+    setPrecioAcordado("");
+    setRecibido(cotizacion.net);
+    setDescuento("0");
+  };
 
   /**
    * Qué día es «hoy» para el NEGOCIO que se está cobrando.
@@ -135,6 +203,8 @@ function AdminBilling() {
       setPagando(null);
       setError(null);
       void queryClient.invalidateQueries({ queryKey: ["admin", "billing", "tenants"] });
+      // El pago movió el período: la próxima cotización de ese negocio es otra.
+      void queryClient.invalidateQueries({ queryKey: ["admin", "billing", "quote"] });
     },
     onError: (e: ApiError) => setError(e.message),
   });
@@ -255,9 +325,11 @@ function AdminBilling() {
                           });
                           setCiclo("monthly");
                           setPlanPago(inicial);
-                          setRecibido(
-                            fila.charges.find((c) => c.planCode === inicial)?.monthly ?? "",
-                          );
+                          setFechaPago(localCalendarDate(fila.timezone, new Date()));
+                          // La cuenta la llena la cotización en cuanto llega.
+                          setHasta("");
+                          setPrecioAcordado("");
+                          setRecibido("");
                           setDescuento("0");
                         }}
                       >
@@ -297,17 +369,25 @@ function AdminBilling() {
                 method: form.get("method") as "transfer" | "cash" | "card" | "other" | "courtesy",
                 // El DÍA tal cual: el server lo ancla al mediodía de la zona
                 // del negocio. Armar un instante aquí lo corría de día.
-                paidAt: String(form.get("paidAt")),
+                paidAt: fechaPago,
                 // Igual al vigente = "mantener": no se manda nada.
                 planCode: planPago === pagando.planCode ? undefined : planPago || undefined,
                 amountReceived: recibido || "0",
                 discountAmount: descuento || "0",
+                // Solo con acuerdo: igual a la automática no hay nada que decir.
+                ...(acuerdo ? { periodEnd: hasta, agreedPrice: precioAcordado || "0" } : {}),
                 notes: (form.get("notes") as string) || undefined,
               },
             });
           }}
         >
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
+          {/* Sin cotización no hay cuenta que cuadrar: el porqué, a la vista. */}
+          {errorCotizacion ? (
+            <p className="text-destructive text-sm" role="alert">
+              {errorCotizacion.message}
+            </p>
+          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="pay-cycle">{t("common.billing.admin.cycle")}</Label>
@@ -316,12 +396,9 @@ function AdminBilling() {
                 name="cycle"
                 value={ciclo}
                 onChange={(event) => {
-                  const nuevo = event.target.value as "monthly" | "yearly";
-                  setCiclo(nuevo);
-                  // Cambiar de ciclo cambia el precio: la cuenta se rehace
-                  // entera en vez de quedar cuadrando contra el anterior.
-                  setRecibido(pagando?.charges.find((c) => c.planCode === planPago)?.[nuevo] ?? "");
-                  setDescuento("0");
+                  // Cambiar de ciclo cambia el precio y la fecha: la cotización
+                  // nueva rehace la cuenta entera.
+                  setCiclo(event.target.value as "monthly" | "yearly");
                 }}
                 className="w-full rounded-md border p-2 text-sm"
               >
@@ -354,7 +431,8 @@ function AdminBilling() {
                 type="date"
                 required
                 max={hoyDelNegocio}
-                defaultValue={hoyDelNegocio}
+                value={fechaPago}
+                onChange={(event) => setFechaPago(event.target.value)}
                 className="w-full rounded-md border p-2 text-sm"
               />
               <span className="text-muted-foreground text-xs">
@@ -374,12 +452,8 @@ function AdminBilling() {
                 name="planCode"
                 value={planPago}
                 onChange={(event) => {
-                  const nuevo = event.target.value;
-                  setPlanPago(nuevo);
-                  // Otro plan, otro precio: la cuenta se rehace entera.
-                  const precio = pagando?.charges.find((c) => c.planCode === nuevo)?.[ciclo] ?? "";
-                  setRecibido(precio);
-                  setDescuento("0");
+                  // Otro plan, otro precio: la cotización nueva rehace la cuenta.
+                  setPlanPago(event.target.value);
                 }}
                 className="w-full rounded-md border p-2 text-sm"
               >
@@ -399,15 +473,82 @@ function AdminBilling() {
             </div>
           </div>
           {/*
-            El cargo a la vista: cuadrar la cuenta sin ver el número sería
-            pedirle al dueño que saque calculadora.
+            «Cubre hasta» (Carlos, 2026-11-14): llega con la fecha automática.
+            Cambiarla es un ACUERDO: aparece el precio acordado y el motivo se
+            vuelve obligatorio. El botón deshace el acuerdo sin adivinar la
+            fecha de vuelta.
           */}
-          {cargoVigente() ? (
+          {cotizacion ? (
+            <div>
+              <Label htmlFor="pay-covers">{t("common.billing.admin.coversUntil")}</Label>
+              <input
+                id="pay-covers"
+                type="date"
+                required
+                value={hasta}
+                onChange={(event) => {
+                  const valor = event.target.value;
+                  setHasta(valor);
+                  if (valor === cotizacion.periodEnd) {
+                    sinAcuerdo();
+                    return;
+                  }
+                  if (!acuerdoAbierto) {
+                    // El acuerdo arranca con el precio de lista a la vista:
+                    // se corrige el número, no se teclea desde cero.
+                    setAcuerdoAbierto(true);
+                    setPrecioAcordado(cotizacion.net);
+                    setRecibido(cotizacion.net);
+                    setDescuento("0");
+                  }
+                }}
+                className="w-full rounded-md border p-2 text-sm"
+              />
+              <span className="text-muted-foreground text-xs">
+                {t("common.billing.admin.coversHint", {
+                  start: formatCalendarDay(cotizacion.periodStart, i18n.language),
+                })}
+              </span>
+              {acuerdo ? (
+                <div>
+                  <Button type="button" variant="outline" size="sm" onClick={sinAcuerdo}>
+                    {t("common.billing.admin.useAutomaticEnd", {
+                      date: formatCalendarDay(cotizacion.periodEnd, i18n.language),
+                    })}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {/*
+            El cargo a la vista: cuadrar la cuenta sin ver el número sería
+            pedirle al dueño que saque calculadora. Con acuerdo, el de lista
+            queda de referencia y el precio se escribe abajo.
+          */}
+          {cotizacion ? (
             <p className="rounded-md bg-muted px-3 py-2 text-sm" data-testid="expected-charge">
-              {t("common.billing.admin.expectedCharge", {
-                amount: `${cargoVigente()} ${monedaVigente()}`,
-              })}
+              {t(
+                acuerdo ? "common.billing.admin.listPrice" : "common.billing.admin.expectedCharge",
+                { amount: `${cotizacion.net} ${cotizacion.currency}` },
+              )}
             </p>
+          ) : null}
+          {acuerdo ? (
+            <div>
+              <Label htmlFor="pay-agreed">{t("common.billing.admin.agreedPrice")}</Label>
+              <input
+                id="pay-agreed"
+                inputMode="decimal"
+                required
+                value={precioAcordado}
+                onChange={(event) => {
+                  setPrecioAcordado(event.target.value);
+                  setRecibido(event.target.value);
+                  setDescuento("0");
+                }}
+                className="w-full rounded-md border p-2 text-sm"
+              />
+            </div>
           ) : null}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -440,10 +581,20 @@ function AdminBilling() {
               />
             </div>
           </div>
-          <p className="text-muted-foreground text-xs">{t("common.billing.admin.mustMatch")}</p>
+          <p className="text-muted-foreground text-xs">
+            {t(acuerdo ? "common.billing.admin.mustMatchAgreed" : "common.billing.admin.mustMatch")}
+          </p>
           <div>
-            <Label htmlFor="pay-notes">{t("common.billing.admin.notes")}</Label>
-            <input id="pay-notes" name="notes" className="w-full rounded-md border p-2 text-sm" />
+            {/* Con acuerdo, las notas son el MOTIVO: queda en la bitácora. */}
+            <Label htmlFor="pay-notes">
+              {t(acuerdo ? "common.billing.admin.agreementReason" : "common.billing.admin.notes")}
+            </Label>
+            <input
+              id="pay-notes"
+              name="notes"
+              required={acuerdo}
+              className="w-full rounded-md border p-2 text-sm"
+            />
           </div>
           <Button type="submit" disabled={registrar.isPending}>
             {t("common.billing.admin.confirmPayment")}

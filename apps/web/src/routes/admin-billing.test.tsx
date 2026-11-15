@@ -19,11 +19,35 @@ vi.mock("@/lib/billing/api", async (importOriginal) => ({
   getPlans: vi.fn().mockResolvedValue([]),
   getAdminTenantDetail: vi.fn(),
   voidPayment: vi.fn(),
+  getPaymentQuote: vi.fn(),
 }));
 const mockedTenants = vi.mocked(billingApi.getAdminTenants);
 const mockedRecord = vi.mocked(billingApi.recordPayment);
 const mockedDetail = vi.mocked(billingApi.getAdminTenantDetail);
 const mockedVoid = vi.mocked(billingApi.voidPayment);
+const mockedQuote = vi.mocked(billingApi.getPaymentQuote);
+
+/**
+ * La cotización del API (Carlos, 2026-11-14): «Debe pagar» y «Cubre del … al
+ * …» salen de ella. El doble responde con los precios de lista de la tabla.
+ */
+const LISTA: Record<string, { monthly: string; yearly: string }> = {
+  basic: { monthly: "199.00", yearly: "1990.00" },
+  plus: { monthly: "499.00", yearly: "4990.00" },
+};
+function cotizacionDeLista() {
+  mockedQuote.mockImplementation(async (_tenantId, query) => {
+    const precio = LISTA[query.planCode ?? "plus"]?.[query.billingCycle] ?? "0.00";
+    return {
+      periodStart: "2026-11-14",
+      periodEnd: query.billingCycle === "yearly" ? "2027-11-14" : "2026-12-14",
+      gross: precio,
+      discount: "0.00",
+      net: precio,
+      currency: "MXN",
+    };
+  });
+}
 
 /**
  * F7-WEB-10 — el backoffice: la tabla cross-tenant y LA operación semanal
@@ -89,6 +113,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     });
     mockedRecord.mockResolvedValue({});
     mockedVoid.mockResolvedValue({});
+    cotizacionDeLista();
     mockedDetail.mockResolvedValue({
       subscription: {
         status: "active",
@@ -178,8 +203,8 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
 
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
 
-    expect(screen.getByTestId("expected-charge")).toHaveTextContent("499.00 MXN");
-    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
+    expect(await screen.findByTestId("expected-charge")).toHaveTextContent("499.00 MXN");
+    await waitFor(() => expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00"));
     expect(screen.getByLabelText("Descuento")).toHaveValue("0");
   });
 
@@ -187,6 +212,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     await renderAdmin(true);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+    await screen.findByTestId("expected-charge");
 
     await user.clear(screen.getByLabelText(/Monto recibido/));
     await user.type(screen.getByLabelText(/Monto recibido/), "300");
@@ -206,6 +232,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     await renderAdmin(true);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+    await screen.findByTestId("expected-charge");
 
     await user.clear(screen.getByLabelText("Descuento"));
     await user.type(screen.getByLabelText("Descuento"), "199");
@@ -222,6 +249,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     await renderAdmin(true);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+    await screen.findByTestId("expected-charge");
 
     await user.clear(screen.getByLabelText(/Monto recibido/));
     await user.type(screen.getByLabelText(/Monto recibido/), "600");
@@ -322,8 +350,8 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
 
     // Arranca con el primer plan vendible y su precio, no en blanco.
-    expect(screen.getByTestId("expected-charge")).toHaveTextContent("199.00 MXN");
-    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("199.00");
+    expect(await screen.findByTestId("expected-charge")).toHaveTextContent("199.00 MXN");
+    await waitFor(() => expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("199.00"));
 
     // Y el autocálculo funciona, que era justo lo que no pasaba.
     await user.clear(screen.getByLabelText(/Monto recibido/));
@@ -350,12 +378,159 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
 
     // El negocio está en plus (499); al mover a basic, el cargo baja a 199.
-    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
+    await waitFor(() => expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00"));
     await user.selectOptions(screen.getByLabelText(/Plan/), "basic");
 
-    expect(screen.getByTestId("expected-charge")).toHaveTextContent("199.00 MXN");
-    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("199.00");
+    await waitFor(() =>
+      expect(screen.getByTestId("expected-charge")).toHaveTextContent("199.00 MXN"),
+    );
+    await waitFor(() => expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("199.00"));
     expect(screen.getByLabelText("Descuento")).toHaveValue("0");
+  });
+
+  /**
+   * Carlos (2026-11-14): «Debe pagar: 499.00» y el API «precio 650.00». La
+   * pantalla ya no arma el precio por su cuenta: lo pide al API, que es quien
+   * lo va a exigir.
+   */
+  it("«Debe pagar» sale de la cotización del API, no de la tabla", async () => {
+    mockedQuote.mockResolvedValue({
+      periodStart: "2026-11-14",
+      periodEnd: "2026-12-14",
+      gross: "650.00",
+      discount: "0.00",
+      net: "650.00",
+      currency: "MXN",
+    });
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+    expect(await screen.findByTestId("expected-charge")).toHaveTextContent("650.00 MXN");
+    await waitFor(() => expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("650.00"));
+    expect(mockedQuote).toHaveBeenCalledWith(
+      "t1",
+      expect.objectContaining({ billingCycle: "monthly", planCode: "plus" }),
+    );
+  });
+
+  /**
+   * Carlos (2026-11-14): «quiero que su pago abarque hasta cierta fecha por un
+   * acuerdo». «Cubre hasta» trae la fecha automática; cambiarla es un acuerdo:
+   * precio acordado y motivo.
+   */
+  describe("«Cubre hasta» y el acuerdo", () => {
+    async function abrirPago() {
+      // Los pagos de las pruebas de arriba se quedan en el doble: sin esto,
+      // «no se mandó» y «lo que se mandó» leerían un llamado ajeno.
+      mockedRecord.mockClear();
+      await renderAdmin(true);
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+      await waitFor(() => expect(screen.getByLabelText("Cubre hasta")).toHaveValue("2026-12-14"));
+      return user;
+    }
+
+    it("con la fecha automática no hay acuerdo: ni precio acordado ni fecha en el envío", async () => {
+      const user = await abrirPago();
+
+      expect(screen.queryByLabelText("Precio acordado")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Registrar" }));
+
+      await waitFor(() => expect(mockedRecord).toHaveBeenCalledTimes(1));
+      const enviado = mockedRecord.mock.calls[0]?.[1];
+      expect(enviado).not.toHaveProperty("periodEnd");
+      expect(enviado).not.toHaveProperty("agreedPrice");
+    });
+
+    it("cambiar la fecha pide el precio acordado y el motivo, y los manda", async () => {
+      const user = await abrirPago();
+
+      await user.clear(screen.getByLabelText("Cubre hasta"));
+      await user.type(screen.getByLabelText("Cubre hasta"), "2026-12-31");
+      const acordado = await screen.findByLabelText("Precio acordado");
+      expect(acordado).toHaveValue("499.00");
+      expect(screen.getByText(/precio acordado\./)).toBeInTheDocument();
+
+      await user.clear(acordado);
+      await user.type(acordado, "750");
+      expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("750");
+      expect(screen.getByLabelText("Descuento")).toHaveValue("0");
+
+      const motivo = screen.getByLabelText(/Motivo del acuerdo/);
+      expect(motivo).toBeRequired();
+      await user.type(motivo, "Paga hasta fin de año");
+      await user.click(screen.getByRole("button", { name: "Registrar" }));
+
+      await waitFor(() =>
+        expect(mockedRecord).toHaveBeenCalledWith(
+          "t1",
+          expect.objectContaining({
+            periodEnd: "2026-12-31",
+            agreedPrice: "750",
+            amountReceived: "750",
+            notes: "Paga hasta fin de año",
+          }),
+        ),
+      );
+    });
+
+    it("sin motivo, el acuerdo no se manda", async () => {
+      const user = await abrirPago();
+
+      await user.clear(screen.getByLabelText("Cubre hasta"));
+      await user.type(screen.getByLabelText("Cubre hasta"), "2026-12-31");
+      await screen.findByLabelText("Precio acordado");
+      await user.click(screen.getByRole("button", { name: "Registrar" }));
+
+      expect(mockedRecord).not.toHaveBeenCalled();
+    });
+
+    it("cambiar la fecha del pago no borra el acuerdo ni su precio", async () => {
+      const user = await abrirPago();
+
+      await user.clear(screen.getByLabelText("Cubre hasta"));
+      await user.type(screen.getByLabelText("Cubre hasta"), "2026-12-31");
+      const acordado = await screen.findByLabelText("Precio acordado");
+      await user.clear(acordado);
+      await user.type(acordado, "750");
+      const llamadas = mockedQuote.mock.calls.length;
+
+      const fecha = screen.getByLabelText("Fecha de pago");
+      await user.clear(fecha);
+      await user.type(fecha, "2026-11-01");
+      await waitFor(() => expect(mockedQuote.mock.calls.length).toBeGreaterThan(llamadas));
+
+      expect(screen.getByLabelText("Cubre hasta")).toHaveValue("2026-12-31");
+      expect(screen.getByLabelText("Precio acordado")).toHaveValue("750");
+      expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("750");
+    });
+
+    it("un error de la cotización se ve en el diálogo", async () => {
+      mockedQuote.mockRejectedValue({
+        statusCode: 422,
+        message: "La suscripción está cancelada. Reactívala antes de registrar un pago.",
+      });
+      await renderAdmin(true);
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(/suscripción está cancelada/);
+      expect(screen.queryByLabelText("Cubre hasta")).not.toBeInTheDocument();
+    });
+
+    it("«Usar la fecha automática» deshace el acuerdo", async () => {
+      const user = await abrirPago();
+
+      await user.clear(screen.getByLabelText("Cubre hasta"));
+      await user.type(screen.getByLabelText("Cubre hasta"), "2026-12-31");
+      await screen.findByLabelText("Precio acordado");
+      await user.click(screen.getByRole("button", { name: /Usar la fecha automática/ }));
+
+      expect(screen.getByLabelText("Cubre hasta")).toHaveValue("2026-12-14");
+      expect(screen.queryByLabelText("Precio acordado")).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
+    });
   });
 
   /**

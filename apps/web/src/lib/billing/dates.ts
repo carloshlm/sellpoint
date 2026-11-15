@@ -63,3 +63,12 @@ export function formatDeadline(
   }
   return format(new Date(instante - 1).toISOString(), timeZone, locale);
 }
+
+/**
+ * Un día de calendario (`YYYY-MM-DD`) tal cual, sin zona: el «Cubre del …»
+ * del cobro ya viene en el calendario del negocio. Se arma al mediodía UTC
+ * para que ninguna zona lo corra de día.
+ */
+export function formatCalendarDay(day: string, locale: string): string {
+  return format(`${day}T12:00:00.000Z`, "UTC", locale);
+}

@@ -75,6 +75,9 @@ mes vence el 15. Si pagaste un 31, en los meses más cortos vence el último dí
 del mes y regresa al 31 cuando el mes lo tiene. El día del vencimiento todavía
 es tuyo completo.
 
+Si acordaste con SellPointy que un pago cubra hasta cierta fecha, tu plan vence
+ese día, y desde ahí se cuentan los pagos siguientes.
+
 Antes de esa fecha te avisamos por correo **7 días** y **3 días** antes. Los
 avisos le llegan a quien administra el negocio.
 
