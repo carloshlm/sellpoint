@@ -28,6 +28,7 @@
   "form": {
     "barcode": "Código de barras",
     "barcodeHint": "El que viene impreso en el empaque del proveedor: es lo que lee el escáner en el punto de venta. Si el producto no tiene, déjalo vacío y usa solo el código interno.",
+    "barcodeCheckDigit": "El código de barras no es válido: su último dígito no coincide con los demás. Revisa que esté bien escrito.",
     "barcodeLocked": "Bloqueado para que un escaneo no lo cambie sin querer. Toca «Cambiar» si necesitas corregirlo.",
     "barcodeUnlock": "Cambiar",
     "baseUnit": "Unidad base",
@@ -37,6 +38,7 @@
     "cost_included": "Costo (con impuesto incluido)",
     "costHintExcluded": "Cuánto te cuesta a ti comprar una unidad a tu proveedor, antes del impuesto (lo que dice la factura). No se le muestra al cliente. Opcional: déjalo vacío si aún no lo sabes — vacío es «sin capturar», cero es «me cuesta $0».",
     "costHintIncluded": "Cuánto te cuesta a ti comprar una unidad a tu proveedor, con el impuesto adentro (lo que pagas en mostrador). No se le muestra al cliente. Opcional: déjalo vacío si aún no lo sabes — vacío es «sin capturar», cero es «me cuesta $0».",
+    "invalidBarcode": "El código de barras debe tener entre 6 y 14 dígitos, sin letras ni símbolos. Si es un código tuyo, escríbelo en «Código interno».",
     "isComposite": "Se arma a partir de otros productos del catálogo",
     "name": "Nombre",
     "price": "Precio de venta",
@@ -49,6 +51,7 @@
     "skuHint": "El identificador que usa TU negocio para este producto, único en todo el catálogo. Si lo dejas vacío, se usará el código de barras.",
     "stockMin": "Stock mínimo",
     "stockMinHint": "Cuando las existencias bajen de esta cantidad, el producto aparece marcado como «bajo mínimo» para que lo repongas. Deja 0 si no quieres el aviso.",
+    "stockMinInvalid": "El stock mínimo tiene que ser un número de 0 en adelante.",
     "tracksLots": "Este producto se controla por lote y caducidad",
     "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
     "tracksLotsNotInPlan": "El control por lote y caducidad es de un plan superior.",

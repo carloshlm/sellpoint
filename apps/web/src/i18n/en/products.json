@@ -28,6 +28,7 @@
   "form": {
     "barcode": "Barcode",
     "barcodeHint": "The one printed on the supplier's package: it is what the scanner reads at the point of sale. If the product has none, leave it empty and use only the internal code.",
+    "barcodeCheckDigit": "The barcode isn't valid: its last digit doesn't match the rest. Check that it's typed correctly.",
     "barcodeLocked": "Locked so a scan can't change it by accident. Tap «Change» if you need to fix it.",
     "barcodeUnlock": "Change",
     "baseUnit": "Base unit",
@@ -37,6 +38,7 @@
     "cost_included": "Cost (tax included)",
     "costHintExcluded": "What one unit costs you from your supplier, before tax (as on the invoice). Never shown to the customer. Optional: leave it empty if you don't know it yet — empty means «not captured», zero means «it costs $0».",
     "costHintIncluded": "What one unit costs you from your supplier, tax included (as you paid it at the counter). Never shown to the customer. Optional: leave it empty if you don't know it yet — empty means «not captured», zero means «it costs $0».",
+    "invalidBarcode": "The barcode must be 6 to 14 digits, with no letters or symbols. If it's your own code, enter it as the internal code.",
     "isComposite": "Built from other products in the catalog",
     "name": "Name",
     "price": "Price",
@@ -49,6 +51,7 @@
     "skuHint": "The identifier YOUR business uses for this product, unique across the catalog. If you leave it empty, the barcode will be used.",
     "stockMin": "Minimum stock",
     "stockMinHint": "When stock drops below this amount, the product shows as «below minimum» so you can restock. Leave 0 to skip the warning.",
+    "stockMinInvalid": "The minimum stock must be a number, 0 or more.",
     "tracksLots": "This product is tracked by lot and expiry date",
     "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",
     "tracksLotsNotInPlan": "Lot and expiry tracking comes with a higher plan.",

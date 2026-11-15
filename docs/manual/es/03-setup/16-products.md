@@ -24,8 +24,9 @@ Para abrir un producto, presiona **Ver** en su renglón.
      catálogo y en un catálogo público de productos, y si lo encuentra te
      sugiere el nombre. Si en lugar de Enter pasas al siguiente campo, también
      te lo sugiere, siempre que todavía no hayas escrito uno. Solo lleva
-     dígitos, de 6 a 14; si tecleas el de un fabricante con un número
-     equivocado, SellPointy te avisa al guardar y no lo deja pasar.
+     dígitos, de 6 a 14. Si tiene letras o un número equivocado, al salir del
+     campo aparece debajo, en rojo, qué está mal, y el producto no se guarda
+     hasta que lo corrijas.
    - **Código interno**: la clave que usa tu negocio, como «AGUA-1L». Si lo
      dejas vacío, se usa el código de barras. Una clave con letras va aquí, no
      en **Código de barras**.
@@ -39,7 +40,9 @@ Para abrir un producto, presiona **Ver** en su renglón.
    cómo quedará en el ticket.
 6. Si quieres un aviso cuando se esté acabando, pon un **Stock mínimo**: cuando
    las existencias bajen de ahí, el producto aparece como «bajo mínimo».
-7. Presiona **Guardar**.
+7. Presiona **Guardar**. Si algún dato no sirve, el producto no se guarda: el
+   campo con el problema se marca en rojo con lo que hay que corregir, y el
+   cursor queda en él.
 
 ![El formulario de un producto nuevo](screen:product-form)
 

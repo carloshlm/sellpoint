@@ -1,7 +1,13 @@
-import { isScannableBarcode, normalizeCode, UNIT_CODES, unitName } from "@sellpoint/shared";
+import {
+  isScannableBarcode,
+  isValidBarcode,
+  normalizeCode,
+  UNIT_CODES,
+  unitName,
+} from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
@@ -496,6 +502,27 @@ function ProductDetailPanel({
   );
 }
 
+/**
+ * Los errores del API que no traen campo pero SÍ son de uno: el 409 de un
+ * código repetido y el 400 de un código de barras que se cambió al editar.
+ * Se pintan debajo de ese campo y no arriba del formulario, donde quien está
+ * al final de la ficha no los ve (Carlos, 2026-11-14).
+ */
+const CAMPO_DEL_ERROR: Record<string, string> = {
+  "products.invalid_barcode": "barcode",
+  "products.barcode_check_digit": "barcode",
+  "products.barcode_taken": "barcode",
+  "products.sku_taken": "sku",
+};
+
+/** La misma regla que el API (`barcode-rules.ts`), con el mismo texto. */
+function problemaDelCodigo(codigo: string): string | null {
+  if (!isScannableBarcode(codigo)) {
+    return "products.form.invalidBarcode";
+  }
+  return isValidBarcode(codigo) ? null : "products.form.barcodeCheckDigit";
+}
+
 function ProductForm({
   product,
   onDone,
@@ -566,6 +593,34 @@ function ProductForm({
   const lotesFueraDePlan = !lotesEnPlan && !yaLlevaLote;
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  /**
+   * ── Un Guardar que no guarda tiene que decir por qué (Carlos, 2026-11-14) ──
+   *
+   * Cada vez que aparecen errores, el cursor va al PRIMER campo marcado —o al
+   * aviso de arriba si el error no es de ningún campo—. Con la ficha larga,
+   * quien presiona Guardar está al final y un mensaje fuera de la vista es lo
+   * mismo que ninguno.
+   */
+  const [errorRecienMarcado, setErrorRecienMarcado] = useState(0);
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+  useEffect(() => {
+    if (errorRecienMarcado === 0) {
+      return;
+    }
+    const destino =
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]') ?? errorRef.current;
+    destino?.focus();
+    destino?.scrollIntoView?.({ block: "center" });
+  }, [errorRecienMarcado, formRef]);
+  /** Al tocar un campo, su error se va: ya lo están corrigiendo. */
+  const corregir = (campo: string) =>
+    setFieldErrors((actuales) => {
+      if (!(campo in actuales)) {
+        return actuales;
+      }
+      const { [campo]: _corregido, ...resto } = actuales;
+      return resto;
+    });
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   /**
@@ -727,17 +782,71 @@ function ProductForm({
   const priceError = priceErrorKey ? t(priceErrorKey) : undefined;
   const costError = costErrorKey ? t(costErrorKey) : undefined;
 
+  /**
+   * El código de barras que el API va a revisar: el del alta y, al editar,
+   * solo uno que CAMBIÓ. Los códigos de antes de la regla («AJOLOCARAMELO»)
+   * no frenan un cambio de precio, igual que en `assertBarcodeChange`.
+   */
+  const errorDelCodigo = (): string | null => {
+    const codigo = barcode.trim();
+    if (codigo === "" || (!esAlta && codigo === (basePresentation?.barcode ?? ""))) {
+      return null;
+    }
+    const clave = problemaDelCodigo(codigo);
+    return clave === null ? null : t(clave);
+  };
+
+  /** Lo que se puede saber sin preguntarle al API. Lo demás lo dice el API. */
+  function erroresAntesDeMandar(): Record<string, string> {
+    const errores: Record<string, string> = {};
+    const codigo = errorDelCodigo();
+    if (codigo !== null) {
+      errores.barcode = codigo;
+    }
+    const minimo = stockMin.trim() === "" ? 0 : Number(stockMin);
+    if (!Number.isFinite(minimo) || minimo < 0) {
+      errores.stockMin = t("products.form.stockMinInvalid");
+    }
+    return errores;
+  }
+
+  /** Los campos de la ficha que pintan su propio error. */
+  const camposConError = new Set([
+    "barcode",
+    "sku",
+    "name",
+    "baseUnit",
+    "stockMin",
+    "price",
+    "cost",
+    ...(usaUbicaciones ? ["location"] : []),
+    ...(fields ?? []).map((field) => field.key),
+  ]);
+
   function handleError(apiError: ApiError) {
     // Mismo helper que la pestaña de composición: el casteo del `errors` del
     // API vivía duplicado y con su propio criterio en cada formulario.
-    const byField = fieldErrorsOf(apiError);
-    if (byField.size > 0) {
-      // `t()` es una red por si alguna clave llega sin traducir del backend;
-      // con texto ya traducido i18next devuelve el mismo string.
-      setFieldErrors(Object.fromEntries([...byField].map(([key, message]) => [key, t(message)])));
+    const byField = new Map(fieldErrorsOf(apiError));
+    const campoDelCodigo = apiError.code ? CAMPO_DEL_ERROR[apiError.code] : undefined;
+    if (byField.size === 0 && campoDelCodigo !== undefined) {
+      byField.set(campoDelCodigo, apiError.message);
+    }
+    if (byField.size === 0) {
+      setError(apiError.message);
+      setErrorRecienMarcado((n) => n + 1);
       return;
     }
-    setError(apiError.message);
+    // `t()` es una red por si alguna clave llega sin traducir del backend;
+    // con texto ya traducido i18next devuelve el mismo string.
+    const errores = [...byField].map(([key, message]) => [key, t(message)] as const);
+    setFieldErrors(Object.fromEntries(errores));
+    // Un error de un dato que la ficha no muestra (el impuesto, un campo que
+    // ya no existe) va arriba: perdido en el estado sería el Guardar mudo.
+    const sueltos = errores.filter(([key]) => !camposConError.has(key)).map(([, m]) => m);
+    if (sueltos.length > 0) {
+      setError(sueltos.join(" "));
+    }
+    setErrorRecienMarcado((n) => n + 1);
   }
 
   return (
@@ -747,7 +856,12 @@ function ProductForm({
       onSubmit={(event) => {
         event.preventDefault();
         setError(null);
-        setFieldErrors({});
+        const locales = erroresAntesDeMandar();
+        setFieldErrors(locales);
+        if (Object.keys(locales).length > 0) {
+          setErrorRecienMarcado((n) => n + 1);
+          return;
+        }
         // La regla de los DOS códigos (Carlos, 2026-08-24): se exige al menos
         // uno. Sin interno, se adopta el de barras — es lo que hace medio
         // comercio con los códigos mundiales, y el interno es obligatorio.
@@ -786,6 +900,10 @@ function ProductForm({
     >
       {error && (
         <p
+          ref={errorRef}
+          // Enfocable para que el cursor llegue aquí cuando el error no es
+          // de ningún campo.
+          tabIndex={-1}
           role="alert"
           data-testid="product-form-error"
           className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -810,11 +928,15 @@ function ProductForm({
         hint={codigoBloqueado ? t("products.form.barcodeLocked") : t("products.form.barcodeHint")}
         value={barcode}
         ref={codigoRef}
+        error={fieldErrors.barcode}
         // `readOnly` y no `disabled`: el valor tiene que seguir viajando al
         // guardar, y quien lo necesite tiene que poder copiarlo.
         readOnly={codigoBloqueado}
         disabled={!canManage}
-        onChange={(event) => setBarcode(event.target.value)}
+        onChange={(event) => {
+          setBarcode(event.target.value);
+          corregir("barcode");
+        }}
         onKeyDown={(event) => {
           if (event.key !== "Enter") {
             return;
@@ -826,7 +948,16 @@ function ProductForm({
           event.preventDefault();
           void consultarCodigo(event.currentTarget.value);
         }}
-        onBlur={(event) => void consultarCodigo(event.currentTarget.value, "salida")}
+        onBlur={(event) => {
+          // Al salir del campo ya se sabe si el código sirve: no hace falta
+          // llegar hasta Guardar para enterarse.
+          const problema = errorDelCodigo();
+          if (problema !== null) {
+            setFieldErrors((actuales) => ({ ...actuales, barcode: problema }));
+            return;
+          }
+          void consultarCodigo(event.currentTarget.value, "salida");
+        }}
       />
       {codigoBloqueado && canManage && (
         <Button
@@ -855,8 +986,13 @@ function ProductForm({
         // un código de barras puesto, el interno adopta ese valor al guardar.
         // Decirlo con el valor real vale más que explicarlo en abstracto.
         placeholder={barcode.trim() !== "" && sku.trim() === "" ? barcode : undefined}
+        maxLength={64}
+        error={fieldErrors.sku}
         disabled={!canManage}
-        onChange={(event) => setSku(normalizeCode(event.target.value))}
+        onChange={(event) => {
+          setSku(normalizeCode(event.target.value));
+          corregir("sku");
+        }}
       />
       {/* El porqué del botón muerto. Un Guardar deshabilitado sin explicación
           se lee como pantalla rota — lección repetida de este proyecto. */}
@@ -869,9 +1005,12 @@ function ProductForm({
         label={t("products.form.name")}
         value={name}
         ref={nombreRef}
+        maxLength={200}
+        error={fieldErrors.name}
         disabled={!canManage}
         onChange={(event) => {
           setName(event.target.value);
+          corregir("name");
           // Editado a mano, el nombre ya no es una sugerencia de nadie.
           setSugerencia(null);
         }}
@@ -883,6 +1022,7 @@ function ProductForm({
       <SelectField
         label={t("products.form.baseUnit")}
         value={baseUnit}
+        error={fieldErrors.baseUnit}
         disabled={!canManage}
         // «Pieza (unit)»: el código entre paréntesis es el que se guarda y el
         // que viaja en la plantilla de importación — así nadie lo adivina al
@@ -891,7 +1031,10 @@ function ProductForm({
           value: code,
           label: `${unitName(code, uiLocale)} (${code})`,
         }))}
-        onChange={(event) => setBaseUnit(event.target.value)}
+        onChange={(event) => {
+          setBaseUnit(event.target.value);
+          corregir("baseUnit");
+        }}
       />
 
       {/* Costo y precio editan la presentación base: el usuario los ve como
@@ -903,23 +1046,29 @@ function ProductForm({
         onTaxGroupChange={setTaxGroupId}
         disabled={!canManage}
         cost={cost}
-        onCostChange={setCost}
+        onCostChange={(valor) => {
+          setCost(valor);
+          corregir("cost");
+        }}
         costLabel={t("products.form.cost", { context: costTaxMode })}
         costHint={t(
           costTaxMode === "included"
             ? "products.form.costHintIncluded"
             : "products.form.costHintExcluded",
         )}
-        costError={costError}
+        costError={costError ?? fieldErrors.cost}
         price={price}
-        onPriceChange={setPrice}
+        onPriceChange={(valor) => {
+          setPrice(valor);
+          corregir("price");
+        }}
         priceLabel={t("products.form.price", { context: priceTaxMode })}
         priceHint={t(
           priceTaxMode === "included"
             ? "products.form.priceHintIncluded"
             : "products.form.priceHintExcluded",
         )}
-        priceError={priceError}
+        priceError={priceError ?? fieldErrors.price}
       />
       <TextField
         label={t("products.form.stockMin")}
@@ -927,8 +1076,14 @@ function ProductForm({
         step="any"
         hint={t("products.form.stockMinHint")}
         value={stockMin}
+        // Sin `min`: el navegador frenaría el envío con su globo genérico y
+        // el aviso de abajo, que dice qué poner, nunca aparecería.
+        error={fieldErrors.stockMin}
         disabled={!canManage}
-        onChange={(event) => setStockMin(event.target.value)}
+        onChange={(event) => {
+          setStockMin(event.target.value);
+          corregir("stockMin");
+        }}
       />
       {/*
         Solo si el negocio usa ubicaciones: a quien no las lleva, un campo
@@ -939,8 +1094,13 @@ function ProductForm({
           label={t("products.form.location")}
           hint={t("products.form.locationHint")}
           value={location}
+          maxLength={64}
+          error={fieldErrors.location}
           disabled={!canManage}
-          onChange={(event) => setLocation(event.target.value)}
+          onChange={(event) => {
+            setLocation(event.target.value);
+            corregir("location");
+          }}
         />
       )}
 

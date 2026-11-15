@@ -1092,6 +1092,195 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
 });
 
 /**
+ * Carlos (2026-11-14): «cuando pongo un código de barras erróneo está bien que
+ * no guarde el producto pero me debe salir cuál es el error». El API ya decía
+ * qué estaba mal, campo por campo, pero el formulario solo pintaba los errores
+ * de los campos personalizados: Guardar no hacía nada visible.
+ */
+describe("el alta dice qué campo está mal y por qué", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });
+    mockedProducts.createProduct.mockResolvedValue(PRODUCT);
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    mockedProducts.lookupBarcode.mockResolvedValue({
+      status: "unknown",
+      code: "",
+      gtin14: null,
+      tenant: null,
+      global: null,
+      contributable: false,
+    } as unknown as Awaited<ReturnType<typeof productsApi.lookupBarcode>>);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  async function abrirAlta() {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+    return user;
+  }
+
+  const campoCodigo = () => screen.getByLabelText(/código de barras/i);
+
+  it("un código de barras con letras no se manda: el campo dice por qué y se queda con el cursor", async () => {
+    const user = await abrirAlta();
+
+    await user.type(campoCodigo(), "ghjsda54637");
+    await user.type(screen.getByLabelText(/^nombre/i), "test01");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(campoCodigo()).toHaveAccessibleDescription(/entre 6 y 14 dígitos/);
+    expect(campoCodigo()).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(campoCodigo()).toHaveFocus());
+    expect(mockedProducts.createProduct).not.toHaveBeenCalled();
+  });
+
+  it("al salir del campo ya avisa, y al corregirlo el aviso se va", async () => {
+    const user = await abrirAlta();
+
+    await user.type(campoCodigo(), "ABC123");
+    await user.tab();
+    expect(campoCodigo()).toHaveAccessibleDescription(/entre 6 y 14 dígitos/);
+
+    await user.clear(campoCodigo());
+    await user.type(campoCodigo(), "7501011167650");
+    expect(campoCodigo()).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("un dígito verificador que no cuadra es otro error, con su propio texto", async () => {
+    const user = await abrirAlta();
+
+    // El bueno termina en 0: es un dedazo en el último dígito.
+    await user.type(campoCodigo(), "7501011167651");
+    await user.type(screen.getByLabelText(/^nombre/i), "Agua");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(campoCodigo()).toHaveAccessibleDescription(/último dígito no coincide/);
+    expect(mockedProducts.createProduct).not.toHaveBeenCalled();
+  });
+
+  it("un stock mínimo negativo tampoco se manda", async () => {
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/código interno/i), "AGUA-1L");
+    await user.type(screen.getByLabelText(/^nombre/i), "Agua");
+    const minimo = screen.getByLabelText(/stock mínimo/i);
+    await user.clear(minimo);
+    await user.type(minimo, "-3");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(minimo).toHaveAccessibleDescription(/de 0 en adelante/);
+    expect(mockedProducts.createProduct).not.toHaveBeenCalled();
+  });
+
+  it("el error de un campo que manda el API se pinta debajo de ese campo", async () => {
+    mockedProducts.createProduct.mockRejectedValue({
+      statusCode: 400,
+      code: "products.invalid_body",
+      message: "Los datos enviados no son válidos.",
+      errors: [{ key: "name", message: "Máximo 200 caracteres." }],
+    });
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/código interno/i), "AGUA-1L");
+    await user.type(screen.getByLabelText(/^nombre/i), "Agua");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    const nombre = screen.getByLabelText(/^nombre/i);
+    await waitFor(() => expect(nombre).toHaveAccessibleDescription("Máximo 200 caracteres."));
+    await waitFor(() => expect(nombre).toHaveFocus());
+  });
+
+  it("un código interno repetido se marca en «Código interno»", async () => {
+    mockedProducts.createProduct.mockRejectedValue({
+      statusCode: 409,
+      code: "products.sku_taken",
+      message: "Ya tienes un producto con ese código.",
+    });
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/código interno/i), "AGUA-1L");
+    await user.type(screen.getByLabelText(/^nombre/i), "Agua");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/código interno/i)).toHaveAccessibleDescription(
+        "Ya tienes un producto con ese código.",
+      ),
+    );
+  });
+
+  it("un error de un dato que la pantalla no muestra va arriba, nunca se pierde", async () => {
+    mockedProducts.createProduct.mockRejectedValue({
+      statusCode: 400,
+      code: "products.invalid_body",
+      message: "Los datos enviados no son válidos.",
+      errors: [{ key: "taxGroupId", message: "El valor no es válido." }],
+    });
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/código interno/i), "AGUA-1L");
+    await user.type(screen.getByLabelText(/^nombre/i), "Agua");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByTestId("product-form-error")).toHaveTextContent(
+      "El valor no es válido.",
+    );
+  });
+
+  it("al editar, un código viejo que nadie tocó no frena el guardado", async () => {
+    // Hay códigos de antes de la regla («AJOLOCARAMELO»): el API solo los
+    // revisa si cambian, y la pantalla tiene que hacer lo mismo.
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "10.00" }],
+    });
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      presentations: [
+        {
+          id: "pres-1",
+          productId: "prod-1",
+          name: "Pieza",
+          factor: "1",
+          isPurchasable: true,
+          isSellable: true,
+          isDefaultSale: true,
+          allowFractionalInput: false,
+          barcode: "AJOLOCARAMELO",
+          price: "10.00",
+          cost: null,
+          isActive: true,
+        },
+      ],
+    });
+    mockedProducts.updateProduct.mockResolvedValue(PRODUCT);
+    const user = await openProduct();
+
+    await user.click(await screen.findByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(mockedProducts.updateProduct).toHaveBeenCalled());
+  });
+});
+
+/**
  * Fix crítico (2026-08-26): con TRES catálogos de sistema, `find(isSystem)`
  * agarraba el PRIMERO — "Catálogo de Almacenes" por orden alfabético — y el
  * form de producto bindeaba los campos del catálogo equivocado. El form debe
