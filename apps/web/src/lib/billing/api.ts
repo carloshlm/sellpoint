@@ -143,6 +143,18 @@ export async function enableModule(
   return data;
 }
 
+/**
+ * El precio pactado del negocio, sin tocar sus módulos ni su plan (Carlos,
+ * 2026-11-14). `null` lo quita; en un plan sin precio publicado (Premium) el
+ * API lo rechaza, porque ese plan no tendría qué cobrar.
+ */
+export async function updateCustomPrice(
+  tenantId: string,
+  input: { customPrice: string | null; reason: string },
+): Promise<void> {
+  await api.patch(`/admin/billing/tenants/${tenantId}/subscription`, input);
+}
+
 export async function disableModule(
   tenantId: string,
   moduleKey: ModuleKey,

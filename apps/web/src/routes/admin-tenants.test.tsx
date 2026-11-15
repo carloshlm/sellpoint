@@ -26,6 +26,7 @@ vi.mock("@/lib/billing/api", async (importOriginal) => ({
   getPlans: vi.fn().mockResolvedValue([]),
   enableModule: vi.fn(),
   disableModule: vi.fn(),
+  updateCustomPrice: vi.fn(),
 }));
 vi.mock("@/lib/admin/api", () => ({
   getTenantOverview: vi.fn(),
@@ -59,6 +60,7 @@ const mockedOverview = vi.mocked(adminApi.getTenantOverview);
 const mockedUsers = vi.mocked(adminApi.listTenantUsers);
 const mockedSuspend = vi.mocked(adminApi.suspendTenantUser);
 const mockedEnable = vi.mocked(billingApi.enableModule);
+const mockedCustomPrice = vi.mocked(billingApi.updateCustomPrice);
 const mockedKpis = vi.mocked(dashboardApi.getDashboardKpis);
 const mockedSales = vi.mocked(reportsApi.getSalesReport);
 const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
@@ -331,6 +333,63 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
     const compras = await screen.findByTestId("module-purchases");
     expect(within(compras).getByRole("button", { name: "Activar" })).toBeInTheDocument();
     expect(screen.getByTestId("module-expenses")).toHaveTextContent("Incluido en el plan Basic");
+  });
+
+  /**
+   * Carlos (2026-11-14): «me debe dejar cambiar el precio pactado sin necesidad
+   * de desactivar o activar módulos». Un botón propio, con el mismo motivo.
+   */
+  it("Plan y módulos: el precio pactado se guarda solo, sin tocar los módulos", async () => {
+    mockedOverview.mockResolvedValue({
+      ...overview,
+      subscription: {
+        ...overview.subscription,
+        planCode: "premium",
+        planName: "Premium",
+        customPrice: "500.00",
+      },
+      modules: ["reception"],
+    });
+    mockedCustomPrice.mockResolvedValue(undefined);
+    await renderEn("/admin/tenants/t1?tab=plan");
+    const user = userEvent.setup();
+    const guardar = await screen.findByRole("button", { name: "Guardar precio" });
+    // Sin cambio y sin motivo no hay nada que guardar.
+    expect(guardar).toBeDisabled();
+
+    const precio = screen.getByLabelText(/Precio pactado/);
+    await user.clear(precio);
+    await user.type(precio, "650");
+    expect(guardar).toBeDisabled();
+    await user.type(screen.getByLabelText(/Motivo/), "nuevo acuerdo");
+    expect(guardar).toBeEnabled();
+    await user.click(guardar);
+
+    await waitFor(() =>
+      expect(mockedCustomPrice).toHaveBeenCalledWith("t1", {
+        customPrice: "650",
+        reason: "nuevo acuerdo",
+      }),
+    );
+    expect(mockedEnable).not.toHaveBeenCalled();
+    expect(await screen.findByRole("status")).toHaveTextContent("Precio pactado actualizado");
+  });
+
+  it("Plan y módulos: un precio que no es un importe no se puede guardar", async () => {
+    mockedOverview.mockResolvedValue({
+      ...overview,
+      subscription: { ...overview.subscription, customPrice: "500.00" },
+    });
+    await renderEn("/admin/tenants/t1?tab=plan");
+    const user = userEvent.setup();
+    const guardar = await screen.findByRole("button", { name: "Guardar precio" });
+
+    const precio = screen.getByLabelText(/Precio pactado/);
+    await user.clear(precio);
+    await user.type(precio, "6.505");
+    await user.type(screen.getByLabelText(/Motivo/), "x");
+
+    expect(guardar).toBeDisabled();
   });
 
   it("Panel: pide el dashboard del negocio mirado, no el propio", async () => {

@@ -833,8 +833,18 @@ export class BillingService {
         action: "billing.plan_changed",
         resourceType: "subscription",
         resourceId: sub.id,
-        before: { planCode: sub.plan.code },
-        after: { planCode: plan.code, reason: input.reason },
+        // El precio de antes y el de después: cambiar SOLO el pactado desde el
+        // expediente (Carlos, 2026-11-14) dejaba una bitácora que decía «plan
+        // premium → premium» sin el número que de verdad cambió.
+        before: {
+          planCode: sub.plan.code,
+          customPrice: sub.customPrice === null ? null : String(sub.customPrice),
+        },
+        after: {
+          planCode: plan.code,
+          customPrice: actualizada.customPrice === null ? null : String(actualizada.customPrice),
+          reason: input.reason,
+        },
       });
 
       return actualizada;

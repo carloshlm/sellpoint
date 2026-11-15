@@ -1,7 +1,12 @@
 import type { ModuleKey } from "@sellpoint/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
-import { disableModule, type EnableModuleInput, enableModule } from "@/lib/billing/api";
+import {
+  disableModule,
+  type EnableModuleInput,
+  enableModule,
+  updateCustomPrice,
+} from "@/lib/billing/api";
 import type { UserDetail } from "@/lib/rbac/api";
 import {
   deleteTenant,
@@ -68,6 +73,15 @@ export function useDisableModule(tenantId: string) {
   const invalidar = useInvalidateTenant(tenantId);
   return useMutation<ModuleKey[], ApiError, { moduleKey: ModuleKey; reason: string }>({
     mutationFn: ({ moduleKey, reason }) => disableModule(tenantId, moduleKey, reason),
+    onSuccess: invalidar,
+  });
+}
+
+/** El precio pactado, solo: sin activar ni desactivar módulos (Carlos, 2026-11-14). */
+export function useUpdateCustomPrice(tenantId: string) {
+  const invalidar = useInvalidateTenant(tenantId);
+  return useMutation<void, ApiError, { customPrice: string | null; reason: string }>({
+    mutationFn: (input) => updateCustomPrice(tenantId, input),
     onSuccess: invalidar,
   });
 }

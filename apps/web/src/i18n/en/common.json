@@ -458,6 +458,10 @@
         "plan": {
           "currentPlan": "Current plan",
           "customPriceCurrent": "Agreed price: {{amount}} {{currency}}",
+          "saveCustomPrice": "Save price",
+          "saveCustomPriceHint": "Changes the price of this business's next payments without touching its modules.",
+          "customPriceSaved": "Agreed price updated: {{amount}} {{currency}}.",
+          "customPriceRemoved": "The agreed price was removed: the next payments use the list price.",
           "modules": "Advanced modules",
           "customPrice": "Agreed price (monthly)",
           "reason": "Reason (kept in the audit log)",

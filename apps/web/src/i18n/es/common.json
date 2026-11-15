@@ -458,6 +458,10 @@
         "plan": {
           "currentPlan": "Plan actual",
           "customPriceCurrent": "Precio pactado: {{amount}} {{currency}}",
+          "saveCustomPrice": "Guardar precio",
+          "saveCustomPriceHint": "Cambia el precio de los próximos pagos de este negocio, sin tocar sus módulos.",
+          "customPriceSaved": "Precio pactado actualizado: {{amount}} {{currency}}.",
+          "customPriceRemoved": "Se quitó el precio pactado: los próximos pagos van con el precio de lista.",
           "modules": "Módulos avanzados",
           "customPrice": "Precio pactado (mensual)",
           "reason": "Motivo (queda en la bitácora)",

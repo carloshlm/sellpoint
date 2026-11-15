@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import type { TenantOverview } from "@/lib/admin/api";
-import { useDisableModule, useEnableModule } from "@/lib/admin/hooks";
+import { useDisableModule, useEnableModule, useUpdateCustomPrice } from "@/lib/admin/hooks";
 import { useAdminTenantScope } from "@/lib/admin/scope";
 import type { ApiError } from "@/lib/api";
 import { MODULE_NAV } from "@/lib/modules/nav";
@@ -26,13 +27,35 @@ import { MODULE_NAV } from "@/lib/modules/nav";
  * copy lo dice. Sin suscripción no hay nada que activar: primero un plan o
  * un pago (no se inventa la fila desde acá).
  */
+/** Un importe con hasta 2 decimales, como lo acepta el API (`money` del DTO). */
+const IMPORTE = /^\d+(\.\d{1,2})?$/;
+
 export function TenantPlanTab({ overview }: { overview: TenantOverview; tenantId: string }) {
   const { t } = useTranslation();
   const k = (sufijo: string) => t(`common.billing.admin.tenants.plan.${sufijo}`);
   const [customPrice, setCustomPrice] = useState(overview.subscription.customPrice ?? "");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [precioGuardado, setPrecioGuardado] = useState<string | null>(null);
   const sinSuscripcion = overview.subscription.status === "none";
+  const tenantId = useAdminTenantScope().tenantId ?? "";
+  const guardarPrecio = useUpdateCustomPrice(tenantId);
+  /**
+   * ── El precio pactado se guarda solo (Carlos, 2026-11-14) ─────────────
+   *
+   * «Me debe dejar cambiar el precio pactado sin necesidad de desactivar o
+   * activar módulos.» Antes el precio solo viajaba al ACTIVAR un módulo. El
+   * botón usa el mismo motivo de la bitácora y solo se habilita si el número
+   * cambió y es un importe. Vacío quita el pactado (el API lo rechaza en un
+   * plan sin precio publicado, como Premium).
+   */
+  const precioEscrito = customPrice.trim();
+  const precioActual = overview.subscription.customPrice ?? "";
+  const precioCambio =
+    precioEscrito === "" || precioActual === ""
+      ? precioEscrito !== precioActual
+      : Number(precioEscrito) !== Number(precioActual);
+  const precioValido = precioEscrito === "" || IMPORTE.test(precioEscrito);
   const activos = new Set<ModuleKey>(overview.modules);
   // F9-PLANMOD-05 — el plan CONTRATADO decide qué módulos ya vienen incluidos
   // (`plan-modules.ts`); esos no se activan ni se apagan desde aquí.
@@ -102,6 +125,46 @@ export function TenantPlanTab({ overview }: { overview: TenantOverview; tenantId
               />
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              disabled={
+                sinSuscripcion ||
+                guardarPrecio.isPending ||
+                !precioCambio ||
+                !precioValido ||
+                reason.trim() === ""
+              }
+              onClick={() => {
+                setError(null);
+                setPrecioGuardado(null);
+                guardarPrecio.mutate(
+                  {
+                    customPrice: precioEscrito === "" ? null : precioEscrito,
+                    reason: reason.trim(),
+                  },
+                  {
+                    onSuccess: () => setPrecioGuardado(precioEscrito),
+                    onError: (apiError) => setError(apiError.message),
+                  },
+                );
+              }}
+            >
+              {k("saveCustomPrice")}
+            </Button>
+            <span className="text-muted-foreground text-xs">{k("saveCustomPriceHint")}</span>
+          </div>
+          {precioGuardado !== null && (
+            <SuccessNotice testId="custom-price-saved">
+              {precioGuardado === ""
+                ? k("customPriceRemoved")
+                : t("common.billing.admin.tenants.plan.customPriceSaved", {
+                    amount: precioGuardado,
+                    currency: overview.tenant.currency,
+                  })}
+            </SuccessNotice>
+          )}
           <ul className="divide-y rounded-md border">
             {MODULE_KEYS.map((key) => (
               <ModuleRow

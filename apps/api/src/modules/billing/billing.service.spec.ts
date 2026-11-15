@@ -893,6 +893,29 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       expect(entitlements.invalidate).toHaveBeenCalledWith(TENANT);
     });
 
+    /**
+     * Carlos (2026-11-14): el precio pactado se cambia desde el expediente sin
+     * tocar los módulos. La bitácora dice de cuánto a cuánto, no solo el plan.
+     */
+    it("cambiar solo el precio pactado deja en la bitácora el antes y el después", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(
+        subRow({ planId: "plan-premium", plan: PLAN_PREMIUM, customPrice: "500.00" }),
+      );
+      tx.planPrice.findUnique.mockResolvedValue(null);
+
+      await service.changePlan(TENANT, { customPrice: "650.00", reason: "nuevo acuerdo" });
+
+      const update = tx.tenantSubscription.update.mock.calls[0][0].data;
+      expect(update).toMatchObject({ planId: "plan-premium", customPrice: "650.00" });
+      const bitacora = audit.record.mock.calls[0][1];
+      expect(bitacora.before).toMatchObject({ planCode: "premium", customPrice: "500.00" });
+      expect(bitacora.after).toMatchObject({
+        planCode: "premium",
+        customPrice: "650.00",
+        reason: "nuevo acuerdo",
+      });
+    });
+
     it("cancelar con período vivo NO degrada: cancel_at_period_end y el status queda intacto", async () => {
       tx.tenantSubscription.findUnique.mockResolvedValue(
         subRow({
