@@ -74,6 +74,8 @@
   "stock": {
     "avgCost": "Costo promedio",
     "byLot": "Detalle por lote y ubicación",
+    "catalogCost": "Costo de catálogo",
+    "catalogPrice": "Precio de venta",
     "expiresAt": "Caducidad",
     "location": "Ubicación",
     "lot": "Lote",
@@ -85,7 +87,7 @@
     "search": "Buscar producto",
     "searchPlaceholder": "Nombre o SKU",
     "value": "Valor",
-    "valueNet": "Valor (sin impuesto)",
+    "valueAtPrice": "Valor a precio de venta",
     "warehouse": "Sucursal"
   },
   "table": {

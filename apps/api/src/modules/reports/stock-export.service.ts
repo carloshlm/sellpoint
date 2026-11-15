@@ -20,7 +20,9 @@ const HEADER = [
   "Mínimo",
   "Bajo mínimo",
   "Costo promedio",
-  "Valor",
+  "Costo de catálogo",
+  "Precio de venta",
+  "Valor a precio de venta",
 ];
 const LOTS_HEADER = [
   "Producto",
@@ -36,7 +38,14 @@ const LOTS_HEADER = [
  * Las que van como NÚMERO en el xlsx: cantidades y dinero. El SKU, el lote y
  * la caducidad quedan como texto.
  */
-const NUMERICAS = ["Cantidad", "Mínimo", "Costo promedio", "Valor"];
+const NUMERICAS = [
+  "Cantidad",
+  "Mínimo",
+  "Costo promedio",
+  "Costo de catálogo",
+  "Precio de venta",
+  "Valor a precio de venta",
+];
 
 /**
  * F5-STK-02 — el reporte de stock en Excel.
@@ -105,7 +114,9 @@ export class StockExportService {
       // La celda VACÍA y no un cero: sin historial no sabemos cuánto costó, y
       // un 0 en la columna de valor se sumaría al total del inventario.
       fila.avgCost ?? "",
-      fila.totalValue ?? "",
+      fila.catalogCost ?? "",
+      fila.catalogPrice ?? "",
+      fila.valueAtPrice ?? "",
     ]);
   }
 

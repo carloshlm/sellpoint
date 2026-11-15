@@ -364,7 +364,9 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
             stockMin: "3",
             belowMin: false,
             avgCost: "8.50",
-            totalValue: "106.25",
+            catalogCost: "9.00",
+            catalogPrice: "15.00",
+            valueAtPrice: "187.50",
           },
         ],
       }),
@@ -386,7 +388,7 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
       }),
     };
 
-    it("cantidad, mínimo, costo promedio y valor son números; el sku, texto", async () => {
+    it("cantidad, mínimo, costos, precio y valor son números; el sku, texto", async () => {
       const servicio = new StockExportService(doble(stock));
 
       const sheet = await hoja((await servicio.build(USER, SCOPE, doble({ format: "xlsx" }))).body);
@@ -394,7 +396,11 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
       esNumero(sheet, "Cantidad", 12.5);
       esNumero(sheet, "Mínimo", 3);
       esNumero(sheet, "Costo promedio", 8.5);
-      esNumero(sheet, "Valor", 106.25);
+      esNumero(sheet, "Costo de catálogo", 9);
+      esNumero(sheet, "Precio de venta", 15);
+      esNumero(sheet, "Valor a precio de venta", 187.5);
+      // El valor a costo se quitó (Carlos, 2026-11-14): no queda su columna.
+      expect(sheet.getRow(1).values).not.toContain("Valor");
       esTexto(sheet, "SKU", "001000000018");
       esTexto(sheet, "Unidad", "unit");
     });

@@ -117,6 +117,42 @@ describe("Reporte de stock (F5-STK)", () => {
       loteadoId = loteado.id;
       repartidoId = repartido.id;
 
+      // El costo y el precio del CATÁLOGO, por presentación. Café tiene los
+      // suyos en la pieza y otros en la caja; Repartido solo se vende por
+      // caja; Con lotes tiene costo pero no precio; Azúcar, ninguno.
+      const presentacion = { tenantId, allowFractionalInput: false };
+      await tx.productPresentation.createMany({
+        data: [
+          {
+            ...presentacion,
+            productId: cafe.id,
+            name: "Pieza",
+            factor: 1,
+            price: "15.00",
+            cost: "9.50",
+          },
+          {
+            ...presentacion,
+            productId: cafe.id,
+            name: "Caja ×12",
+            factor: 12,
+            isDefaultSale: true,
+            price: "150.00",
+            cost: "100.00",
+          },
+          {
+            ...presentacion,
+            productId: repartido.id,
+            name: "Caja ×12",
+            factor: 12,
+            isDefaultSale: true,
+            price: "120.00",
+            cost: "90.00",
+          },
+          { ...presentacion, productId: loteado.id, name: "Pieza", factor: 1, cost: "4.00" },
+        ],
+      });
+
       await tx.stockByWarehouse.createMany({
         data: [
           { tenantId, productId: cafe.id, warehouseId: central.id, quantity: "40" },
@@ -439,14 +475,13 @@ describe("Reporte de stock (F5-STK)", () => {
 
       const rows = (
         response.body as {
-          rows: { productId: string; avgCost: string | null; totalValue: string | null }[];
+          rows: { productId: string; avgCost: string | null }[];
         }
       ).rows;
       const cafe = rows.find((r) => r.productId === cafeId);
 
-      // 10 a $5 y 30 a $9 → $8 la unidad; 40 en Central → $320.
+      // 10 a $5 y 30 a $9 → $8 la unidad.
       expect(cafe?.avgCost).toBe("8.00");
-      expect(cafe?.totalValue).toBe("320.00");
     });
 
     /**
@@ -454,7 +489,7 @@ describe("Reporte de stock (F5-STK)", () => {
      * del inventario y lo haría mentir: «no sé cuánto vale» y «no vale nada»
      * son afirmaciones distintas.
      */
-    it("un producto sin compras deja el costo y el valor en null, no en cero", async () => {
+    it("un producto sin compras deja el costo promedio en null, no en cero", async () => {
       const response = await request(app.getHttpServer())
         .get(`/reports/stock?search=Azúcar`)
         .set(auth())
@@ -462,12 +497,76 @@ describe("Reporte de stock (F5-STK)", () => {
 
       const azucar = (
         response.body as {
-          rows: { productId: string; avgCost: string | null; totalValue: string | null }[];
+          rows: { productId: string; avgCost: string | null }[];
         }
       ).rows.find((r) => r.productId === azucarId);
 
       expect(azucar?.avgCost).toBeNull();
-      expect(azucar?.totalValue).toBeNull();
+    });
+  });
+
+  /**
+   * Carlos (2026-11-14): junto al costo promedio van el costo y el precio «que
+   * tenemos en el catálogo de productos por unidad base», y el valor ya no es
+   * el del costo: es el precio de venta por la cantidad en stock.
+   */
+  describe("el costo y el precio del catálogo, y el valor a precio de venta", () => {
+    type Fila = {
+      productId: string;
+      warehouseId: string;
+      avgCost: string | null;
+      catalogCost: string | null;
+      catalogPrice: string | null;
+      valueAtPrice: string | null;
+    };
+    const filas = async (query: string) =>
+      (
+        (await request(app.getHttpServer()).get(`/reports/stock?${query}`).set(auth()).expect(200))
+          .body as { rows: Fila[] }
+      ).rows;
+
+    it("trae los de la presentación base y valoriza con el precio de venta", async () => {
+      const cafe = (await filas(`warehouseId=${centralId}`)).find((r) => r.productId === cafeId);
+
+      // La pieza cuesta $9.50 y se vende a $15 (la caja, predeterminada, no
+      // manda); 40 en Central → $600. El promedio de compras sigue aparte.
+      expect(cafe).toMatchObject({
+        avgCost: "8.00",
+        catalogCost: "9.50",
+        catalogPrice: "15.00",
+        valueAtPrice: "600.00",
+      });
+      // El valor a costo ya no viaja: la columna se quitó.
+      expect(cafe).not.toHaveProperty("totalValue");
+    });
+
+    it("lo que solo se vende por caja se reparte entre su factor, por sucursal", async () => {
+      const repartido = (await filas("search=Repartido")).filter(
+        (r) => r.productId === repartidoId,
+      );
+
+      // $120 y $90 la caja de 12 → $10 y $7.50 la pieza; 40 en Central, 30 en Norte.
+      expect(repartido.find((r) => r.warehouseId === centralId)).toMatchObject({
+        catalogCost: "7.50",
+        catalogPrice: "10.00",
+        valueAtPrice: "400.00",
+      });
+      expect(repartido.find((r) => r.warehouseId === norteId)).toMatchObject({
+        catalogPrice: "10.00",
+        valueAtPrice: "300.00",
+      });
+    });
+
+    it("sin precio no hay valor, y sin costo ni precio las tres quedan en null", async () => {
+      const loteado = (await filas("search=Con lotes")).find((r) => r.productId === loteadoId);
+      expect(loteado).toMatchObject({
+        catalogCost: "4.00",
+        catalogPrice: null,
+        valueAtPrice: null,
+      });
+
+      const azucar = (await filas("search=Azúcar")).find((r) => r.productId === azucarId);
+      expect(azucar).toMatchObject({ catalogCost: null, catalogPrice: null, valueAtPrice: null });
     });
   });
 

@@ -26,7 +26,11 @@ export interface StockReportRow {
   belowMin: boolean;
   /** `null` cuando el producto nunca se compró: ver `WeightedCostService`. */
   avgCost: string | null;
-  totalValue: string | null;
+  /** Los del catálogo por unidad base; `null` si no están capturados. */
+  catalogCost: string | null;
+  catalogPrice: string | null;
+  /** El precio del catálogo por la cantidad; `null` sin precio. */
+  valueAtPrice: string | null;
   /** Solo con `detail=lots`. */
   lotCode?: string;
   expiresAt?: string | null;

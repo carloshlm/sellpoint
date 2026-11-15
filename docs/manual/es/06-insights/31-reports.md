@@ -21,7 +21,7 @@ Excel en ese momento o te llevan a la pantalla donde ya vive esa información.
 
 | Tarjeta | Qué hace |
 |---|---|
-| **Stock por sucursal** | Abre el reporte de existencias, con su costo promedio y su valor sin impuesto. |
+| **Stock por sucursal** | Abre el reporte de existencias, con sus costos, su precio y su valor a precio de venta. |
 | **Ventas** | Abre el reporte de ventas del periodo. |
 | **Ventas por producto** | Abre cada producto vendido, ticket por ticket. |
 | **Ventas por servicio** | Abre cada servicio vendido, ticket por ticket. |
@@ -124,9 +124,18 @@ y **Tickets**. Es el número que necesitas para tu declaración.
 
 ## Stock por sucursal
 
-Cuánto hay de cada producto en cada sucursal, con su **Mínimo**, su **Costo
-promedio** y su **Valor (sin impuesto)**. Para encontrar uno, escribe su nombre
-o su SKU en **Buscar producto**. Dos casillas lo cambian:
+Cuánto hay de cada producto en cada sucursal, con su **Mínimo** y cuatro
+importes:
+
+- **Costo promedio**: lo que te ha costado en promedio, según tus compras.
+- **Costo de catálogo** y **Precio de venta**: los que tiene hoy la ficha del
+  producto, por unidad base. Si un producto solo tiene precio por caja, aquí
+  verás lo que le toca a cada pieza.
+- **Valor a precio de venta**: el precio de venta por la cantidad que hay en esa
+  sucursal.
+
+Para encontrar un producto, escribe su nombre o su SKU en **Buscar producto**.
+Dos casillas cambian el reporte:
 
 - **Solo bajo mínimo** deja los productos que hay que resurtir. El mínimo se
   compara contra lo que hay **sumando todas las sucursales**.
@@ -135,8 +144,8 @@ o su SKU en **Buscar producto**. Dos casillas lo cambian:
   su propio renglón, con **Sin lote** en la columna del lote y la caducidad
   vacía. Los lotes que ya se agotaron no aparecen.
 
-Si un producto no tiene costo, su valor queda vacío en lugar de contar como
-cero.
+Si a un producto le falta un costo o el precio, esa celda queda vacía en lugar
+de contar como cero. Sin precio tampoco hay valor.
 
 ## Bajar a Excel
 

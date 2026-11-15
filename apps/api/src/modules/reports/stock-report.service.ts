@@ -3,6 +3,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { type CatalogUnitAmounts, catalogUnitAmounts } from "../cost/catalog-unit-amounts";
 import { WeightedCostService } from "../cost/weighted-cost.service";
 import { assertWarehouseInScope } from "../inventory/warehouse-scope.helpers";
 import type { StockReportQueryDto } from "./dto/stock-report.dto";
@@ -21,7 +22,15 @@ export interface StockReportRow {
   belowMin: boolean;
   /** `null` sin historial de compras: ver `WeightedCostService`. */
   avgCost: string | null;
-  totalValue: string | null;
+  /**
+   * El costo y el precio del catálogo por unidad base, como están capturados
+   * (con o sin impuesto, según la base del negocio). `null` si no hay: ver
+   * `catalogUnitAmounts`.
+   */
+  catalogCost: string | null;
+  catalogPrice: string | null;
+  /** El precio del catálogo por la cantidad de la fila; `null` sin precio. */
+  valueAtPrice: string | null;
 }
 
 export interface StockLotReportRow {
@@ -65,7 +74,10 @@ function likePattern(needle: string): string {
  *     él, dos filas empatadas quedan en el orden que Postgres decida y ese
  *     orden cambia entre consultas, así que una fila puede salir en dos
  *     páginas o en ninguna.
- *  3. **Valorización.** Con el promedio ponderado de F5-COST-01.
+ *  3. **Valorización.** A PRECIO DE VENTA: el precio del catálogo por la
+ *     cantidad (Carlos, 2026-11-14; antes era a costo promedio). El promedio
+ *     ponderado de F5-COST-01 sigue en su columna, junto al costo y al precio
+ *     del catálogo por unidad base.
  *
  * ── Qué significa `belowMin` ────────────────────────────────────────────
  *
@@ -112,9 +124,10 @@ export class StockReportService {
     });
 
     const productIds = [...new Set(filas.map((f) => f.productId))];
-    const [promedios, totales] = await Promise.all([
+    const [promedios, totales, catalogo] = await Promise.all([
       this.weightedCost.averageCosts(user.tenantId, productIds),
       this.totalPorProducto(user.tenantId, scope, productIds),
+      this.catalogoPorProducto(user.tenantId, productIds),
     ]);
 
     return {
@@ -122,6 +135,7 @@ export class StockReportService {
         const stockMin = new Prisma.Decimal(fila.product.stockMin.toString());
         const totalProducto = totales.get(fila.productId) ?? new Prisma.Decimal(0);
         const promedio = promedios.get(fila.productId) ?? null;
+        const { cost, price } = catalogo.get(fila.productId) ?? { cost: null, price: null };
 
         return {
           productId: fila.productId,
@@ -136,9 +150,13 @@ export class StockReportService {
           // Un mínimo en cero significa «no llevo control», no «todo es poco».
           belowMin: stockMin.greaterThan(0) && totalProducto.lessThan(stockMin),
           avgCost: promedio === null ? null : promedio.toFixed(2),
-          // Sin costo NO hay valor: un 0 se sumaría al total del inventario y
+          catalogCost: cost === null ? null : cost.toFixed(2),
+          catalogPrice: price === null ? null : price.toFixed(2),
+          // Sin precio NO hay valor: un 0 se sumaría al total del inventario y
           // lo haría mentir. La celda vacía dice «no sé», que es la verdad.
-          totalValue: promedio === null ? null : promedio.mul(fila.quantity).toFixed(2),
+          // Se multiplica el precio ENTERO, no el redondeado de la celda: a
+          // $35 el kilo, 2 500 g valen $87.50 y no los $100 de «$0.04 × 2500».
+          valueAtPrice: price === null ? null : price.mul(fila.quantity).toFixed(2),
         };
       }),
       total,
@@ -231,6 +249,35 @@ export class StockReportService {
       page: query.page,
       pageSize: query.pageSize,
     };
+  }
+
+  /**
+   * El costo y el precio del catálogo de cada producto, por unidad base. Solo
+   * las presentaciones ACTIVAS: una dada de baja ya no es lo que el catálogo
+   * dice hoy. Una consulta para toda la página, como los promedios.
+   */
+  private async catalogoPorProducto(
+    tenantId: string,
+    productIds: readonly string[],
+  ): Promise<Map<string, CatalogUnitAmounts>> {
+    if (productIds.length === 0) {
+      return new Map();
+    }
+    const presentaciones = await this.prisma.withTenantContext(tenantId, (tx) =>
+      tx.productPresentation.findMany({
+        where: { tenantId, productId: { in: [...productIds] }, isActive: true },
+        select: {
+          id: true,
+          productId: true,
+          factor: true,
+          isDefaultSale: true,
+          price: true,
+          cost: true,
+          createdAt: true,
+        },
+      }),
+    );
+    return catalogUnitAmounts(presentaciones);
   }
 
   /** Cuántas filas dejarían los filtros. Lo consume el tope del export. */

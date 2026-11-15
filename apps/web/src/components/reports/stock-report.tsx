@@ -72,8 +72,13 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         { key: "warehouseName", header: t("reports.stock.warehouse") },
         { key: "quantity", header: t("reports.stock.quantity"), numeric: true },
         { key: "stockMin", header: t("reports.stock.min"), numeric: true },
+        // Carlos (2026-11-14): el promedio de las compras, después el costo y
+        // el precio que hoy tiene la ficha del producto (por unidad base) y,
+        // al final, lo que vale ese stock a precio de venta.
         { key: "avgCost", header: t("reports.stock.avgCost"), numeric: true },
-        { key: "totalValue", header: t("reports.stock.valueNet"), numeric: true },
+        { key: "catalogCost", header: t("reports.stock.catalogCost"), numeric: true },
+        { key: "catalogPrice", header: t("reports.stock.catalogPrice"), numeric: true },
+        { key: "valueAtPrice", header: t("reports.stock.valueAtPrice"), numeric: true },
       ];
 
   /**
@@ -81,7 +86,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
    * por qué saber— cuáles columnas son dinero.
    *
    * El `?? null` cubre los DOS huecos, y no es lo mismo: `null` es «este
-   * producto nunca se compró» y `undefined` es «esta consulta no trae esa
+   * producto no tiene ese dato» y `undefined` es «esta consulta no trae esa
    * columna» (el detalle por lote no devuelve costos). Los dos terminan en
    * celda vacía, pero tratar solo el `null` mandaba `Number(undefined)` —o
    * sea `NaN`— al formateador y reventaba la pantalla entera.
@@ -96,7 +101,9 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
     // 2026-10-31).
     ...(fila.unlotted === true && { lotCode: t("reports.stock.noLot") }),
     avgCost: dinero(fila.avgCost),
-    totalValue: dinero(fila.totalValue),
+    catalogCost: dinero(fila.catalogCost),
+    catalogPrice: dinero(fila.catalogPrice),
+    valueAtPrice: dinero(fila.valueAtPrice),
     expiresAt:
       fila.expiresAt === null || fila.expiresAt === undefined
         ? ""

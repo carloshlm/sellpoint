@@ -66,7 +66,9 @@ const filaStock = (
   totalQuantity: "60",
   belowMin: true,
   avgCost: "8.00",
-  totalValue: "320.00",
+  catalogCost: "9.50",
+  catalogPrice: "15.00",
+  valueAtPrice: "600.00",
   ...overrides,
 });
 
@@ -242,13 +244,30 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
   });
 
   describe("stock por sucursal (F5-STK-04)", () => {
-    it("muestra el stock con su costo y su valor", async () => {
+    /**
+     * Carlos (2026-11-14): el costo promedio se queda; se quita el valor a
+     * costo y entran el costo y el precio del catálogo, y al final el valor a
+     * precio de venta.
+     */
+    it("muestra el stock con sus costos, su precio y su valor a precio de venta", async () => {
       await renderRuta("/reports/stock");
 
       expect(await screen.findByText("Café")).toBeInTheDocument();
+      expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+        "Producto",
+        "Sucursal",
+        "Cantidad",
+        "Mínimo",
+        "Costo promedio",
+        "Costo de catálogo",
+        "Precio de venta",
+        "Valor a precio de venta",
+      ]);
       // Los importes se pintan como MONEDA: el reporte se lee, no se parsea.
-      expect(screen.getByText(/\$320\.00/)).toBeInTheDocument();
       expect(screen.getByText(/\$8\.00/)).toBeInTheDocument();
+      expect(screen.getByText(/\$9\.50/)).toBeInTheDocument();
+      expect(screen.getByText(/\$15\.00/)).toBeInTheDocument();
+      expect(screen.getByText(/\$600\.00/)).toBeInTheDocument();
     });
 
     /**
