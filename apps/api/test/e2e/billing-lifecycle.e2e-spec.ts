@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { localCalendarDate } from "@sellpoint/shared";
@@ -156,6 +158,179 @@ describe("Ciclo de vida de la suscripción (F7-E2E-01)", () => {
       const sub = await suscripcionDe(negocio.tenantId);
       expect(fechaDe(sub.dueAt as Date)).toBe("2027-03-15");
       expect(sub.billingCycle).toBe("yearly");
+    });
+  });
+
+  /**
+   * Carlos (2026-11-14): «quiero que su pago abarque hasta cierta fecha por un
+   * acuerdo». La cotización dice lo mismo que el pago acepta; una fecha
+   * distinta de la automática es un acuerdo con precio acordado y motivo, y
+   * anularlo devuelve el vencimiento Y el día de cobro de antes.
+   */
+  describe("«Cubre hasta» acordado", () => {
+    const cotizar = (tenantId: string, query: Record<string, string>) =>
+      request(app.getHttpServer())
+        .get(`/admin/billing/tenants/${tenantId}/payments/quote`)
+        .query(query)
+        .set("Authorization", bearer(admin.token));
+
+    it("la cotización dice lo mismo que el pago acepta", async () => {
+      const negocio = await registerTenant(app, "lifecycle-quote");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const cotizacion = (
+        await cotizar(negocio.tenantId, { billingCycle: "monthly", paidAt: "2026-05-10" }).expect(
+          200,
+        )
+      ).body as { periodStart: string; periodEnd: string; net: string; currency: string };
+      expect(cotizacion).toMatchObject({
+        periodStart: "2026-05-10",
+        periodEnd: "2026-06-10",
+        net: "499.00",
+        currency: "MXN",
+      });
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-10",
+        amountReceived: cotizacion.net,
+        periodEnd: cotizacion.periodEnd,
+      }).expect(201);
+      const sub = await suscripcionDe(negocio.tenantId);
+      expect(fechaDe(sub.dueAt as Date)).toBe("2026-06-10");
+    });
+
+    it("un acuerdo al 31-dic vence ese día y los pagos siguientes cuentan desde ahí", async () => {
+      const negocio = await registerTenant(app, "lifecycle-agreed");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const pago = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-10",
+        periodEnd: "2026-12-31",
+        agreedPrice: "2000.00",
+        amountReceived: "2000.00",
+        notes: "Paga hasta fin de año",
+      }).expect(201);
+
+      expect(pago.body).toMatchObject({ amount: "2000", notes: "Paga hasta fin de año" });
+      const sub = await suscripcionDe(negocio.tenantId);
+      expect(fechaDe(sub.dueAt as Date)).toBe("2026-12-31");
+      expect(sub.anchorDay).toBe(31);
+
+      const siguiente = await cotizar(negocio.tenantId, {
+        billingCycle: "monthly",
+        paidAt: "2026-05-11",
+      }).expect(200);
+      expect(siguiente.body).toMatchObject({ periodStart: "2027-01-01", periodEnd: "2027-01-31" });
+    });
+
+    it("anular el acuerdo devuelve el vencimiento y el día de cobro de antes", async () => {
+      const negocio = await registerTenant(app, "lifecycle-agreed-void");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-10",
+        amountReceived: "499.00",
+      }).expect(201);
+      const acuerdo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-12",
+        periodEnd: "2026-12-31",
+        agreedPrice: "1500.00",
+        amountReceived: "1500.00",
+        notes: "Acuerdo de prueba",
+      }).expect(201);
+
+      await request(app.getHttpServer())
+        .post(
+          `/admin/billing/tenants/${negocio.tenantId}/payments/${(acuerdo.body as { id: string }).id}/void`,
+        )
+        .set("Authorization", bearer(admin.token))
+        .send({ reason: "fecha mal capturada" })
+        .expect(201);
+
+      const sub = await suscripcionDe(negocio.tenantId);
+      expect(fechaDe(sub.dueAt as Date)).toBe("2026-06-10");
+      expect(sub.anchorDay).toBe(10);
+    });
+
+    /**
+     * Los pagos de antes de `anchor_day` no lo guardaron. La migración de
+     * relleno se lo pone al ÚLTIMO pago vivo de cada suscripción, y con eso
+     * anular el primer acuerdo de un negocio existente devuelve su día de
+     * cobro (verificación, 2026-11-14). Se corre el SQL real de la migración,
+     * dentro del contexto del negocio, sobre un pago dejado como «de antes».
+     */
+    it("el relleno de la migración deja anular el primer acuerdo de un negocio de antes", async () => {
+      const negocio = await registerTenant(app, "lifecycle-agreed-legacy");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      const viejo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-10",
+        amountReceived: "499.00",
+      }).expect(201);
+      const relleno = readFileSync(
+        join(
+          __dirname,
+          "../../prisma/migrations/20261114100100_f7_payment_anchor_day_backfill/migration.sql",
+        ),
+        "utf8",
+      );
+      await prisma.withTenantContext(negocio.tenantId, async (tx) => {
+        await tx.subscriptionPayment.update({
+          where: { id: (viejo.body as { id: string }).id },
+          data: { anchorDay: null },
+        });
+        await tx.$executeRawUnsafe(relleno);
+      });
+      const rellenado = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.subscriptionPayment.findUniqueOrThrow({
+          where: { id: (viejo.body as { id: string }).id },
+        }),
+      );
+      expect(rellenado.anchorDay).toBe(10);
+
+      const acuerdo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-12",
+        periodEnd: "2026-12-31",
+        agreedPrice: "1500.00",
+        amountReceived: "1500.00",
+        notes: "Acuerdo de prueba",
+      }).expect(201);
+      await request(app.getHttpServer())
+        .post(
+          `/admin/billing/tenants/${negocio.tenantId}/payments/${(acuerdo.body as { id: string }).id}/void`,
+        )
+        .set("Authorization", bearer(admin.token))
+        .send({ reason: "fecha mal capturada" })
+        .expect(201);
+
+      expect((await suscripcionDe(negocio.tenantId)).anchorDay).toBe(10);
+    });
+
+    it("una fecha acordada sin motivo rebota y dice qué falta", async () => {
+      const negocio = await registerTenant(app, "lifecycle-agreed-reason");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const rechazo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: "2026-05-10",
+        periodEnd: "2026-12-31",
+        agreedPrice: "2000.00",
+        amountReceived: "2000.00",
+      }).expect(422);
+
+      expect(rechazo.body).toMatchObject({ code: "billing.agreement_reason_required" });
+      expect((rechazo.body as { message: string }).message).toContain("motivo del acuerdo");
     });
   });
 

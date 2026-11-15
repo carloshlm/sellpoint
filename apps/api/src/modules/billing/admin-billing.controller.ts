@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { type ModuleKey, moduleKeySchema } from "@sellpoint/shared";
 import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -14,7 +24,9 @@ import {
   type GrantDiscountDto,
   grantDiscountSchema,
   type PatchSubscriptionDto,
+  type PaymentQuoteQueryDto,
   patchSubscriptionSchema,
+  paymentQuoteQuerySchema,
   type ReasonDto,
   type RecordPaymentDto,
   reasonSchema,
@@ -54,6 +66,19 @@ export class AdminBillingController {
   @Get("tenants/:tenantId")
   getTenant(@UuidParam("tenantId") tenantId: string) {
     return this.adminBilling.getTenantDetail(tenantId);
+  }
+
+  /**
+   * «Debe pagar» y «Cubre del … al …» del diálogo: la misma cuenta que el
+   * pago, sin registrar nada (Carlos, 2026-11-14).
+   */
+  @Get("tenants/:tenantId/payments/quote")
+  quotePayment(
+    @UuidParam("tenantId") tenantId: string,
+    @Query(new ZodValidationPipe(paymentQuoteQuerySchema, "billing.invalid_query"))
+    query: PaymentQuoteQueryDto,
+  ) {
+    return this.billing.quotePayment({ ...query, tenantId });
   }
 
   /** El corazón del cobro manual: registrar la transferencia recibida. */

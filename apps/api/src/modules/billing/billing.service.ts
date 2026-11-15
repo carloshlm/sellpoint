@@ -53,8 +53,38 @@ export interface RecordPaymentInput {
   gatewayReference?: string;
   /** Override explícito: "reactivar desde hoy sin cobrar los meses muertos". */
   periodStart?: Date;
+  /**
+   * «Cubre hasta», `YYYY-MM-DD` del calendario del negocio. Distinto del fin
+   * automático es un ACUERDO (Carlos, 2026-11-14): exige `agreedPrice` y el
+   * motivo en `notes`.
+   */
+  periodEnd?: string;
+  /** El precio del acuerdo; recibido + descuento tiene que dar esto. */
+  agreedPrice?: string;
   notes?: string;
   recordedBy?: string;
+}
+
+/** Lo que la cotización necesita de la suscripción; un negocio sin fila cotiza como free. */
+interface SuscripcionACotizar {
+  status: string;
+  planId: string | null;
+  plan: { id: string; code: string; name: string } | null;
+  servicePeriodEnd: Date | null;
+  anchorDay: number | null;
+  customPrice: unknown;
+}
+
+/** «Debe pagar» y «Cubre del … al …»: lo que el diálogo muestra antes de registrar. */
+export interface PaymentQuote {
+  /** El primer día cubierto, en el calendario del negocio. */
+  periodStart: string;
+  /** El último día cubierto si no hay acuerdo: el «Cubre hasta» automático. */
+  periodEnd: string;
+  gross: string;
+  discount: string;
+  net: string;
+  currency: string;
 }
 
 /**
@@ -78,6 +108,83 @@ export interface RecordPaymentInput {
  *    corte y el CRON hace la transición al vencer.
  */
 /** Centavos → texto decimal, sin IEEE-754 (mismo criterio que shared). */
+/**
+ * ── El DÍA del pago, no un instante ───────────────────────────────────
+ *
+ * Un `YYYY-MM-DD` se ancla al MEDIODÍA de la zona del negocio. El mediodía y
+ * no la medianoche porque así el mismo día sobrevive a cualquier desfase: la
+ * medianoche local cae en el día anterior en UTC y en el siguiente en otra
+ * zona, y entonces «hoy» se vuelve «mañana» y el pago se rechaza por futuro.
+ * Pasó con un negocio en Toronto capturado desde México (Carlos, 2026-09-04).
+ */
+function diaDelPago(paidAt: Date | string, timeZone: string): Date {
+  return typeof paidAt === "string"
+    ? new Date(startOfDayUtc(paidAt, timeZone).getTime() + 12 * 60 * 60 * 1000)
+    : paidAt;
+}
+
+/** Cuánto puede cubrir un acuerdo: más de 3 años es un año mal tecleado. */
+const ACUERDO_MAXIMO_ANIOS = 3;
+
+/** El último día del mes de una fecha `YYYY-MM-DD`. */
+function ultimoDiaDelMes(fecha: string): number {
+  const [anio, mes] = fecha.split("-").map(Number);
+  return new Date(Date.UTC(anio ?? 1970, mes ?? 1, 0)).getUTCDate();
+}
+
+/**
+ * El día de cobro que deja un acuerdo: el de la fecha acordada, salvo que sea
+ * FIN DE MES. «Hasta el 30 de noviembre» o «hasta el 28 de febrero» se leen
+ * como «hasta fin de mes», y con un 30 o un 28 de ancla el siguiente pago
+ * vencería el 30 de diciembre o el 28 de marzo para siempre. Con 31 vence el
+ * último día de cada mes (`addBillingPeriod` recorta los meses cortos).
+ */
+function anclaDelAcuerdo(acordado: string): number {
+  const dia = Number(acordado.slice(8, 10));
+  return dia === ultimoDiaDelMes(acordado) ? 31 : dia;
+}
+
+/**
+ * Las reglas de un «Cubre hasta» acordado. Las fechas son `YYYY-MM-DD`, así
+ * que se comparan como texto.
+ */
+function validarAcuerdo(
+  acordado: string,
+  regla: { inicio: string; diaDelPago: string; agreedPrice: string | undefined; motivo: string },
+): void {
+  // Ni antes de que empiece el período ni antes del día del pago: un pago en
+  // gracia empieza en el vencimiento anterior, y acordar una fecha que ya
+  // pasó dejaría la suscripción «activa» y vencida a la vez.
+  const minimo = regla.inicio > regla.diaDelPago ? regla.inicio : regla.diaDelPago;
+  if (acordado < minimo) {
+    throw new UnprocessableEntityException({
+      message: "billing.period_end_before_start",
+      args: { start: minimo },
+    });
+  }
+  // El mismo día del inicio, tres años después; un 29 de febrero sin año
+  // bisiesto se recorta al 28 para no proponer una fecha que no existe.
+  const anioLimite = Number(regla.inicio.slice(0, 4)) + ACUERDO_MAXIMO_ANIOS;
+  const mesLimite = regla.inicio.slice(5, 7);
+  const diaLimite = Math.min(
+    Number(regla.inicio.slice(8, 10)),
+    ultimoDiaDelMes(`${anioLimite}-${mesLimite}-01`),
+  );
+  const limite = `${anioLimite}-${mesLimite}-${String(diaLimite).padStart(2, "0")}`;
+  if (acordado > limite) {
+    throw new UnprocessableEntityException({
+      message: "billing.period_end_too_far",
+      args: { max: limite },
+    });
+  }
+  if (regla.agreedPrice === undefined) {
+    throw new UnprocessableEntityException({ message: "billing.agreed_price_required" });
+  }
+  if (regla.motivo === "") {
+    throw new UnprocessableEntityException({ message: "billing.agreement_reason_required" });
+  }
+}
+
 function centavosATexto(cents: number): string {
   const abs = Math.abs(Math.round(cents));
   return `${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
@@ -172,19 +279,7 @@ export class BillingService {
 
     const resultado = await this.prisma.withTenantContext(tenantId, async (tx) => {
       const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-
-      // ── El DÍA del pago, no un instante ───────────────────────────────
-      //
-      // Un `YYYY-MM-DD` se ancla al MEDIODÍA de la zona del negocio. El
-      // mediodía y no la medianoche porque así el mismo día sobrevive a
-      // cualquier desfase: la medianoche local cae en el día anterior en UTC
-      // y en el siguiente en otra zona, y entonces «hoy» se vuelve «mañana»
-      // y el pago se rechaza por futuro. Pasó con un negocio en Toronto
-      // capturado desde México (Carlos, 2026-09-04).
-      const paidAt =
-        typeof input.paidAt === "string"
-          ? new Date(startOfDayUtc(input.paidAt, tenant.timezone).getTime() + 12 * 60 * 60 * 1000)
-          : input.paidAt;
+      const paidAt = diaDelPago(input.paidAt, tenant.timezone);
       // El negocio ANTERIOR a la Fase 7 no tiene fila: registrarle un pago
       // es darlo de alta. Nace sin trial —ya pagó, no está probando— y con
       // el plan que el pago declare, porque no hay ninguno del que heredar.
@@ -200,30 +295,13 @@ export class BillingService {
         throw new UnprocessableEntityException({ message: "billing.subscription_canceled" });
       }
 
-      const plan = input.planCode
-        ? await tx.plan.findUniqueOrThrow({ where: { code: input.planCode } })
-        : sub.plan;
-
-      const price = await this.resolvePrice(tx, plan.id, tenant);
-      if (!price && sub.customPrice === null) {
-        // La invariante de Premium, con su clave i18n — el Error genérico de
-        // shared es para quien programa, no para quien cobra.
-        throw new UnprocessableEntityException({ message: "billing.custom_price_required" });
-      }
-      const discount = await this.resolveActiveDiscount(tx, tenantId, paidAt);
-      const cargo = computeChargeAmount({
-        price: price
-          ? { monthly: String(price.priceMonthly), yearly: String(price.priceYearly) }
-          : null,
-        cycle: input.billingCycle,
-        customPrice: sub.customPrice === null ? null : String(sub.customPrice),
-        discount: discount
-          ? {
-              kind: discount.kind as "fixed_amount" | "free",
-              amount: discount.amount === null ? null : String(discount.amount),
-            }
-          : null,
+      const cotizacion = await this.cotizarPago(tx, tenant, sub, {
+        billingCycle: input.billingCycle,
+        planCode: input.planCode,
+        paidAt,
+        periodStart: input.periodStart,
       });
+      const { plan, price, discount, cargo } = cotizacion;
 
       const tz = tenant.timezone;
 
@@ -260,26 +338,35 @@ export class BillingService {
           args: { last: localCalendarDate(tz, ultimo.paidAt) },
         });
       }
-      // free re-ancla y arranca en el día del pago: sus meses muertos no se
-      // cobran. El resto encadena con el período anterior (no se regalan
-      // días) salvo override explícito del backoffice.
-      const desdeFree = sub.status === "free";
-      const periodStart =
-        input.periodStart ?? (desdeFree ? paidAt : (sub.servicePeriodEnd ?? paidAt));
-      const anchorDay =
-        desdeFree || sub.anchorDay === null ? resolveAnchorDay(paidAt, tz) : sub.anchorDay;
+      const notas = input.notes?.trim() ?? "";
 
-      // La fecha desde la que avanza el ancla: si el período encadena con un
-      // vencimiento anterior, es LA FECHA de ese vencimiento (el instante
-      // guardado es el arranque del día siguiente — límite abierto — así que
-      // su día legible es el del milisegundo anterior). Si arranca en un
-      // instante nuevo (primer pago, free, override), es su propio día local.
-      const encadena = !input.periodStart && !desdeFree && sub.servicePeriodEnd !== null;
-      const fromDueDate = encadena
-        ? localCalendarDate(tz, new Date(periodStart.getTime() - 1))
-        : localCalendarDate(tz, periodStart);
-      const dueDate = addBillingPeriod(fromDueDate, input.billingCycle, anchorDay);
+      // ── «Cubre hasta» acordado (Carlos, 2026-11-14) ───────────────────
+      //
+      // Una fecha distinta de la automática es un ACUERDO con el cliente: el
+      // precio deja de ser el de lista y pasa a ser el acordado, el motivo es
+      // obligatorio y la fecha acordada se vuelve el día de cobro —los pagos
+      // siguientes encadenan desde ahí—. Igual a la automática no es acuerdo.
+      const acordado =
+        input.periodEnd !== undefined && input.periodEnd !== cotizacion.dueDate
+          ? input.periodEnd
+          : null;
+      if (acordado !== null) {
+        validarAcuerdo(acordado, {
+          inicio: cotizacion.startDate,
+          diaDelPago: localCalendarDate(tz, paidAt),
+          agreedPrice: input.agreedPrice,
+          motivo: notas,
+        });
+      }
+      if (cargo === null && acordado === null) {
+        // La invariante de Premium, con su clave i18n — el Error genérico de
+        // shared es para quien programa, no para quien cobra.
+        throw new UnprocessableEntityException({ message: "billing.custom_price_required" });
+      }
+      const { periodStart } = cotizacion;
+      const dueDate = acordado ?? cotizacion.dueDate;
       const dueAt = dueInstant(dueDate, tz);
+      const anchorDay = acordado === null ? cotizacion.anchorDay : anclaDelAcuerdo(acordado);
 
       // ── LA CUENTA TIENE QUE CUADRAR ───────────────────────────────────
       //
@@ -293,16 +380,23 @@ export class BillingService {
       // Y tiene un efecto secundario feliz: con la cuenta cuadrada, `amount`
       // ES el monto recibido. El dato queda consistente por construcción, sin
       // una columna más que mantener sincronizada.
+      //
+      // Con acuerdo, el bruto es el precio ACORDADO y el cupón no se suma: el
+      // precio acordado ya es el trato.
       const descuentoExtra = scaledInteger(input.discountAmount ?? "0", 2);
-      const descuentoTotal = scaledInteger(cargo.discount, 2) + descuentoExtra;
-      const brutoCents = scaledInteger(cargo.gross, 2);
+      const cupon = acordado === null && cargo !== null ? scaledInteger(cargo.discount, 2) : 0;
+      const descuentoTotal = cupon + descuentoExtra;
+      const brutoCents =
+        acordado === null && cargo !== null
+          ? scaledInteger(cargo.gross, 2)
+          : scaledInteger(input.agreedPrice ?? "0", 2);
 
       if (descuentoTotal > brutoCents) {
         // Cobrar en negativo no existe: un descuento mayor que el precio es
         // un error de captura, no una decisión comercial.
         throw new UnprocessableEntityException({
           message: "billing.discount_above_charge",
-          args: { discount: centavosATexto(descuentoTotal), gross: cargo.gross },
+          args: { discount: centavosATexto(descuentoTotal), gross: centavosATexto(brutoCents) },
         });
       }
 
@@ -313,13 +407,11 @@ export class BillingService {
           args: {
             received: input.amountReceived,
             expected: netoEsperado,
-            gross: cargo.gross,
+            gross: centavosATexto(brutoCents),
             discount: centavosATexto(descuentoTotal),
           },
         });
       }
-
-      const notas = input.notes ?? null;
 
       const payment = await tx.subscriptionPayment.create({
         data: {
@@ -328,22 +420,24 @@ export class BillingService {
           planId: plan.id,
           planCode: plan.code,
           billingCycle: input.billingCycle,
-          grossAmount: cargo.gross,
+          grossAmount:
+            acordado === null && cargo !== null ? cargo.gross : centavosATexto(brutoCents),
           discountAmount: centavosATexto(descuentoTotal),
           amount: netoEsperado,
           currency: price?.currency ?? tenant.currency,
-          discountId: discount?.id ?? null,
+          discountId: acordado === null ? (discount?.id ?? null) : null,
           method: input.method,
           gatewayReference: input.gatewayReference,
           paidAt: paidAt,
           periodStart,
           periodEnd: dueAt,
+          anchorDay,
           recordedBy: input.recordedBy,
           notes: notas || null,
         },
       });
 
-      if (discount) {
+      if (discount && acordado === null) {
         await tx.tenantDiscount.update({
           where: { id: discount.id },
           data: { appliedPeriods: { increment: 1 } },
@@ -361,6 +455,9 @@ export class BillingService {
           servicePeriodEnd: dueAt,
           dueAt,
           graceEndsAt: null,
+          // El precio pactado es de UN plan: si el pago cambia de plan, se
+          // suelta, o el pactado de Premium se seguiría cobrando en Plus.
+          ...(plan.id !== sub.planId ? { customPrice: null } : {}),
         },
       });
 
@@ -374,8 +471,13 @@ export class BillingService {
         after: {
           status: "active",
           planCode: plan.code,
-          amount: cargo.net,
+          amount: acordado === null && cargo !== null ? cargo.net : netoEsperado,
           periodEnd: dueAt.toISOString(),
+          ...(acordado !== null && {
+            coverage: { automatic: cotizacion.dueDate, agreed: acordado },
+            listGross: cargo?.gross ?? null,
+            reason: notas,
+          }),
         },
       });
 
@@ -405,6 +507,146 @@ export class BillingService {
     });
 
     return resultado.payment;
+  }
+
+  /**
+   * «Debe pagar» y «Cubre del … al …» sin registrar nada: la MISMA cuenta que
+   * hace `recordPayment`. Antes el diálogo armaba el precio con su propia
+   * copia y difería del API cuando había un precio pactado (Carlos,
+   * 2026-11-14: «Debe pagar: 499.00» contra «precio 650.00»).
+   *
+   * Un negocio sin suscripción se cotiza como si viniera de free con el plan
+   * elegido, sin darlo de alta: eso lo hace el pago.
+   */
+  async quotePayment(input: {
+    tenantId: string;
+    billingCycle: BillingCycle;
+    planCode?: PlanCode;
+    paidAt: string;
+  }): Promise<PaymentQuote> {
+    return this.prisma.withTenantContext(input.tenantId, async (tx) => {
+      const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: input.tenantId } });
+      const sub = await tx.tenantSubscription.findUnique({
+        where: { tenantId: input.tenantId },
+        include: { plan: true },
+      });
+      if (!sub && !input.planCode) {
+        throw new UnprocessableEntityException({ message: "billing.plan_required" });
+      }
+      if (sub?.status === "canceled") {
+        // Lo mismo que respondería el pago: cotizar algo que no se puede
+        // registrar sería prometer una cuenta que el API va a rechazar.
+        throw new UnprocessableEntityException({ message: "billing.subscription_canceled" });
+      }
+      const cotizacion = await this.cotizarPago(
+        tx,
+        tenant,
+        sub ?? {
+          status: "free",
+          planId: null,
+          plan: null,
+          servicePeriodEnd: null,
+          anchorDay: null,
+          customPrice: null,
+        },
+        {
+          billingCycle: input.billingCycle,
+          planCode: input.planCode,
+          paidAt: diaDelPago(input.paidAt, tenant.timezone),
+        },
+      );
+      if (cotizacion.cargo === null) {
+        throw new UnprocessableEntityException({ message: "billing.custom_price_required" });
+      }
+      return {
+        periodStart: cotizacion.startDate,
+        periodEnd: cotizacion.dueDate,
+        gross: cotizacion.cargo.gross,
+        discount: cotizacion.cargo.discount,
+        net: cotizacion.cargo.net,
+        currency: cotizacion.currency,
+      };
+    });
+  }
+
+  /**
+   * La cuenta de un pago ANTES de registrarlo: plan, precio, cupón y el
+   * período automático. La comparten el pago y la cotización, para que lo
+   * que el diálogo propone sea exactamente lo que el pago acepta.
+   *
+   * `cargo` es `null` cuando el plan no publica precio y no hay pactado
+   * (Premium sin acuerdo): el pago decide si eso es un error o un acuerdo.
+   */
+  private async cotizarPago(
+    tx: Prisma.TransactionClient,
+    tenant: { id: string; country: string | null; currency: string; timezone: string },
+    sub: SuscripcionACotizar,
+    input: { billingCycle: BillingCycle; planCode?: PlanCode; paidAt: Date; periodStart?: Date },
+  ) {
+    const plan = input.planCode
+      ? await tx.plan.findUniqueOrThrow({ where: { code: input.planCode } })
+      : sub.plan;
+    if (plan === null) {
+      throw new UnprocessableEntityException({ message: "billing.plan_required" });
+    }
+
+    const price = await this.resolvePrice(tx, plan.id, tenant);
+    // El pactado es un acuerdo con este cliente sobre EL plan que tiene, no
+    // una tarifa general: pagar otro plan cobra el precio de ese plan. Es el
+    // mismo criterio del listado del backoffice (`AdminBillingService`).
+    const customPrice =
+      sub.planId === plan.id && sub.customPrice !== null ? String(sub.customPrice) : null;
+    const discount = await this.resolveActiveDiscount(tx, tenant.id, input.paidAt);
+    const cargo =
+      !price && customPrice === null
+        ? null
+        : computeChargeAmount({
+            price: price
+              ? { monthly: String(price.priceMonthly), yearly: String(price.priceYearly) }
+              : null,
+            cycle: input.billingCycle,
+            customPrice,
+            discount: discount
+              ? {
+                  kind: discount.kind as "fixed_amount" | "free",
+                  amount: discount.amount === null ? null : String(discount.amount),
+                }
+              : null,
+          });
+
+    const tz = tenant.timezone;
+    // free re-ancla y arranca en el día del pago: sus meses muertos no se
+    // cobran. El resto encadena con el período anterior (no se regalan
+    // días) salvo override explícito del backoffice.
+    const desdeFree = sub.status === "free";
+    const periodStart =
+      input.periodStart ?? (desdeFree ? input.paidAt : (sub.servicePeriodEnd ?? input.paidAt));
+    const anchorDay =
+      desdeFree || sub.anchorDay === null ? resolveAnchorDay(input.paidAt, tz) : sub.anchorDay;
+
+    // La fecha desde la que avanza el ancla: si el período encadena con un
+    // vencimiento anterior, es LA FECHA de ese vencimiento (el instante
+    // guardado es el arranque del día siguiente — límite abierto — así que
+    // su día legible es el del milisegundo anterior). Si arranca en un
+    // instante nuevo (primer pago, free, override), es su propio día local.
+    const encadena = !input.periodStart && !desdeFree && sub.servicePeriodEnd !== null;
+    const fromDueDate = encadena
+      ? localCalendarDate(tz, new Date(periodStart.getTime() - 1))
+      : localCalendarDate(tz, periodStart);
+
+    return {
+      plan,
+      price,
+      discount,
+      cargo,
+      currency: price?.currency ?? tenant.currency,
+      periodStart,
+      /** El primer día cubierto, legible. */
+      startDate: localCalendarDate(tz, periodStart),
+      anchorDay,
+      /** El último día cubierto si no hay acuerdo. */
+      dueDate: addBillingPeriod(fromDueDate, input.billingCycle, anchorDay),
+    };
   }
 
   /**
@@ -492,15 +734,32 @@ export class BillingService {
               ? { status: "past_due", servicePeriodEnd: fin, dueAt: fin, graceEndsAt: gracia }
               : { status: "free", servicePeriodEnd: fin, dueAt: fin };
         }
+        // El día de cobro vuelve con el período: anular un acuerdo que movió
+        // el ancla al 31 y dejarla ahí haría que el siguiente pago mensual,
+        // encadenado desde el 15, cubriera hasta el 31 del mes que sigue. Los
+        // pagos de antes no la guardaron (NULL): con ellos no se toca.
+        if (masReciente.anchorDay != null) {
+          data = { ...data, anchorDay: masReciente.anchorDay };
+        }
       } else if (sub.trialEndsAt && sub.trialEndsAt > ahora) {
+        // Sin pagos vivos tampoco queda día de cobro: el siguiente pago lo
+        // vuelve a fijar en su fecha. Conservarlo dejaba el del pago anulado
+        // —el de un acuerdo al 31— y el siguiente pago cubría mes y medio.
         data = {
           status: "trialing",
+          anchorDay: null,
           servicePeriodStart: null,
           servicePeriodEnd: null,
           dueAt: null,
         };
       } else {
-        data = { status: "free", servicePeriodStart: null, servicePeriodEnd: null, dueAt: null };
+        data = {
+          status: "free",
+          anchorDay: null,
+          servicePeriodStart: null,
+          servicePeriodEnd: null,
+          dueAt: null,
+        };
       }
 
       const actualizada = await tx.tenantSubscription.update({ where: { tenantId }, data });

@@ -1961,6 +1961,9 @@ model SubscriptionPayment {
   paidAt      DateTime @map("paid_at") @db.Timestamptz(6)
   periodStart DateTime @map("period_start") @db.Timestamptz(6)
   periodEnd   DateTime @map("period_end") @db.Timestamptz(6)
+  // El día de cobro que dejó este pago: anularlo devuelve el del pago vivo
+  // anterior (CHECK 1-31 en la migración). NULL en los pagos de antes.
+  anchorDay   Int?     @map("anchor_day") @db.SmallInt
 
   // CHECK (status IN ('recorded','voided')).
   status     String    @default("recorded") @db.VarChar(16)

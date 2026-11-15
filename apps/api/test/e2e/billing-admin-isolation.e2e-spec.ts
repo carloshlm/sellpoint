@@ -227,6 +227,13 @@ describe("Aislamiento del backoffice (F7-E2E-06)", () => {
         .expect(403);
 
       expect(rechazo.body).toMatchObject({ code: "billing.not_platform_admin" });
+
+      // La cotización del pago (Carlos, 2026-11-14) vive detrás de la misma puerta.
+      await request(app.getHttpServer())
+        .get(`/admin/billing/tenants/${negocioB.tenantId}/payments/quote`)
+        .query({ billingCycle: "monthly", paidAt: "2026-05-10" })
+        .set("Authorization", bearer(negocioA.token))
+        .expect(403);
     });
 
     it("sin token, 401: el backoffice no se asoma sin sesión", async () => {

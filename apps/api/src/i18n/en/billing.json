@@ -2,7 +2,7 @@
   "amount_mismatch": "The numbers do not add up: you received {received} but with the discount applied it should be {expected} (price {gross} − discount {discount}).",
   "custom_price_required": "A plan without a published price needs a per-client agreed price.",
   "daily_sales_limit_reached": "You reached today's {limit} sales of free mode. Get a plan to sell without limits.",
-  "discount_above_charge": "The discount ({discount}) cannot exceed the plan price ({gross}).",
+  "discount_above_charge": "The discount ({discount}) cannot exceed the price ({gross}).",
   "discount_overlap": "There is already an active discount for this business. Revoke it before granting another.",
   "feature_not_in_plan": "Your plan does not include this feature. Upgrade your plan to enable it.",
   "module_not_enabled": "This module is not active for your business. Contact us to enable it.",
@@ -24,5 +24,11 @@
   "user_limit_reached": "Your plan allows up to {limit} users. Upgrade your plan to invite more.",
   "warehouse_limit_reached": "Your plan allows up to {limit} stores. Upgrade your plan to create more.",
   "plan_request_invalid": "The message must be between 10 and 1000 characters.",
-  "plan_request_failed": "We could not send your message. Please try again in a moment."
+  "plan_request_failed": "We could not send your message. Please try again in a moment.",
+  "agreed_price_required": "You changed «Covers until»: enter the agreed price (it can be 0 for a courtesy).",
+  "agreement_reason_required": "You changed «Covers until»: enter the reason for the agreement. It is saved in the log.",
+  "invalid_query": "Check the payment's cycle, plan and date.",
+  "period_end_before_start": "«Covers until» can't be before the period starts ({start}).",
+  "period_end_too_far": "«Covers until» can't be later than {max}: check the year.",
+  "period_end_invalid": "«Covers until» isn't a valid date: check the day and month."
 }

@@ -420,6 +420,295 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       await expect(service.recordPayment(pagoBase)).rejects.toMatchObject({ status: 422 });
       expect(tx.subscriptionPayment.create).not.toHaveBeenCalled();
     });
+
+    /**
+     * Carlos (2026-11-14): «un negocio me va a pagar pero quiero que su pago
+     * abarque hasta cierta fecha por un acuerdo». El pago trae «Cubre hasta»;
+     * si difiere del automático es un ACUERDO: precio acordado (recibido +
+     * descuento = acordado, el cupón no se suma), motivo obligatorio, y la
+     * fecha acordada se vuelve el día de cobro.
+     */
+    describe("«Cubre hasta» y el precio acordado", () => {
+      const acuerdo = {
+        ...pagoBase,
+        periodEnd: "2026-12-31",
+        agreedPrice: "750.00",
+        amountReceived: "750.00",
+        notes: "Paga hasta fin de año",
+      };
+      const motivo = (clave: string) => ({ status: 422, response: { message: clave } });
+
+      it("un «Cubre hasta» igual al automático no es acuerdo: todo sigue como hoy", async () => {
+        await service.recordPayment({ ...pagoBase, periodEnd: "2026-09-05" });
+
+        const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
+        expect(pago.grossAmount).toBe("499.00");
+        expect(pago.anchorDay).toBe(5);
+        const update = tx.tenantSubscription.update.mock.calls[0][0].data;
+        expect(update.dueAt.toISOString()).toBe("2026-09-06T06:00:00.000Z");
+        expect(update.anchorDay).toBe(5);
+      });
+
+      it("un acuerdo al 31-dic vence ese día, cobra lo acordado y el 31 pasa a ser el día de cobro", async () => {
+        await service.recordPayment(acuerdo);
+
+        const update = tx.tenantSubscription.update.mock.calls[0][0].data;
+        // Límite abierto: el arranque del 1-ene en CDMX.
+        expect(update.dueAt.toISOString()).toBe("2027-01-01T06:00:00.000Z");
+        expect(update.servicePeriodEnd.toISOString()).toBe("2027-01-01T06:00:00.000Z");
+        expect(update.anchorDay).toBe(31);
+        const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
+        expect(pago).toMatchObject({
+          grossAmount: "750.00",
+          discountAmount: "0.00",
+          amount: "750.00",
+          anchorDay: 31,
+          notes: "Paga hasta fin de año",
+        });
+        expect(pago.periodEnd.toISOString()).toBe("2027-01-01T06:00:00.000Z");
+        const bitacora = audit.record.mock.calls[0][1];
+        expect(bitacora.after).toMatchObject({
+          coverage: { automatic: "2026-09-05", agreed: "2026-12-31" },
+          listGross: "499.00",
+        });
+      });
+
+      it("una cortesía es un acuerdo en $0", async () => {
+        await service.recordPayment({ ...acuerdo, agreedPrice: "0", amountReceived: "0" });
+
+        const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
+        expect(pago).toMatchObject({ grossAmount: "0.00", amount: "0.00" });
+      });
+
+      it("recibido + descuento tiene que dar el precio ACORDADO, no el de lista", async () => {
+        await service.recordPayment({
+          ...acuerdo,
+          amountReceived: "500.00",
+          discountAmount: "250.00",
+        });
+        expect(tx.subscriptionPayment.create.mock.calls[0][0].data.amount).toBe("500.00");
+
+        tx.subscriptionPayment.create.mockClear();
+        await expect(
+          service.recordPayment({ ...acuerdo, amountReceived: "499.00" }),
+        ).rejects.toMatchObject(motivo("billing.amount_mismatch"));
+        expect(tx.subscriptionPayment.create).not.toHaveBeenCalled();
+      });
+
+      it("el cupón no se suma a un acuerdo: el precio acordado ya es el trato", async () => {
+        tx.tenantDiscount.findFirst.mockResolvedValue({
+          id: "disc-1",
+          kind: "fixed_amount",
+          amount: "200.00",
+          maxPeriods: 12,
+          appliedPeriods: 3,
+          isActive: true,
+          startsAt: new Date("2026-01-01T00:00:00.000Z"),
+        });
+
+        await service.recordPayment(acuerdo);
+
+        const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
+        expect(pago).toMatchObject({ grossAmount: "750.00", discountAmount: "0.00" });
+        expect(pago.discountId).toBeNull();
+        expect(tx.tenantDiscount.update).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ["2026-11-30", 31],
+        ["2027-02-28", 31],
+        ["2026-12-15", 15],
+      ])(
+        "un acuerdo al %s deja el día de cobro en el %i: fin de mes se queda en fin de mes",
+        async (fecha, ancla) => {
+          await service.recordPayment({ ...acuerdo, periodEnd: fecha });
+
+          expect(tx.tenantSubscription.update.mock.calls[0][0].data.anchorDay).toBe(ancla);
+          expect(tx.subscriptionPayment.create.mock.calls[0][0].data.anchorDay).toBe(ancla);
+        },
+      );
+
+      it("en gracia, el acuerdo no puede terminar antes del día del pago", async () => {
+        tx.tenantSubscription.findUnique.mockResolvedValue(
+          subRow({
+            status: "past_due",
+            billingCycle: "monthly",
+            anchorDay: 28,
+            servicePeriodEnd: new Date("2026-03-01T06:00:00.000Z"),
+            dueAt: new Date("2026-03-01T06:00:00.000Z"),
+          }),
+        );
+
+        await expect(
+          service.recordPayment({
+            ...acuerdo,
+            paidAt: new Date("2026-03-05T18:00:00.000Z"),
+            periodEnd: "2026-03-03",
+          }),
+        ).rejects.toMatchObject({
+          response: { message: "billing.period_end_before_start", args: { start: "2026-03-05" } },
+        });
+      });
+
+      it("el tope de 3 años desde un 29 de febrero es el 28: no propone una fecha que no existe", async () => {
+        tx.tenantSubscription.findUnique.mockResolvedValue(
+          subRow({
+            status: "active",
+            billingCycle: "monthly",
+            anchorDay: 29,
+            // Venció el 28-feb-2028: el período nuevo arranca el 29.
+            servicePeriodEnd: new Date("2028-02-29T06:00:00.000Z"),
+          }),
+        );
+
+        await expect(
+          service.recordPayment({ ...acuerdo, periodEnd: "2031-03-01" }),
+        ).rejects.toMatchObject({
+          response: { message: "billing.period_end_too_far", args: { max: "2031-02-28" } },
+        });
+      });
+
+      it.each([
+        [
+          "antes de que empiece el período",
+          { periodEnd: "2026-08-01" },
+          "billing.period_end_before_start",
+        ],
+        [
+          "a más de 3 años (un año mal tecleado)",
+          { periodEnd: "2030-01-01" },
+          "billing.period_end_too_far",
+        ],
+        ["sin precio acordado", { agreedPrice: undefined }, "billing.agreed_price_required"],
+        ["sin motivo", { notes: undefined }, "billing.agreement_reason_required"],
+      ])("un acuerdo %s rebota", async (_caso, cambio, clave) => {
+        await expect(service.recordPayment({ ...acuerdo, ...cambio })).rejects.toMatchObject(
+          motivo(clave),
+        );
+        expect(tx.subscriptionPayment.create).not.toHaveBeenCalled();
+      });
+    });
+
+    /**
+     * El bug de la captura (Carlos, 2026-11-14): «Debe pagar: 499.00» y el API
+     * «precio 650.00». El pactado es de UN plan —el que el negocio tiene—, como
+     * ya lo aplicaba el listado del backoffice.
+     */
+    describe("el precio pactado es del plan que el negocio tiene", () => {
+      it("pagar otro plan cobra su precio de lista, y el pactado se suelta", async () => {
+        tx.tenantSubscription.findUnique.mockResolvedValue(
+          subRow({ planId: "plan-premium", plan: PLAN_PREMIUM, customPrice: "650.00" }),
+        );
+
+        await service.recordPayment({ ...pagoBase, planCode: "plus", amountReceived: "499.00" });
+
+        expect(tx.subscriptionPayment.create.mock.calls[0][0].data.grossAmount).toBe("499.00");
+        const update = tx.tenantSubscription.update.mock.calls[0][0].data;
+        expect(update.planId).toBe("plan-plus");
+        expect(update.customPrice).toBeNull();
+      });
+
+      it("pagar el mismo plan conserva el pactado", async () => {
+        tx.tenantSubscription.findUnique.mockResolvedValue(
+          subRow({ planId: "plan-premium", plan: PLAN_PREMIUM, customPrice: "1250.00" }),
+        );
+        tx.planPrice.findUnique.mockResolvedValue(null);
+
+        await service.recordPayment({ ...pagoBase, amountReceived: "1250.00" });
+
+        expect(tx.tenantSubscription.update.mock.calls[0][0].data).not.toHaveProperty(
+          "customPrice",
+        );
+      });
+    });
+  });
+
+  /**
+   * La cotización que pinta «Debe pagar» y «Cubre del … al …»: la MISMA
+   * cuenta que hace el pago, sin escribir nada.
+   */
+  describe("quotePayment", () => {
+    it("cotiza el primer pago desde el día del pago, sin escribir nada", async () => {
+      const cotizacion = await service.quotePayment({
+        tenantId: TENANT,
+        billingCycle: "monthly",
+        paidAt: "2026-08-05",
+      });
+
+      expect(cotizacion).toEqual({
+        periodStart: "2026-08-05",
+        periodEnd: "2026-09-05",
+        gross: "499.00",
+        discount: "0.00",
+        net: "499.00",
+        currency: "MXN",
+      });
+      expect(tx.tenantSubscription.update).not.toHaveBeenCalled();
+      expect(tx.subscriptionPayment.create).not.toHaveBeenCalled();
+    });
+
+    it("encadena con el vencimiento anterior, como el pago", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(
+        subRow({
+          status: "active",
+          billingCycle: "monthly",
+          anchorDay: 5,
+          servicePeriodEnd: new Date("2026-09-06T06:00:00.000Z"),
+        }),
+      );
+
+      const cotizacion = await service.quotePayment({
+        tenantId: TENANT,
+        billingCycle: "monthly",
+        paidAt: "2026-09-01",
+      });
+
+      expect(cotizacion).toMatchObject({ periodStart: "2026-09-06", periodEnd: "2026-10-05" });
+    });
+
+    it("con el pactado de otro plan, cotiza el precio de lista del plan elegido", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(
+        subRow({ planId: "plan-premium", plan: PLAN_PREMIUM, customPrice: "650.00" }),
+      );
+
+      const cotizacion = await service.quotePayment({
+        tenantId: TENANT,
+        billingCycle: "monthly",
+        planCode: "plus",
+        paidAt: "2026-08-05",
+      });
+
+      expect(cotizacion.net).toBe("499.00");
+    });
+
+    it("una suscripción cancelada no se cotiza: el pago la rechazaría igual", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(
+        subRow({ status: "canceled", canceledAt: new Date() }),
+      );
+
+      await expect(
+        service.quotePayment({ tenantId: TENANT, billingCycle: "monthly", paidAt: "2026-08-05" }),
+      ).rejects.toMatchObject({ response: { message: "billing.subscription_canceled" } });
+    });
+
+    it("un negocio sin suscripción se cotiza con el plan elegido, sin darlo de alta", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(null);
+      const crear = jest.fn();
+      (tx.tenantSubscription as unknown as { create: Mock }).create = crear;
+
+      await expect(
+        service.quotePayment({ tenantId: TENANT, billingCycle: "monthly", paidAt: "2026-08-05" }),
+      ).rejects.toMatchObject({ status: 422 });
+
+      const cotizacion = await service.quotePayment({
+        tenantId: TENANT,
+        billingCycle: "monthly",
+        planCode: "basic",
+        paidAt: "2026-08-05",
+      });
+      expect(cotizacion).toMatchObject({ net: "199.00", periodStart: "2026-08-05" });
+      expect(crear).not.toHaveBeenCalled();
+    });
   });
 
   describe("voidPayment (F7-CORE-05)", () => {
@@ -462,6 +751,57 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       expect(entitlements.invalidate).toHaveBeenCalledWith(TENANT);
     });
 
+    /**
+     * Anular un acuerdo devuelve el día de cobro del pago vivo anterior: con el
+     * ancla del acuerdo (31) y el vencimiento del 15, el siguiente pago
+     * mensual cubriría hasta el 31 del mes que sigue — mes y medio.
+     */
+    it("anular devuelve el ancla que dejó el pago vivo más reciente", async () => {
+      tx.subscriptionPayment.findUniqueOrThrow.mockResolvedValue({
+        id: "pay-2",
+        tenantId: TENANT,
+        subscriptionId: "sub-1",
+        status: "recorded",
+        periodEnd: new Date("2099-01-01T06:00:00.000Z"),
+        anchorDay: 31,
+      });
+      tx.tenantSubscription.findUnique.mockResolvedValue(
+        subRow({ status: "active", billingCycle: "monthly", anchorDay: 31, trialEndsAt: null }),
+      );
+      tx.subscriptionPayment.findMany.mockResolvedValue([
+        {
+          id: "pay-1",
+          periodStart: new Date("2098-11-15T18:00:00.000Z"),
+          periodEnd: new Date("2098-12-16T06:00:00.000Z"),
+          anchorDay: 15,
+        },
+      ]);
+
+      await service.voidPayment(TENANT, "pay-2", { reason: "fecha mal", voidedBy: "user-1" });
+
+      expect(tx.tenantSubscription.update.mock.calls[0][0].data.anchorDay).toBe(15);
+    });
+
+    it("un pago de antes sin ancla guardada no toca el ancla", async () => {
+      tx.subscriptionPayment.findUniqueOrThrow.mockResolvedValue({
+        id: "pay-2",
+        tenantId: TENANT,
+        subscriptionId: "sub-1",
+        status: "recorded",
+        periodEnd: new Date("2099-01-01T06:00:00.000Z"),
+      });
+      tx.tenantSubscription.findUnique.mockResolvedValue(
+        subRow({ status: "active", billingCycle: "monthly", anchorDay: 5, trialEndsAt: null }),
+      );
+      tx.subscriptionPayment.findMany.mockResolvedValue([
+        { id: "pay-1", periodEnd: new Date("2099-09-06T06:00:00.000Z"), anchorDay: null },
+      ]);
+
+      await service.voidPayment(TENANT, "pay-2", { reason: "x", voidedBy: "user-1" });
+
+      expect(tx.tenantSubscription.update.mock.calls[0][0].data).not.toHaveProperty("anchorDay");
+    });
+
     it("anular el ÚNICO pago con el trial ya vencido deja la suscripción en free", async () => {
       tx.subscriptionPayment.findUniqueOrThrow.mockResolvedValue({
         id: "pay-1",
@@ -485,6 +825,37 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       const update = tx.tenantSubscription.update.mock.calls[0][0].data;
       expect(update.status).toBe("free");
     });
+
+    /**
+     * Sin pagos vivos no queda día de cobro: el del pago anulado —el de un
+     * acuerdo al 31, por ejemplo— haría que el siguiente pago desde el trial
+     * cubriera hasta el 31 aunque se pague un 14 (verificación, 2026-11-14).
+     */
+    it.each([
+      ["el trial sigue vivo", new Date("2099-01-01T00:00:00.000Z"), "trialing"],
+      ["el trial ya venció", new Date("2020-01-01T00:00:00.000Z"), "free"],
+    ])(
+      "anular el único pago cuando %s suelta el día de cobro",
+      async (_caso, trialEndsAt, estado) => {
+        tx.subscriptionPayment.findUniqueOrThrow.mockResolvedValue({
+          id: "pay-1",
+          tenantId: TENANT,
+          subscriptionId: "sub-1",
+          status: "recorded",
+          periodEnd: new Date("2026-12-01T06:00:00.000Z"),
+          anchorDay: 31,
+        });
+        tx.tenantSubscription.findUnique.mockResolvedValue(
+          subRow({ status: "active", billingCycle: "monthly", anchorDay: 31, trialEndsAt }),
+        );
+        tx.subscriptionPayment.findMany.mockResolvedValue([]);
+
+        await service.voidPayment(TENANT, "pay-1", { reason: "acuerdo mal", voidedBy: "user-1" });
+
+        const update = tx.tenantSubscription.update.mock.calls[0][0].data;
+        expect(update).toMatchObject({ status: estado, anchorDay: null });
+      },
+    );
 
     it("anular un pago ya anulado rebota", async () => {
       tx.subscriptionPayment.findUniqueOrThrow.mockResolvedValue({

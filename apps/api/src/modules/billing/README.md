@@ -196,9 +196,15 @@ curl -s -X POST "$BASE/tenants/<tenantId>/payments" -H "$AUTH" \
   }'
 ```
 
-La pantalla muestra el cargo vigente del negocio y lo propone en el campo, así
-que el caso normal es confirmar. Cuando el cliente transfirió de menos y se le
-perdona la diferencia, esa diferencia va en `discountAmount`.
+La pantalla pide la **cotización** y propone su cargo en el campo, así que el
+caso normal es confirmar. Cuando el cliente transfirió de menos y se le perdona
+la diferencia, esa diferencia va en `discountAmount`.
+
+```bash
+# «Debe pagar» y «Cubre del … al …»: la MISMA cuenta que hará el pago.
+curl -s "$BASE/tenants/<tenantId>/payments/quote?billingCycle=monthly&planCode=plus&paidAt=2026-11-14" -H "$AUTH"
+# → { periodStart, periodEnd, gross, discount, net, currency }
+```
 
 - `method`: `transfer` · `cash` · `card` · `other` · `courtesy`.
 - `planCode` (opcional) cambia el plan EN EL MISMO ACTO — el caso típico:
@@ -223,9 +229,26 @@ perdona la diferencia, esa diferencia va en `discountAmount`.
   deriva del monto**.
 - `periodStart` (opcional): override explícito — "reactivar desde hoy sin
   cobrar los meses muertos" cuando NO quieres el encadenamiento por defecto.
+- `periodEnd` (opcional, `YYYY-MM-DD` del negocio): **«Cubre hasta»**. Igual
+  al fin automático no cambia nada. Distinto es un **acuerdo** (Carlos,
+  2026-11-14):
+  - exige `agreedPrice` (puede ser 0, cortesía) y el motivo en `notes`
+    (`billing.agreed_price_required`, `billing.agreement_reason_required`);
+  - la cuenta pasa a ser recibido + descuento = **precio acordado**, y el
+    cupón no se suma ni consume un período;
+  - no puede ser antes del inicio del período ni del día del pago, ni a más
+    de 3 años del inicio (`billing.period_end_before_start`,
+    `billing.period_end_too_far`); una fecha que no existe rebota en el DTO
+    (`billing.period_end_invalid`);
+  - **el ancla pasa al día acordado**, y un acuerdo a **fin de mes** (30 de
+    noviembre, 28 de febrero) deja el ancla en 31: los pagos siguientes
+    vencen el último día de cada mes. Cada pago guarda en `anchor_day` el ancla
+    que dejó, y anular devuelve la del pago vivo más reciente (§5.3);
+  - la bitácora guarda la fecha automática, la acordada y el precio de lista.
 
-El cargo se calcula solo: precio del mercado del tenant (o `custom_price` en
-Premium) − cupón vigente. La suscripción pasa a `active`, la gracia se limpia
+El cargo se calcula solo: precio del mercado del tenant (o el `custom_price`
+pactado, **solo para el plan que el negocio tiene**: pagar otro plan cobra su
+precio de lista y suelta el pactado) − cupón vigente. La suscripción pasa a `active`, la gracia se limpia
 y al negocio le llega el correo `payment-received`.
 
 ### 5.2 El expediente de un negocio
@@ -246,7 +269,10 @@ hoy, y es a quien hay que cobrarle.
 
 Un pago capturado por error NO se borra — se anula con razón, y el estado
 presente se recalcula desde los pagos vivos (puede volver a `active`,
-`past_due`, `trialing` o `free`, según lo que quede):
+`past_due`, `trialing` o `free`, según lo que quede). El día de cobro también
+vuelve: el del pago vivo más reciente (`anchor_day`, que la migración de
+relleno puso al último pago de cada negocio de antes). Sin pagos vivos el ancla
+queda vacía y el siguiente pago la fija en su fecha:
 
 ```bash
 curl -s -X POST "$BASE/tenants/<tenantId>/payments/<paymentId>/void" \

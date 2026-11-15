@@ -39,9 +39,43 @@ export const recordPaymentSchema = z.object({
   gatewayReference: z.string().trim().max(128).optional(),
   /** Override explícito: "reactivar desde hoy sin cobrar los meses muertos". */
   periodStart: z.coerce.date().optional(),
+  /**
+   * «Cubre hasta» (Carlos, 2026-11-14): el último día cubierto, en el
+   * calendario del negocio. Igual al automático no cambia nada; distinto es
+   * un ACUERDO y exige `agreedPrice` y el motivo en `notes`.
+   */
+  periodEnd: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    // Una fecha que no existe («2026-02-31», «2026-12-00») no es un error de
+    // formato sino de dedo: el regex la deja pasar y `Date` la recorre.
+    .refine(
+      (dia) => {
+        const fecha = new Date(`${dia}T00:00:00.000Z`);
+        return !Number.isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === dia;
+      },
+      { message: "billing.period_end_invalid" },
+    )
+    .optional(),
+  /** El precio del acuerdo: recibido + descuento tiene que dar esto. Puede ser 0. */
+  agreedPrice: money.optional(),
   notes: z.string().trim().max(500).optional(),
 });
 export type RecordPaymentDto = z.infer<typeof recordPaymentSchema>;
+
+/**
+ * La cotización que pinta «Debe pagar» y «Cubre del … al …» en el diálogo:
+ * la MISMA cuenta que hace el pago, para que la pantalla y el API no puedan
+ * decir dos precios distintos.
+ */
+export const paymentQuoteQuerySchema = z
+  .object({
+    billingCycle: z.enum(BILLING_CYCLES),
+    planCode: z.enum(PLAN_CODES).optional(),
+    paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  })
+  .strict();
+export type PaymentQuoteQueryDto = z.infer<typeof paymentQuoteQuerySchema>;
 
 export const voidPaymentSchema = z.object({
   reason: z.string().trim().min(1).max(500),
