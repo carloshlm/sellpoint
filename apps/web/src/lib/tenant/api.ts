@@ -1,4 +1,4 @@
-import type { TaxMode } from "@sellpoint/shared";
+import type { FolioLanguage, TaxMode } from "@sellpoint/shared";
 import { api } from "@/lib/api";
 
 /**
@@ -29,6 +29,12 @@ export interface TenantBlock {
   templateChoice: string | null;
   onboarded: boolean;
   country: string | null;
+  /**
+   * El juego de prefijos de folio del negocio (`es`: `VTA`, `TUR`…; `en`:
+   * `SLS`, `SHF`…), por el idioma principal de su país. Lo usan los ejemplos
+   * de folio de los buscadores.
+   */
+  folioLanguage: FolioLanguage;
   /** F7-POS-05: el toggle "Vender sin existencias" de los ajustes del negocio. */
   sellWithoutStock: boolean;
   /**

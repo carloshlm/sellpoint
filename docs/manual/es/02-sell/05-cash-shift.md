@@ -80,7 +80,7 @@ contaste: una diferencia a la vista se aclara; una escondida se repite.
 
 Cada turno tiene un **folio**, como «TUR-000042», que toma al abrirse. Al
 cerrar, se descarga en tu equipo el **PDF del cierre** en tamaño carta, para
-control interno: arriba el arqueo y abajo las ventas del turno y los gastos que
-salieron del cajón. La pantalla vuelve a **Abrir turno**, lista para tu
-siguiente turno, y arriba te dice el folio del turno que cerraste, con
+control interno, con el folio como nombre (`TUR-000042.pdf`): arriba el arqueo
+y abajo las ventas del turno y los gastos que salieron del cajón. La pantalla
+vuelve a **Abrir turno**, lista para tu siguiente turno, y arriba te dice el folio del turno que cerraste, con
 **Descargar PDF del cierre** por si no se descargó o necesitas bajarlo otra vez.

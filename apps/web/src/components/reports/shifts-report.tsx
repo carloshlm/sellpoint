@@ -21,6 +21,7 @@ import { usePermissions } from "@/lib/auth/permissions";
 import { listUsers } from "@/lib/rbac/api";
 import { downloadShiftPdf, downloadShiftsReport, type ShiftsReportQuery } from "@/lib/reports/api";
 import { useShiftDetail, useShiftsReport } from "@/lib/reports/hooks";
+import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -32,6 +33,7 @@ import { useAuthStore } from "@/stores/auth.store";
  */
 export function ShiftsReport() {
   const { t, i18n } = useTranslation();
+  const prefijoFolio = useFolioPrefix("cashbox_session");
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const timeZone = useAuthStore((s) => s.user?.tenant.timezone);
   const currency = useScopedCurrency();
@@ -184,7 +186,7 @@ export function ShiftsReport() {
             className="h-9 w-48 max-w-full rounded-md border border-input bg-background px-2 text-sm"
             value={busqueda}
             maxLength={32}
-            placeholder="TUR-000042"
+            placeholder={`${prefijoFolio}-000042`}
             aria-describedby={buscado !== "" ? "shifts-report-search-hint" : undefined}
             onChange={(e) => alFiltrar(() => setBusqueda(e.target.value))}
           />

@@ -306,7 +306,7 @@ export async function downloadShiftPdf(
   const { data, headers } = await api.get<Blob>(`${basePath}/shifts/${id}/pdf`, {
     responseType: "blob",
   });
-  await descargarBlob(data, nombreDeDescarga(headers, `cierre-${folio}.pdf`));
+  await descargarBlob(data, nombreDeDescarga(headers, `${folio}.pdf`));
 }
 
 export function downloadShiftsReport(

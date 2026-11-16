@@ -15,6 +15,7 @@ import { usePlan } from "@/lib/billing/use-plan";
 import { businessToday, formatCalendarDate } from "@/lib/inventory/format-date";
 import type { PurchaseOrderRow } from "@/lib/purchase-orders/api";
 import { usePurchaseOrders } from "@/lib/purchase-orders/hooks";
+import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -42,6 +43,7 @@ const VARIANTE: Record<
  */
 export function PurchaseOrderList() {
   const { t, i18n } = useTranslation();
+  const prefijoFolio = useFolioPrefix("purchase_order");
   const { has } = usePermissions();
   const { canWrite } = usePlan();
   const canManage = has("purchases:manage") && canWrite;
@@ -96,7 +98,7 @@ export function PurchaseOrderList() {
             type="search"
             className="h-9 w-48 rounded-md border border-input bg-background px-2 text-sm"
             value={folio}
-            placeholder="OCO-000001"
+            placeholder={`${prefijoFolio}-000001`}
             onChange={(event) => setFolio(event.target.value)}
           />
         </label>

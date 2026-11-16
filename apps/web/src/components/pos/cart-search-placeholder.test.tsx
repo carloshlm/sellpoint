@@ -2,6 +2,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
+import { useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { CartSearch } from "./cart-search";
 
 /**
@@ -45,6 +48,7 @@ function renderBuscador() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  useAuthStore.setState({ accessToken: null, user: null });
 });
 
 describe("la ayuda del buscador (F10-MANFIX-16)", () => {
@@ -63,6 +67,34 @@ describe("la ayuda del buscador (F10-MANFIX-16)", () => {
 
   it("sin forma de medir (un campo oculto), se queda la completa", () => {
     // Sin fingir nada: jsdom dice que el campo mide 0.
+    expect(renderBuscador()).toHaveAttribute("placeholder", COMPLETA);
+  });
+});
+
+/**
+ * Carlos (2026-11-16): «el folío no lo define el idioma del usuario sino el
+ * idioma principal de un país». Un negocio en Estados Unidos cotiza con `QTE`,
+ * y la ayuda se lo dice aunque quien vende use la app en español.
+ */
+describe("la ayuda muestra el prefijo de cotización del negocio", () => {
+  it("un negocio que numera en inglés ve QTE-", () => {
+    useAuthStore.setState({
+      accessToken: "token",
+      user: buildAuthUser({ tenant: buildTenantBlock({ country: "US", folioLanguage: "en" }) }),
+    });
+
+    expect(renderBuscador()).toHaveAttribute(
+      "placeholder",
+      "Escanea, teclea el código, el nombre o un folio QTE-…",
+    );
+  });
+
+  it("un negocio que numera en español sigue viendo COT-", () => {
+    useAuthStore.setState({
+      accessToken: "token",
+      user: buildAuthUser({ tenant: buildTenantBlock({ folioLanguage: "es" }) }),
+    });
+
     expect(renderBuscador()).toHaveAttribute("placeholder", COMPLETA);
   });
 });

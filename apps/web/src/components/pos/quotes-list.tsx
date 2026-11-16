@@ -13,6 +13,7 @@ import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { QuoteRow } from "@/lib/pos/api";
 import { useCancelQuote, useQuotes } from "@/lib/pos/hooks";
+import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -24,6 +25,7 @@ import { useAuthStore } from "@/stores/auth.store";
  */
 export function QuotesList() {
   const { t, i18n } = useTranslation();
+  const prefijoFolio = useFolioPrefix("quote");
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
 
@@ -72,7 +74,7 @@ export function QuotesList() {
             name="folio"
             className="h-9 rounded-md border bg-background px-2"
             value={folio}
-            placeholder="COT-000001"
+            placeholder={`${prefijoFolio}-000001`}
             onChange={(e) => setFolio(e.target.value)}
           />
         </label>

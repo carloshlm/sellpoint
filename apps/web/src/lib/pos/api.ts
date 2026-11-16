@@ -125,7 +125,7 @@ export async function downloadSessionPdf(id: string, folio: string): Promise<voi
   const { data, headers } = await api.get<Blob>(`/pos/session/${id}/pdf`, {
     responseType: "blob",
   });
-  await descargarBlob(data, nombreDeDescarga(headers, `cierre-${folio}.pdf`));
+  await descargarBlob(data, nombreDeDescarga(headers, `${folio}.pdf`));
 }
 
 // ─────────────────────────────────────────────────────────────────────────

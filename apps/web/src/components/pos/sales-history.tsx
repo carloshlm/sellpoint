@@ -12,6 +12,7 @@ import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { SaleRow } from "@/lib/pos/api";
 import { useCancelSale, useSales } from "@/lib/pos/hooks";
+import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -32,6 +33,7 @@ import { useAuthStore } from "@/stores/auth.store";
  */
 export function SalesHistory() {
   const { t, i18n } = useTranslation();
+  const prefijoFolio = useFolioPrefix("sale");
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const { has } = usePermissions();
@@ -79,7 +81,7 @@ export function SalesHistory() {
             type="search"
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={folio}
-            placeholder="VTA-000001 · 202608240045"
+            placeholder={`${prefijoFolio}-000001 · 202608240045`}
             onChange={(e) => {
               setFolio(e.target.value);
               setPagina(1);
