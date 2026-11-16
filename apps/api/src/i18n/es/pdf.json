@@ -129,7 +129,6 @@
     "concept": "Concepto",
     "createdBy": "Registró",
     "amount": "Monto",
-    "openWatermark": "TURNO ABIERTO",
-    "filename": "cierre"
+    "openWatermark": "TURNO ABIERTO"
   }
 }

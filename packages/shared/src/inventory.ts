@@ -87,7 +87,11 @@ export const CASHBOX_FOLIO_PREFIXES = {
   session: "TUR",
 } as const satisfies Record<string, string>;
 
-/** Todas las series del sistema. Ninguna puede repetir prefijo con otra. */
+/**
+ * Todas las series del sistema, en el juego en ESPAÑOL (el de México y el de
+ * siempre). Ninguna puede repetir prefijo con otra. El juego en inglés vive en
+ * `FOLIO_PREFIX_SETS.en` y cumple la misma regla dentro de sí.
+ */
 export const ALL_FOLIO_PREFIXES = [
   ...Object.values(FOLIO_PREFIXES),
   ...Object.values(POS_FOLIO_PREFIXES),
@@ -107,6 +111,141 @@ export const ALL_FOLIO_PREFIXES = [
  * viva.
  */
 export const RESERVED_FOLIO_PREFIXES = [] as const;
+
+/**
+ * Las series de folio por su llave en `tenant_sequences`. `nextFolio` recibe
+ * una de estas y saca el prefijo del juego del negocio.
+ */
+export const FOLIO_SERIES = [
+  "entry",
+  "exit",
+  "physical_count",
+  "sale",
+  "quote",
+  "medical_record",
+  "medical_order",
+  "expense",
+  "purchase",
+  "purchase_order",
+  "purchase_receipt",
+  "cashbox_session",
+] as const;
+
+export type FolioSeries = (typeof FOLIO_SERIES)[number];
+
+/** Los idiomas de los juegos de prefijos. */
+export const FOLIO_LANGUAGES = ["es", "en"] as const;
+
+export type FolioLanguage = (typeof FOLIO_LANGUAGES)[number];
+
+export function isFolioLanguage(value: unknown): value is FolioLanguage {
+  return typeof value === "string" && (FOLIO_LANGUAGES as readonly string[]).includes(value);
+}
+
+/**
+ * El juego de prefijos según el idioma principal del país del negocio
+ * (Carlos, 2026-11-16: «el folío no lo define el idioma del usuario sino el
+ * idioma principal de un país» — `TUR-000019` en México, `SHF-000019` en
+ * Canadá y Estados Unidos).
+ *
+ * Es un juego COMPLETO: un negocio con `SHF` en los turnos y `VTA` en las
+ * ventas quedaría a medias. Dentro de cada juego ningún prefijo se repite
+ * (romperían la unicidad `(tenant, folio)`); entre juegos sí puede (`ENT`),
+ * porque un negocio usa uno solo.
+ *
+ * En inglés no hay `INV`: se leería como *invoice* (factura).
+ */
+export const FOLIO_PREFIX_SETS = {
+  es: {
+    entry: FOLIO_PREFIXES.entry,
+    exit: FOLIO_PREFIXES.exit,
+    physical_count: FOLIO_PREFIXES.physical_count,
+    sale: POS_FOLIO_PREFIXES.sale,
+    quote: POS_FOLIO_PREFIXES.quote,
+    medical_record: MEDICAL_CLINIC_FOLIO_PREFIXES.record,
+    medical_order: MEDICAL_CLINIC_FOLIO_PREFIXES.order,
+    expense: EXPENSE_FOLIO_PREFIXES.expense,
+    purchase: PURCHASE_FOLIO_PREFIXES.purchase,
+    purchase_order: PURCHASE_FOLIO_PREFIXES.order,
+    purchase_receipt: PURCHASE_FOLIO_PREFIXES.receipt,
+    cashbox_session: CASHBOX_FOLIO_PREFIXES.session,
+  },
+  en: {
+    entry: "ENT",
+    exit: "OUT",
+    physical_count: "CNT",
+    sale: "SLS",
+    quote: "QTE",
+    medical_record: "MRN",
+    medical_order: "ORD",
+    expense: "EXP",
+    purchase: "PUR",
+    purchase_order: "POR",
+    purchase_receipt: "RCV",
+    cashbox_session: "SHF",
+  },
+} as const satisfies Record<FolioLanguage, Record<FolioSeries, string>>;
+
+/**
+ * Los prefijos de cotización de TODOS los juegos (`COT`, `QTE`). El buscador
+ * de la caja reconoce cualquiera: la búsqueda ya va acotada al negocio, así
+ * que un `QTE-…` tecleado en un negocio en español simplemente no encuentra
+ * nada.
+ */
+export const QUOTE_FOLIO_PREFIXES = FOLIO_LANGUAGES.map(
+  (idioma) => FOLIO_PREFIX_SETS[idioma].quote,
+);
+
+/**
+ * Los países cuyo idioma principal es el inglés. Cualquier otro —con o sin
+ * país— numera en español, como siempre: es el juego con el que nació
+ * SellPointy y el más cercano para los países de lengua romance.
+ */
+const ENGLISH_FOLIO_COUNTRIES: ReadonlySet<string> = new Set([
+  "US",
+  "CA",
+  "GB",
+  "IE",
+  "AU",
+  "NZ",
+  "BZ",
+  "JM",
+  "BS",
+  "BB",
+  "TT",
+  "GY",
+  "AG",
+  "DM",
+  "GD",
+  "KN",
+  "LC",
+  "VC",
+  "BM",
+  "KY",
+  "VG",
+  "VI",
+  "TC",
+  "AI",
+  "MS",
+  "GU",
+  "AS",
+  "MP",
+  "FK",
+  "GI",
+]);
+
+/** El idioma de los folios que le toca a un país (ISO 3166-1 alfa-2). */
+export function folioLanguageForCountry(country: string | null | undefined): FolioLanguage {
+  return country && ENGLISH_FOLIO_COUNTRIES.has(country.toUpperCase()) ? "en" : "es";
+}
+
+/** El prefijo de una serie en un juego; sin juego, el español. */
+export function folioPrefix(
+  language: FolioLanguage | null | undefined,
+  series: FolioSeries,
+): string {
+  return FOLIO_PREFIX_SETS[language ?? "es"][series];
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Motivos de movimiento — la fuente ÚNICA

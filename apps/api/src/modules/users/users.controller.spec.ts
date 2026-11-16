@@ -89,6 +89,7 @@ const ME: MeProfile = {
     taxMode: "included",
     costTaxMode: "excluded",
     region: null,
+    folioLanguage: "es",
     monthlySalesGoal: null,
     country: "MX",
   },

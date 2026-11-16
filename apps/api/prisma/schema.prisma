@@ -55,6 +55,12 @@ model Tenant {
   // selector de país del front — un país que se agrega ahí queda válido acá
   // sin nueva migración.
   country            String?   @db.Char(2)
+  /// El juego de prefijos de folio del negocio: 'es' (`VTA`, `TUR`…) o 'en'
+  /// (`SLS`, `SHF`…), según el idioma principal de su país (Carlos,
+  /// 2026-11-16). NULL hasta el primer folio: `nextFolio` lo fija entonces
+  /// desde `country` y ya no cambia, aunque cambie el país. CHECK
+  /// `tenants_folio_language_check` en el SQL.
+  folioLanguage      String?   @map("folio_language") @db.Char(2)
   onboarded          Boolean   @default(false)
   /// F7-LIFECYCLE-02 — desactivado desde cuándo, por quién y por qué. Los
   /// tres van juntos (CHECK `tenants_suspended_coherent`: fecha ⇔ motivo).

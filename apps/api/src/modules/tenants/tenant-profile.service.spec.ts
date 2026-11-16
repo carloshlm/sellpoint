@@ -91,6 +91,7 @@ describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
       currency: "MXN",
       templateChoice: null,
       onboarded: false,
+      folioLanguage: "es",
       monthlySalesGoal: null,
       discountCodeSetAt: null,
       discountMaxPercent: null,
@@ -124,6 +125,7 @@ describe("TenantProfileService.update (F1-WEB-ONBOARD)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: false,
+        folioLanguage: "es",
         monthlySalesGoal: null,
         discountCodeSetAt: null,
         discountMaxPercent: null,
@@ -172,6 +174,7 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: true,
+        folioLanguage: "es",
         monthlySalesGoal: null,
         discountCodeSetAt: null,
         discountMaxPercent: null,
@@ -220,6 +223,7 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: true,
+        folioLanguage: "es",
         monthlySalesGoal: null,
         discountCodeSetAt: null,
         discountMaxPercent: null,
@@ -228,12 +232,14 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
 
     await expect(service.completeOnboarding(ACTOR, {})).resolves.toMatchObject({
       onboarded: true,
+      folioLanguage: "es",
       monthlySalesGoal: null,
       discountCodeSetAt: null,
       discountMaxPercent: null,
     });
     await expect(service.completeOnboarding(ACTOR, {})).resolves.toMatchObject({
       onboarded: true,
+      folioLanguage: "es",
       monthlySalesGoal: null,
       discountCodeSetAt: null,
       discountMaxPercent: null,

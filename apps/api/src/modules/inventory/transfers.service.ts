@@ -5,13 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import {
-  endOfDayUtc,
-  FOLIO_PREFIXES,
-  shortName,
-  startOfDayUtc,
-  TRANSFER_STALE_DAYS,
-} from "@sellpoint/shared";
+import { endOfDayUtc, shortName, startOfDayUtc, TRANSFER_STALE_DAYS } from "@sellpoint/shared";
 import type { TransferStatus } from "../../generated/prisma/client";
 // `Prisma` va como VALOR y no como `import type`: `Prisma.Decimal` es un
 // constructor que se USA en runtime, no solo un espacio de tipos. Con
@@ -541,7 +535,7 @@ export class TransfersService {
       assertWarehouseInScope(scope, transfer.destinationWarehouseId);
       await assertActiveWarehouse(tx, user.tenantId, transfer.destinationWarehouseId);
 
-      const folio = await nextFolio(tx, user.tenantId, "entry", FOLIO_PREFIXES.entry);
+      const folio = await nextFolio(tx, user.tenantId, "entry");
       const document = await tx.inventoryDocument.create({
         data: {
           tenantId: user.tenantId,

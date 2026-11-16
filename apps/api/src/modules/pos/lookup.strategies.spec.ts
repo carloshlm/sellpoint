@@ -24,12 +24,19 @@ describe("Reconocedores del buscador (F4-CART-01)", () => {
       expect(pareceFolioDeCotizacion("  COT-000001  ")).toBe(true);
     });
 
+    it("reconoce la cotización de un negocio que numera en inglés (QTE)", () => {
+      expect(pareceFolioDeCotizacion("QTE-000001")).toBe(true);
+      expect(pareceFolioDeCotizacion("qte-000042")).toBe(true);
+    });
+
     it("no confunde las OTRAS series con una cotización", () => {
-      // Las cinco series comparten formato: si el reconocedor mirara solo el
-      // guion y los dígitos, teclear una entrada abriría una cotización.
+      // Las series comparten formato: si el reconocedor mirara solo el guion
+      // y los dígitos, teclear una entrada abriría una cotización.
       expect(pareceFolioDeCotizacion("ENT-000001")).toBe(false);
       expect(pareceFolioDeCotizacion("VTA-000001")).toBe(false);
       expect(pareceFolioDeCotizacion("SAL-000001")).toBe(false);
+      expect(pareceFolioDeCotizacion("SLS-000001")).toBe(false);
+      expect(pareceFolioDeCotizacion("SHF-000001")).toBe(false);
     });
 
     it("no reconoce un folio a medio escribir", () => {

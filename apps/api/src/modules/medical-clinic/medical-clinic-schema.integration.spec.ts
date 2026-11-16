@@ -399,6 +399,40 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
       ).resolves.toMatchObject({ quoteId: null });
     });
 
+    // Carlos (2026-11-16): un negocio en Estados Unidos o Canadá cotiza con
+    // `QTE` y su orden no cobrada es `ORD`. La regla es la misma.
+    it("el prefijo no miente en inglés: QTE- sin cotización rebota; con ella cabe, y ORD- sin ella cabe", async () => {
+      await expect(
+        prisma.withTenantContext(tenantA, (tx) =>
+          tx.medicalClinicOrder.create({ data: orden("QTE-000909", "lab_order") }),
+        ),
+      ).rejects.toThrow();
+      await expect(
+        prisma.withTenantContext(tenantA, (tx) =>
+          tx.medicalClinicOrder.create({ data: orden("ORD-000903", "diagnostic_order") }),
+        ),
+      ).resolves.toMatchObject({ quoteId: null });
+      await expect(
+        prisma.withTenantContext(tenantA, async (tx) => {
+          const almacen = await tx.warehouse.create({
+            data: { tenantId: tenantA, code: `WQ-${stamp}`, name: "Main" },
+          });
+          const q = await tx.quote.create({
+            data: {
+              tenantId: tenantA,
+              folio: "QTE-000911",
+              warehouseId: almacen.id,
+              total: 0,
+              createdBy: doctorA,
+            },
+          });
+          return tx.medicalClinicOrder.create({
+            data: orden("QTE-000911", "lab_order", { quoteId: q.id }),
+          });
+        }),
+      ).resolves.toMatchObject({ folio: "QTE-000911" });
+    });
+
     it("una cotización solo sostiene UNA orden (UNIQUE quote_id)", async () => {
       const quoteId = await prisma.withTenantContext(tenantA, async (tx) => {
         const almacen = await tx.warehouse.create({

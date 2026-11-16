@@ -5,12 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import {
-  MEDICAL_CLINIC_FOLIO_PREFIXES,
-  type MedicalOrderKind,
-  medicalRecordLock,
-  POS_FOLIO_PREFIXES,
-} from "@sellpoint/shared";
+import { type MedicalOrderKind, medicalRecordLock } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -87,7 +82,8 @@ type Tx = Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0];
  * ── Con venta: el MISMO folio ───────────────────────────────────────────
  *
  * Si el negocio vende ese tipo (F9-CLINIC-22), la orden nace pegada a una
- * cotización: toma el folio de la serie `COT` y la cotización lleva
+ * cotización: toma el folio de la serie de cotizaciones (`COT`, o `QTE` si
+ * el negocio numera en inglés) y la cotización lleva
  * `source_module/source_ref` apuntando a la orden; sus líneas de estudio son
  * CONCEPTOS con `source_ref` a la LÍNEA de la orden. La receta resuelve
  * precios con el mismo código del POS (`resolverLineasParaModulo`): el día
@@ -157,7 +153,7 @@ export class MedicalOrdersService {
       let quoteId: string | null = null;
       if (seVende) {
         const warehouseId = await this.almacenDelMedico(tx, user);
-        folio = await nextFolio(tx, user.tenantId, "quote", POS_FOLIO_PREFIXES.quote);
+        folio = await nextFolio(tx, user.tenantId, "quote");
         // F4-TAX-06: la cotización de la orden se suma con el mismo motor que
         // el POS; sin esto los tres cálculos podían divergir un centavo.
         // F4-TAX-08: el estudio y el medicamento cotizan con SU grupo (o el
@@ -223,12 +219,7 @@ export class MedicalOrdersService {
         });
         quoteId = cotizacion.id;
       } else {
-        folio = await nextFolio(
-          tx,
-          user.tenantId,
-          "medical_order",
-          MEDICAL_CLINIC_FOLIO_PREFIXES.order,
-        );
+        folio = await nextFolio(tx, user.tenantId, "medical_order");
       }
 
       await tx.medicalClinicOrder.create({

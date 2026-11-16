@@ -129,7 +129,6 @@
     "concept": "Description",
     "createdBy": "Recorded by",
     "amount": "Amount",
-    "openWatermark": "OPEN SHIFT",
-    "filename": "shift-close"
+    "openWatermark": "OPEN SHIFT"
   }
 }

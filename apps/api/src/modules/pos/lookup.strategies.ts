@@ -1,4 +1,4 @@
-import { barcodeSearchForms, POS_FOLIO_PREFIXES } from "@sellpoint/shared";
+import { barcodeSearchForms, QUOTE_FOLIO_PREFIXES } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { contextoFiscal, impuestoDeItem } from "./tax-resolver";
 import { sellableStock } from "./warehouse-availability";
@@ -169,10 +169,13 @@ export interface LookupStrategy {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * `COT-000001`. El prefijo sale de `@sellpoint/shared` y no se escribe acá:
- * el día que la serie cambie de nombre, este reconocedor cambia con ella.
+ * `COT-000001`, o `QTE-000001` en un negocio que numera en inglés. Los
+ * prefijos salen de `@sellpoint/shared` y no se escriben acá: el día que una
+ * serie cambie de nombre, este reconocedor cambia con ella. Reconoce los de
+ * TODOS los juegos: la búsqueda ya va acotada al negocio, así que el prefijo
+ * del otro juego simplemente no encuentra nada.
  */
-const PATRON_FOLIO_COTIZACION = new RegExp(`^${POS_FOLIO_PREFIXES.quote}-\\d+$`, "i");
+const PATRON_FOLIO_COTIZACION = new RegExp(`^(?:${QUOTE_FOLIO_PREFIXES.join("|")})-\\d+$`, "i");
 
 export function pareceFolioDeCotizacion(q: string): boolean {
   return PATRON_FOLIO_COTIZACION.test(q.trim());

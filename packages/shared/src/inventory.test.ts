@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_FOLIO_PREFIXES,
   EXPENSE_FOLIO_PREFIXES,
+  FOLIO_LANGUAGES,
+  FOLIO_PREFIX_SETS,
   FOLIO_PREFIXES,
+  FOLIO_SERIES,
+  folioLanguageForCountry,
   hasValidQuantityScale,
   INVENTORY_DOCUMENT_TYPES,
   MEDICAL_CLINIC_FOLIO_PREFIXES,
   MOVEMENT_REASONS,
   POS_FOLIO_PREFIXES,
   PURCHASE_FOLIO_PREFIXES,
+  QUOTE_FOLIO_PREFIXES,
   REASON_RULES,
   REASONS_BY_DIRECTION,
   RESERVED_FOLIO_PREFIXES,
@@ -93,6 +98,86 @@ describe("FOLIO_PREFIXES", () => {
     const todos = [...ALL_FOLIO_PREFIXES, ...RESERVED_FOLIO_PREFIXES];
     expect(todos).not.toContain("TRA");
     expect(todos).not.toContain("REC");
+  });
+});
+
+/**
+ * Carlos, 2026-11-16: «el folío no lo define el idioma del usuario sino el
+ * idioma principal de un país» — `TUR-000019` en México, `SHF-000019` en
+ * Canadá y Estados Unidos. Un juego COMPLETO por idioma: un negocio con
+ * `SHF` en los turnos y `VTA` en las ventas quedaría a medias.
+ */
+describe("juegos de prefijos por idioma del país", () => {
+  it("el juego en español es el de siempre", () => {
+    expect(FOLIO_PREFIX_SETS.es).toEqual({
+      entry: "ENT",
+      exit: "SAL",
+      physical_count: "INV",
+      sale: "VTA",
+      quote: "COT",
+      medical_record: "HCL",
+      medical_order: "ORM",
+      expense: "GAS",
+      purchase: "COM",
+      purchase_order: "OCO",
+      purchase_receipt: "RCP",
+      cashbox_session: "TUR",
+    });
+    expect(Object.values(FOLIO_PREFIX_SETS.es).sort()).toEqual([...ALL_FOLIO_PREFIXES].sort());
+  });
+
+  it("el juego en inglés es el que aprobó Carlos", () => {
+    expect(FOLIO_PREFIX_SETS.en).toEqual({
+      entry: "ENT",
+      exit: "OUT",
+      physical_count: "CNT",
+      sale: "SLS",
+      quote: "QTE",
+      medical_record: "MRN",
+      medical_order: "ORD",
+      expense: "EXP",
+      purchase: "PUR",
+      purchase_order: "POR",
+      purchase_receipt: "RCV",
+      cashbox_session: "SHF",
+    });
+  });
+
+  it("cada juego cubre todas las series, con tres letras y sin repetir", () => {
+    for (const idioma of FOLIO_LANGUAGES) {
+      const juego = FOLIO_PREFIX_SETS[idioma];
+      expect(Object.keys(juego).sort()).toEqual([...FOLIO_SERIES].sort());
+      const prefijos = Object.values(juego);
+      expect(new Set(prefijos).size).toBe(prefijos.length);
+      for (const prefijo of prefijos) {
+        expect(prefijo).toMatch(/^[A-Z]{3}$/);
+      }
+    }
+  });
+
+  it("en inglés no hay INV: se leería como factura (invoice)", () => {
+    expect(Object.values(FOLIO_PREFIX_SETS.en)).not.toContain("INV");
+  });
+
+  it.each([
+    ["US", "en"],
+    ["CA", "en"],
+    ["GB", "en"],
+    ["us", "en"],
+    ["MX", "es"],
+    ["ES", "es"],
+    ["PR", "es"],
+    ["BR", "es"],
+    ["FR", "es"],
+    ["", "es"],
+    [null, "es"],
+    [undefined, "es"],
+  ] as const)("un negocio en %s numera en %s", (pais, idioma) => {
+    expect(folioLanguageForCountry(pais)).toBe(idioma);
+  });
+
+  it("los prefijos de cotización de todos los juegos", () => {
+    expect(QUOTE_FOLIO_PREFIXES).toEqual(["COT", "QTE"]);
   });
 });
 

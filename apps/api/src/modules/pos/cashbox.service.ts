@@ -1,5 +1,4 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { CASHBOX_FOLIO_PREFIXES } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -103,12 +102,7 @@ export class CashboxService {
 
       // El folio se toma AL ABRIR (Carlos, 2026-11-16), en la misma transacción:
       // si el alta rebota por un turno ya abierto, el número vuelve a la serie.
-      const folio = await nextFolio(
-        tx,
-        user.tenantId,
-        "cashbox_session",
-        CASHBOX_FOLIO_PREFIXES.session,
-      );
+      const folio = await nextFolio(tx, user.tenantId, "cashbox_session");
 
       try {
         return await tx.cashboxSession.create({

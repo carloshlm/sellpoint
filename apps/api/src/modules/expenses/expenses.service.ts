@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { EXPENSE_FOLIO_PREFIXES, type TaxMode } from "@sellpoint/shared";
+import { type TaxMode } from "@sellpoint/shared";
 import { hoyDelNegocio } from "../../common/business-today";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -148,7 +148,7 @@ export class ExpensesService {
         await this.assertSesionElegible(tx, user, scope, input.cashboxSessionId, warehouseId);
       }
 
-      const folio = await nextFolio(tx, user.tenantId, "expense", EXPENSE_FOLIO_PREFIXES.expense);
+      const folio = await nextFolio(tx, user.tenantId, "expense");
       const creado = await tx.expense.create({
         data: {
           tenantId: user.tenantId,

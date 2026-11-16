@@ -12,7 +12,6 @@ import {
 import {
   discountCapCents,
   localCalendarDate,
-  POS_FOLIO_PREFIXES,
   type PosLineKind,
   prorateDiscountCents,
   shortName,
@@ -341,7 +340,7 @@ export class SalesService {
           new Date(),
         );
 
-        const folio = await nextFolio(tx, user.tenantId, "sale", POS_FOLIO_PREFIXES.sale);
+        const folio = await nextFolio(tx, user.tenantId, "sale");
 
         // El código de barras del ticket (Carlos, 2026-08-24): 12 dígitos,
         // fecha del negocio + consecutivo diario. El «reinicio» de cada día

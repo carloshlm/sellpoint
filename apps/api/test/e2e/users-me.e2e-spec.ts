@@ -130,6 +130,7 @@ describe("/me (e2e)", () => {
         taxMode: "included",
         costTaxMode: "excluded",
         region: null,
+        folioLanguage: "es",
         monthlySalesGoal: null,
         discountCodeSetAt: null,
         discountMaxPercent: null,

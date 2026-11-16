@@ -373,14 +373,47 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
           r.on("end", () => cb(null, Buffer.concat(chunks)));
         });
 
-    it("el reporte lo baja en PDF con el folio en el nombre", async () => {
+    // Carlos (2026-11-16): «para turno no debe llevar la palabra cierre-de-turno-
+    // o shift-close-, deberían quedar como TUR-000019.pdf o SHF-000019.pdf».
+    it("el reporte lo baja en PDF y el archivo se llama solo con el folio", async () => {
       const res = await bajar(negocio.token, `/reports/shifts/${turnoCentralId}/pdf`).expect(200);
       expect(res.headers["content-type"]).toContain("application/pdf");
-      expect(res.headers["content-disposition"]).toBe(
-        'attachment; filename="cierre-TUR-000001.pdf"',
-      );
+      expect(res.headers["content-disposition"]).toBe('attachment; filename="TUR-000001.pdf"');
       expect((res.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
       await bajar(negocio.token, `/reports/shifts/${randomUUID()}/pdf`).expect(404);
+    });
+
+    it("el nombre no cambia con el idioma de quien lo baja", async () => {
+      const enIngles = tokenService.signAccessToken({
+        sub: cajeroId,
+        tenantId: negocio.tenantId,
+        permissions: ["reports:read"],
+        locale: "en",
+      });
+      const res = await bajar(enIngles, `/reports/shifts/${turnoCentralId}/pdf`).expect(200);
+      expect(res.headers["content-disposition"]).toBe('attachment; filename="TUR-000001.pdf"');
+    });
+
+    /**
+     * Carlos (2026-11-16): «TUR-000019 para un negocio en mexico y SHF-000019
+     * para un negocio en países como Canadá y Estados Unidos».
+     */
+    it("un negocio en Estados Unidos abre su turno como SHF-000001 y su PDF es SHF-000001.pdf", async () => {
+      const enEstadosUnidos = await registerTenant(app, "shifts-us");
+      await prisma.tenant.update({
+        where: { id: enEstadosUnidos.tenantId },
+        data: { country: "US" },
+      });
+      const almacen = await almacenInicial(prisma, enEstadosUnidos.tenantId);
+
+      const abierto = await post(enEstadosUnidos.token, "/pos/session", {
+        warehouseId: almacen,
+      }).expect(201);
+      const turno = abierto.body as { id: string; folio: string };
+      expect(turno.folio).toBe("SHF-000001");
+
+      const pdf = await bajar(enEstadosUnidos.token, `/reports/shifts/${turno.id}/pdf`).expect(200);
+      expect(pdf.headers["content-disposition"]).toBe('attachment; filename="SHF-000001.pdf"');
     });
 
     it("desde la caja, quien vende baja el de su turno; el de otro no existe para él", async () => {
@@ -391,9 +424,7 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
         locale: "es",
       });
       const propio = await bajar(soloVende, `/pos/session/${turnoNorteId}/pdf`).expect(200);
-      expect(propio.headers["content-disposition"]).toBe(
-        'attachment; filename="cierre-TUR-000002.pdf"',
-      );
+      expect(propio.headers["content-disposition"]).toBe('attachment; filename="TUR-000002.pdf"');
       await bajar(soloVende, `/pos/session/${turnoCentralId}/pdf`).expect(404);
       // Sin `reports:read`, el del reporte no.
       await bajar(soloVende, `/reports/shifts/${turnoNorteId}/pdf`).expect(403);

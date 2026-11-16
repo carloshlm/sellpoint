@@ -1,4 +1,9 @@
-import type { TaxMode } from "@sellpoint/shared";
+import {
+  type FolioLanguage,
+  folioLanguageForCountry,
+  isFolioLanguage,
+  type TaxMode,
+} from "@sellpoint/shared";
 /**
  * F1-WEB-ONBOARD (design A1): shape de tenant compartido entre `GET /me`
  * (users.service.ts), `POST /auth/login` (auth.service.ts) y `GET/PATCH
@@ -30,6 +35,12 @@ export interface TenantBlock {
   templateChoice: string | null;
   onboarded: boolean;
   country: string | null;
+  /**
+   * El juego de prefijos de folio del negocio (`es`: `VTA`, `TUR`…; `en`:
+   * `SLS`, `SHF`…). Si todavía no emite su primer folio, el que le tocaría
+   * por su país hoy: es lo que muestran los ejemplos de folio de la pantalla.
+   */
+  folioLanguage: FolioLanguage;
   // F7-POS-05: el toggle "Vender sin existencias" — el front lo pinta en los
   // ajustes del negocio (editable con plan con control; fijo en Basic/Free).
   sellWithoutStock: boolean;
@@ -83,6 +94,7 @@ export const TENANT_SELECT = {
   templateChoice: true,
   onboarded: true,
   country: true,
+  folioLanguage: true,
   sellWithoutStock: true,
   usesLocations: true,
   posShowsStock: true,
@@ -112,6 +124,8 @@ export type TenantRow = {
   templateChoice: string | null;
   onboarded: boolean;
   country: string | null;
+  /** NULL hasta el primer folio (ver `folioLanguageOf`). Opcional en los literales de prueba. */
+  folioLanguage?: string | null;
   sellWithoutStock: boolean;
   usesLocations: boolean;
   /** F4-POSVIS: si el vendedor ve existencias en el punto de venta. */
@@ -143,6 +157,9 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     templateChoice: row.templateChoice,
     onboarded: row.onboarded,
     country: row.country,
+    folioLanguage: isFolioLanguage(row.folioLanguage)
+      ? row.folioLanguage
+      : folioLanguageForCountry(row.country),
     sellWithoutStock: row.sellWithoutStock,
     usesLocations: row.usesLocations,
     posShowsStock: row.posShowsStock,

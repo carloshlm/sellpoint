@@ -4,13 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import {
-  endOfDayUtc,
-  POS_FOLIO_PREFIXES,
-  type PosLineKind,
-  shortName,
-  startOfDayUtc,
-} from "@sellpoint/shared";
+import { endOfDayUtc, type PosLineKind, shortName, startOfDayUtc } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -126,7 +120,7 @@ export class QuotesService {
       // El folio se toma DENTRO de la transacción, igual que en la venta. Es
       // corta —no hay ledger que asentar— así que el lock de la serie dura
       // milisegundos.
-      const folio = await nextFolio(tx, user.tenantId, "quote", POS_FOLIO_PREFIXES.quote);
+      const folio = await nextFolio(tx, user.tenantId, "quote");
 
       const cotizacion = await tx.quote.create({
         data: {

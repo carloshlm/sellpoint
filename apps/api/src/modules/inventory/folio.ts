@@ -1,3 +1,11 @@
+import {
+  FOLIO_SERIES,
+  type FolioLanguage,
+  type FolioSeries,
+  folioLanguageForCountry,
+  folioPrefix,
+  isFolioLanguage,
+} from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 
 /** Dígitos mínimos del número. Crece más allá sin romper: `ENT-1000000`. */
@@ -34,23 +42,80 @@ const FOLIO_DIGITS = 6;
  * Un borrador que se abandona tampoco deja hueco — queda anulado CON su folio,
  * así que todo número emitido se puede explicar.
  *
+ * ── El prefijo es del negocio ────────────────────────────────────────────
+ *
+ * Lo que se ve en el papel (`ENT`, `VTA`, `TUR`… o `ENT`, `SLS`, `SHF`…) sale
+ * del juego de prefijos del negocio (`FOLIO_PREFIX_SETS`), que se fija con
+ * su primer folio (ver `folioLanguageOf`). El llamador solo dice la serie.
+ *
  * @param tx Transacción del llamador. Esta función NUNCA abre una: quien la
  *   llama decide el alcance, igual que `AuditService.record`.
- * @param key La serie. Coincide con el tipo de documento (`entry`, `exit`,
- *   `physical_count`).
- * @param prefix Lo que se ve en el papel (`ENT`, `SAL`, `INV`). Lo elige el
- *   llamador desde `FOLIO_PREFIXES` (F3-DOC-03) para que esta función no
- *   dependa del catálogo de tipos.
+ * @param series La serie, que es también su llave en `tenant_sequences`
+ *   (`entry`, `sale`, `cashbox_session`…).
  */
 export async function nextFolio(
   tx: Prisma.TransactionClient,
   tenantId: string,
-  key: string,
-  prefix: string,
+  series: FolioSeries,
 ): Promise<string> {
-  const value = await nextSequenceValue(tx, tenantId, key);
+  // El idioma ANTES que el contador: si hay que fijarlo, el lock de la fila
+  // del negocio no se toma mientras se sostiene el de la serie.
+  const language = await folioLanguageOf(tx, tenantId);
+  const value = await nextSequenceValue(tx, tenantId, series);
 
-  return `${prefix}-${String(value).padStart(FOLIO_DIGITS, "0")}`;
+  return `${folioPrefix(language, series)}-${String(value).padStart(FOLIO_DIGITS, "0")}`;
+}
+
+/**
+ * El juego de prefijos del negocio, y lo FIJA si todavía no lo tiene.
+ *
+ * Carlos, 2026-11-16: «el folío no lo define el idioma del usuario sino el
+ * idioma principal de un país». El país se elige después de registrarse y se
+ * puede editar, así que el juego no se fija al crear el negocio sino con su
+ * PRIMER folio, desde el país que tenga en ese momento. Después ya no cambia:
+ * una serie no mezcla `TUR-000019` con `SHF-000020`. Un negocio que ya tiene
+ * folios sin idioma fijo (el API viejo los emitió durante el deploy) se queda
+ * en español.
+ *
+ * Dos primeros folios simultáneos no se contradicen: el `UPDATE … WHERE
+ * folio_language IS NULL` del segundo espera al primero, ya no encuentra la
+ * fila sin fijar y relee el idioma que quedó.
+ */
+export async function folioLanguageOf(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+): Promise<FolioLanguage> {
+  const tenant = await tx.tenant.findUnique({
+    where: { id: tenantId },
+    select: { folioLanguage: true, country: true },
+  });
+
+  if (tenant === null) {
+    throw new Error(`No existe el negocio ${tenantId} para tomar su folio`);
+  }
+  if (isFolioLanguage(tenant.folioLanguage)) return tenant.folioLanguage;
+
+  // Si ya emitió folios sin idioma fijo, los emitió en español: el API viejo
+  // durante la ventana del deploy (la migración corre antes). Se queda en
+  // español, la misma regla del relleno de la migración, para que su serie no
+  // mezcle prefijos. El código de barras diario (`sale_barcode:…`) no cuenta.
+  const yaEmitio = await tx.tenantSequence.findFirst({
+    where: { tenantId, key: { in: [...FOLIO_SERIES] } },
+    select: { key: true },
+  });
+  const language = yaEmitio ? "es" : folioLanguageForCountry(tenant.country);
+  const { count } = await tx.tenant.updateMany({
+    where: { id: tenantId, folioLanguage: null },
+    data: { folioLanguage: language },
+  });
+  if (count === 1) return language;
+
+  // Otro primer folio lo fijó mientras tanto: vale el suyo.
+  const fijado = await tx.tenant.findUniqueOrThrow({
+    where: { id: tenantId },
+    select: { folioLanguage: true },
+  });
+  return isFolioLanguage(fijado.folioLanguage) ? fijado.folioLanguage : language;
 }
 
 /**

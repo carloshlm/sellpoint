@@ -4,7 +4,6 @@ import {
   CARRIED_FORWARD_SECTION_KEYS,
   fullName,
   localCalendarDate,
-  MEDICAL_CLINIC_FOLIO_PREFIXES,
   MEDICAL_RECORD_SECTIONS,
   type MedicalRecordLockReason,
   type MedicalRecordSectionGroup,
@@ -190,12 +189,7 @@ export class RecordsService {
       // vez se serializan y el segundo ya ve la consulta del primero. Si se
       // consultara antes, ambos pasarían el chequeo y nacerían dos folios.
       // El número que gasta el perdedor se deshace con su transacción.
-      const folio = await nextFolio(
-        tx,
-        user.tenantId,
-        "medical_record",
-        MEDICAL_CLINIC_FOLIO_PREFIXES.record,
-      );
+      const folio = await nextFolio(tx, user.tenantId, "medical_record");
       const abierta = await tx.medicalClinicRecord.findFirst({
         where: {
           tenantId: user.tenantId,

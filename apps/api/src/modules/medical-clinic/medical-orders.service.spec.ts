@@ -195,7 +195,7 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
       META,
     );
     expect(tx.quote.create).not.toHaveBeenCalled();
-    expect(nextFolio).toHaveBeenCalledWith(tx, TENANT, "medical_order", "ORM");
+    expect(nextFolio).toHaveBeenCalledWith(tx, TENANT, "medical_order");
     const orden = tx.medicalClinicOrder.create.mock.calls[0][0].data;
     expect(orden).toMatchObject({ folio: "ORM-000003", quoteId: null, kind: "lab_order" });
     const lineas = tx.medicalClinicOrderLine.createMany.mock.calls[0][0].data;

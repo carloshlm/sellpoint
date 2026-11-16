@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import type { FolioSeries } from "@sellpoint/shared";
 import type { Env } from "../../config/env.schema";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { nextFolio, nextSequenceValue } from "./folio";
@@ -36,24 +37,32 @@ describe("nextFolio — numeración por tenant y serie (F3-DB-03)", () => {
     await prisma.onModuleDestroy();
   });
 
-  const take = (owner: string, key: string, prefix: string) =>
-    prisma.withTenantContext(owner, (tx) => nextFolio(tx, owner, key, prefix));
+  const take = (owner: string, series: FolioSeries) =>
+    prisma.withTenantContext(owner, (tx) => nextFolio(tx, owner, series));
+
+  /** Un negocio NUEVO por prueba: la serie arranca en 1 y el idioma sin fijar. */
+  const nuevoNegocio = async (data: { country?: string | null; folioLanguage?: string } = {}) =>
+    (
+      await prisma.tenant.create({
+        data: { name: `Tenant folios ${Date.now()}-${Math.random()}`, ...data },
+      })
+    ).id;
 
   it("la primera vez de un tenant en una serie es el 1, con seis dígitos", async () => {
-    await expect(take(tenantId, "entry", "ENT")).resolves.toBe("ENT-000001");
+    await expect(take(tenantId, "entry")).resolves.toBe("ENT-000001");
   });
 
   it("cada tenant lleva su propia cuenta: los dos arrancan en 1", async () => {
-    await take(tenantId, "exit", "SAL");
-    await take(tenantId, "exit", "SAL");
+    await take(tenantId, "exit");
+    await take(tenantId, "exit");
 
-    await expect(take(otherTenantId, "exit", "SAL")).resolves.toBe("SAL-000001");
+    await expect(take(otherTenantId, "exit")).resolves.toBe("SAL-000001");
   });
 
   it("las series del mismo tenant no se pisan entre sí", async () => {
     const [entry, count] = await Promise.all([
-      take(otherTenantId, "entry", "ENT"),
-      take(otherTenantId, "physical_count", "INV"),
+      take(otherTenantId, "entry"),
+      take(otherTenantId, "physical_count"),
     ]);
 
     expect(entry).toBe("ENT-000001");
@@ -67,8 +76,8 @@ describe("nextFolio — numeración por tenant y serie (F3-DB-03)", () => {
    * `MAX+1` dos de ellas leerían el mismo número.
    */
   it("20 transacciones simultáneas producen 20 folios distintos y consecutivos", async () => {
-    const key = "concurrent";
-    const folios = await Promise.all(Array.from({ length: 20 }, () => take(tenantId, key, "ENT")));
+    const negocio = await nuevoNegocio();
+    const folios = await Promise.all(Array.from({ length: 20 }, () => take(negocio, "entry")));
 
     const numeros = folios.map((f) => Number(f.split("-")[1])).sort((a, b) => a - b);
     expect(new Set(folios).size).toBe(20);
@@ -85,26 +94,132 @@ describe("nextFolio — numeración por tenant y serie (F3-DB-03)", () => {
    * una tx corta propia, no dentro de la del ledger.
    */
   it("una transacción que falla no deja hueco: el número vuelve", async () => {
-    const key = "rollback";
-    await take(tenantId, key, "ENT");
+    const negocio = await nuevoNegocio();
+    await take(negocio, "entry");
 
     await expect(
-      prisma.withTenantContext(tenantId, async (tx) => {
-        await nextFolio(tx, tenantId, key, "ENT");
+      prisma.withTenantContext(negocio, async (tx) => {
+        await nextFolio(tx, negocio, "entry");
         throw new Error("algo salió mal después de tomar el folio");
       }),
     ).rejects.toThrow();
 
-    await expect(take(tenantId, key, "ENT")).resolves.toBe("ENT-000002");
+    await expect(take(negocio, "entry")).resolves.toBe("ENT-000002");
   });
 
   it("pasado el millón sigue creciendo en vez de romperse", async () => {
-    const key = "big";
-    await prisma.withTenantContext(tenantId, (tx) =>
-      tx.tenantSequence.create({ data: { tenantId, key, nextValue: 999_999n } }),
+    const negocio = await nuevoNegocio();
+    await prisma.withTenantContext(negocio, (tx) =>
+      tx.tenantSequence.create({ data: { tenantId: negocio, key: "entry", nextValue: 999_999n } }),
     );
 
-    await expect(take(tenantId, key, "ENT")).resolves.toBe("ENT-1000000");
+    await expect(take(negocio, "entry")).resolves.toBe("ENT-1000000");
+  });
+
+  /**
+   * ── EL IDIOMA DE LOS FOLIOS (Carlos, 2026-11-16) ──────────────────────────
+   *
+   * «el folío no lo define el idioma del usuario sino el idioma principal de
+   * un país»: `TUR-000019` en México, `SHF-000019` en Estados Unidos y Canadá.
+   * El juego se FIJA con el primer folio del negocio y ya no cambia, aunque
+   * después cambie el país: una serie no mezcla `TUR-000019` con `SHF-000020`.
+   */
+  describe("el juego de prefijos sale del país y se fija con el primer folio", () => {
+    const idiomaDe = async (negocio: string) =>
+      (await prisma.tenant.findUniqueOrThrow({ where: { id: negocio } })).folioLanguage;
+
+    it("un negocio en Estados Unidos numera en inglés", async () => {
+      const negocio = await nuevoNegocio({ country: "US" });
+
+      await expect(take(negocio, "cashbox_session")).resolves.toBe("SHF-000001");
+      await expect(take(negocio, "sale")).resolves.toBe("SLS-000001");
+      expect(await idiomaDe(negocio)).toBe("en");
+    });
+
+    it("un negocio en México numera en español, como siempre", async () => {
+      const negocio = await nuevoNegocio({ country: "MX" });
+
+      await expect(take(negocio, "cashbox_session")).resolves.toBe("TUR-000001");
+      expect(await idiomaDe(negocio)).toBe("es");
+    });
+
+    it("un negocio sin país numera en español", async () => {
+      const negocio = await nuevoNegocio();
+
+      await expect(take(negocio, "quote")).resolves.toBe("COT-000001");
+      expect(await idiomaDe(negocio)).toBe("es");
+    });
+
+    it("el idioma no se fija antes del primer folio: el país se puede elegir después de registrarse", async () => {
+      const negocio = await nuevoNegocio();
+      expect(await idiomaDe(negocio)).toBeNull();
+
+      await prisma.tenant.update({ where: { id: negocio }, data: { country: "CA" } });
+
+      await expect(take(negocio, "expense")).resolves.toBe("EXP-000001");
+    });
+
+    it("cambiar el país DESPUÉS del primer folio no cambia la serie", async () => {
+      const negocio = await nuevoNegocio({ country: "US" });
+      await take(negocio, "cashbox_session");
+
+      await prisma.tenant.update({ where: { id: negocio }, data: { country: "MX" } });
+
+      await expect(take(negocio, "cashbox_session")).resolves.toBe("SHF-000002");
+      await expect(take(negocio, "purchase_order")).resolves.toBe("POR-000001");
+      expect(await idiomaDe(negocio)).toBe("en");
+    });
+
+    /**
+     * La ventana del deploy: la migración corre ANTES que el API nuevo, y el
+     * viejo numera en español sin fijar idioma. Si un negocio en EE. UU.
+     * emitió ahí su primer folio, ya tiene una serie en español: se queda en
+     * español, igual que la regla del relleno de la migración.
+     */
+    it("un negocio sin idioma fijo pero con folios ya emitidos se queda en español", async () => {
+      const negocio = await nuevoNegocio({ country: "US" });
+      await prisma.withTenantContext(negocio, (tx) =>
+        tx.tenantSequence.create({ data: { tenantId: negocio, key: "sale", nextValue: 1n } }),
+      );
+
+      await expect(take(negocio, "sale")).resolves.toBe("VTA-000002");
+      expect(await idiomaDe(negocio)).toBe("es");
+    });
+
+    it("el código de barras diario del ticket no cuenta como folio emitido", async () => {
+      const negocio = await nuevoNegocio({ country: "US" });
+      await prisma.withTenantContext(negocio, (tx) =>
+        nextSequenceValue(tx, negocio, "sale_barcode:20261116"),
+      );
+
+      await expect(take(negocio, "sale")).resolves.toBe("SLS-000001");
+    });
+
+    it("un negocio con el idioma ya fijo lo respeta aunque su país diga otra cosa", async () => {
+      const negocio = await nuevoNegocio({ country: "US", folioLanguage: "es" });
+
+      await expect(take(negocio, "sale")).resolves.toBe("VTA-000001");
+    });
+
+    it("varios primeros folios al mismo tiempo fijan un solo idioma", async () => {
+      const negocio = await nuevoNegocio({ country: "US" });
+
+      const folios = await Promise.all(
+        (["sale", "quote", "expense", "purchase", "entry", "exit"] as const).map((serie) =>
+          take(negocio, serie),
+        ),
+      );
+
+      expect(folios).toEqual([
+        "SLS-000001",
+        "QTE-000001",
+        "EXP-000001",
+        "PUR-000001",
+        "ENT-000001",
+        "OUT-000001",
+      ]);
+      expect(await idiomaDe(negocio)).toBe("en");
+    });
   });
 
   /**

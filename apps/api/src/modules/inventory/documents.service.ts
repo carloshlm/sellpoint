@@ -8,7 +8,6 @@ import {
   documentRejectsPastExpiry,
   effectiveDocumentDateField,
   endOfDayUtc,
-  FOLIO_PREFIXES,
   type InventoryDocumentStatus,
   type InventoryDocumentType,
   REASON_RULES,
@@ -107,7 +106,7 @@ export class DocumentsService {
         }
       }
 
-      const folio = await nextFolio(tx, user.tenantId, input.type, FOLIO_PREFIXES[input.type]);
+      const folio = await nextFolio(tx, user.tenantId, input.type);
 
       return tx.inventoryDocument.create({
         data: {

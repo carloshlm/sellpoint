@@ -137,7 +137,10 @@ export class ShiftPdfService {
 
     return {
       body: await renderizar(this.printer, definition),
-      filename: `${t("pdf.shiftClose.filename")}-${turno.folio}.pdf`,
+      // Solo el folio, como las ventas y las compras (Carlos, 2026-11-16:
+      // «deberían quedar como TUR-000019.pdf o SHF-000019.pdf»). El prefijo ya
+      // dice qué documento es, en el idioma del país del negocio.
+      filename: `${turno.folio}.pdf`,
     };
   }
 }

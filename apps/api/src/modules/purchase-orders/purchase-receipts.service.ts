@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { PURCHASE_FOLIO_PREFIXES, pendingQuantity } from "@sellpoint/shared";
+import { pendingQuantity } from "@sellpoint/shared";
 import { hoyDelNegocio } from "../../common/business-today";
 import { assertQuantityFitsPresentation } from "../../common/quantity-rules";
 import { Prisma } from "../../generated/prisma/client";
@@ -146,12 +146,7 @@ export class PurchaseReceiptsService {
           args: { folio: abierta.folio },
         });
       }
-      const folio = await nextFolio(
-        tx,
-        user.tenantId,
-        "purchase_receipt",
-        PURCHASE_FOLIO_PREFIXES.receipt,
-      );
+      const folio = await nextFolio(tx, user.tenantId, "purchase_receipt");
       const pendientes = orden.lines.filter(
         (l) => !l.closedShort && l.quantityReceived.lessThan(l.quantityOrdered),
       );

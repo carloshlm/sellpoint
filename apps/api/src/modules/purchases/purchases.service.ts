@@ -7,8 +7,6 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
-  FOLIO_PREFIXES,
-  PURCHASE_FOLIO_PREFIXES,
   type PurchaseStatus,
   type PurchaseTaxMode,
   type PurchaseViewStatus,
@@ -252,12 +250,7 @@ export class PurchasesService {
       // El folio se toma acá, en una transacción CORTA: no hay ledger que
       // asentar, así que el lock de la serie dura milisegundos. El `confirm`
       // no pide folio — ya lo tiene desde que nació.
-      const folio = await nextFolio(
-        tx,
-        user.tenantId,
-        "purchase",
-        PURCHASE_FOLIO_PREFIXES.purchase,
-      );
+      const folio = await nextFolio(tx, user.tenantId, "purchase");
       await this.assertFechasNoFuturas(tx, user.tenantId, { purchaseDate: input.purchaseDate });
       // F9-COSTMODE-04: la compra nace en la base del negocio («los costos se
       // capturan con o sin impuesto»); sigue editable por documento, porque
@@ -683,7 +676,7 @@ export class PurchasesService {
       // papel de la compra, que es donde el proveedor lo escribió.
       const controlaLote = new Map(productos.map((p) => [p.id, p.tracksLots]));
 
-      const folio = await nextFolio(tx, user.tenantId, "entry", FOLIO_PREFIXES.entry);
+      const folio = await nextFolio(tx, user.tenantId, "entry");
       const entrada = await tx.inventoryDocument.create({
         data: {
           tenantId: user.tenantId,
@@ -913,12 +906,7 @@ export class PurchasesService {
           partidas.push(partida);
         }
       }
-      const folio = await nextFolio(
-        tx,
-        user.tenantId,
-        "purchase",
-        PURCHASE_FOLIO_PREFIXES.purchase,
-      );
+      const folio = await nextFolio(tx, user.tenantId, "purchase");
       const recibidas = recepciones.map((r) => r?.receivedDate.getTime() ?? 0);
       const creada = await tx.purchase.create({
         data: {
