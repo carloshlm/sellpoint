@@ -114,6 +114,7 @@ const hoyDelNegocio = () => localCalendarDate("America/Mexico_City", new Date())
 
 const turno = (overrides: Partial<reportsApi.ShiftRow> = {}): reportsApi.ShiftRow => ({
   id: "cs1",
+  folio: "TUR-000007",
   status: "closed",
   warehouse: { id: "w1", name: "Central" },
   openedBy: { id: "u2", name: "Luis Cajero" },
@@ -940,6 +941,40 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       const detalle = await screen.findByTestId("shift-detail");
       expect(await within(detalle).findByText("VTA-000001")).toBeInTheDocument();
       expect(mocked.getShiftDetail).toHaveBeenCalledWith("cs1");
+    });
+
+    /**
+     * Carlos (2026-11-16): «un folio de cierre de turno para encontrarlo más
+     * fácilmente en los reportes», y al lado de «Ver» el PDF del cierre.
+     */
+    it("cada turno lleva su folio, y «PDF» baja el cierre de ese turno", async () => {
+      await renderRuta("/reports/shifts");
+      expect(await screen.findByRole("cell", { name: "TUR-000007" })).toBeInTheDocument();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /PDF del turno TUR-000007/ }));
+
+      await waitFor(() =>
+        expect(mocked.downloadShiftPdf).toHaveBeenCalledWith("cs1", "TUR-000007"),
+      );
+    });
+
+    it("buscar por folio busca en todas las fechas y turnos", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+      const user = userEvent.setup();
+
+      await user.type(screen.getByLabelText(/buscar folio/i), "TUR-000042");
+
+      await waitFor(() =>
+        expect(mocked.getShiftsReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ search: "TUR-000042" }),
+        ),
+      );
+      const enviado = mocked.getShiftsReport.mock.lastCall?.[0] ?? {};
+      expect(enviado).not.toHaveProperty("from");
+      expect(enviado).not.toHaveProperty("to");
+      expect(enviado).not.toHaveProperty("status");
     });
 
     it("exportar usa los filtros vigentes, pero NO la paginación", async () => {

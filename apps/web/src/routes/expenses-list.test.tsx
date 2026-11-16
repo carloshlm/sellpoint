@@ -236,6 +236,7 @@ describe("Gastos — listado (F9-EXP-13)", () => {
     mockedPos.getSession.mockResolvedValue({
       session: {
         id: "s1",
+        folio: "TUR-000001",
         warehouseId: "w1",
         status: "open",
         openedAt: "2026-09-10T15:00:00.000Z",

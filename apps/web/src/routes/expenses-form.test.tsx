@@ -165,6 +165,7 @@ describe("Gastos — formulario (F9-EXP-14)", () => {
     mockedPos.getSession.mockResolvedValue({
       session: {
         id: "s1",
+        folio: "TUR-000001",
         warehouseId: "w1",
         status: "open",
         openedAt: "2026-09-10T15:00:00.000Z",
@@ -351,6 +352,7 @@ describe("Gastos — formulario (F9-EXP-14)", () => {
       mockedPos.getSession.mockResolvedValue({
         session: {
           id: "s1",
+          folio: "TUR-000001",
           warehouseId: "w2",
           status: "open",
           openedAt: "2026-09-10T15:00:00.000Z",

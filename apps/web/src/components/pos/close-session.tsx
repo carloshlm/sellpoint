@@ -27,10 +27,17 @@ import { SessionBar } from "./session-bar";
  * Los importes van en la moneda del negocio, como el campo de lo contado: un
  * negocio en euros no lee «$» en su propio arqueo.
  */
-export function CloseSession({ session }: { session: CashboxSession }) {
+export function CloseSession({
+  session,
+  onClosed,
+}: {
+  session: CashboxSession;
+  /** El turno recién cerrado: la ruta baja su PDF y dice su folio. */
+  onClosed?: (session: CashboxSession) => void;
+}) {
   const { t } = useTranslation();
   const { data } = useSessionTotals(true);
-  const cerrar = useCloseSession();
+  const cerrar = useCloseSession(onClosed);
   const currency = useScopedCurrency();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const [contado, setContado] = useState("");

@@ -19,8 +19,9 @@ import {
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { listUsers } from "@/lib/rbac/api";
-import { downloadShiftsReport, type ShiftsReportQuery } from "@/lib/reports/api";
+import { downloadShiftPdf, downloadShiftsReport, type ShiftsReportQuery } from "@/lib/reports/api";
 import { useShiftDetail, useShiftsReport } from "@/lib/reports/hooks";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -46,14 +47,26 @@ export function ShiftsReport() {
   const [rango, setRango] = useState<RangoDeFechas>({ from: hoy, to: hoy });
   const [page, setPage] = useState(1);
   const [abierto, setAbierto] = useState<string | null>(null);
+  // Carlos (2026-11-16): el turno se encuentra por su folio. Quien lo tiene en
+  // la mano no sabe de qué día es ni si ya cerró: buscando, el folio manda y
+  // las fechas y el estado no estorban.
+  const [busqueda, setBusqueda] = useState("");
+  const buscado = useDebouncedValue(busqueda.trim());
 
-  const filtros: ShiftsReportQuery = {
-    status: estado,
-    ...(warehouseId !== null && { warehouseId }),
-    ...(userId !== "" && { userId }),
-    ...(rango.from !== "" && { from: rango.from }),
-    ...(rango.to !== "" && { to: rango.to }),
-  };
+  const filtros: ShiftsReportQuery =
+    buscado !== ""
+      ? {
+          search: buscado,
+          ...(warehouseId !== null && { warehouseId }),
+          ...(userId !== "" && { userId }),
+        }
+      : {
+          status: estado,
+          ...(warehouseId !== null && { warehouseId }),
+          ...(userId !== "" && { userId }),
+          ...(rango.from !== "" && { from: rango.from }),
+          ...(rango.to !== "" && { to: rango.to }),
+        };
   const { data, isPending, error } = useShiftsReport({ ...filtros, page, pageSize: 20 });
   const detalle = useShiftDetail(abierto);
   const puedeListarEmpleados = negocioAjeno === null && has("users:read");
@@ -86,6 +99,7 @@ export function ShiftsReport() {
   };
 
   const columnas = [
+    { key: "folio", header: t("reports.shifts.folio") },
     { key: "closedAt", header: t("reports.shifts.closedAt") },
     { key: "warehouseName", header: t("reports.shifts.warehouse") },
     { key: "closedBy", header: t("reports.shifts.closedBy") },
@@ -96,10 +110,11 @@ export function ShiftsReport() {
     { key: "declared", header: t("reports.shifts.declared"), numeric: true },
     { key: "difference", header: t("reports.shifts.difference"), numeric: true },
     { key: "note", header: t("reports.shifts.note") },
-    { key: "view", header: "" },
+    { key: "view", header: t("common.actions.column") },
   ];
 
   const filas = (data?.rows ?? []).map((turno) => ({
+    folio: <span className="whitespace-nowrap font-mono">{turno.folio}</span>,
     closedAt: fecha(turno.closedAt ?? turno.openedAt),
     warehouseName: turno.warehouse.name,
     closedBy: (turno.closedBy ?? turno.openedBy).name,
@@ -120,17 +135,33 @@ export function ShiftsReport() {
       ""
     ),
     view: (
-      <Button
-        type="button"
-        size="sm"
-        variant={abierto === turno.id ? "default" : "outline"}
-        aria-label={t("reports.shifts.viewShift", {
-          when: fecha(turno.closedAt ?? turno.openedAt),
-        })}
-        onClick={() => setAbierto(abierto === turno.id ? null : turno.id)}
-      >
-        {t("reports.shifts.view")}
-      </Button>
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={abierto === turno.id ? "default" : "outline"}
+          aria-label={t("reports.shifts.viewShift", {
+            when: fecha(turno.closedAt ?? turno.openedAt),
+          })}
+          onClick={() => setAbierto(abierto === turno.id ? null : turno.id)}
+        >
+          {t("reports.shifts.view")}
+        </Button>
+        {/* Carlos (2026-11-16): el cierre en PDF carta, al lado de «Ver». */}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          aria-label={t("reports.shifts.pdfShift", { folio: turno.folio })}
+          onClick={() =>
+            void (negocioAjeno === null
+              ? downloadShiftPdf(turno.id, turno.folio)
+              : downloadShiftPdf(turno.id, turno.folio, reportsPath))
+          }
+        >
+          {t("reports.shifts.pdf")}
+        </Button>
+      </div>
     ),
   }));
 
@@ -145,6 +176,19 @@ export function ShiftsReport() {
       <ReportHeading title={t("reports.shifts.title")} />
 
       <div className="flex flex-wrap items-end gap-3">
+        <label htmlFor="shifts-report-search" className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{t("reports.shifts.search")}</span>
+          <input
+            id="shifts-report-search"
+            type="search"
+            className="h-9 w-48 max-w-full rounded-md border border-input bg-background px-2 text-sm"
+            value={busqueda}
+            maxLength={32}
+            placeholder="TUR-000042"
+            aria-describedby={buscado !== "" ? "shifts-report-search-hint" : undefined}
+            onChange={(e) => alFiltrar(() => setBusqueda(e.target.value))}
+          />
+        </label>
         {negocioAjeno === null && (
           <label htmlFor="shifts-report-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
             <span className="text-muted-foreground">{t("reports.shifts.warehouse")}</span>
@@ -196,6 +240,11 @@ export function ShiftsReport() {
           onChange={(nuevo) => alFiltrar(() => setRango(nuevo))}
         />
       </div>
+      {buscado !== "" && (
+        <p id="shifts-report-search-hint" className="-mt-2 text-muted-foreground text-xs">
+          {t("reports.shifts.searchHint")}
+        </p>
+      )}
 
       <ReportTable
         columns={columnas}
@@ -220,7 +269,11 @@ export function ShiftsReport() {
           data-testid="shift-detail"
         >
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-semibold">{t("reports.shifts.detailTitle")}</h2>
+            <h2 className="font-semibold">
+              {detalle.data === undefined
+                ? t("reports.shifts.detailTitle")
+                : t("reports.shifts.detailTitleOf", { folio: detalle.data.folio })}
+            </h2>
             <Button type="button" size="sm" variant="ghost" onClick={() => setAbierto(null)}>
               {t("reports.shifts.close")}
             </Button>

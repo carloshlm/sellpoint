@@ -1,10 +1,12 @@
 import type { PaymentMethod, SaleAnnotation } from "@sellpoint/shared";
 import { api } from "@/lib/api";
-import { imprimirPdf } from "@/lib/download";
+import { descargarBlob, imprimirPdf, nombreDeDescarga } from "@/lib/download";
 import { getTicketWidthPreference, type TicketWidth } from "@/lib/ticket-width";
 
 export interface CashboxSession {
   id: string;
+  /** `TUR-000001`: lo toma al abrir (Carlos, 2026-11-16). */
+  folio: string;
   warehouseId: string;
   status: "open" | "closed";
   openedAt: string;
@@ -113,6 +115,17 @@ export async function closeSession(input: {
     input,
   );
   return data;
+}
+
+/**
+ * El PDF carta del cierre del turno propio (Carlos, 2026-11-16): la caja lo
+ * baja al cerrar, para control interno. Se descarga, no se imprime.
+ */
+export async function downloadSessionPdf(id: string, folio: string): Promise<void> {
+  const { data, headers } = await api.get<Blob>(`/pos/session/${id}/pdf`, {
+    responseType: "blob",
+  });
+  await descargarBlob(data, nombreDeDescarga(headers, `cierre-${folio}.pdf`));
 }
 
 // ─────────────────────────────────────────────────────────────────────────

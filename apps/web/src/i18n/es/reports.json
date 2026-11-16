@@ -126,7 +126,12 @@
     "total": "Total",
     "close": "Cerrar detalle",
     "cashExpenses": "Gastos en efectivo",
-    "openingCash": "Fondo inicial"
+    "openingCash": "Fondo inicial",
+    "search": "Buscar folio",
+    "searchHint": "Busca en todas las fechas, abiertos y cerrados.",
+    "pdf": "PDF",
+    "pdfShift": "Descargar el PDF del turno {{folio}}",
+    "detailTitleOf": "Ventas del turno {{folio}}"
   },
   "taxes": {
     "title": "Impuestos cobrados",

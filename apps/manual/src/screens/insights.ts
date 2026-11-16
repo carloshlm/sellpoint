@@ -108,6 +108,9 @@ export const INSIGHTS: Screen[] = [
     chapter: REPORTS,
     as: "owner",
     path: "/reports/shifts",
+    // Más ancha (2026-11-16): con la columna Folio, los botones «Ver» y «PDF»
+    // quedaban cortados en 1280 y el capítulo habla del segundo.
+    viewport: { width: 1600, height: 900 },
     // Los días alrededor del turno al que le faltaron $20: se ve una
     // diferencia y su nota junto a dos turnos que cuadraron.
     prepare: async (page) => {

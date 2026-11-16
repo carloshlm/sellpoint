@@ -22,6 +22,7 @@ vi.mock("@/lib/admin/scope", () => ({ useScopedCurrency: () => "MXN" }));
 
 const TURNO: CashboxSession = {
   id: "s1",
+  folio: "TUR-000001",
   warehouseId: "w1",
   status: "open",
   openedAt: "2026-11-01T15:00:00.000Z",

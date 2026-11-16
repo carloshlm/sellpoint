@@ -51,6 +51,7 @@ const SELLER = ["pos:sell", "pos:quote", "pos:view", "products:read", "services:
 
 const TURNO: posApi.CashboxSession = {
   id: "s1",
+  folio: "TUR-000001",
   warehouseId: "w1",
   status: "open",
   openedAt: "2026-09-12T15:30:00.000Z",

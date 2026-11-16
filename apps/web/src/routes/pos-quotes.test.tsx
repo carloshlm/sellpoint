@@ -88,6 +88,7 @@ const demoUser = (permissions: string[], extra: Partial<AuthUser> = {}): AuthUse
 
 const sesion = (): posApi.CashboxSession => ({
   id: "s1",
+  folio: "TUR-000001",
   warehouseId: "w1",
   status: "open",
   openedAt: "2026-08-21T15:00:00.000Z",

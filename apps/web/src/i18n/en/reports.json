@@ -126,7 +126,12 @@
     "total": "Total",
     "close": "Close detail",
     "cashExpenses": "Cash expenses",
-    "openingCash": "Opening cash"
+    "openingCash": "Opening cash",
+    "search": "Search folio",
+    "searchHint": "Searches all dates, open and closed.",
+    "pdf": "PDF",
+    "pdfShift": "Download the PDF of shift {{folio}}",
+    "detailTitleOf": "Sales in shift {{folio}}"
   },
   "taxes": {
     "title": "Taxes collected",

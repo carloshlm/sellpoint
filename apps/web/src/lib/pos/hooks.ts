@@ -96,7 +96,12 @@ export function useOpenSession() {
   });
 }
 
-export function useCloseSession() {
+/**
+ * `onClosed` va en la MUTACIÓN y no en el `mutate`: al cerrar, la pantalla
+ * del arqueo se desmonta y React Query ya no llama los callbacks de un
+ * `mutate` sin dueño. Quien lo pasa (la ruta) sigue montado y puede avisar.
+ */
+export function useCloseSession(onClosed?: (session: CashboxSession) => void) {
   const queryClient = useQueryClient();
   return useMutation<
     { session: CashboxSession; totals: SessionTotal[] },
@@ -104,7 +109,10 @@ export function useCloseSession() {
     { declaredCash: number; note?: string }
   >({
     mutationFn: (input) => closeSession(input),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data?.session) {
+        onClosed?.(data.session);
+      }
       // El carrito es del turno: cerrarlo lo vacía, también lo guardado, para
       // que no reaparezca en el siguiente (Carlos, 2026-11-01). Vive AQUÍ y no
       // en el `mutate` de la pantalla: al cerrar, la pantalla se desmonta y

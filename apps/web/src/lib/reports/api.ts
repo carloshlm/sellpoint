@@ -228,6 +228,8 @@ export interface ShiftTotal {
 
 export interface ShiftRow {
   id: string;
+  /** `TUR-000001`: el folio que el turno tomó al abrir (Carlos, 2026-11-16). */
+  folio: string;
   status: "open" | "closed";
   warehouse: { id: string; name: string };
   openedBy: { id: string; name: string };
@@ -261,6 +263,8 @@ export interface ShiftDetail extends ShiftRow {
 }
 
 export interface ShiftsReportQuery {
+  /** El folio, completo o un pedazo: busca en todas las fechas y estados. */
+  search?: string;
   warehouseId?: string;
   userId?: string;
   status?: "open" | "closed";
@@ -288,6 +292,21 @@ export async function getShiftsReport(
 export async function getShiftDetail(id: string, basePath = "/reports"): Promise<ShiftDetail> {
   const { data } = await api.get<ShiftDetail>(`${basePath}/shifts/${id}`);
   return data;
+}
+
+/**
+ * El cierre de UN turno en PDF carta (Carlos, 2026-11-16). `basePath` es el
+ * del negocio mirado cuando se baja desde el expediente del backoffice.
+ */
+export async function downloadShiftPdf(
+  id: string,
+  folio: string,
+  basePath = "/reports",
+): Promise<void> {
+  const { data, headers } = await api.get<Blob>(`${basePath}/shifts/${id}/pdf`, {
+    responseType: "blob",
+  });
+  await descargarBlob(data, nombreDeDescarga(headers, `cierre-${folio}.pdf`));
 }
 
 export function downloadShiftsReport(

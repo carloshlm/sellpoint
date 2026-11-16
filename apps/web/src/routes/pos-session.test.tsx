@@ -27,6 +27,7 @@ vi.mock("../lib/pos/api", () => ({
   getSessionTotals: vi.fn(),
   closeSession: vi.fn(),
   listPosWarehouses: vi.fn(),
+  downloadSessionPdf: vi.fn(),
 }));
 // `listScopedWarehouses` NO existe: el alcance se pide con
 // `listWarehouses({ scoped: true })`. El mock la declaraba y nadie lo notaba
@@ -49,6 +50,7 @@ const demoUser = (permissions: string[], extra: Partial<AuthUser> = {}): AuthUse
 
 const sesion = (overrides: Partial<posApi.CashboxSession> = {}): posApi.CashboxSession => ({
   id: "s1",
+  folio: "TUR-000042",
   warehouseId: "w1",
   status: "open",
   openedAt: "2026-08-21T15:00:00.000Z",
@@ -349,6 +351,32 @@ describe("/pos/close — el arqueo", () => {
     await waitFor(() => expect(mocked.closeSession).toHaveBeenCalled());
     await waitFor(() => expect(useCartStore.getState().lines).toEqual([]));
     expect(useCartStore.getState().quoteId).toBeNull();
+  });
+
+  /**
+   * Carlos (2026-11-16): al cerrar, el PDF carta del cierre «sólo para control
+   * interno». Se baja solo y la pantalla dice el folio, con un botón para
+   * bajarlo otra vez.
+   */
+  it("al cerrar baja el PDF del cierre y dice su folio, con un botón para bajarlo otra vez", async () => {
+    let abierto = true;
+    mocked.getSession.mockImplementation(async () => ({ session: abierto ? sesion() : null }));
+    mocked.closeSession.mockImplementation(async () => {
+      abierto = false;
+      return { session: sesion({ status: "closed" }), totals: [] };
+    });
+    mocked.downloadSessionPdf.mockResolvedValue(undefined);
+
+    const user = await renderRuta("/pos/close");
+    await user.type(await screen.findByLabelText(/efectivo contado/i), "150");
+    await user.click(screen.getByRole("button", { name: /cerrar turno/i }));
+
+    await waitFor(() => expect(mocked.downloadSessionPdf).toHaveBeenCalledWith("s1", "TUR-000042"));
+    expect(await screen.findByTestId("shift-closed")).toHaveTextContent(
+      "Cerraste el turno TUR-000042",
+    );
+    await user.click(screen.getByRole("button", { name: "Descargar PDF del cierre" }));
+    expect(mocked.downloadSessionPdf).toHaveBeenCalledTimes(2);
   });
 
   /**
