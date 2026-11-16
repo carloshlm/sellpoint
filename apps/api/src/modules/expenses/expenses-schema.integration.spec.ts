@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";
@@ -154,7 +155,12 @@ describe("modelo de datos de Gastos (F9-EXP-02/04)", () => {
     it("una sesión de caja solo con efectivo", async () => {
       const sesion = await prisma.withTenantContext(tenantA, (tx) =>
         tx.cashboxSession.create({
-          data: { tenantId: tenantA, warehouseId: warehouseA, openedBy: userA },
+          data: {
+            folio: `TUR-${randomUUID().slice(0, 8)}`,
+            tenantId: tenantA,
+            warehouseId: warehouseA,
+            openedBy: userA,
+          },
         }),
       );
       await expect(

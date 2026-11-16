@@ -68,7 +68,12 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
         data: { tenantId: tenantAId, code: `SVC-${stamp}`, name: "Consulta" },
       });
       const sesion = await tx.cashboxSession.create({
-        data: { tenantId: tenantAId, warehouseId: almacen.id, openedBy: usuario.id },
+        data: {
+          folio: `TUR-${randomUUID().slice(0, 8)}`,
+          tenantId: tenantAId,
+          warehouseId: almacen.id,
+          openedBy: usuario.id,
+        },
       });
       const venta = await tx.sale.create({
         data: {
@@ -136,7 +141,12 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
       await expect(
         prisma.withTenantContext(tenantBId, (tx) =>
           tx.cashboxSession.create({
-            data: { tenantId: tenantAId, warehouseId: almacenAId, openedBy: usuarioAId },
+            data: {
+              folio: `TUR-${randomUUID().slice(0, 8)}`,
+              tenantId: tenantAId,
+              warehouseId: almacenAId,
+              openedBy: usuarioAId,
+            },
           }),
         ),
       ).rejects.toThrow();
@@ -313,7 +323,12 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
       await expect(
         prisma.withTenantContext(tenantAId, (tx) =>
           tx.cashboxSession.create({
-            data: { tenantId: tenantAId, warehouseId: almacenAId, openedBy: usuarioAId },
+            data: {
+              folio: `TUR-${randomUUID().slice(0, 8)}`,
+              tenantId: tenantAId,
+              warehouseId: almacenAId,
+              openedBy: usuarioAId,
+            },
           }),
         ),
       ).rejects.toThrow();
@@ -329,7 +344,12 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
 
       const nuevo = await prisma.withTenantContext(tenantAId, (tx) =>
         tx.cashboxSession.create({
-          data: { tenantId: tenantAId, warehouseId: almacenAId, openedBy: usuarioAId },
+          data: {
+            folio: `TUR-${randomUUID().slice(0, 8)}`,
+            tenantId: tenantAId,
+            warehouseId: almacenAId,
+            openedBy: usuarioAId,
+          },
         }),
       );
 

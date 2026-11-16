@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import type { Prisma } from "../../generated/prisma/client";
@@ -540,7 +541,12 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
         });
 
         const sesion = await tx.cashboxSession.create({
-          data: { tenantId: tenantA, warehouseId: almacen.id, openedBy: doctorA },
+          data: {
+            folio: `TUR-${randomUUID().slice(0, 8)}`,
+            tenantId: tenantA,
+            warehouseId: almacen.id,
+            openedBy: doctorA,
+          },
         });
         const venta = await tx.sale.create({
           data: {

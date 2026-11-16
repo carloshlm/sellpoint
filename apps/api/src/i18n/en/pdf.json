@@ -96,5 +96,40 @@
     "canceled": "CANCELED",
     "taxIncluded": "Agreed costs already include tax.",
     "taxExcluded": "Agreed costs do NOT include tax: it is added separately."
+  },
+  "shiftClose": {
+    "title": "Shift close",
+    "warehouse": "Store",
+    "openedBy": "Opened by",
+    "closedBy": "Closed by",
+    "inProgress": "In progress",
+    "sales": "Sales",
+    "openingCash": "Opening cash",
+    "method": {
+      "cash": "Cash",
+      "card": "Card",
+      "transfer": "Transfer"
+    },
+    "cashExpenses": "Cash expenses",
+    "expectedCash": "Expected cash",
+    "declaredCash": "Counted cash",
+    "difference": "Difference",
+    "balanced": "Balanced",
+    "note": "Note",
+    "salesTitle": "Shift sales",
+    "noSales": "This shift had no sales.",
+    "folio": "Folio",
+    "dateTime": "Date and time",
+    "seller": "Sold by",
+    "payment": "Payment",
+    "status": "Status",
+    "canceled": "Canceled",
+    "total": "Total",
+    "expensesTitle": "Drawer expenses",
+    "concept": "Description",
+    "createdBy": "Recorded by",
+    "amount": "Amount",
+    "openWatermark": "OPEN SHIFT",
+    "filename": "shift-close"
   }
 }

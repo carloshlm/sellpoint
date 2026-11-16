@@ -23,6 +23,7 @@ import { RequirePermissions } from "../auth/decorators/require-permissions.decor
 import type { AuthUser } from "../auth/types/auth-user";
 import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
+import { ShiftPdfService } from "../reports/shift-pdf.service";
 import { type WarehouseSummary, WarehousesService } from "../warehouses/warehouses.service";
 import { CashboxService } from "./cashbox.service";
 import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
@@ -71,6 +72,7 @@ export class PosController {
     private readonly tickets: TicketService,
     private readonly i18n: I18nService,
     private readonly warehouses: WarehousesService,
+    private readonly shiftPdf: ShiftPdfService,
   ) {}
 
   /**
@@ -155,6 +157,29 @@ export class PosController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.cashbox.close(user, dto);
+  }
+
+  /**
+   * El PDF carta del cierre (Carlos, 2026-11-16), el que la pantalla baja al
+   * cerrar. `pos:sell` y solo el turno que la persona abrió: un cajero sin
+   * `reports:read` se lleva el suyo, no los de los demás.
+   */
+  @Get("session/:id/pdf")
+  @RequirePermissions("pos:sell")
+  async sessionPdf(
+    @CurrentUser() user: AuthUser,
+    @UuidParam("id") id: string,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.shiftPdf.buildOwn(user, id, locale, (key) =>
+      this.i18n.translate(key, { lang: locale }),
+    );
+    response
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   /**

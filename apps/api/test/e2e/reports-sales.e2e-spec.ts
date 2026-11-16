@@ -110,6 +110,7 @@ describe("Reporte de ventas (F5-SALES)", () => {
       // persona — no se puede estar en dos cajas a la vez.
       const turnoCentral = await tx.cashboxSession.create({
         data: {
+          folio: `TUR-${randomUUID().slice(0, 8)}`,
           tenantId,
           warehouseId: central.id,
           openedBy: userId,
@@ -119,7 +120,12 @@ describe("Reporte de ventas (F5-SALES)", () => {
         },
       });
       const turnoNorte = await tx.cashboxSession.create({
-        data: { tenantId, warehouseId: norte.id, openedBy: userId },
+        data: {
+          folio: `TUR-${randomUUID().slice(0, 8)}`,
+          tenantId,
+          warehouseId: norte.id,
+          openedBy: userId,
+        },
       });
 
       await tx.sale.createMany({

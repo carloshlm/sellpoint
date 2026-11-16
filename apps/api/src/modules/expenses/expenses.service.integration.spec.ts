@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";
@@ -153,7 +154,13 @@ describe("ExpensesService (F9-EXP-05/06)", () => {
           data: { status: "closed", closedAt: new Date(), closedBy: user.userId },
         });
         return tx.cashboxSession.create({
-          data: { tenantId, warehouseId, openedBy: user.userId, ...extra },
+          data: {
+            folio: `TUR-${randomUUID().slice(0, 8)}`,
+            tenantId,
+            warehouseId,
+            openedBy: user.userId,
+            ...extra,
+          },
         });
       });
 

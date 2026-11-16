@@ -117,6 +117,7 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       "reports/shifts",
       "reports/shifts/export?format=csv",
       "reports/shifts/00000000-0000-0000-0000-000000000000",
+      "reports/shifts/00000000-0000-0000-0000-000000000000/pdf",
       "reports/taxes",
       "reports/taxes/export?format=csv",
       "reports/sales-by-product",
@@ -234,6 +235,11 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
 
     const archivo = await comoAdmin("reports/shifts/export?format=csv").expect(200);
     expect(archivo.headers["content-disposition"]).toContain("cierres-de-turno");
+
+    // Carlos (2026-11-16): el PDF carta del cierre, también desde el expediente.
+    const pdf = await comoAdmin(`reports/shifts/${filas[0]?.id}/pdf`).expect(200);
+    expect(pdf.headers["content-type"]).toContain("application/pdf");
+    expect(pdf.headers["content-disposition"]).toMatch(/cierre-TUR-\d{6}\.pdf/);
   });
 
   /**

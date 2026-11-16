@@ -10,6 +10,8 @@ import { type ShiftRow, ShiftsReportService } from "./shifts-report.service";
 
 const ENCABEZADOS: Record<Locale, string[]> = {
   es: [
+    // Carlos (2026-11-16): el folio primero, como en la pantalla.
+    "Folio",
     "Apertura",
     "Cierre",
     "Sucursal",
@@ -27,6 +29,7 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Nota",
   ],
   en: [
+    "Folio",
     "Opened",
     "Closed",
     "Store",
@@ -128,6 +131,7 @@ export function fechaHoraLocal(iso: string, timeZone: string): string {
 function fila(turno: ShiftRow, timeZone: string): string[] {
   const porMetodo = (metodo: string) => turno.totals.find((t) => t.method === metodo)?.total ?? "0";
   return [
+    turno.folio,
     fechaHoraLocal(turno.openedAt, timeZone),
     turno.closedAt === null ? "" : fechaHoraLocal(turno.closedAt, timeZone),
     turno.warehouse.name,

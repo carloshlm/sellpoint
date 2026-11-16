@@ -1,8 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { CASHBOX_FOLIO_PREFIXES } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { nextFolio } from "../inventory/folio";
 import {
   assertActiveWarehouse,
   assertWarehouseInScope,
@@ -99,10 +101,20 @@ export class CashboxService {
       assertWarehouseInScope(scope, warehouseId);
       await assertActiveWarehouse(tx, user.tenantId, warehouseId);
 
+      // El folio se toma AL ABRIR (Carlos, 2026-11-16), en la misma transacción:
+      // si el alta rebota por un turno ya abierto, el número vuelve a la serie.
+      const folio = await nextFolio(
+        tx,
+        user.tenantId,
+        "cashbox_session",
+        CASHBOX_FOLIO_PREFIXES.session,
+      );
+
       try {
         return await tx.cashboxSession.create({
           data: {
             tenantId: user.tenantId,
+            folio,
             warehouseId,
             openedBy: user.userId,
             ...(dto.openingCash !== undefined && {

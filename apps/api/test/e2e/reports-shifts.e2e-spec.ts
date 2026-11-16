@@ -247,13 +247,17 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       // F9-EXP-10: «Gastos en efectivo» antes de «Calculado» (el calculado ya
       // los resta). F10-MANFIX-10: «Fondo inicial» antes de los gastos (el
       // calculado ya lo suma).
-      "Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
+      // Carlos (2026-11-16): el folio del turno va primero, como en la pantalla.
+      "Folio,Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
     );
+    expect(lineas.some((l) => l.startsWith("TUR-000001,"))).toBe(true);
     // Central tiene DOS cierres: el del arqueo y el que abrió y cerró el caso de `status=open`.
     expect(lineas).toHaveLength(3);
     // Apertura y cierre van como fecha y hora del NEGOCIO («2026-09-06 17:30»),
     // no como la marca ISO en UTC que nadie lee en una hoja de cálculo.
-    expect(lineas[1]).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2},\d{4}-\d{2}-\d{2} \d{2}:\d{2},/);
+    expect(lineas[1]).toMatch(
+      /^TUR-\d{6},\d{4}-\d{2}-\d{2} \d{2}:\d{2},\d{4}-\d{2}-\d{2} \d{2}:\d{2},/,
+    );
     expect(
       lineas.some((l) =>
         // …,Ventas,Fondo inicial,Gastos en efectivo,Calculado,…: el turno abrió
@@ -289,13 +293,128 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
         .replace(/^\uFEFF/, "")
         .split("\n")[0],
     ).toBe(
-      "Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Opening cash,Cash expenses,Expected,Counted,Difference,Note",
+      "Folio,Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Opening cash,Cash expenses,Expected,Counted,Difference,Note",
     );
     await request(app.getHttpServer())
       .patch("/me")
       .set("Authorization", bearer(negocio.token))
       .send({ locale: "es" })
       .expect(200);
+  });
+
+  /**
+   * Carlos (2026-11-16): «yo tal vez preferiría que hubiera un folio de cierre
+   * de turno para encontrarlo más fácilmente en los reportes». Cada turno toma
+   * su folio `TUR` al ABRIR, consecutivo por negocio, como las ventas.
+   */
+  describe("el folio del turno", () => {
+    it("cada turno toma su folio al abrir, consecutivo por negocio", async () => {
+      const res = await get(negocio.token, "/reports/shifts").expect(200);
+      const filas = (res.body as { rows: { id: string; folio: string }[] }).rows;
+      expect(filas.find((r) => r.id === turnoCentralId)?.folio).toBe("TUR-000001");
+      expect(filas.find((r) => r.id === turnoNorteId)?.folio).toBe("TUR-000002");
+
+      const detalle = await get(negocio.token, `/reports/shifts/${turnoNorteId}`).expect(200);
+      expect((detalle.body as { folio: string }).folio).toBe("TUR-000002");
+    });
+
+    it("abrir devuelve el folio y cerrar devuelve el mismo", async () => {
+      const abierto = await post(negocio.token, "/pos/session", { warehouseId: centralId }).expect(
+        201,
+      );
+      const folio = (abierto.body as { folio: string }).folio;
+      expect(folio).toMatch(/^TUR-\d{6}$/);
+      // Buscar el folio lo encuentra aunque el turno siga abierto: quien tiene
+      // el folio en la mano no sabe si ya cerró.
+      const buscado = await get(negocio.token, `/reports/shifts?search=${folio}`).expect(200);
+      expect((buscado.body as { rows: { folio: string; status: string }[] }).rows).toEqual([
+        expect.objectContaining({ folio, status: "open" }),
+      ]);
+      // …también con su empleado elegido: en un abierto cuenta quién lo abrió.
+      const conEmpleado = await get(
+        negocio.token,
+        `/reports/shifts?search=${folio}&userId=${negocio.userId}`,
+      ).expect(200);
+      expect((conEmpleado.body as { rows: { folio: string }[] }).rows.map((r) => r.folio)).toEqual([
+        folio,
+      ]);
+      const cerrado = await post(negocio.token, "/pos/session/close", { declaredCash: 0 }).expect(
+        200,
+      );
+      expect((cerrado.body as { session: { folio: string } }).session.folio).toBe(folio);
+    });
+
+    it("se busca por folio, completo o por su número", async () => {
+      const completo = await get(negocio.token, "/reports/shifts?search=tur-000002").expect(200);
+      expect((completo.body as { rows: { id: string }[] }).rows.map((r) => r.id)).toEqual([
+        turnoNorteId,
+      ]);
+      const numero = await get(negocio.token, "/reports/shifts?search=000001").expect(200);
+      expect((numero.body as { rows: { id: string }[] }).rows.map((r) => r.id)).toEqual([
+        turnoCentralId,
+      ]);
+    });
+  });
+
+  /**
+   * Carlos (2026-11-16): el cierre «con su header y abajo el detalle», en PDF
+   * carta, «sólo para control interno». Desde el reporte (`reports:read`) y
+   * desde la caja, el de SU propio turno (`pos:sell`).
+   */
+  describe("el PDF del cierre", () => {
+    const bajar = (token: string, url: string) =>
+      request(app.getHttpServer())
+        .get(url)
+        .set("Authorization", bearer(token))
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        });
+
+    it("el reporte lo baja en PDF con el folio en el nombre", async () => {
+      const res = await bajar(negocio.token, `/reports/shifts/${turnoCentralId}/pdf`).expect(200);
+      expect(res.headers["content-type"]).toContain("application/pdf");
+      expect(res.headers["content-disposition"]).toBe(
+        'attachment; filename="cierre-TUR-000001.pdf"',
+      );
+      expect((res.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
+      await bajar(negocio.token, `/reports/shifts/${randomUUID()}/pdf`).expect(404);
+    });
+
+    it("desde la caja, quien vende baja el de su turno; el de otro no existe para él", async () => {
+      const soloVende = tokenService.signAccessToken({
+        sub: cajeroId,
+        tenantId: negocio.tenantId,
+        permissions: ["pos:sell"],
+        locale: "es",
+      });
+      const propio = await bajar(soloVende, `/pos/session/${turnoNorteId}/pdf`).expect(200);
+      expect(propio.headers["content-disposition"]).toBe(
+        'attachment; filename="cierre-TUR-000002.pdf"',
+      );
+      await bajar(soloVende, `/pos/session/${turnoCentralId}/pdf`).expect(404);
+      // Sin `reports:read`, el del reporte no.
+      await bajar(soloVende, `/reports/shifts/${turnoNorteId}/pdf`).expect(403);
+    });
+  });
+
+  /**
+   * El respaldo del deploy: el API anterior abre turnos sin folio mientras
+   * corre la migración o si el deploy regresa a la versión vieja. La base le
+   * pone uno «PEND-…» en vez de rechazar el turno.
+   */
+  it("un turno que llega sin folio recibe el de respaldo en vez de rebotar", async () => {
+    const turno = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+      tx.cashboxSession.create({
+        data: { tenantId: negocio.tenantId, warehouseId: norteId, openedBy: cajeroId },
+      }),
+    );
+    expect(turno.folio).toMatch(/^PEND-[0-9a-f]{12}$/);
+    await prisma.withTenantContext(negocio.tenantId, (tx) =>
+      tx.cashboxSession.delete({ where: { id: turno.id } }),
+    );
   });
 
   it("sin reports:read → 403", async () => {

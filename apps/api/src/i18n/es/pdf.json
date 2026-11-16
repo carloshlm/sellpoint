@@ -96,5 +96,40 @@
     "canceled": "ANULADA",
     "taxIncluded": "Los costos acordados ya incluyen el impuesto.",
     "taxExcluded": "Los costos acordados NO incluyen el impuesto: se suma aparte."
+  },
+  "shiftClose": {
+    "title": "Cierre de turno",
+    "warehouse": "Sucursal",
+    "openedBy": "Abrió",
+    "closedBy": "Cerró",
+    "inProgress": "En curso",
+    "sales": "Ventas",
+    "openingCash": "Fondo inicial",
+    "method": {
+      "cash": "Efectivo",
+      "card": "Tarjeta",
+      "transfer": "Transferencia"
+    },
+    "cashExpenses": "Gastos en efectivo",
+    "expectedCash": "Efectivo esperado",
+    "declaredCash": "Efectivo contado",
+    "difference": "Diferencia",
+    "balanced": "Cuadró",
+    "note": "Nota",
+    "salesTitle": "Ventas del turno",
+    "noSales": "Este turno no tuvo ventas.",
+    "folio": "Folio",
+    "dateTime": "Fecha y hora",
+    "seller": "Vendió",
+    "payment": "Pago",
+    "status": "Estado",
+    "canceled": "Cancelada",
+    "total": "Total",
+    "expensesTitle": "Gastos del cajón",
+    "concept": "Concepto",
+    "createdBy": "Registró",
+    "amount": "Monto",
+    "openWatermark": "TURNO ABIERTO",
+    "filename": "cierre"
   }
 }

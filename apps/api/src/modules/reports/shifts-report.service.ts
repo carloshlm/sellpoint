@@ -20,6 +20,8 @@ interface Persona {
 
 export interface ShiftRow {
   id: string;
+  /** `TUR-000001`: el folio que el turno tomó al abrir (Carlos, 2026-11-16). */
+  folio: string;
   status: string;
   warehouse: Persona;
   openedBy: Persona;
@@ -198,6 +200,7 @@ export class ShiftsReportService {
   private fila(
     f: {
       id: string;
+      folio: string;
       status: string;
       openedAt: Date;
       closedAt: Date | null;
@@ -216,6 +219,7 @@ export class ShiftsReportService {
   ): ShiftRow {
     return {
       id: f.id,
+      folio: f.folio,
       status: f.status,
       warehouse: f.warehouse,
       openedBy: nombre(f.opener),
@@ -260,18 +264,35 @@ export class ShiftsReportService {
             ...(query.to !== undefined && { lt: endOfDayUtc(query.to, timeZone) }),
           }
         : undefined;
-    const abiertos = query.status === "open";
+    // Sin estado se listan los cerrados; buscando un folio, los dos: quien
+    // tiene el folio en la mano no sabe si ese turno ya cerró.
+    const estado = query.status ?? (query.search === undefined ? "closed" : undefined);
+    // El empleado y el rango dependen del estado: en un abierto cuentan quién
+    // lo abrió y cuándo; en un cerrado, quién lo cerró y cuándo. Buscando en
+    // los dos, cada uno con su regla (verificación, 2026-11-16: con «Empleado»
+    // elegido, el turno abierto de esa persona desaparecía de la búsqueda).
+    const porEstado = (st: "open" | "closed"): Prisma.CashboxSessionWhereInput => ({
+      status: st,
+      ...(query.userId !== undefined &&
+        (st === "open" ? { openedBy: query.userId } : { closedBy: query.userId })),
+      ...(rango !== undefined && (st === "open" ? { openedAt: rango } : { closedAt: rango })),
+    });
     return {
       tenantId: user.tenantId,
-      status: query.status,
+      ...(estado !== undefined
+        ? porEstado(estado)
+        : { OR: [porEstado("open"), porEstado("closed")] }),
       ...(query.warehouseId !== undefined
         ? { warehouseId: query.warehouseId }
         : scope.warehouseIds !== "all"
           ? { warehouseId: { in: [...scope.warehouseIds] } }
           : {}),
-      ...(query.userId !== undefined &&
-        (abiertos ? { openedBy: query.userId } : { closedBy: query.userId })),
-      ...(rango !== undefined && (abiertos ? { openedAt: rango } : { closedAt: rango })),
+      // Por folio, completo («TUR-000042») o por su número («42»): lo que la
+      // persona tenga a la mano. Contiene y sin mayúsculas, como el buscador
+      // de ventas.
+      ...(query.search !== undefined && {
+        folio: { contains: query.search, mode: "insensitive" as const },
+      }),
     };
   }
 }

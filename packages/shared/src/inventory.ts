@@ -78,6 +78,15 @@ export const PURCHASE_FOLIO_PREFIXES = {
   receipt: "RCP",
 } as const satisfies Record<string, string>;
 
+/**
+ * La serie de los TURNOS de caja (Carlos, 2026-11-16: «un folio de cierre de
+ * turno para encontrarlo más fácilmente en los reportes»). El turno la toma al
+ * ABRIR, así que un turno en curso ya tiene folio; su cierre se busca por él.
+ */
+export const CASHBOX_FOLIO_PREFIXES = {
+  session: "TUR",
+} as const satisfies Record<string, string>;
+
 /** Todas las series del sistema. Ninguna puede repetir prefijo con otra. */
 export const ALL_FOLIO_PREFIXES = [
   ...Object.values(FOLIO_PREFIXES),
@@ -85,6 +94,7 @@ export const ALL_FOLIO_PREFIXES = [
   ...Object.values(MEDICAL_CLINIC_FOLIO_PREFIXES),
   ...Object.values(EXPENSE_FOLIO_PREFIXES),
   ...Object.values(PURCHASE_FOLIO_PREFIXES),
+  ...Object.values(CASHBOX_FOLIO_PREFIXES),
 ] as const;
 
 /**

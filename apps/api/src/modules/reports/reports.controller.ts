@@ -53,6 +53,7 @@ import { SalesExportService } from "./sales-export.service";
 import { SalesLinesExportService } from "./sales-lines-export.service";
 import { type SaleLineKind, SalesLinesReportService } from "./sales-lines-report.service";
 import { SalesReportService } from "./sales-report.service";
+import { ShiftPdfService } from "./shift-pdf.service";
 import { ShiftsExportService } from "./shifts-export.service";
 import { ShiftsReportService } from "./shifts-report.service";
 import { StockExportService } from "./stock-export.service";
@@ -91,6 +92,7 @@ export class ReportsController {
     private readonly salesLinesExport: SalesLinesExportService,
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
+    private readonly shiftPdf: ShiftPdfService,
     private readonly i18n: I18nService,
     private readonly dashboardKpis: DashboardKpisService,
     private readonly dashboardSeries: DashboardSeriesService,
@@ -207,6 +209,26 @@ export class ReportsController {
     const file = await this.shiftsExport.build(user, scope, query, getLocale(request));
     response
       .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
+  /** Carlos (2026-11-16): el cierre en PDF carta, «con su header y abajo el detalle». */
+  @Get("shifts/:id/pdf")
+  @RequirePermissions("reports:read")
+  async shiftPdfFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @UuidParam("id") id: string,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.shiftPdf.build(user, scope, id, locale, (key) =>
+      this.i18n.translate(key, { lang: locale }),
+    );
+    response
+      .header("Content-Type", "application/pdf")
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)
       .send(file.body);
   }

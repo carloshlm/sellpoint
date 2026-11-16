@@ -1478,6 +1478,9 @@ enum PaymentMethod {
 model CashboxSession {
   id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId       String               @map("tenant_id") @db.Uuid
+  /// `TUR-000001`, por negocio: se toma al ABRIR el turno (Carlos, 2026-11-16).
+  /// El default es un respaldo del deploy (ver la migración), no la regla.
+  folio          String               @default(dbgenerated("('PEND-'::text || substr(replace((gen_random_uuid())::text, '-'::text, ''::text), 1, 12))")) @db.VarChar(32)
   warehouseId    String               @map("warehouse_id") @db.Uuid
   status         CashboxSessionStatus @default(open)
   openedBy       String               @map("opened_by") @db.Uuid
@@ -1508,6 +1511,7 @@ model CashboxSession {
   sales     Sale[]
   expenses  Expense[]
 
+  @@unique([tenantId, folio])
   @@index([tenantId])
   @@index([tenantId, warehouseId, openedAt(sort: Desc)], map: "cashbox_sessions_tenant_warehouse_opened_idx")
   @@map("cashbox_sessions")

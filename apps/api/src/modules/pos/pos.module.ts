@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { BillingModule } from "../billing/billing.module";
 import { CostModule } from "../cost/cost.module";
 import { InventoryModule } from "../inventory/inventory.module";
+import { ReportsModule } from "../reports/reports.module";
 import { TenantsModule } from "../tenants/tenants.module";
 import { WarehousesModule } from "../warehouses/warehouses.module";
 import { CashboxService } from "./cashbox.service";
@@ -20,7 +21,16 @@ import { TicketService } from "./ticket.service";
  * caja (F10-MANFIX-08): la misma consulta, detrás de `pos:sell`.
  */
 @Module({
-  imports: [InventoryModule, BillingModule, CostModule, TenantsModule, WarehousesModule],
+  // ReportsModule por el PDF del cierre (Carlos, 2026-11-16): sale del mismo
+  // detalle que el reporte de cierres.
+  imports: [
+    InventoryModule,
+    BillingModule,
+    CostModule,
+    TenantsModule,
+    WarehousesModule,
+    ReportsModule,
+  ],
   controllers: [PosController],
   // `SaleHooksRegistry` se EXPORTA para que un módulo vertical registre su
   // gancho de venta (ley 31): el módulo importa el POS, el POS no lo importa.

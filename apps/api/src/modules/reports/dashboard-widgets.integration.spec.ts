@@ -85,7 +85,12 @@ describe("Los widgets del dashboard (integration)", () => {
         },
       });
       const sesion = await tx.cashboxSession.create({
-        data: { tenantId: tenant.id, warehouseId: almacen.id, openedBy: usuario.id },
+        data: {
+          folio: `TUR-${randomUUID().slice(0, 8)}`,
+          tenantId: tenant.id,
+          warehouseId: almacen.id,
+          openedBy: usuario.id,
+        },
       });
       return {
         tenantId: tenant.id,

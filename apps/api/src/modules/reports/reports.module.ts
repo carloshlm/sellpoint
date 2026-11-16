@@ -15,6 +15,7 @@ import { SalesExportService } from "./sales-export.service";
 import { SalesLinesExportService } from "./sales-lines-export.service";
 import { SalesLinesReportService } from "./sales-lines-report.service";
 import { SalesReportService } from "./sales-report.service";
+import { ShiftPdfService } from "./shift-pdf.service";
 import { ShiftsExportService } from "./shifts-export.service";
 import { ShiftsReportService } from "./shifts-report.service";
 import { StockExportService } from "./stock-export.service";
@@ -45,6 +46,7 @@ import { TaxReportService } from "./tax-report.service";
     SalesLinesExportService,
     ShiftsReportService,
     ShiftsExportService,
+    ShiftPdfService,
     TaxReportService,
     TaxExportService,
     CatalogExportService,
@@ -65,6 +67,7 @@ import { TaxReportService } from "./tax-report.service";
     StockExportService,
     ShiftsReportService,
     ShiftsExportService,
+    ShiftPdfService,
     TaxReportService,
     TaxExportService,
     SalesLinesReportService,

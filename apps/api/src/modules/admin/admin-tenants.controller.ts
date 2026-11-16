@@ -18,6 +18,7 @@ import {
   suspendTenantSchema,
 } from "@sellpoint/shared";
 import type { Request, Response } from "express";
+import { I18nService } from "nestjs-i18n";
 import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
@@ -63,6 +64,7 @@ import { SalesExportService } from "../reports/sales-export.service";
 import { SalesLinesExportService } from "../reports/sales-lines-export.service";
 import { type SaleLineKind, SalesLinesReportService } from "../reports/sales-lines-report.service";
 import { SalesReportService } from "../reports/sales-report.service";
+import { ShiftPdfService } from "../reports/shift-pdf.service";
 import { ShiftsExportService } from "../reports/shifts-export.service";
 import { ShiftsReportService } from "../reports/shifts-report.service";
 import { StockExportService } from "../reports/stock-export.service";
@@ -112,6 +114,8 @@ export class AdminTenantsController {
     private readonly taxExport: TaxExportService,
     private readonly salesLines: SalesLinesReportService,
     private readonly salesLinesExport: SalesLinesExportService,
+    private readonly shiftPdf: ShiftPdfService,
+    private readonly i18n: I18nService,
   ) {}
 
   @Get(":tenantId/overview")
@@ -290,6 +294,26 @@ export class AdminTenantsController {
       getLocale(request as Request & RequestWithLocale),
     );
     await this.descargar(response, tenantId, file);
+  }
+
+  /** El cierre en PDF carta, como desde el reporte del negocio (Carlos, 2026-11-16). */
+  @Get(":tenantId/reports/shifts/:shiftId/pdf")
+  async shiftPdfFile(
+    @UuidParam("tenantId") tenantId: string,
+    @UuidParam("shiftId") shiftId: string,
+    @CurrentUser() admin: AuthUser,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request as Request & RequestWithLocale);
+    const file = await this.shiftPdf.build(
+      platformAdminActor(tenantId, admin),
+      SCOPE_ALL,
+      shiftId,
+      locale,
+      (key) => this.i18n.translate(key, { lang: locale }),
+    );
+    await this.descargar(response, tenantId, { ...file, contentType: "application/pdf" });
   }
 
   @Get(":tenantId/reports/shifts/:shiftId")
