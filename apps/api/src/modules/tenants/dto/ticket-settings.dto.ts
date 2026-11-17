@@ -13,6 +13,7 @@ export const updateTicketSettingsSchema = z
     showAddress: z.boolean().optional(),
     showPhone: z.boolean().optional(),
     showWarehouse: z.boolean().optional(),
+    showItemCounts: z.boolean().optional(),
     /** `null` vuelve al mensaje de fábrica del idioma. */
     footerMessage: footerMessageSchema.nullable().optional(),
     logo: z

@@ -195,6 +195,7 @@
       "showAddress": "Address",
       "showPhone": "Phone",
       "showWarehouse": "Store name",
+      "showItemCounts": "Line, unit and service counts",
       "footer": "Footer message",
       "footerPlaceholder": "Thank you for your purchase!",
       "footerHint": "Empty = the default. One line, up to 160 characters.",

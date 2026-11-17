@@ -195,6 +195,7 @@
       "showAddress": "Dirección",
       "showPhone": "Teléfono",
       "showWarehouse": "Nombre de la sucursal",
+      "showItemCounts": "Número de filas, unidades y servicios",
       "footer": "Mensaje del pie",
       "footerPlaceholder": "¡Gracias por tu compra!",
       "footerHint": "Vacío = el de fábrica. Una sola línea, hasta 160 caracteres.",

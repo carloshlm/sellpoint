@@ -34,6 +34,7 @@ const defaults = (): ticketApi.TicketSettingsView => ({
   showAddress: true,
   showPhone: true,
   showWarehouse: true,
+  showItemCounts: false,
   footerMessage: null,
   logo: { kind: "none" },
   logoDataUrl: null,
@@ -140,6 +141,18 @@ describe("«Configuración del ticket» en Mi perfil (F4-TICKETCFG-08)", () => {
         showTaxId: false,
         footerMessage: "Vuelva pronto",
       }),
+    );
+  });
+
+  it("el conteo de filas, unidades y servicios viene apagado; marcarlo manda solo eso", async () => {
+    renderCard(user(["tenants:manage"]));
+    const usuario = userEvent.setup();
+    const conteo = await screen.findByLabelText("Número de filas, unidades y servicios");
+    await waitFor(() => expect(conteo).not.toBeChecked());
+    await usuario.click(conteo);
+    await usuario.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.updateTicketSettings).toHaveBeenCalledWith({ showItemCounts: true }),
     );
   });
 

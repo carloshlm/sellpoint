@@ -1,6 +1,9 @@
 {
   "change": "Change",
   "discount": "Discount",
+  "countLines": "Lines",
+  "countUnits": "Units",
+  "countServices": "Services",
   "lot": "Lot",
   "method": {
     "cash": "Cash",

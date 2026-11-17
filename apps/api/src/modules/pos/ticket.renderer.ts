@@ -3,12 +3,14 @@ import {
   formatMoney,
   formatSoldQuantity,
   type Locale,
+  type PosLineKind,
   type TaxMode,
   type TicketSettings,
   taxIdLabel,
 } from "@sellpoint/shared";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 import { ticketBarcodeSvg } from "./barcode-svg";
+import { contarTicket } from "./ticket-counts";
 import { nombreLegalAparte, type TicketHeaderContact } from "./ticket-header";
 import { ticketLogoNodes } from "./ticket-logo";
 import type { TaxMark } from "./ticket-tax-marks";
@@ -30,6 +32,11 @@ export const TICKET_PRINTABLE_MM = { "58mm": 48, "80mm": 72 } as const;
 export type TicketWidth = keyof typeof TICKET_WIDTHS;
 
 export interface TicketRow {
+  /**
+   * Producto, servicio o concepto. Lo usa el conteo del pie (2026-11-16):
+   * solo los productos van en la bolsa.
+   */
+  kind: PosLineKind;
   /** Lo que se cotizó o vendió, en texto. */
   description: string;
   quantity: string;
@@ -310,6 +317,12 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
 
       linea(anchoPt - margen * 2),
 
+      // ── Filas, unidades y servicios (Carlos, 2026-11-16) ──────────────
+      //
+      // Opcional y apagado por omisión. Va pegado a los renglones que cuenta
+      // y antes del dinero; en 58 mm, si no cabe, se parte solo.
+      ...(input.settings.showItemCounts ? [lineaDeConteo(input.rows, t)] : []),
+
       // ── Los totales ───────────────────────────────────────────────────
       //
       // F4-TAX-12: con impuestos, Subtotal = la BASE → una fila por
@@ -468,6 +481,17 @@ function linea(ancho: number) {
     ],
     margin: [0, 2, 0, 2],
   };
+}
+
+/** «Filas: 5 · Unidades: 9 · Servicios: 1»; sin la parte que quede en cero. */
+function lineaDeConteo(rows: readonly TicketRow[], t: Translate) {
+  const { lines, units, services } = contarTicket(rows);
+  const partes = [
+    `${t("ticket.countLines")}: ${lines}`,
+    ...(units === "0" ? [] : [`${t("ticket.countUnits")}: ${units}`]),
+    ...(services === "0" ? [] : [`${t("ticket.countServices")}: ${services}`]),
+  ];
+  return { text: partes.join(" · "), fontSize: 7, margin: [0, 0, 0, 2] };
 }
 
 function fila(label: string, valor: string) {

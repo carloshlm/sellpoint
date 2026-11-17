@@ -34,6 +34,8 @@ const CASILLAS = [
   "showAddress",
   "showPhone",
   "showWarehouse",
+  // Filas, unidades y servicios al pie (2026-11-16): la única que viene apagada.
+  "showItemCounts",
 ] as const;
 type Casilla = (typeof CASILLAS)[number];
 
@@ -53,6 +55,7 @@ const desdeSettings = (s: TicketSettingsView): Formulario => ({
     showAddress: s.showAddress,
     showPhone: s.showPhone,
     showWarehouse: s.showWarehouse,
+    showItemCounts: s.showItemCounts,
   },
   footer: s.footerMessage ?? "",
   logo: s.logo.kind === "preset" ? s.logo.preset : s.logo.kind,

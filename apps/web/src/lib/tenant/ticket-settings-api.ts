@@ -18,6 +18,7 @@ export interface UpdateTicketSettingsInput {
   showAddress?: boolean;
   showPhone?: boolean;
   showWarehouse?: boolean;
+  showItemCounts?: boolean;
   footerMessage?: string | null;
   logo?: { kind: "none" } | { kind: "preset"; preset: TicketLogoPreset };
 }

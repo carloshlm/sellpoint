@@ -1,6 +1,9 @@
 {
   "change": "Cambio",
   "discount": "Descuento",
+  "countLines": "Filas",
+  "countUnits": "Unidades",
+  "countServices": "Servicios",
   "lot": "Lote",
   "method": {
     "card": "Tarjeta",

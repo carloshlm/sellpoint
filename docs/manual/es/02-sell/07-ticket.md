@@ -32,12 +32,15 @@ imprime. Arriba queda el aviso verde **Venta VTA-000483 cobrada.** con el botón
 3. Lo que se llevó el cliente: cada producto con su cantidad, su precio y su
    importe. La presentación va con su nombre («1 Caja con 12 (12 piezas)»), y
    si el producto se controla por lotes, sale el **Lote** que se vendió.
-4. Los totales: el subtotal, el descuento si lo hubo, el impuesto y el
+4. Si quien administra el negocio lo activó (capítulo 12), arriba de los
+   totales una línea dice cuántas filas, unidades y servicios lleva el ticket,
+   por ejemplo **Filas: 3 · Unidades: 6 · Servicios: 1**.
+5. Los totales: el subtotal, el descuento si lo hubo, el impuesto y el
    **TOTAL**, en mayúsculas y con letra más grande para que se distinga de un
    vistazo, y cómo pagó el cliente. Si pagó en efectivo, también con cuánto
    (**Recibido**) y su **Cambio**: en la venta VTA-000482 el total fue $243.50,
    el cliente pagó con $300.00 y se llevó $56.50 de cambio.
-5. El mensaje del pie y un **código de barras** con su número: al escanearlo en
+6. El mensaje del pie y un **código de barras** con su número: al escanearlo en
    el historial aparece la venta (capítulo 8).
 
 ## El ancho del papel

@@ -403,6 +403,10 @@ export class TicketService {
         line.presentationId === null ? undefined : presentacionPorId.get(line.presentationId);
 
       return {
+        // El tipo sale de la forma de la línea, la misma que exige el CHECK
+        // `sale_items_kind_shape`/`quote_lines_kind_shape`: con producto es
+        // producto, con servicio es servicio, sin ninguno es un concepto.
+        kind: line.productId !== null ? "product" : line.serviceId !== null ? "service" : "concept",
         // La `description` de la cotización gana: es lo que decía el papel que
         // el cliente se llevó, aunque el producto haya cambiado de nombre
         // después. La venta no la tiene y cae al nombre vigente.

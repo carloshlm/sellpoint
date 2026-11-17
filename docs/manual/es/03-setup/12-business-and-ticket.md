@@ -54,6 +54,13 @@ Aplica al ticket de venta y a la cotización.
 2. **Qué se imprime.** Marca los datos que quieres en el papel: el nombre del
    negocio, el RFC, la dirección, el teléfono y el nombre de la sucursal. Los
    datos en sí se editan en **Datos del negocio**; aquí solo decides si salen.
+   La última casilla, **Número de filas, unidades y servicios**, viene apagada:
+   si la marcas, arriba de los totales sale una línea como **Filas: 3 ·
+   Unidades: 6 · Servicios: 1**. Las **filas** son los renglones del ticket.
+   Las **unidades** son lo que el cliente se lleva: cada pieza o caja cuenta
+   una, y lo que se vende a granel, como 0.750 kg de jitomate, cuenta una por
+   renglón. Los **servicios** (y los cargos como un flete) van aparte, por su
+   cantidad, y solo aparecen si la venta los trae.
 3. **Mensaje del pie.** Una línea de hasta 160 caracteres, como «¡Gracias por tu
    compra! Vuelve pronto.». Si la dejas vacía, sale el mensaje de fábrica.
 4. Presiona **Guardar**.
@@ -65,9 +72,9 @@ solo si es distinto del nombre del negocio: si es el mismo, el ticket lo dice
 una vez. El nombre legal viaja con el RFC: si apagas el RFC, tampoco sale. El
 papel del turno de Recepción lleva solo el nombre del negocio.
 
-Lo demás del ticket no se configura y sale siempre: lo que se vendió, los
-totales, cómo pagó el cliente y, si pagó en efectivo, con cuánto (**Recibido**)
-y su **Cambio** (capítulo 7).
+Lo demás del ticket sale siempre: lo que se vendió, los totales, cómo pagó el
+cliente y, si pagó en efectivo, con cuánto (**Recibido**) y su **Cambio**
+(capítulo 7).
 
 Si tu negocio tiene el módulo **Recepción**, el ticket de venta también puede
 llevar el **número de turno**. En **Configuración Recepción** › **Servicios que

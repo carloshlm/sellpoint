@@ -2670,6 +2670,8 @@ model TicketSettings {
   showAddress      Boolean  @default(true) @map("show_address")
   showPhone        Boolean  @default(true) @map("show_phone")
   showWarehouse    Boolean  @default(true) @map("show_warehouse")
+  /// Filas, unidades y servicios al pie del ticket (2026-11-16). Apagada por omisión.
+  showItemCounts   Boolean  @default(false) @map("show_item_counts")
   footerMessage    String?  @map("footer_message") @db.VarChar(160)
   logoKind         String   @default("none") @map("logo_kind") @db.VarChar(8)
   logoPreset       String?  @map("logo_preset") @db.VarChar(32)

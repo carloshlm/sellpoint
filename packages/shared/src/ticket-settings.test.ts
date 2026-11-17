@@ -66,6 +66,8 @@ describe("los logotipos de fábrica del ticket (F4-TICKETCFG-01)", () => {
       showAddress: true,
       showPhone: true,
       showWarehouse: true,
+      // El conteo del pie (2026-11-16) es la única casilla apagada de fábrica.
+      showItemCounts: false,
       footerMessage: null,
       logo: { kind: "none" },
     });

@@ -47,18 +47,24 @@ export interface TicketSettings {
   showAddress: boolean;
   showPhone: boolean;
   showWarehouse: boolean;
+  /**
+   * Filas, unidades y servicios al pie del ticket (Carlos, 2026-11-16). La
+   * única casilla que viene APAGADA: los tickets de antes no cambian solos.
+   */
+  showItemCounts: boolean;
   /** El pie del ticket; `null` = el de fábrica del idioma («¡Gracias por tu compra!»). */
   footerMessage: string | null;
   logo: TicketLogo;
 }
 
-/** Sin fila: todo visible, mensaje de fábrica, sin logotipo. */
+/** Sin fila: los datos del negocio visibles, sin conteo, mensaje de fábrica, sin logotipo. */
 export const DEFAULT_TICKET_SETTINGS: TicketSettings = {
   showBusinessName: true,
   showTaxId: true,
   showAddress: true,
   showPhone: true,
   showWarehouse: true,
+  showItemCounts: false,
   footerMessage: null,
   logo: { kind: "none" },
 };

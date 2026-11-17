@@ -12,6 +12,7 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
   const t = (key: string) => key;
 
   const fila: TicketRow = {
+    kind: "product",
     description: "Paracetamol 500mg — Caja ×12",
     quantity: "2",
     baseUnit: "unit",
@@ -374,6 +375,60 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
    * si lo hay, y el logotipo va arriba de todo. La leyenda de la cotización no
    * se apaga con nada.
    */
+  /**
+   * Filas, unidades y servicios (Carlos, 2026-11-16): una opción de la
+   * configuración, apagada por omisión. La regla de conteo vive en
+   * `ticket-counts.spec.ts`; aquí, cuándo y cómo sale en el papel.
+   */
+  describe("filas, unidades y servicios", () => {
+    const conConteo = { ...DEFAULT_TICKET_SETTINGS, showItemCounts: true };
+    const consulta: TicketRow = {
+      ...fila,
+      kind: "service",
+      description: "Consulta médica",
+      quantity: "1",
+      baseUnit: null,
+    };
+
+    it("apagada (el default) no imprime la línea", () => {
+      const json = textos(buildTicketDefinition({ ...base, rows: [fila, consulta] }, t));
+      expect(json).not.toContain("ticket.countLines");
+    });
+
+    it("prendida dice filas, unidades y servicios", () => {
+      const json = textos(
+        buildTicketDefinition({ ...base, rows: [fila, consulta], settings: conConteo }, t),
+      );
+      expect(json).toContain(
+        "ticket.countLines: 2 · ticket.countUnits: 2 · ticket.countServices: 1",
+      );
+    });
+
+    it("sin servicios no dice «Servicios»", () => {
+      const json = textos(buildTicketDefinition({ ...base, settings: conConteo }, t));
+      expect(json).toContain("ticket.countLines: 1 · ticket.countUnits: 2");
+      expect(json).not.toContain("ticket.countServices");
+    });
+
+    it("con solo servicios no dice «Unidades»", () => {
+      const json = textos(
+        buildTicketDefinition({ ...base, rows: [consulta], settings: conConteo }, t),
+      );
+      expect(json).toContain("ticket.countLines: 1 · ticket.countServices: 1");
+      expect(json).not.toContain("ticket.countUnits");
+    });
+
+    it("también sale en la cotización", () => {
+      const json = textos(
+        buildTicketDefinition(
+          { ...base, kind: "quote", folio: "COT-000007", settings: conConteo },
+          t,
+        ),
+      );
+      expect(json).toContain("ticket.countLines: 1 · ticket.countUnits: 2");
+    });
+  });
+
   describe("la configuración del ticket (F4-TICKETCFG-05)", () => {
     const apagado = {
       ...DEFAULT_TICKET_SETTINGS,
@@ -477,6 +532,7 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
 describe("el código de barras del folio", () => {
   const t = (key: string) => key;
   const fila: TicketRow = {
+    kind: "product",
     description: "Paracetamol 500mg",
     quantity: "1",
     baseUnit: "unit",
@@ -711,6 +767,7 @@ function textosDe(def: unknown): string {
 describe("la marca de impuesto por línea (F4-TAXMARK-03)", () => {
   const t = (key: string) => key;
   const linea = (description: string, taxGroupCode: string | null): TicketRow => ({
+    kind: "service",
     description,
     quantity: "1",
     baseUnit: null,
@@ -980,6 +1037,7 @@ describe("las anotaciones del ticket (F9-RECEP-24)", () => {
     warehouseName: "Central",
     rows: [
       {
+        kind: "service",
         description: "Consulta médica",
         quantity: "1",
         baseUnit: null,

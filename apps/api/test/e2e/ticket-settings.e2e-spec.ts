@@ -79,6 +79,8 @@ describe("Configuración del ticket (F4-TICKETCFG-04)", () => {
       showAddress: true,
       showPhone: true,
       showWarehouse: true,
+      // La única casilla apagada de fábrica (2026-11-16): el conteo del pie.
+      showItemCounts: false,
       footerMessage: null,
       logo: { kind: "none" },
       logoDataUrl: null,
@@ -95,6 +97,10 @@ describe("Configuración del ticket (F4-TICKETCFG-04)", () => {
       logo: { kind: "preset", preset: "pharmacy" },
       logoDataUrl: null,
     });
+    const conConteo = await put(negocio.token, { showItemCounts: true }).expect(200);
+    expect(conConteo.body).toMatchObject({ showItemCounts: true, showTaxId: false });
+    expect((await get(negocio.token).expect(200)).body).toMatchObject({ showItemCounts: true });
+    await put(negocio.token, { showItemCounts: "sí" }).expect(400);
     await put(negocio.token, { logo: { kind: "preset", preset: "bank" } }).expect(400);
     await put(negocio.token, { footerMessage: "a".repeat(161) }).expect(400);
     await put(negocio.token, {}).expect(400);

@@ -155,4 +155,34 @@ describe("El papel del ticket", () => {
       }
     });
   });
+
+  /**
+   * Filas, unidades y servicios (Carlos, 2026-11-16): apagado por omisión;
+   * prendido, el papel real dice cuántos renglones y cuántas cosas lleva.
+   */
+  describe("filas, unidades y servicios", () => {
+    const ajustes = (body: object) =>
+      request(app.getHttpServer())
+        .put("/tenants/me/ticket-settings")
+        .set("Authorization", bearer(negocio.token))
+        .send(body);
+
+    afterAll(async () => {
+      await ajustes({ showItemCounts: false }).expect(200);
+    });
+
+    it("apagado no sale; prendido, el ticket de 3 aguas dice «Filas: 1 · Unidades: 3»", async () => {
+      const venta = await post("/pos/sales", {
+        paymentMethod: "card",
+        lines: [{ productId: productoId, quantity: 3 }],
+      }).expect(201);
+      const ruta = `/pos/sales/${(venta.body as { id: string }).id}/ticket`;
+
+      expect(await papel(ruta)).not.toMatch(/Filas:/);
+
+      await ajustes({ showItemCounts: true }).expect(200);
+
+      expect(await papel(ruta)).toMatch(/Filas:\s*1\s*·\s*Unidades:\s*3/);
+    });
+  });
 });

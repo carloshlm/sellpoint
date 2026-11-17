@@ -28,6 +28,7 @@ interface Fila {
   showAddress: boolean;
   showPhone: boolean;
   showWarehouse: boolean;
+  showItemCounts: boolean;
   footerMessage: string | null;
   logoKind: string;
   logoPreset: string | null;
@@ -177,6 +178,7 @@ function toSettings(fila: Fila): TicketSettings {
     showAddress: fila.showAddress,
     showPhone: fila.showPhone,
     showWarehouse: fila.showWarehouse,
+    showItemCounts: fila.showItemCounts,
     footerMessage: fila.footerMessage,
     logo:
       fila.logoKind === "preset" && fila.logoPreset !== null
