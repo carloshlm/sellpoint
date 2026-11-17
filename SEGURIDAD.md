@@ -8,7 +8,7 @@ afirmación lleva su fuente. Lo que todavía no existe está en la
 
 | | |
 |---|---|
-| **Revisado** | 2026-09-26 |
+| **Revisado** | 2026-11-17 |
 | **Responsable** | Carlos Hernandez Hernandez, persona física que opera SellPointy (Aviso de privacidad, P1) |
 | **Preguntas de privacidad** | privacy@sellpointy.com |
 | **Leyes que piden demostrar las medidas** | México: LFPDPPP · Canadá: PIPEDA · Estados Unidos: leyes estatales |
@@ -227,12 +227,13 @@ expedientes.
 | Logs centralizados y gestor de secretos | Hoy los logs se leen por SSH y los secretos viven en `.env` con una copia cifrada | Pospuestos por tamaño (Pospuestos de la Fase 6, F6-SECRETS-01) |
 | Un escaneo que frene el despliegue | Trivy solo informa y no hay `pnpm audit` en el CI | Decisión de la Fase 6 (F6-SUPPLY-02) |
 | Firmar las imágenes (cosign) | Probaría que la imagen que corre es la que se construyó | Pospuesto (F6-RELEASE) |
+| Segundo factor de autenticación (MFA) | Hoy basta una contraseña robada para entrar | Atomizado el 2026-11-17: app de autenticación, opcional para el rol Administrador y obligatoria en el backoffice (F10-MFA-01..12) |
+| Cerrar una sesión específica | Un celular perdido sigue con sesión hasta que se cambia la contraseña | Atomizado el 2026-11-17 (F10-SESS-01..03) |
 
 **Sin tarea todavía:**
 
 | Qué falta | Por qué importa |
 |---|---|
-| Segundo factor de autenticación (MFA) | Hoy basta una contraseña robada para entrar |
 | Plan escrito de respuesta a incidentes | Los Términos prometen avisar «sin demora injustificada» (T7, A10) y no hay un procedimiento escrito |
 | Bitácora consultable | No hay una pantalla para consultar `audit_logs`: se lee en la base. (Inalterable ya es, desde el 2026-09-25: §2.4) |
 | Registro de las lecturas del backoffice | Las consultas del operador a los datos de un negocio no dejan rastro |

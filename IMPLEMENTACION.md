@@ -5884,6 +5884,109 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Pospuesto con nombre:** el calendario propio. El selector de fecha es el nativo: la piel le da el modo oscuro, pero el calendario que abre lo dibuja el navegador. Por eso no existe el «hoy» en coral de Niebla Cobalto, y tampoco su interruptor tipo iOS: la app no tiene ese componente. Y la propuesta Tinta, que ya solo necesita su bloque de tokens. Y quitar Esmeralda cuando Carlos lo decida: sus negocios necesitarán pasar a Esmeralda Jade con una migración, o caerían en SellPointy.
   - **Estimación:** 4 h
 
+### Módulo F10-MFA — Verificación en dos pasos y cerrar una sesión (atomizado el 2026-11-17)
+
+> Carlos (2026-11-17), tras revisar cómo funciona la autenticación: «creame las tareas atomizadas en @IMPLEMENTACION.md para realizar 2FA para dueños y para el backoffice. Es decir quiero que agregues las tareas que hay que hacer para el punto 1 y 4». **Punto 1:** no hay segundo factor; `SEGURIDAD.md` §5 lo tiene «sin tarea»: «Hoy basta una contraseña robada para entrar». **Punto 4:** «Sesiones activas» en «Mi perfil» lista las sesiones, pero no deja cerrar una (la de un celular perdido, por ejemplo); hoy solo se cierran todas cambiando la contraseña.
+>
+> **Lo que ya existe (verificado en el código el 2026-11-17):** el login en `auth.service.ts:255-391` (la contraseña se verifica en :278 y la familia de refresh nace en :315); `revokeFamily` en `refresh-token.service.ts:73`; la época de permisos en Redis que revisa `jwt-auth.guard.ts`; `OneTimeTokenService` (aleatorio de 256 bits guardado como sha256); `PlatformAdminGuard` con cuatro llaves (`is_platform_admin`, correo en `BILLING_ADMIN_EMAILS`, activo y verificado); `GET /auth/sessions`, que ya marca la sesión actual (`services/session-list.ts`, `components/profile/active-sessions.tsx`); `TermsGate` como patrón de paso forzado; las plantillas de correo en `mail/templates/render.ts`.
+>
+> **Lo que NO existe:** columna de dueño (el dueño es quien tiene el rol de fábrica `systemKey: "admin"`, `tenants.service.ts:110-118`, y puede haber varios por negocio); cifrado de campos (ni helper AES ni clave); librería TOTP o de QR; `user_agent` y `last_used_at` en `refresh_tokens`; un endpoint para cerrar una sesión o las demás.
+>
+> **Decisiones de Carlos (2026-11-17):**
+> 1. Código de una app de autenticación (TOTP, RFC 6238: Google Authenticator, Microsoft Authenticator, Authy) con 10 códigos de respaldo. Nada de SMS ni de código por correo.
+> 2. **Opcional** para los usuarios con el rol de fábrica Administrador, que lo activan en «Mi perfil» (SellPointy se lo sugiere). **Obligatorio** para entrar al backoffice.
+>
+> **Decisiones de arquitectura:**
+> 1. El secreto TOTP se guarda cifrado (AES-256-GCM con `MFA_ENCRYPTION_KEY`); los códigos de respaldo, solo como huella.
+> 2. El segundo paso va entre la verificación del correo y la creación de la familia (`auth.service.ts:313-315`): sin el código no se emite ningún token ni cookie, y el contador de intentos se limpia hasta el segundo paso, no con la contraseña sola.
+> 3. El factor viaja como claim `mfa` en el access token y como `mfa_at` en la familia de refresh, para que la renovación lo conserve.
+> 4. Cerrar una sesión corta en el acto, no a los 15 minutos: claim `sid` (la familia) en el access token y llave `revoked-session:{familyId}` en Redis con la vida del access token, revisada por `JwtAuthGuard` (fail-open, como la época de permisos).
+>
+> **Regla:** cada tarea actualiza su fila de `SEGURIDAD.md` (F10-SEC) y su capítulo del manual (skill sellpoint-manual) en el MISMO commit.
+>
+> ⚠️ **Riesgo alto (autenticación):** cada unidad lleva verificador independiente y su prueba de punta a punta antes del push.
+
+#### F10-MFA-BASE — Los cimientos
+
+- [ ] **F10-MFA-01** *(2026-11-17)* — La clave para cifrar secretos
+  - **Por qué:** el secreto TOTP no puede quedar legible para quien tenga acceso a la base, y hoy no hay cifrado de campos.
+  - **Salida:** `MFA_ENCRYPTION_KEY` en `env.schema.ts` (base64 de 32 bytes; obligatoria en producción, una de prueba en dev y test) y en `.env.example`; `infrastructure/crypto/secret-box.ts` con `seal`/`open` AES-256-GCM, IV aleatorio por mensaje y prefijo de versión (`v1:`) para poder rotar la clave. Spec: ida y vuelta, IV distinto en cada llamada, texto alterado rechazado y clave equivocada rechazada.
+  - **Depende de:** nada · **Estimación:** 2 h
+- [ ] **F10-MFA-02** *(2026-11-17)* 🔴 Carlos — La clave en sandbox y producción
+  - **Por qué:** con F10-MFA-01 desplegado, el API no arranca en producción sin la clave.
+  - **Salida:** clave generada con `openssl rand -base64 32` en el `.env` de sandbox y en el de producción, y en su copia cifrada de respaldo, ANTES del deploy de F10-MFA-01. Requiere autorización explícita para operar en el servidor.
+  - **Depende de:** F10-MFA-01 · **Estimación:** 0.5 h
+- [ ] **F10-MFA-03** *(2026-11-17)* — El código de la app (TOTP)
+  - **Por qué:** generar y validar los códigos de 6 dígitos que muestra la app de autenticación.
+  - **Salida:** dependencia `otpauth` en `apps/api` (sin dependencias propias); `TotpService` con `newSecret()`, `uri(email)` (emisor «SellPointy») y `verify(code, secret, lastStep)` con ventana de ±1 paso de 30 s y rechazo de un código ya usado (antirrepetición por paso). Spec con los vectores de prueba del RFC 6238.
+  - **Depende de:** nada · **Estimación:** 2 h
+- [ ] **F10-MFA-04** *(2026-11-17)* — Dónde vive el segundo factor
+  - **Por qué:** el secreto, sus códigos de respaldo y la marca de que la sesión pasó el segundo paso necesitan su lugar en la base.
+  - **Salida:** migración aditiva con `user_mfa` (`user_id` PK, `tenant_id`, `secret_enc`, `confirmed_at`, `last_step`, fechas) y `user_mfa_recovery_codes` (`id`, `user_id`, `tenant_id`, `code_hash`, `used_at`), ambas con RLS forzada como `users`, y la columna `refresh_tokens.mfa_at TIMESTAMPTZ NULL`. Pruebas de integración del aislamiento entre negocios.
+  - **Depende de:** nada · **Estimación:** 2 h
+
+#### F10-MFA-ENROLL — Activarlo en «Mi perfil»
+
+- [ ] **F10-MFA-05** *(2026-11-17)* — API para activarlo
+  - **Por qué:** el Administrador que quiera el segundo paso lo da de alta él mismo.
+  - **Salida:** `POST /auth/mfa/setup {currentPassword}` guarda un secreto pendiente cifrado y devuelve el `otpauthUri` y el secreto para teclearlo a mano; `POST /auth/mfa/confirm {code}` lo confirma, crea 10 códigos de respaldo (se devuelven UNA sola vez y se guardan como huella), audita `auth.mfa.enabled` y manda el correo «Activaste la verificación en dos pasos». Solo para el rol de fábrica Administrador y los administradores de plataforma (403 `auth.mfa_not_allowed`). `mfaEnabled` viaja en `/me` y en la respuesta del login. Throttling de `AuthEmailThrottlerGuard`. e2e del ciclo completo.
+  - **Depende de:** F10-MFA-01, F10-MFA-03, F10-MFA-04 · **Estimación:** 4 h
+- [ ] **F10-MFA-06** *(2026-11-17)* — API para apagarlo y para códigos nuevos
+  - **Por qué:** quien cambia de teléfono o gasta sus códigos de respaldo necesita rehacerlos sin pedir ayuda.
+  - **Salida:** `POST /auth/mfa/disable {currentPassword, code}` borra el secreto y los códigos, audita `auth.mfa.disabled` y avisa por correo; `POST /auth/mfa/recovery-codes {currentPassword, code}` invalida los anteriores y devuelve 10 nuevos, con su auditoría. El error no dice si falló la contraseña o el código.
+  - **Depende de:** F10-MFA-05 · **Estimación:** 2 h
+- [ ] **F10-MFA-07** *(2026-11-17)* — Tarjeta «Verificación en dos pasos» en «Mi perfil»
+  - **Por qué:** es donde el Administrador lo activa, y donde SellPointy le sugiere hacerlo.
+  - **Salida:** la tarjeta solo aparece al rol Administrador y a los administradores de plataforma. Apagada, explica qué es y ofrece **Activar**; el alta va en tres pasos: contraseña → QR, la clave para teclearla y el primer código → los 10 códigos de respaldo con **Copiar**, **Descargar .txt** y «Ya los guardé». Encendida, ofrece **Desactivar** y **Generar códigos nuevos**. Dependencia `qrcode` en `apps/web`. Textos es/en; capítulo 4 del manual (Mi perfil) con su captura; `SEGURIDAD.md` §2.2.
+  - **Depende de:** F10-MFA-05, F10-MFA-06 · **Estimación:** 5 h
+
+#### F10-MFA-LOGIN — Entrar con el segundo paso
+
+- [ ] **F10-MFA-08** *(2026-11-17)* — API: el login en dos pasos
+  - **Por qué:** con el 2FA activo, la contraseña sola ya no abre la sesión.
+  - **Salida:** con el 2FA confirmado, `login` responde `{ mfaRequired: true, challengeToken }` sin tokens ni cookie: el reto es de un solo uso, se guarda como huella, dura 5 minutos y admite 5 intentos. `POST /auth/login/mfa {challengeToken, code | recoveryCode}` termina el login de hoy (familia, auditoría `auth.login.success` con el factor, cookie) y deja `mfa_at` en la familia y el claim `mfa: true` en el access token. `clearAuthThrottle` corre hasta el final del segundo paso. Un código de respaldo se gasta, audita `auth.mfa.recovery_used` y avisa por correo. Errores i18n (`auth.mfa_invalid_code`, `auth.mfa_challenge_expired`). e2e: sin el código no hay cookie; un reto reusado o vencido se rechaza; un código repetido se rechaza; un código de respaldo sirve una sola vez; el throttling sigue contando.
+  - **Depende de:** F10-MFA-05 · **Estimación:** 6 h
+- [ ] **F10-MFA-09** *(2026-11-17)* — La renovación conserva el factor
+  - **Por qué:** sin esto, la primera renovación (a los 15 minutos) perdería la marca y el backoffice se cerraría solo.
+  - **Salida:** el refresh copia `mfa_at` a la fila nueva y firma con `mfa` mientras la familia lo tenga; desactivar el 2FA o restablecer la contraseña revoca las familias. Spec de la rotación y e2e.
+  - **Depende de:** F10-MFA-08 · **Estimación:** 2 h
+- [ ] **F10-MFA-10** *(2026-11-17)* — Web: el segundo paso al entrar
+  - **Por qué:** la pantalla de entrada tiene que pedir el código cuando el API lo exige.
+  - **Salida:** en `/login`, tras la contraseña, un campo de 6 dígitos (`autocomplete="one-time-code"`) y el enlace «Usar un código de respaldo»; los endpoints nuevos entran a la lista de 401 que no son «sesión expirada» en `refresh-interceptor.ts`; pruebas en `auth-flows.test.tsx`; capítulo 2 del manual (Entrar).
+  - **Depende de:** F10-MFA-08 · **Estimación:** 3 h
+
+#### F10-MFA-ADMIN — El backoffice lo exige
+
+- [ ] **F10-MFA-11** *(2026-11-17)* — El backoffice no abre sin el segundo paso
+  - **Por qué:** el backoffice ve y cambia los datos y los cobros de todos los negocios; es la cuenta que más vale robar.
+  - **Salida:** quinta llave en `PlatformAdminGuard`: el access token trae `mfa: true`; si no, 403 `billing.mfa_required`. En el web, `/admin` con ese 403 muestra «Activa la verificación en dos pasos en Mi perfil para entrar al backoffice», con el enlace, en vez del error genérico. e2e en `billing-admin-isolation.e2e-spec.ts`. **Antes de este deploy, Carlos activa su 2FA en producción**; si no, se queda fuera del backoffice.
+  - **Depende de:** F10-MFA-07, F10-MFA-09, F10-MFA-10 · **Estimación:** 3 h
+- [ ] **F10-MFA-12** *(2026-11-17)* — Quitar el 2FA a quien perdió su teléfono
+  - **Por qué:** un dueño sin teléfono ni códigos de respaldo no tiene otra forma de volver a entrar.
+  - **Salida:** en el expediente del negocio del backoffice, pestaña Usuarios, la acción «Quitar verificación en dos pasos» con motivo obligatorio: borra el secreto y los códigos, revoca sus sesiones, sube su época de permisos, audita `admin.user.mfa_reset` con el motivo y le avisa por correo. Detrás de `PlatformAdminGuard`.
+  - **Depende de:** F10-MFA-11 · **Estimación:** 3 h
+
+#### F10-SESS — Cerrar una sesión
+
+- [ ] **F10-SESS-01** *(2026-11-17)* — Reconocer cada sesión
+  - **Por qué:** para cerrar «la del celular perdido» hay que poder distinguirla; hoy cada sesión solo dice cuándo empezó y cuándo vence.
+  - **Salida:** migración aditiva con `refresh_tokens.user_agent VARCHAR(255)` y `last_used_at`; el login guarda el user agent que ya recibe y la renovación lo copia y actualiza `last_used_at`; `GET /auth/sessions` devuelve `device` (navegador y sistema, interpretados sin dependencia nueva) y `lastUsedAt`. Las sesiones de antes dicen «Dispositivo desconocido».
+  - **Depende de:** nada · **Estimación:** 3 h
+- [ ] **F10-SESS-02** *(2026-11-17)* — API para cerrar una sesión o las demás
+  - **Por qué:** hoy solo se cierran todas, y solo cambiando la contraseña.
+  - **Salida:** `DELETE /auth/sessions/:familyId` (solo las familias del propio usuario; la actual responde 409, porque esa se cierra con «Cerrar sesión») y `POST /auth/sessions/revoke-others`. Claim `sid` en el access token y llave `revoked-session:{familyId}` en Redis, con la vida del access token, revisada por `JwtAuthGuard`, para que el corte sea inmediato. Auditoría `auth.session.revoked`. e2e: la sesión cerrada ya no renueva ni usa su access token; la familia de otro usuario da 404.
+  - **Depende de:** F10-SESS-01 · **Estimación:** 4 h
+- [ ] **F10-SESS-03** *(2026-11-17)* — Web: «Cerrar» en «Sesiones activas»
+  - **Por qué:** es donde el usuario ya ve sus sesiones.
+  - **Salida:** cada fila dice el dispositivo, cuándo empezó y su último uso; las que no son la actual tienen **Cerrar**, con confirmación, y arriba va **Cerrar las demás**. Textos es/en; capítulo 4 del manual con su captura; `SEGURIDAD.md` §2.2 («Sesiones a la vista»).
+  - **Depende de:** F10-SESS-02 · **Estimación:** 3 h
+
+**Orden de ejecución:** F10-SESS-01 → 02 → 03 primero (independiente y más chico). Luego F10-MFA-BASE (01, 02 con Carlos, 03, 04) → F10-MFA-ENROLL (05, 06, 07) → F10-MFA-LOGIN (08, 09, 10) → Carlos activa su 2FA en producción → F10-MFA-ADMIN (11, 12).
+
+**Pospuestos con nombre:** «Recordar este dispositivo 30 días»; passkeys y llaves físicas (WebAuthn); 2FA para todos los roles; código por correo o por SMS (descartado: un correo o un chip robado da los dos factores); aviso por correo de un inicio de sesión desde un dispositivo nuevo.
+
+**≈45 h**
+
 ### Módulo F11-SITE — El sitio público de sellpointy.com (atomizado el 2026-09-18)
 
 > Carlos (2026-09-18): «quiero hacer mi sitio web para sellpointy.com… pocas secciones, solo para anunciar lo que hace la plataforma y beneficios para el negocio de los clientes. Es mi página del producto, enfócate en que sea atractivo para comprar». De tres propuestas de diseño eligió **«El Punto»**; la dirección visual completa —colores, tipografía, medidas, CSS y HTML del prototipo— vive en [`SITIO-WEB-DISENO.md`](SITIO-WEB-DISENO.md) y **este módulo no la repite**.
@@ -6138,6 +6241,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-11-17** — 2FA con app, opcional para Administradores y obligatorio en el backoffice; cerrar una sesión puntual — `topic_key: sellpoint/f10-mfa` — afecta: F10-MFA-01..12, F10-SESS-01..03 (nuevas)
 - **2026-10-30 (✅ DECIDIDO, en F10-THEME-05 — QUINCE TEMAS: SELLPOINTY CLARO Y EL ORDEN DEL SELECTOR)** — Carlos pidió un tema con el menú de SellPointy y todo lo demás de Claro: «SellPointy Claro» / «SellPointy Light» (id `sellpointy-light`, cabe justo en `VARCHAR(16)`); el bloque es Claro con las fichas del menú de la marca, y `themes.test.ts` compara cada mitad con su original. SellPointy pasa a llamarse «SellPointy Clásico» / «SellPointy Classic» con el mismo id, y el selector queda en el orden de Carlos: Claro, Oscuro, los dos SellPointy, Arena… y Cabina al final — `topic_key: sellpoint/temas-piel-por-componente` — afecta: F10-THEME-05 (mod)
 - **2026-10-30 (✅ HECHO — EL CÓDIGO DE BARRAS SE VALIDA Y TODA ALTA APORTA AL CATÁLOGO COMPARTIDO)** — El 7503010020615 de un cliente no le aparecía a otro negocio porque solo la Carga rápida aportaba (de 751 códigos válidos de esa farmacia, 2 llegaron), y el mismo negocio tenía «CUBREADULTOAZUL» como código de barras. Carlos eligió las tres partes: aportan también Nuevo producto, la edición, las presentaciones e Importar (solo la unidad base, con el nombre del producto); el código se valida al guardarlo (6 a 14 dígitos y dígito verificador, UPC-E incluido), solo si cambia, para no castigar los 34 códigos con letras que ya existen; y se rellena una vez el catálogo con los ~707 códigos que ya estaban en producción. Los términos T6/P6 ya lo cubrían — `topic_key: sellpoint/catalogo-global-aportes` — afecta: F10-QUICKCAT-05 (mod)
 - **2026-10-24 (✅ DECIDIDO, en F10-THEME-05 — CATORCE TEMAS: ALGODÓN CHICLE, ALGODÓN NOCHE, VIOLETA, AMATISTA, CIELO Y MARINO)** — De un lienzo nuevo de propuestas, Carlos reemplaza Algodón por el rosa chicle con letra blanca y suma cinco temas: un rosa y un violeta oscuros de vidrio, un violeta claro, un azul tipo Salesforce nítido y un bitono marino. Los bloques nuevos se generan desde uno de su familia con assert de tokens — `topic_key: sellpoint/temas-piel-por-componente` — afecta: F10-THEME-05 (mod)
