@@ -1,5 +1,7 @@
 import {
   addQuantities,
+  countItems,
+  type ItemCounts,
   multiplyMoney,
   parseQuantity,
   prorateDiscountCents,
@@ -531,6 +533,26 @@ export function totalDeLinea(line: CartLine): number {
 }
 
 /** El subtotal del carrito: la suma de sus renglones. */
+/**
+ * Filas, unidades y servicios del carrito (Carlos, 2026-11-16): la MISMA
+ * regla que el ticket (`countItems`), para que el cobro y el papel digan lo
+ * mismo. La presentación elegida da el factor: dos cajas con 12 son 2.
+ */
+export function conteoDelCarrito(lines: CartLine[]): ItemCounts {
+  return countItems(
+    lines.map((line) =>
+      line.type === "product"
+        ? {
+            kind: "product",
+            quantity: line.quantity,
+            baseUnit: line.baseUnit,
+            factor: line.presentations.find((p) => p.id === line.presentationId)?.factor ?? null,
+          }
+        : { kind: line.type, quantity: line.quantity, baseUnit: null, factor: null },
+    ),
+  );
+}
+
 export function subtotalDelCarrito(lines: CartLine[]): number {
   // Se suman los importes YA redondeados al centavo, no los productos crudos:
   // es lo que hace que el total coincida con la suma de lo que el cliente ve

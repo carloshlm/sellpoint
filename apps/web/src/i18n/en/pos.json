@@ -114,6 +114,9 @@
     "warehouseHint": "Prices and availability are calculated from this store. Quoting needs no open shift."
   },
   "checkout": {
+    "countLines": "Lines",
+    "countUnits": "Units",
+    "countServices": "Services",
     "change": "Change",
     "charge": "Charge",
     "done": "Sale {{folio}} charged.",

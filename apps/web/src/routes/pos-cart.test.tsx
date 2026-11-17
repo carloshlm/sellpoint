@@ -550,6 +550,28 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     });
 
     /**
+     * Filas, unidades y servicios también en el cobro (Carlos, 2026-11-16):
+     * discreto, arriba del total, con la misma regla que el ticket.
+     */
+    it("el cobro dice filas, unidades y servicios arriba del total", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA, { quantity: "3" });
+      useCartStore.getState().add(HARINA, { quantity: "0.5" });
+      useCartStore.getState().add(IMPRESION, { quantity: "2" });
+      await userEvent.click(await screen.findByRole("button", { name: "Cobrar" }));
+
+      const panel = await screen.findByTestId("checkout-panel");
+      expect(within(panel).getByText("Filas: 3 · Unidades: 4 · Servicios: 2")).toBeInTheDocument();
+    });
+
+    it("sin servicios el cobro no dice «Servicios»", async () => {
+      const panel = await conCarrito();
+
+      expect(within(panel).getByText("Filas: 1 · Unidades: 2")).toBeInTheDocument();
+      expect(within(panel).queryByText(/Servicios/)).not.toBeInTheDocument();
+    });
+
+    /**
      * El carrito queda a la VISTA mientras se cobra. Un modal encima taparía
      * justamente lo que hay que verificar antes de cobrar — y, si el servidor
      * rechaza una línea, el renglón culpable ya está en pantalla.

@@ -1,5 +1,6 @@
 import {
   type Currency,
+  countItems,
   formatMoney,
   formatSoldQuantity,
   type Locale,
@@ -10,7 +11,6 @@ import {
 } from "@sellpoint/shared";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 import { ticketBarcodeSvg } from "./barcode-svg";
-import { contarTicket } from "./ticket-counts";
 import { nombreLegalAparte, type TicketHeaderContact } from "./ticket-header";
 import { ticketLogoNodes } from "./ticket-logo";
 import type { TaxMark } from "./ticket-tax-marks";
@@ -485,7 +485,14 @@ function linea(ancho: number) {
 
 /** «Filas: 5 · Unidades: 9 · Servicios: 1»; sin la parte que quede en cero. */
 function lineaDeConteo(rows: readonly TicketRow[], t: Translate) {
-  const { lines, units, services } = contarTicket(rows);
+  const { lines, units, services } = countItems(
+    rows.map((row) => ({
+      kind: row.kind,
+      quantity: row.quantity,
+      baseUnit: row.baseUnit,
+      factor: row.presentation?.factor ?? null,
+    })),
+  );
   const partes = [
     `${t("ticket.countLines")}: ${lines}`,
     ...(units === "0" ? [] : [`${t("ticket.countUnits")}: ${units}`]),

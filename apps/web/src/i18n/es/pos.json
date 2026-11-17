@@ -114,6 +114,9 @@
     "warehouseHint": "Los precios y la disponibilidad se calculan desde esta sucursal. Cotizar no necesita un turno abierto."
   },
   "checkout": {
+    "countLines": "Filas",
+    "countUnits": "Unidades",
+    "countServices": "Servicios",
     "change": "Cambio",
     "charge": "Cobrar",
     "done": "Venta {{folio}} cobrada.",

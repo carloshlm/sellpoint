@@ -12,6 +12,7 @@ export * from "./gtin";
 export * from "./i18n";
 export * from "./icd10";
 export * from "./inventory";
+export * from "./item-counts";
 export * from "./lot-code";
 export * from "./lot-expiry";
 export * from "./medical-clinic";

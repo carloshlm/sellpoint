@@ -90,7 +90,10 @@ venta**: la regla para cobrar es la misma.
 ## Cobrar
 
 1. Presiona **Cobrar**. El cobro ocupa el lado izquierdo y el carrito sigue a la
-   vista a la derecha.
+   vista a la derecha. Bajo el título, en letra chica, dice cuántas filas,
+   unidades y servicios lleva la venta, por ejemplo **Filas: 4 · Unidades: 6 ·
+   Servicios: 2**: cada pieza o caja cuenta una, lo que se vende a granel
+   cuenta una por renglón, y los servicios van aparte (capítulo 12).
 2. Si hay descuento, aplícalo (siguiente sección).
 3. En **Cómo paga**, elige **Efectivo**, **Tarjeta** o **Transferencia**.
 4. Con **Efectivo**, escribe en **Con cuánto paga** el dinero que te dio el

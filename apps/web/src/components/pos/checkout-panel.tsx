@@ -20,6 +20,7 @@ import { useCreateSale } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import {
   aLineasDeVenta,
+  conteoDelCarrito,
   impuestosDelCarrito,
   subtotalDelCarrito,
   totalDelCarrito,
@@ -66,6 +67,13 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
 
   const lines = useCartStore((s) => s.lines);
+  const conteo = conteoDelCarrito(lines);
+  // Sin la parte que da cero, como el ticket.
+  const lineaDeConteo = [
+    `${t("pos.checkout.countLines")}: ${conteo.lines}`,
+    ...(conteo.units === "0" ? [] : [`${t("pos.checkout.countUnits")}: ${conteo.units}`]),
+    ...(conteo.services === "0" ? [] : [`${t("pos.checkout.countServices")}: ${conteo.services}`]),
+  ].join(" · ");
   const quoteId = useCartStore((s) => s.quoteId);
   const clear = useCartStore((s) => s.clear);
   const marcarCulpable = useCartStore((s) => s.setErrorSku);
@@ -193,6 +201,11 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
       className="flex flex-col gap-4 rounded-md border border-border bg-muted/40 p-4"
     >
       <h2 className="font-semibold text-lg">{t("pos.checkout.title")}</h2>
+      {/* Filas, unidades y servicios (Carlos, 2026-11-16): discreto, arriba de
+          los totales; la misma cuenta que el ticket puede imprimir. */}
+      <p className="-mt-3 text-muted-foreground text-xs" data-testid="checkout-counts">
+        {lineaDeConteo}
+      </p>
 
       {mode === "excluded" && impuestos.byComponent.length > 0 && (
         <div className="flex flex-col gap-1 text-sm">
