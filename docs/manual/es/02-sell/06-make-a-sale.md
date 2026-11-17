@@ -16,12 +16,22 @@ nombre o un folio COT-…** (si no cabe completo, como en un celular, dice
 **Código, nombre o folio COT-…**):
 
 - **Con el lector de código de barras.** Haz clic en el campo y escanea. El
-  producto entra solo al carrito y el campo queda limpio para el siguiente.
-  Escanear otra vez el mismo código suma uno a la cantidad.
+  campo queda limpio al instante, así que puedes escanear uno tras otro sin
+  esperar: cada producto entra solo al carrito, en el orden en que lo
+  escaneaste. Mientras alguno se está agregando, abajo del campo dice
+  **Agregando al carrito…** y **Cobrar** espera a que termine. Escanear otra
+  vez el mismo código suma uno a la cantidad.
+- **Un código que no entra solo** (no existe o coincide con varias cosas) se
+  queda en el campo, seleccionado, con lo que se encontró para que elijas; si
+  no hay nada, lo dice. Escanear el siguiente lo reemplaza. Si para entonces ya
+  estabas escaneando el siguiente, el campo no se toca: aparece un aviso, por
+  ejemplo **No se agregó: 7501234567890**, para que lo busques después. La
+  **×** lo cierra.
 - **Con el código o el nombre.** El código interno completo (por ejemplo,
-  AGUA-1L) también entra solo. Con parte del nombre, de dos letras en adelante,
-  aparece una lista: presiona lo que se lleva. Cada resultado dice su precio y,
-  en los productos, cuántos hay en tu sucursal.
+  AGUA-1L) también entra solo, al dejar de escribir o al presionar Enter. Con
+  parte del nombre, de dos letras en adelante, aparece una lista: presiona lo
+  que se lleva. Cada resultado dice su precio y, en los productos, cuántos hay
+  en tu sucursal.
 - **Servicios**, como el envío a domicilio o la recarga de garrafón, se buscan
   igual. Solo salen los que se ofrecen en tu sucursal.
 - **Una cotización** que el cliente trae impresa se carga con su folio

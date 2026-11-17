@@ -45,6 +45,7 @@ export function QuoteBuilder({
   const [error, setError] = useState<string | null>(null);
 
   const lines = useCartStore((s) => s.lines);
+  const escaneosPendientes = useCartStore((s) => s.pendingScans);
   const clear = useCartStore((s) => s.clear);
   // Sin turno: una cotización no lo pide, y conserva lo que el carrito traiga.
   useClaimCart();
@@ -99,7 +100,13 @@ export function QuoteBuilder({
 
           <Button
             className="h-14 text-lg"
-            disabled={generar.isPending || lines.length === 0 || warehouseId === null}
+            // Un escaneo todavía agregándose quedaría fuera de la cotización.
+            disabled={
+              generar.isPending ||
+              lines.length === 0 ||
+              warehouseId === null ||
+              escaneosPendientes > 0
+            }
             onClick={() => {
               setError(null);
               generar.mutate(

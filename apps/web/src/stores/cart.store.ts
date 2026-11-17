@@ -134,6 +134,16 @@ interface CartState {
   /** El turno en que se armó; `null` si se armó sin turno (una cotización). */
   sessionId: string | null;
   /**
+   * Cuántos escaneos del buscador siguen buscándose para entrar al carrito
+   * (2026-11-16). «Cobrar» y «Generar cotización» esperan a que vuelva a 0:
+   * cobrar desmonta el buscador con su fila, y la venta saldría sin el último
+   * producto. No se guarda: describe ESTA pantalla, y una recarga corta la
+   * fila.
+   */
+  pendingScans: number;
+  scanStarted: () => void;
+  scanFinished: () => void;
+  /**
    * Reclama el carrito guardado para quien está en la pantalla. Lo de otra
    * cuenta se descarta; en la venta (con `sessionId`), también lo de otro
    * turno. Uno armado sin turno se adopta.
@@ -224,6 +234,11 @@ export const useCartStore = create<CartState>()(
       lastAdded: null,
       owner: null,
       sessionId: null,
+      pendingScans: 0,
+
+      scanStarted: () => set((state) => ({ pendingScans: state.pendingScans + 1 })),
+
+      scanFinished: () => set((state) => ({ pendingScans: Math.max(0, state.pendingScans - 1) })),
 
       claim: (owner, sessionId) =>
         set((state) => {

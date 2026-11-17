@@ -432,6 +432,29 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
       expect(screen.getByRole("button", { name: "Generar cotización" })).toBeDisabled();
     });
 
+    it("con un escaneo todavía agregándose, Generar espera", async () => {
+      await renderRuta("/pos/quotes/new", ["pos:quote"]);
+      await screen.findByTestId("quote-builder");
+      useCartStore.getState().add(AGUA, { quantity: "1" });
+      // Primero habilitado: si no, el aserto de abajo pasaría por el carrito
+      // vacío y no por el escaneo pendiente.
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Generar cotización" })).toBeEnabled(),
+      );
+
+      useCartStore.setState({ pendingScans: 1 });
+
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Generar cotización" })).toBeDisabled(),
+      );
+
+      useCartStore.setState({ pendingScans: 0 });
+
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Generar cotización" })).toBeEnabled(),
+      );
+    });
+
     it("manda ids y cantidades y pinta el folio", async () => {
       mocked.createQuote.mockResolvedValue({
         id: "quote-1",

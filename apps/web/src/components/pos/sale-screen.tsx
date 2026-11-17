@@ -42,6 +42,7 @@ export function SaleScreen({ session }: SaleScreenProps) {
   // se descarta al entrar (Carlos, 2026-11-01).
   useClaimCart(session.id);
   const lines = useCartStore((s) => s.lines);
+  const escaneosPendientes = useCartStore((s) => s.pendingScans);
   const [cobrando, setCobrando] = useState(false);
   const [ultima, setUltima] = useState<ClosedSale | null>(null);
   const enfaticas = ultima?.annotations.filter((a) => a.emphasis) ?? [];
@@ -125,7 +126,9 @@ export function SaleScreen({ session }: SaleScreenProps) {
               // Sin líneas no hay nada que cobrar. Es lo único que bloquea el
               // botón acá: el resto de las condiciones —cuánto se recibió, qué
               // método— viven en el panel de cobro, que es donde se deciden.
-              disabled={lines.length === 0}
+              // Y mientras un escaneo siga agregándose (2026-11-16): el cobro
+              // desmonta el buscador y la venta saldría sin ese producto.
+              disabled={lines.length === 0 || escaneosPendientes > 0}
               onClick={() => {
                 setUltima(null);
                 setCobrando(true);

@@ -529,6 +529,27 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     });
 
     /**
+     * Con un escaneo del lector todavía agregándose (2026-11-16), «Cobrar»
+     * espera: el cobro desmonta el buscador y su fila, y la venta saldría sin
+     * el último producto.
+     */
+    it("con un escaneo todavía agregándose, Cobrar espera", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA, { quantity: "1" });
+      // Primero habilitado: si no, el aserto de abajo pasaría por el carrito
+      // vacío y no por el escaneo pendiente.
+      await waitFor(() => expect(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled());
+
+      useCartStore.setState({ pendingScans: 1 });
+
+      await waitFor(() => expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled());
+
+      useCartStore.setState({ pendingScans: 0 });
+
+      await waitFor(() => expect(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled());
+    });
+
+    /**
      * El carrito queda a la VISTA mientras se cobra. Un modal encima taparía
      * justamente lo que hay que verificar antes de cobrar — y, si el servidor
      * rechaza una línea, el renglón culpable ya está en pantalla.

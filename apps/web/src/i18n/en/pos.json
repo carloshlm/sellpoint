@@ -42,6 +42,9 @@
     "sell": "Sell"
   },
   "cart": {
+    "adding": "Adding to cart…",
+    "notAdded": "Not added: {{codes}}",
+    "dismissNotAdded": "Dismiss notice",
     "available": "{{quantity}} {{unit}} available",
     "backspace": "Delete the last digit",
     "cameraUnavailable": "We couldn't use the camera. You can still search by typing.",

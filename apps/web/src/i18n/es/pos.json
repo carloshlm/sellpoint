@@ -42,6 +42,9 @@
     "sell": "Venta"
   },
   "cart": {
+    "adding": "Agregando al carrito…",
+    "notAdded": "No se agregó: {{codes}}",
+    "dismissNotAdded": "Cerrar aviso",
     "available": "{{quantity}} {{unit}} disponibles",
     "backspace": "Borrar el último dígito",
     "cameraUnavailable": "No pudimos usar la cámara. Puedes buscar tecleando.",
