@@ -1,11 +1,12 @@
-import { formatMoney } from "@sellpoint/shared";
+import { formatMoney, parseMoneyInput } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MoneyInput } from "@/components/form/money-input";
+import { MoneyField } from "@/components/form/money-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useScopedCurrency } from "@/lib/admin/scope";
+import { moneyInputError } from "@/lib/money";
 import type { CashboxSession } from "@/lib/pos/api";
 import { useCloseSession, useSessionTotals } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -52,7 +53,12 @@ export function CloseSession({
   const gastos = data?.cashExpenses ?? { total: "0", count: 0, items: [] };
   const fondo = Number(data?.openingCash ?? session.openingCash);
   const esperado = Number(data?.expectedCash ?? 0);
-  const declarado = contado.trim() === "" ? null : Number(contado);
+  // Lo contado se valida como cualquier importe (Carlos, 2026-11-19): con
+  // `Number("1,")` salía NaN, `formatMoney(NaN)` lanzaba y la pantalla entera
+  // caía en «Something went wrong!». Mal escrito, no hay diferencia que
+  // mostrar ni turno que cerrar: el campo dice cómo escribirlo.
+  const errorContado = moneyInputError(contado);
+  const declarado = errorContado === null ? parseMoneyInput(contado) : null;
   const diferencia = declarado === null ? null : declarado - esperado;
 
   return (
@@ -129,14 +135,16 @@ export function CloseSession({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="declared-cash">{t("pos.session.declaredCash")}</Label>
-        {/* Un importe como los demás (Carlos, 2026-09-08): la moneda a la
-            vista y dos decimales al salir. La DIFERENCIA no espera al blur —
-            se calcula mientras se teclea, que es lo que hace útil esta
-            pantalla. */}
-        <MoneyInput id="declared-cash" value={contado} onChange={setContado} />
-      </div>
+      {/* Un importe como los demás (Carlos, 2026-09-08): la moneda a la vista
+          y dos decimales al salir. La DIFERENCIA no espera al blur —se calcula
+          mientras se teclea, que es lo que hace útil esta pantalla—, y un
+          importe mal escrito avisa en vez de tumbarla (2026-11-19). */}
+      <MoneyField
+        label={t("pos.session.declaredCash")}
+        value={contado}
+        onChange={setContado}
+        error={errorContado ? t(errorContado) : undefined}
+      />
 
       {/* La diferencia se MUESTRA, nunca frena. Ver el docblock. */}
       {diferencia !== null && (

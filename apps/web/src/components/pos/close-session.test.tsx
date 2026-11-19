@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { CashboxSession, SessionArqueo } from "@/lib/pos/api";
@@ -95,5 +95,59 @@ describe("el cierre detalla los gastos del cajón", () => {
 
     expect(screen.queryByTestId("total-cash-expenses")).not.toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Gastos en efectivo" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-11-19): «Al cerrar el turno cuando coloco una "coma" en el
+ * campo de "Efectivo contado en caja" me manda un error». `Number("1,")` es
+ * NaN y `formatMoney(NaN)` lanza: la pantalla entera se caía en «Something
+ * went wrong!». Lo contado se valida como cualquier importe, igual que «Con
+ * cuánto paga» del cobro.
+ */
+describe("lo contado se valida como cualquier importe", () => {
+  beforeEach(() => {
+    arqueo = {
+      totals: [{ method: "cash", total: "254", count: 2 }],
+      cashExpenses: { total: "0", count: 0, items: [] },
+      openingCash: "1000",
+      expectedCash: "1254",
+    };
+  });
+
+  const escribir = (texto: string) =>
+    fireEvent.change(screen.getByLabelText("Efectivo contado en caja"), {
+      target: { value: texto },
+    });
+
+  it("una coma no tumba la pantalla: dice cómo escribirlo y no deja cerrar", () => {
+    renderCierre();
+
+    escribir("1,");
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Escribe el importe solo con números y punto decimal, como 150.00",
+    );
+    expect(screen.queryByTestId("cash-difference")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cerrar turno" })).toBeDisabled();
+  });
+
+  it("un importe con separador de miles tampoco: se escribe sin la coma", () => {
+    renderCierre();
+
+    escribir("1,254.00");
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cerrar turno" })).toBeDisabled();
+  });
+
+  it("un importe bien escrito sigue mostrando la diferencia y deja cerrar", () => {
+    renderCierre();
+
+    escribir("1250");
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByTestId("cash-difference")).toHaveTextContent("-$4.00");
+    expect(screen.getByRole("button", { name: "Cerrar turno" })).toBeEnabled();
   });
 });
