@@ -98,7 +98,8 @@ la pantalla, sin columna de estado.
 
 ![El reporte de cierres de turno](screen:reports-shifts)
 
-Cada turno cerrado con su **Folio** y su arqueo: el **Fondo inicial** con que
+Cada turno cerrado con su **Folio**, la **Apertura** y el **Cierre** (la fecha y
+la hora en que se abrió y se cerró) y su arqueo: el **Fondo inicial** con que
 abrió el cajón, los **Gastos en efectivo** que salieron de él, lo **Calculado**
 (lo que debía haber en el cajón: el fondo, más lo vendido en efectivo, menos
 esos gastos), lo **Contado** (lo que declaró el cajero), la **Diferencia** y la
@@ -107,8 +108,7 @@ columna. Una diferencia sale en rojo cuando faltó dinero y en verde cuando
 sobró; si todo coincide, dice **Cuadró**. Presiona **Ver** para abrir las
 ventas de ese turno, o **PDF** para descargar su cierre en tamaño carta: arriba
 el arqueo y abajo las ventas y los gastos del cajón. El Excel trae las mismas
-columnas y, además, cuándo abrió el turno, quién lo abrió y lo vendido con cada
-forma de pago.
+columnas y, además, quién abrió el turno y lo vendido con cada forma de pago.
 
 El reporte abre con los turnos **Cerrados** de hoy. Cambia las fechas para ver
 días anteriores, elige un **Empleado** para ver solo los suyos o elige

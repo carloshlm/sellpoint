@@ -819,6 +819,39 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       expect(screen.getByText(/\$90\.00/)).toBeInTheDocument();
     });
 
+    /**
+     * Carlos (2026-11-19): «en la tabla puedes colocar la columna de Apertura
+     * para que no haya necesidad de descargar el pdf». La apertura va antes
+     * del cierre; un turno abierto todavía no tiene cierre.
+     */
+    it("la tabla dice cuándo abrió y cuándo cerró cada turno", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+
+      const encabezados = screen.getAllByRole("columnheader").map((h) => h.textContent);
+      expect(encabezados.slice(0, 3)).toEqual(["Folio", "Apertura", "Cierre"]);
+      const fila = screen.getByText("Faltaron diez pesos").closest("tr") as HTMLElement;
+      const celdas = within(fila).getAllByRole("cell");
+      // 14:00 y 22:00 UTC son las 8:00 y las 16:00 en la Ciudad de México.
+      expect(celdas[1]).toHaveTextContent(/8:00/);
+      expect(celdas[2]).toHaveTextContent(/16:00/);
+    });
+
+    it("un turno abierto dice su apertura y deja el cierre en «—»", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [turno({ closedAt: null, closedBy: null, closingNote: "En curso" })],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/shifts");
+
+      const fila = (await screen.findByText("En curso")).closest("tr") as HTMLElement;
+      const celdas = within(fila).getAllByRole("cell");
+      expect(celdas[1]).toHaveTextContent(/8:00/);
+      expect(celdas[2]).toHaveTextContent(/^—$/);
+    });
+
     it("una diferencia negativa se marca como faltante; cuadrar se dice con palabras", async () => {
       mocked.getShiftsReport.mockResolvedValue({
         rows: [

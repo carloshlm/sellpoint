@@ -102,6 +102,8 @@ export function ShiftsReport() {
 
   const columnas = [
     { key: "folio", header: t("reports.shifts.folio") },
+    // Carlos (2026-11-19): la apertura a la vista, sin descargar el PDF.
+    { key: "openedAt", header: t("reports.shifts.openedAt") },
     { key: "closedAt", header: t("reports.shifts.closedAt") },
     { key: "warehouseName", header: t("reports.shifts.warehouse") },
     { key: "closedBy", header: t("reports.shifts.closedBy") },
@@ -117,7 +119,10 @@ export function ShiftsReport() {
 
   const filas = (data?.rows ?? []).map((turno) => ({
     folio: <span className="whitespace-nowrap font-mono">{turno.folio}</span>,
-    closedAt: fecha(turno.closedAt ?? turno.openedAt),
+    // La fecha y la hora en un renglón: partida en dos se lee como dos datos.
+    openedAt: <span className="whitespace-nowrap">{fecha(turno.openedAt)}</span>,
+    // Un turno abierto todavía no tiene cierre: «—», no su apertura repetida.
+    closedAt: <span className="whitespace-nowrap">{fecha(turno.closedAt)}</span>,
     warehouseName: turno.warehouse.name,
     closedBy: (turno.closedBy ?? turno.openedBy).name,
     salesCount: turno.salesCount,
