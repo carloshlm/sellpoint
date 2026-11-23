@@ -20,6 +20,16 @@ import {
 export const DASHBOARD_KPIS_KEY = ["dashboard", "kpis"] as const;
 
 /**
+ * F10-PEND-05 — cuánto tiempo un dato del panel sigue fresco. El donut y las
+ * gráficas se montan TARDE (van en `lazy`), cuando los avisos ya trajeron las
+ * formas de pago del mes; con 0, ese dato ya era viejo y el donut lo volvía a
+ * pedir. Cinco segundos cubren la carga y nada más: nadie sale del panel,
+ * cobra una venta y vuelve en menos de eso, así que volver al panel siempre
+ * trae los números al día.
+ */
+export const PANEL_STALE_TIME_MS = 5_000;
+
+/**
  * `enabled` es la puerta del PERMISO, no un detalle de red: sin
  * `reports:read` el dato ni siquiera se pide — ocultarlo con CSS dejaría
  * los números del negocio en la pestaña Red del cajero.
@@ -40,6 +50,7 @@ export function useDashboardKpis(enabled: boolean) {
     queryKey: [...DASHBOARD_KPIS_KEY, tenantId],
     queryFn: () => (base === undefined ? getDashboardKpis() : getDashboardKpis(base)),
     enabled,
+    staleTime: PANEL_STALE_TIME_MS,
   });
 }
 
@@ -49,6 +60,7 @@ export function useDashboardSeries(enabled: boolean) {
     queryKey: ["dashboard", "series", tenantId],
     queryFn: () => (base === undefined ? getDashboardSeries() : getDashboardSeries(base)),
     enabled,
+    staleTime: PANEL_STALE_TIME_MS,
   });
 }
 
@@ -59,6 +71,7 @@ export function useDashboardProducts(period: DashboardPeriod, enabled: boolean) 
     queryFn: () =>
       base === undefined ? getDashboardProducts(period) : getDashboardProducts(period, base),
     enabled,
+    staleTime: PANEL_STALE_TIME_MS,
     placeholderData: (previous) => previous,
   });
 }
@@ -69,6 +82,7 @@ export function useDashboardInventory(enabled: boolean) {
     queryKey: ["dashboard", "inventory", tenantId],
     queryFn: () => (base === undefined ? getDashboardInventory() : getDashboardInventory(base)),
     enabled,
+    staleTime: PANEL_STALE_TIME_MS,
   });
 }
 
@@ -79,6 +93,7 @@ export function useDashboardPayments(period: DashboardPeriod, enabled: boolean) 
     queryFn: () =>
       base === undefined ? getDashboardPayments(period) : getDashboardPayments(period, base),
     enabled,
+    staleTime: PANEL_STALE_TIME_MS,
     placeholderData: (previous) => previous,
   });
 }
@@ -91,6 +106,7 @@ export function useDashboardControl(period: DashboardPeriod, enabled: boolean) {
     queryFn: () =>
       base === undefined ? getDashboardControl(period) : getDashboardControl(period, base),
     enabled,
+    staleTime: PANEL_STALE_TIME_MS,
     placeholderData: (previous) => previous,
   });
 }
