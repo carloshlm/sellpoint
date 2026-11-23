@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { ChartBars } from "./chart-bars";
@@ -63,6 +63,128 @@ describe("Los envoltorios de gráficas (F5-DASH-08)", () => {
       </I18nextProvider>,
     );
     expect(screen.getByText("Sin datos del período")).toBeInTheDocument();
+  });
+
+  /**
+   * F10-KPI-04 — la serie de referencia de ChartBars. Para que recharts dibuje
+   * en jsdom, el contenedor dice medir 600×260 (jsdom mide todo en cero).
+   */
+  describe("ChartBars con referencia (F10-KPI-04)", () => {
+    const horas = [
+      { hora: "10", total: 50, referencia: 80 },
+      { hora: "11", total: 200, referencia: 250 },
+      { hora: "12", total: 0, referencia: 120 },
+    ];
+
+    beforeEach(() => {
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 600,
+        bottom: 260,
+        width: 600,
+        height: 260,
+        toJSON: () => ({}),
+      } as DOMRect);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("dibuja la referencia como línea atenuada sobre las barras, con su leyenda", () => {
+      const { container } = pintar(
+        <ChartBars
+          label="Por hora"
+          data={horas}
+          xKey="hora"
+          barKey="total"
+          barName="Hoy"
+          referenceKey="referencia"
+          referenceName="Mismo día, últimas 4 semanas"
+        />,
+      );
+
+      expect(container.querySelectorAll(".recharts-bar-rectangle").length).toBeGreaterThan(0);
+      const linea = container.querySelector(".recharts-line path.recharts-curve");
+      expect(linea).not.toBeNull();
+      // El token `muted` del tema, nunca un color literal.
+      expect(linea?.getAttribute("stroke")).toBe("var(--muted-foreground)");
+      // La línea va DESPUÉS de las barras en el SVG: se pinta encima.
+      const capas = [...container.querySelectorAll(".recharts-bar, .recharts-line")].map((capa) =>
+        capa.classList.contains("recharts-line") ? "línea" : "barras",
+      );
+      expect(capas).toEqual(["barras", "línea"]);
+      expect(screen.getByText("Hoy")).toBeInTheDocument();
+      expect(screen.getByText("Mismo día, últimas 4 semanas")).toBeInTheDocument();
+      // La región sigue nombrada.
+      expect(screen.getByRole("img", { name: "Por hora" })).toBeInTheDocument();
+    });
+
+    it("el tooltip enseña las dos cifras de la hora, cada una con su nombre", async () => {
+      const { container } = pintar(
+        <ChartBars
+          label="Por hora"
+          data={horas}
+          xKey="hora"
+          barKey="total"
+          barName="Hoy"
+          referenceKey="referencia"
+          referenceName="Mismo día, últimas 4 semanas"
+          formatValue={(valor) => `$${valor.toFixed(2)}`}
+          formatLabel={(hora) => `${hora} hrs.`}
+        />,
+      );
+
+      // La hora de en medio (las 11) ocupa el centro de los 600 px.
+      const lienzo = container.querySelector(".recharts-wrapper") as HTMLElement;
+      fireEvent.mouseMove(lienzo, { clientX: 330, clientY: 120 });
+
+      const tooltip = await waitFor(() => {
+        const caja = container.querySelector(".recharts-tooltip-wrapper");
+        expect(caja?.textContent).toContain("11 hrs.");
+        return caja as HTMLElement;
+      });
+      expect(tooltip.textContent).toContain("Hoy");
+      expect(tooltip.textContent).toContain("$200.00");
+      expect(tooltip.textContent).toContain("Mismo día, últimas 4 semanas");
+      expect(tooltip.textContent).toContain("$250.00");
+    });
+
+    it("sin referencia (null o un API anterior que no la manda) queda como hoy: sin línea ni leyenda", () => {
+      const { container, rerender } = pintar(
+        <ChartBars
+          label="Por hora"
+          data={horas.map(({ hora, total }) => ({ hora, total, referencia: null }))}
+          xKey="hora"
+          barKey="total"
+          barName="Hoy"
+          referenceKey="referencia"
+          referenceName="Mismo día, últimas 4 semanas"
+        />,
+      );
+      expect(container.querySelectorAll(".recharts-bar-rectangle").length).toBeGreaterThan(0);
+      expect(container.querySelector(".recharts-line")).toBeNull();
+      expect(screen.queryByText("Mismo día, últimas 4 semanas")).not.toBeInTheDocument();
+
+      rerender(
+        <I18nextProvider i18n={createI18n()}>
+          <ChartBars
+            label="Por hora"
+            data={horas.map(({ hora, total }) => ({ hora, total }))}
+            xKey="hora"
+            barKey="total"
+            barName="Hoy"
+            referenceKey="referencia"
+            referenceName="Mismo día, últimas 4 semanas"
+          />
+        </I18nextProvider>,
+      );
+      expect(container.querySelector(".recharts-line")).toBeNull();
+      expect(screen.queryByText("Hoy")).not.toBeInTheDocument();
+    });
   });
 
   it("ChartDonut con datos monta, y con puros ceros muestra el vacío (un donut de ceros es un aro mudo)", () => {

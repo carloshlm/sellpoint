@@ -6,12 +6,26 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import type { AuthUser } from "../auth/types/auth-user";
 import { mesAnteriorIso } from "./dashboard-period";
 
+export interface DashboardHourPoint {
+  hour: number;
+  total: string;
+  /**
+   * F10-KPI-03 — el promedio de esa hora en el mismo día de la semana de las
+   * cuatro semanas anteriores, contando solo los días que tuvieron venta.
+   * `null` en las 24 horas cuando ninguno la tuvo: sin historia no hay «0».
+   */
+  reference: string | null;
+}
+
 export interface DashboardSeries {
   /** Día 1..31 alineado: el mes más largo manda y los huecos van en "0". */
   byDay: { day: number; current: string; previous: string }[];
   /** Las 24 horas del día local, completas — un hueco es un "0", no ausencia. */
-  byHour: { hour: number; total: string }[];
+  byHour: DashboardHourPoint[];
 }
+
+/** Cuántas semanas hacia atrás mira la referencia de la serie por hora. */
+const SEMANAS_DE_REFERENCIA = 4;
 
 /**
  * F5-DASH-04 — las dos series del panel: el mes actual contra el anterior
@@ -21,6 +35,9 @@ export interface DashboardSeries {
  * de las 23:30 de CDMX cae en su día y su hora, no en los del servidor. Las
  * series salen COMPLETAS del API (1..31 y 0..23, huecos en cero): la gráfica
  * pinta lo que recibe y no adivina calendarios.
+ *
+ * F10-KPI-03 — cada hora trae además su referencia: un día típico al fondo
+ * para que, por la mañana, una sola barra ya diga si vas bien.
  */
 @Injectable()
 export class DashboardSeriesService {
@@ -60,7 +77,16 @@ export class DashboardSeriesService {
            GROUP BY d`,
       );
 
-    const [actual, anterior, horas] = await Promise.all([
+    // Los mismos días de la semana de las cuatro semanas anteriores, como
+    // fechas LOCALES (el mediodía UTC esquiva cualquier borde de horario).
+    const DIA = 24 * 60 * 60 * 1000;
+    const mediodiaDeHoy = new Date(`${hoy}T12:00:00Z`).getTime();
+    const diasDeReferencia = Array.from({ length: SEMANAS_DE_REFERENCIA }, (_, i) =>
+      new Date(mediodiaDeHoy - (i + 1) * 7 * DIA).toISOString().slice(0, 10),
+    );
+    const inicioReferencia = startOfDayUtc(diasDeReferencia.at(-1) ?? hoy, zona);
+
+    const [actual, anterior, horas, referencia] = await Promise.all([
       porDia(inicioMes, ahora),
       porDia(inicioMesAnterior, inicioMes),
       this.prisma.withTenantContext(
@@ -76,12 +102,36 @@ export class DashboardSeriesService {
              AND s.created_at >= ${inicioHoy} AND s.created_at < ${ahora}
            GROUP BY h`,
       ),
+      // El divisor son los días que tuvieron al menos una venta completada:
+      // un día cerrado no baja el promedio. Sin ninguno, no vuelve ninguna fila.
+      this.prisma.withTenantContext(
+        user.tenantId,
+        (tx) =>
+          tx.$queryRaw<{ h: number; reference: string }[]>`
+          WITH ventas AS (
+            SELECT (s.created_at AT TIME ZONE ${zona})::date AS d,
+                   EXTRACT(HOUR FROM (s.created_at AT TIME ZONE ${zona}))::int AS h,
+                   s.total
+              FROM sales s
+             WHERE s.tenant_id = ${user.tenantId}::uuid
+               AND s.status = 'completed'
+               AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
+               AND s.created_at >= ${inicioReferencia} AND s.created_at < ${inicioHoy}
+               AND (s.created_at AT TIME ZONE ${zona})::date = ANY(${diasDeReferencia}::date[])
+          )
+          SELECT h,
+                 ROUND(SUM(total) / (SELECT COUNT(DISTINCT d) FROM ventas), 2)::text AS reference
+            FROM ventas
+           GROUP BY h`,
+      ),
     ]);
 
     const mapaActual = new Map(actual.map((f) => [f.d, f.total]));
     const mapaAnterior = new Map(anterior.map((f) => [f.d, f.total]));
     const dias = Math.max(diasDelMes(hoy.slice(0, 7)), diasDelMes(mesAnterior));
     const mapaHoras = new Map(horas.map((f) => [f.h, f.total]));
+    const mapaReferencia = new Map(referencia.map((f) => [f.h, f.reference]));
+    const conHistoria = referencia.length > 0;
 
     return {
       byDay: Array.from({ length: dias }, (_, i) => ({
@@ -92,6 +142,7 @@ export class DashboardSeriesService {
       byHour: Array.from({ length: 24 }, (_, hour) => ({
         hour,
         total: mapaHoras.get(hour) ?? "0",
+        reference: conHistoria ? (mapaReferencia.get(hour) ?? "0") : null,
       })),
     };
   }

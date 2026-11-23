@@ -93,10 +93,14 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
       .expect(200);
     const cuerpoSeries = series.body as {
       byDay: unknown[];
-      byHour: { hour: number; total: string }[];
+      byHour: { hour: number; total: string; reference: string | null }[];
     };
     expect(cuerpoSeries.byDay.length).toBeGreaterThanOrEqual(28);
     expect(cuerpoSeries.byHour).toHaveLength(24);
+    // F10-KPI-03: un negocio sin historia no tiene referencia; viaja null, no "0".
+    for (const hora of cuerpoSeries.byHour) {
+      expect(hora).toHaveProperty("reference", null);
+    }
 
     const products = await request(app.getHttpServer())
       .get("/reports/dashboard/products?period=week")

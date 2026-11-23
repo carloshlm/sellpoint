@@ -18,7 +18,9 @@
     "current": "Mes actual",
     "previous": "Mes anterior",
     "dayLabel": "Día {{day}}",
-    "hourLabel": "{{hour}} hrs."
+    "hourLabel": "{{hour}} hrs.",
+    "today": "Hoy",
+    "sameDayLast4Weeks": "Mismo día, últimas 4 semanas"
   },
   "seller": {
     "title": "Tu turno",

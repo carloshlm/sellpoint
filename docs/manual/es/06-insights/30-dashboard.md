@@ -65,8 +65,15 @@ no tiene contra qué compararse.
 - **Ventas: mes actual vs anterior** dibuja lo vendido cada día del mes, con el
   mes pasado como línea de referencia.
 - **Ventas de hoy por hora** muestra en qué horas se vende más: tu hora pico.
+  Las barras son lo de **Hoy**; la línea punteada del fondo es un día típico:
+  lo que vendiste en promedio a cada hora el **mismo día de la semana de las
+  últimas 4 semanas**. Solo cuentan los días en que vendiste, así que un día que
+  cerraste no baja el promedio. Así, desde temprano, aunque todavía no vendas
+  nada, ves venir tu hora pico. Si en esos días no vendiste nada, la línea no
+  aparece.
 
-Pasa el cursor sobre una gráfica para ver la cantidad exacta.
+Pasa el cursor sobre una gráfica para ver la cantidad exacta. En la de horas
+ves las dos cifras juntas: lo de hoy y el promedio.
 
 ## Las listas y sus pestañas
 

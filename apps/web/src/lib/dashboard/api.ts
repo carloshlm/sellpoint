@@ -39,7 +39,16 @@ export type DashboardPeriod = "today" | "week" | "month" | "prev_month";
 
 export interface DashboardSeries {
   byDay: { day: number; current: string; previous: string }[];
-  byHour: { hour: number; total: string }[];
+  byHour: {
+    hour: number;
+    total: string;
+    /**
+     * F10-KPI-03 — el promedio de esa hora en el mismo día de las últimas
+     * cuatro semanas; null en las 24 horas si ninguno tuvo venta. Opcional:
+     * durante un deploy, este web puede hablar con un API que aún no lo manda.
+     */
+    reference?: string | null;
+  }[];
 }
 
 export interface DashboardProducts {

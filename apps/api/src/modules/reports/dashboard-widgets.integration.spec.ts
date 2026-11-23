@@ -227,8 +227,179 @@ describe("Los widgets del dashboard (integration)", () => {
     expect(r.byDay[9]?.previous).toBe("100.00");
     expect(r.byHour).toHaveLength(24);
     // 17:00Z = 11:00 local; la de 23:30 local del 14 NO es de hoy.
-    expect(r.byHour[11]).toEqual({ hour: 11, total: "200.00" });
+    // F10-KPI-03: ninguna venta cayó en un domingo anterior, así que la hora
+    // no tiene referencia.
+    expect(r.byHour[11]).toEqual({ hour: 11, total: "200.00", reference: null });
     expect(r.byHour.reduce((n, h) => n + Number(h.total), 0)).toBe(200);
+  });
+
+  /**
+   * F10-KPI-03 — la referencia de «Ventas de hoy por hora»: el promedio, por
+   * hora local, del mismo día de la semana en las cuatro semanas anteriores.
+   * El reloj marca el domingo 15 de marzo a las 12:00 de CDMX (UTC−6): los
+   * domingos que cuentan son el 8 y el 1 de marzo y el 22 y el 15 de febrero.
+   */
+  describe("F10-KPI-03: la serie por hora trae su referencia", () => {
+    it("cuatro domingos sembrados dan el promedio de cada hora; otro día o una quinta semana no entran", async () => {
+      const ctx = await escenario();
+      const venta = (creadaEn: string, unitPrice: number) =>
+        vender(ctx, { creadaEn, productoId: ctx.productoA, quantity: 1, unitPrice });
+      // A las 11:00 locales (17:00Z) de los cuatro domingos: 100, 200, 300 y 400.
+      await venta("2026-03-08T17:00:00Z", 100);
+      await venta("2026-03-01T17:00:00Z", 200);
+      await venta("2026-02-22T17:00:00Z", 300);
+      await venta("2026-02-15T17:00:00Z", 400);
+      // A las 15:00 locales, solo un domingo: el promedio la reparte entre cuatro.
+      await venta("2026-02-22T21:00:00Z", 80);
+      // Fuera: el domingo de hace cinco semanas y el sábado de ayer.
+      await venta("2026-02-08T17:00:00Z", 1000);
+      await venta("2026-03-14T17:00:00Z", 1000);
+      // Lo de hoy es la barra, no la referencia.
+      await venta("2026-03-15T16:00:00Z", 50);
+
+      const r = await series.series(USER(ctx), TODO);
+
+      expect(r.byHour[11]).toEqual({ hour: 11, total: "0", reference: "250.00" });
+      expect(r.byHour[15]?.reference).toBe("20.00");
+      expect(r.byHour[10]).toEqual({ hour: 10, total: "50.00", reference: "0" });
+      // Con historia, las 24 horas traen su cifra: un hueco es un "0".
+      expect(r.byHour.every((h) => h.reference !== null)).toBe(true);
+      expect(r.byHour.reduce((n, h) => n + Number(h.reference), 0)).toBe(270);
+    });
+
+    it("una venta a las 23:30 locales cae en su día y en su hora, no en los de UTC", async () => {
+      const ctx = await escenario();
+      // 05:30Z del lunes 9 = 23:30 del DOMINGO 8 en CDMX: cuenta, en la hora 23.
+      await vender(ctx, {
+        creadaEn: "2026-03-09T05:30:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 120,
+      });
+      // 05:30Z del domingo 8 = 23:30 del SÁBADO 7 en CDMX: no cuenta.
+      await vender(ctx, {
+        creadaEn: "2026-03-08T05:30:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 999,
+      });
+
+      const r = await series.series(USER(ctx), TODO);
+
+      expect(r.byHour[23]?.reference).toBe("120.00");
+      expect(r.byHour[5]?.reference).toBe("0");
+      expect(r.byHour.reduce((n, h) => n + Number(h.reference), 0)).toBe(120);
+    });
+
+    it("un domingo sin ventas no entra al divisor: un día cerrado no baja el promedio", async () => {
+      const ctx = await escenario();
+      await vender(ctx, {
+        creadaEn: "2026-03-08T17:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 100,
+      });
+      await vender(ctx, {
+        creadaEn: "2026-03-01T17:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 300,
+      });
+      // El 22 y el 15 de febrero, cerrado.
+
+      const r = await series.series(USER(ctx), TODO);
+
+      // (100 + 300) / 2 domingos con venta, no / 4.
+      expect(r.byHour[11]?.reference).toBe("200.00");
+    });
+
+    it("una venta cancelada no suma, y un domingo con puras canceladas no cuenta como día con venta", async () => {
+      const ctx = await escenario();
+      await vender(ctx, {
+        creadaEn: "2026-03-08T17:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 100,
+      });
+      const cancelada = await vender(ctx, {
+        creadaEn: "2026-03-08T17:10:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 900,
+      });
+      await cancelar(ctx, cancelada);
+      const otraCancelada = await vender(ctx, {
+        creadaEn: "2026-03-01T17:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 500,
+      });
+      await cancelar(ctx, otraCancelada);
+
+      const r = await series.series(USER(ctx), TODO);
+
+      expect(r.byHour[11]?.reference).toBe("100.00");
+    });
+
+    it("un negocio sin historia da null en las 24 horas, no «0»", async () => {
+      const ctx = await escenario();
+      // Vende hoy y vendió ayer (sábado), pero ningún domingo anterior.
+      await vender(ctx, {
+        creadaEn: "2026-03-15T16:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 50,
+      });
+      await vender(ctx, {
+        creadaEn: "2026-03-14T17:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 70,
+      });
+
+      const r = await series.series(USER(ctx), TODO);
+
+      expect(r.byHour).toHaveLength(24);
+      expect(r.byHour.every((h) => h.reference === null)).toBe(true);
+      expect(r.byHour[10]).toEqual({ hour: 10, total: "50.00", reference: null });
+    });
+
+    it("con el alcance limitado a una sucursal, la referencia solo promedia sus ventas", async () => {
+      const ctx = await escenario();
+      const otra = await prisma.withTenantContext(ctx.tenantId, (tx) =>
+        tx.warehouse.create({
+          data: {
+            tenantId: ctx.tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Norte",
+          },
+        }),
+      );
+      await vender(ctx, {
+        creadaEn: "2026-03-08T17:00:00Z",
+        productoId: ctx.productoA,
+        quantity: 1,
+        unitPrice: 100,
+      });
+      await vender(
+        { ...ctx, warehouseId: otra.id },
+        {
+          creadaEn: "2026-03-01T17:00:00Z",
+          productoId: ctx.productoA,
+          quantity: 1,
+          unitPrice: 500,
+        },
+      );
+
+      const central = await series.series(USER(ctx), {
+        warehouseIds: [ctx.warehouseId],
+      } as never);
+      const todas = await series.series(USER(ctx), TODO);
+
+      // En Central solo el 8 tuvo venta: 100 / 1. Con las dos, (100 + 500) / 2.
+      expect(central.byHour[11]?.reference).toBe("100.00");
+      expect(todas.byHour[11]?.reference).toBe("300.00");
+    });
   });
 
   it("tops: lo vendido se cuenta en la UNIDAD BASE del producto — el queso en kg, la caja ×12 en piezas", async () => {

@@ -199,7 +199,14 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     // El actor sintético lleva reports:read: el valor del inventario viaja.
     expect((inventario.body as { inventoryValue?: string }).inventoryValue).toBeDefined();
 
-    await comoAdmin("dashboard/series").expect(200);
+    // F10-KPI-03: la referencia por hora también viaja por el espejo (B vende
+    // hoy pero no tiene historia, así que es null en las 24 horas).
+    const series = await comoAdmin("dashboard/series").expect(200);
+    const porHora = (series.body as { byHour: { reference?: string | null }[] }).byHour;
+    expect(porHora).toHaveLength(24);
+    for (const hora of porHora) {
+      expect(hora).toHaveProperty("reference", null);
+    }
     await comoAdmin("dashboard/products?period=month").expect(200);
     await comoAdmin("dashboard/payment-methods?period=month").expect(200);
     await comoAdmin("dashboard/products?period=siempre").expect(400);

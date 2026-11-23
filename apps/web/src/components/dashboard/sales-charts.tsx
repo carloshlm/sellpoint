@@ -10,8 +10,9 @@ import { useAuthStore } from "@/stores/auth.store";
 /**
  * F5-DASH-11 — las dos gráficas de ventas: el mes contra el anterior (la
  * tendencia de un vistazo, con el mes pasado atenuado como referencia) y las
- * ventas de HOY por hora (la hora pico salta sola). Mismo gate que la fila
- * de KPIs: sin `reports:read` no hay gráfica ni petición.
+ * ventas de HOY por hora (la hora pico salta sola), con el mismo día de las
+ * últimas cuatro semanas como línea de fondo (F10-KPI-04). Mismo gate que la
+ * fila de KPIs: sin `reports:read` no hay gráfica ni petición.
  */
 function SalesCharts() {
   const { t } = useTranslation();
@@ -41,11 +42,17 @@ function SalesCharts() {
     [t("dashboard.charts.current")]: Number(d.current),
     [t("dashboard.charts.previous")]: Number(d.previous),
   }));
+  // F10-KPI-04: el mismo día de las últimas cuatro semanas, al fondo. Un API
+  // anterior no lo manda y un negocio sin historia lo manda en null; un día
+  // típico en puros ceros tampoco dice nada. En los tres casos, sin referencia.
+  const conReferencia = data.byHour.some((h) => h.reference != null && Number(h.reference) > 0);
   const porHora = data.byHour.map((h) => ({
     hour: `${h.hour}`,
     total: Number(h.total),
+    reference: conReferencia ? Number(h.reference ?? 0) : null,
   }));
-  const sinVentasHoy = data.byHour.every((h) => Number(h.total) === 0);
+  // Sin ventas todavía, la referencia sola ya dice a qué hora viene el pico.
+  const porHoraVacia = !conReferencia && data.byHour.every((h) => Number(h.total) === 0);
   // Mismo criterio que el donut: un mes entero en cero (negocio recién
   // nacido) pintaría una línea plana que parece bug — vacío honesto.
   const sinVentasMes = data.byDay.every((d) => Number(d.current) === 0 && Number(d.previous) === 0);
@@ -73,10 +80,14 @@ function SalesCharts() {
         <h2 className="font-medium text-sm">{t("dashboard.charts.byHour")}</h2>
         <ChartBars
           label={t("dashboard.charts.byHour")}
-          // Un día sin ventas: 24 barras de cero parecen un bug — vacío honesto.
-          data={sinVentasHoy ? [] : porHora}
+          // Un día sin ventas ni referencia: 24 barras de cero parecen un bug —
+          // vacío honesto.
+          data={porHoraVacia ? [] : porHora}
           xKey="hour"
           barKey="total"
+          barName={t("dashboard.charts.today")}
+          referenceKey="reference"
+          referenceName={t("dashboard.charts.sameDayLast4Weeks")}
           formatValue={dinero}
           formatAxis={(valor) => dineroEje.format(valor)}
           formatLabel={(hora) => t("dashboard.charts.hourLabel", { hour: hora })}

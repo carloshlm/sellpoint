@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
@@ -294,6 +294,78 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     const enlace = (await screen.findByText(/Agotados/)).closest("a");
     expect(enlace?.getAttribute("href")).toContain("/reports/stock");
     expect(enlace?.getAttribute("href")).toContain("belowMin=true");
+  });
+});
+
+/**
+ * F10-KPI-04 — «Ventas de hoy por hora» dibuja al fondo el mismo día de las
+ * últimas cuatro semanas, con su leyenda. Sin referencia, la gráfica queda
+ * como estaba.
+ */
+const CON_REFERENCIA: dashboardApi.DashboardSeries = {
+  ...SERIES,
+  byHour: SERIES.byHour.map((h) => ({
+    ...h,
+    reference: h.hour === 11 ? "250.00" : h.hour === 15 ? "20.00" : "0",
+  })),
+};
+
+/** La tarjeta de la gráfica por hora (su título es un `h2`). */
+async function tarjetaPorHora(): Promise<HTMLElement> {
+  const titulo = await screen.findByRole("heading", { name: "Ventas de hoy por hora" });
+  return titulo.closest("section") as HTMLElement;
+}
+
+describe("F10-KPI-04: la gráfica por hora dibuja su referencia", () => {
+  it("con referencia, la leyenda dice «Hoy» y «Mismo día, últimas 4 semanas»", async () => {
+    mocked.getDashboardSeries.mockResolvedValue(CON_REFERENCIA);
+    await renderDashboard();
+
+    const tarjeta = await tarjetaPorHora();
+    await waitFor(() => {
+      expect(within(tarjeta).getByText("Mismo día, últimas 4 semanas")).toBeInTheDocument();
+    });
+    expect(within(tarjeta).getByText("Hoy")).toBeInTheDocument();
+    expect(
+      within(tarjeta).getByRole("img", { name: "Ventas de hoy por hora" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sin referencia (un API anterior, o null en las 24 horas) la gráfica queda como hoy", async () => {
+    // SERIES no trae `reference`: así responde un API anterior.
+    await renderDashboard();
+    const tarjeta = await tarjetaPorHora();
+    expect(
+      within(tarjeta).getByRole("img", { name: "Ventas de hoy por hora" }),
+    ).toBeInTheDocument();
+    expect(within(tarjeta).queryByText("Mismo día, últimas 4 semanas")).not.toBeInTheDocument();
+    expect(within(tarjeta).queryByText("Hoy")).not.toBeInTheDocument();
+
+    // Y un API nuevo con un negocio sin historia: null en las 24 horas.
+    cleanup();
+    mocked.getDashboardSeries.mockResolvedValue({
+      ...SERIES,
+      byHour: SERIES.byHour.map((h) => ({ ...h, reference: null })),
+    });
+    await renderDashboard();
+    const otra = await tarjetaPorHora();
+    expect(within(otra).getByRole("img", { name: "Ventas de hoy por hora" })).toBeInTheDocument();
+    expect(within(otra).queryByText("Mismo día, últimas 4 semanas")).not.toBeInTheDocument();
+    expect(within(otra).queryByText("Hoy")).not.toBeInTheDocument();
+  });
+
+  it("antes de la primera venta del día, con referencia, enseña el día típico en lugar del vacío", async () => {
+    mocked.getDashboardSeries.mockResolvedValue({
+      ...CON_REFERENCIA,
+      byHour: CON_REFERENCIA.byHour.map((h) => ({ ...h, total: "0" })),
+    });
+    await renderDashboard();
+
+    const tarjeta = await tarjetaPorHora();
+    await waitFor(() => {
+      expect(within(tarjeta).getByText("Mismo día, últimas 4 semanas")).toBeInTheDocument();
+    });
+    expect(within(tarjeta).queryByText("Sin datos del período")).not.toBeInTheDocument();
   });
 });
 

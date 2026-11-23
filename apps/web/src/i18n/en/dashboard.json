@@ -18,7 +18,9 @@
     "current": "This month",
     "previous": "Last month",
     "dayLabel": "Day {{day}}",
-    "hourLabel": "{{hour}}:00"
+    "hourLabel": "{{hour}}:00",
+    "today": "Today",
+    "sameDayLast4Weeks": "Same day, last 4 weeks"
   },
   "seller": {
     "title": "Your shift",
