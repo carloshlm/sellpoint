@@ -5987,6 +5987,152 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 **≈45 h**
 
+### Módulo F10-KPI — El panel dice lo que te queda, a dónde vas y dónde se va el dinero (atomizado el 2026-11-22)
+
+> Carlos (2026-11-22), al empezar su serie de videos de ventas: «puedes revisar mi dashboard y reportes y ver que tipo de indicadores o KPI me recomiendas poner ya que empecé a hacer una serie de videos de ventas». La revisión quedó en `tmp/docs/indicadores-y-reportes-recomendaciones.md` (fuera de git) y Carlos pidió: «sí, atomiza la tanda 1 en IMPLEMENTACION.md». La tanda 1 es la del panel: tres ajustes que se notan en un video y seis indicadores que salen de datos que ya se capturan. **Ninguna tarea lleva migración.**
+>
+> **Lo que ya existe (verificado en el código el 2026-11-22):** los cinco endpoints del panel en `modules/reports/` (`reports.controller.ts:141-175`) y su espejo del backoffice en `admin/admin-tenants.controller.ts`; `DashboardKpis` con `today`, `month` y `profit` (`profit.netMonth` resta `gastosDelMes()`: gastos activos con `expenseDate` del mes, pagados o por pagar); `KpiCard` con `detail`, `deltaPct`, `goalPct` y `sparkline`; los avisos compuestos en el cliente (`alerts-block.tsx`, cuatro reglas) y la prueba que cuenta sus peticiones (`routes/dashboard-widgets.test.tsx:254`); en la venta, `discount` (ya es el descuento TOTAL: el de sus líneas más el del ticket, `sales.service.ts:295` y `:376`), `discountReason`, `canceledBy`, `canceledAt` y `cancelReason`; en la línea, `unitCost` congelado para productos y servicios (un concepto libre queda en null); `CashboxSession.cashDifference` (declarado − calculado); `Expense.dueDate` y `paymentStatus`; `WeightedCostService.averageCosts`, con el que el panel ya valora el inventario; `GET inventory/expiring` (`LotsService.listExpiring`, `lots.service.ts:289`); y los enlaces a un reporte ya filtrado con `search` y `validateSearch` (`inventory-widgets.tsx` → `/reports/stock`).
+>
+> **Lo que NO existe:** en `modules/reports` nada lee `discount`, `discountReason` ni `cancelReason`; «Mayor utilidad» ordena por utilidad y toma cinco sin pedir que sea positiva (`dashboard-products.service.ts:139-140`); la serie por hora no tiene referencia y `ChartBars` admite una sola serie; `KpiCard` pinta una sola barra, siempre con la etiqueta «% de la meta», y un solo renglón de detalle; «Próximos a vencer» no trae costo; el reporte de cierres no filtra por diferencia; `/reports/sales`, `/reports/shifts` y `/expenses` no leen filtros de la URL; y nada suma faltantes, descuentos ni cancelaciones.
+>
+> **Decisión de Carlos (2026-11-22):** entra la tanda 1 completa, con los tres ajustes.
+>
+> **Decisiones de producto propuestas** (Claude, 2026-11-22; Carlos las confirma o las cambia antes de la primera tarea):
+> 1. El panel sigue con cinco mosaicos. Lo nuevo va dentro de los que ya hay, a la línea de avisos y a UNA tarjeta nueva, «Control».
+> 2. El punto de equilibrio se dice como avance, no como pérdida: «70% de tus gastos cubiertos» y, al pasarlo, «Gastos cubiertos desde el día 19». La utilidad neta sigue mostrando su número, también cuando es negativo.
+> 3. El cierre estimado del mes usa solo días cerrados (no se mueve durante el día) y calla hasta tener tres.
+> 4. Los avisos pasan de cuatro reglas a ocho, se ordenan por urgencia y se ven cuatro a la vez; el resto, tras «Ver más».
+> 5. «Control» obedece las pestañas de periodo y nunca compensa un faltante con un sobrante.
+> 6. Nada de esto lleva candado de plan: sigue la regla del panel (`reports:read`). El punto de equilibrio y el aviso de gastos solo aparecen con el módulo de Gastos, igual que la utilidad neta; la caducidad en dinero, donde ya hay lotes (Plus).
+>
+> **Decisiones de arquitectura:**
+> 1. Se amplían las respuestas que el panel ya pide; el único endpoint nuevo es `dashboard/control`. El presupuesto pasa de 9 a 10 peticiones por carga (F5-DASH-16).
+> 2. Los avisos nuevos salen de `kpis` y de `products` del mes, que ya están cargados: la prueba de «cero peticiones extra» no se toca y tiene que seguir en verde.
+> 3. Todo campo nuevo es aditivo y el web lo trata como opcional: durante un deploy, un web nuevo puede hablar con un API anterior (el precedente es `unit` en F5-DASH-17).
+> 4. El dinero nuevo viaja como string, y un dato que falta es `null`, nunca `0` (la ley de F5-DASH).
+> 5. Cada endpoint o campo nuevo se refleja en el espejo del backoffice y no lee `user.userId`: el actor del backoffice solo trae `tenantId`, `reports:read` e `inventory:read` (`admin/platform-actor.ts`).
+> 6. Como hoy con la utilidad neta, el API calcula siempre y el web decide con `usePlan()` si lo enseña.
+>
+> **Regla:** cada tarea que cambia una pantalla corrige su capítulo del manual y retoma su captura (skill sellpoint-manual), y actualiza `VISTAS.md` (§5 Dashboard, §10 Reportes) donde describa lo que cambió, en el MISMO commit.
+>
+> **Riesgo contenido:** sin migraciones y sin permisos nuevos. Lo delicado es el dinero detrás de `reports:read`: cada tarea que agrega un importe lleva su contraprueba de que, sin el permiso, el dato no viaja.
+
+#### F10-KPI-FIX — Los ajustes que se notan en un video
+
+- [ ] **F10-KPI-01** *(2026-11-22)* — API: «Mayor utilidad» solo lista lo que deja, y dice qué pierde y qué no tiene costo
+  - **Por qué:** en el panel de Carlos del 19 de septiembre, «Fotocopia» salió en «Mayor utilidad» con −248.8% de margen y −$2.14. Una pérdida no es un «top»: es una noticia. Y un producto vendido sin costo deja la utilidad incompleta sin que nadie lo note.
+  - **Salida:** en `DashboardProductsService`, `topProfit` exige utilidad mayor que cero. `DashboardProducts` gana, para el mismo `period`: `belowCost` (hasta 5 filas con la forma de `topProfit` más `kind`, de la mayor pérdida a la menor) con `belowCostCount`, y `uncosted` (hasta 5 productos o servicios vendidos con `unit_cost` NULL, por importe: `itemId`, `kind`, `sku`, `name`, `revenue`) con `uncostedCount`. Un concepto libre no cuenta como «sin costo»: no tiene ficha donde capturarlo. La ruta del espejo del backoffice no cambia.
+  - **Verificar:** `dashboard-widgets.integration.spec.ts`: el caso de la captura (un producto vendido bajo su costo sale de `topProfit` y entra a `belowCost`); un producto y un servicio sin costo entran a `uncosted` y un concepto no; con menos de cinco con utilidad positiva la lista queda corta, no se rellena con pérdidas. Contraprueba por mutación: sin el filtro, la pérdida vuelve a la lista.
+  - **Depende de:** nada · **Estimación:** 3 h
+- [ ] **F10-KPI-02** *(2026-11-22)* — Web: el recuadro «Mayor utilidad» avisa lo que pierde y lo que no tiene costo
+  - **Por qué:** para corregir un precio o capturar un costo, el dueño necesita ver cuáles son y llegar a su ficha.
+  - **Salida:** en `top-products.tsx`, bajo las cinco filas, dos avisos plegables con el ancla `#margin-check`: «N se vendieron por debajo de su costo» (filas con nombre, margen y pérdida, en el color de alerta) y «N se vendieron sin costo: no cuentan en tu utilidad». Cada fila de producto o servicio enlaza a su ficha. Sin ninguno de los dos, el recuadro queda como hoy. Tipos en `lib/dashboard/api.ts`, con los campos opcionales. Textos es/en en `dashboard.json`; capítulo 30 del manual con la captura `dashboard-top-products`; `VISTAS.md` §5.
+  - **Verificar:** `routes/dashboard-widgets.test.tsx`: con `belowCost` pinta el aviso y sus filas; sin los campos (un API anterior) el recuadro no se rompe; el enlace lleva a la ficha que corresponde según `kind`.
+  - **Depende de:** F10-KPI-01 · **Estimación:** 2.5 h
+- [ ] **F10-KPI-03** *(2026-11-22)* — API: la serie por hora trae su referencia
+  - **Por qué:** por la mañana «Ventas de hoy por hora» tiene una barra y no dice nada, y es justo cuando el dueño abre el panel. Con un día típico al fondo se ve venir la hora pico.
+  - **Salida:** en `DashboardSeriesService`, cada fila de `byHour` gana `reference: string | null`: el promedio, por hora local, del mismo día de la semana en las cuatro semanas anteriores. Solo promedian los días que tuvieron al menos una venta (un día cerrado no baja el promedio); si ninguno tuvo, `reference` es `null` en las 24 filas. Mismas reglas del panel: zona horaria del negocio, sin canceladas, `UserScope` y el reloj inyectado.
+  - **Verificar:** `dashboard-widgets.integration.spec.ts` con el reloj congelado: cuatro semanas sembradas dan el promedio por hora; una venta a las 23:30 locales cae en su día y en su hora; una semana sin ventas no entra al divisor; una cancelada no suma; un negocio sin historia da `null`, no «0».
+  - **Depende de:** nada · **Estimación:** 2.5 h
+- [ ] **F10-KPI-04** *(2026-11-22)* — Web: la gráfica por hora dibuja su referencia
+  - **Por qué:** es la mitad visible de F10-KPI-03, y la gráfica que más se enseña en un video.
+  - **Salida:** `ChartBars` gana una serie de referencia opcional (`referenceKey`, `referenceName`), dibujada como línea atenuada con el token `muted` sobre las barras. El cambio vive dentro de `chart-bars.tsx`: el guardián de `charts.test.tsx:93` no deja importar recharts en otro archivo. `sales-charts.tsx` arma `{hour, total, reference}`, la leyenda dice «Hoy» y «Mismo día, últimas 4 semanas», y el tooltip muestra las dos cifras. Sin referencia (`null` o un API anterior) la gráfica queda como hoy. Textos es/en; capítulo 30 con la captura `dashboard-charts`; `VISTAS.md` §5.
+  - **Verificar:** `charts.test.tsx` (con y sin referencia; el guardián sigue en verde) y `routes/dashboard-widgets.test.tsx`. En el navegador, con un tema claro y uno oscuro: la referencia se distingue de las barras y repinta con el tema.
+  - **Depende de:** F10-KPI-03 · **Estimación:** 2.5 h
+
+#### F10-KPI-MES — Lo que te queda y a dónde vas
+
+- [ ] **F10-KPI-05** *(2026-11-22)* — API: el margen del mes y el cierre estimado
+  - **Por qué:** «Utilidad del mes: $6,782» no dice si es mucho o poco; el margen sí. Y la barra de la meta dice cuánto llevas, no si vas a llegar.
+  - **Salida:** en `DashboardKpis`: `profit.marginPct: number | null` (utilidad ÷ `SUM(line_total − tax_amount)` de las MISMAS líneas con costo, con un decimal; `null` si la utilidad es `null`). `month.projected: string | null`: lo vendido en los días CERRADOS del mes más su promedio diario por los días que faltan, contando hoy; los días cerrados corren del 1 a ayer, o desde el día de la primera venta del negocio si fue este mes; `null` con menos de tres días cerrados. `month.requiredDaily: string | null`: lo que falta para la meta ÷ los días que quedan, contando hoy; `"0.00"` si ya se alcanzó y `null` sin meta.
+  - **Verificar:** `dashboard-kpis.service.integration.spec.ts` (reloj en el 15 de marzo): 14 días cerrados proyectan los 31; la venta de hoy no mueve la estimación; el día 2 no hay estimación; un negocio que empezó el día 10; meta alcanzada → `"0.00"`; sin meta → `null`; el margen ignora las líneas sin costo. Contraprueba por mutación: con días corridos en vez de cerrados el resultado cambia y la prueba lo caza.
+  - **Depende de:** nada · **Estimación:** 3 h
+- [ ] **F10-KPI-06** *(2026-11-22)* — API: el punto de equilibrio
+  - **Por qué:** la utilidad neta sale negativa a medio mes por construcción: los gastos fijos entran completos con su fecha y las ventas se acumulan día a día. En el panel del 24 de septiembre decía −$2,957.81 con la meta al 65.6%. Se lee como pérdida y no lo es.
+  - **Salida:** `profit.breakEven: { expenses: string; coveredPct: number | null; coveredOnDay: number | null; remainingSales: string | null }`. `expenses` es el mismo total que ya resta `netMonth`. `coveredPct` es la utilidad del mes ÷ los gastos del mes (`null` sin utilidad o sin gastos). `coveredOnDay` es el primer día local en que la utilidad acumulada del mes alcanzó esos gastos (`null` si todavía no). `remainingSales` es lo que falta ÷ la utilidad que dejó cada peso cobrado en los últimos 30 días (utilidad ÷ `SUM(line_total)`, solo líneas con costo); `null` si ya se cubrió o si no hay con qué estimar.
+  - **Verificar:** integration spec: el caso de la captura (utilidad 6,782.19 contra gastos 9,740.00 → 69.6%); el día en que se cruza; gastos en cero → `null`, no 100; un gasto anulado no cuenta; alcance por sucursal.
+  - **Depende de:** F10-KPI-05 (comparten la consulta de ingresos con costo) · **Estimación:** 3 h
+- [ ] **F10-KPI-07** *(2026-11-22)* — Web: los mosaicos dicen el margen y el cierre estimado
+  - **Por qué:** son los dos renglones que convierten un número en una decisión: «¿me deja lo suficiente?» y «¿voy a llegar?».
+  - **Salida:** `KpiCard` gana `details?: string[]` (hasta dos renglones; `detail` sigue funcionando). En `kpi-row.tsx`: «Utilidad del mes» dice «17.2% de margen»; «Ventas del mes» dice «Cierre estimado: $X» y, con meta sin alcanzar, «Para tu meta: $Y al día»; con la meta alcanzada, «Meta alcanzada». Sin dato (`null` o un API anterior) el renglón no aparece. Textos es/en; capítulo 30 con la captura `dashboard-kpis`; `VISTAS.md` §5.
+  - **Verificar:** `kpi-card.test.tsx` y `routes/dashboard-kpis.test.tsx`: cada renglón aparece con su dato y calla sin él; sin `reports:read` nada de esto se pide. En el navegador: los cinco mosaicos conservan la misma altura en escritorio y se leen en móvil.
+  - **Depende de:** F10-KPI-05 · **Estimación:** 2.5 h
+- [ ] **F10-KPI-08** *(2026-11-22)* — Web: «Utilidad neta del mes» muestra los gastos cubiertos
+  - **Por qué:** es el ajuste que más pesa en un video: el mismo número negativo, pero con su explicación al lado.
+  - **Salida:** `KpiCard` gana `progress?: { pct: number | null; label: string }`: la barra de `goalPct` con otra etiqueta (`goalPct` sigue igual). En «Utilidad neta del mes»: la barra con «70% de tus gastos cubiertos» y un renglón, «Te falta vender $X» o, ya cubiertos, «Gastos cubiertos desde el día 19». Sin gastos registrados, el mosaico queda como hoy. Solo con el módulo de Gastos (`conGastos`), como el mosaico. Textos es/en; capítulo 30 («Qué gastos resta la utilidad neta» gana el punto de equilibrio) con la captura `dashboard-kpis`.
+  - **Verificar:** pruebas del mosaico: la barra al porcentaje correcto y topada en 100; el renglón cambia al cubrirse; sin el módulo de Gastos no aparece; el caso espejo de los colores (la lección de F5-DASH-09).
+  - **Depende de:** F10-KPI-06, F10-KPI-07 · **Estimación:** 2.5 h
+
+#### F10-KPI-CAD — La caducidad, en dinero
+
+- [ ] **F10-KPI-09** *(2026-11-22)* — API: cuánto vale lo que vence
+  - **Por qué:** «14 piezas vencen en 6 días» no mueve a nadie; «$4,300 vencen este mes», sí. Es el argumento de Plus para una farmacia.
+  - **Salida:** `LotsService.listExpiring` agrega a cada fila `unitCost: string | null` y `value: string | null` (cantidad × costo promedio ponderado de `WeightedCostService.averageCosts`, el mismo con que el panel valora el inventario; `null` si el producto nunca se compró con costo). Gating por campo, como `inventoryValue`: sin `reports:read` los dos campos NO viajan. La respuesta sigue siendo un arreglo, para no romper a quien ya la consume. El Excel de `inventory/expiring/export` gana al final «Costo promedio» y «Valor», solo con el permiso. Si `inventory.module.ts` no importa el módulo de costos, lo importa.
+  - **Verificar:** integration spec de lotes: dos compras a distinto costo dan el promedio; un producto sin compras da `null`; sin `reports:read` la respuesta no trae los campos (contraprueba por mutación); el Excel con y sin el permiso.
+  - **Depende de:** nada · **Estimación:** 2.5 h
+- [ ] **F10-KPI-10** *(2026-11-22)* — Web: «Próximos a vencer» dice cuánto vale
+  - **Por qué:** es donde el dueño decide qué poner al frente o en promoción, y lo decide por dinero, no por piezas.
+  - **Salida:** en `expiring-list.tsx`, la columna «Valor» (skill sellpoint-tables) y, arriba, el total del plazo elegido: «$X al costo en los próximos 30 días». En `expiring-card.tsx`, junto al título del recuadro del panel, «$X en riesgo». El total se suma en centavos enteros, nunca con flotantes, y solo con `reports:read`. Una fila sin costo dice «—» y, si hay alguna, el total avisa «sin contar N productos sin costo». Textos es/en (`inventory.json`, `dashboard.json`); capítulos 26 y 30 con la captura `expiring-soon`.
+  - **Verificar:** `routes/dashboard-expiring.test.tsx` y la prueba de la lista: con el permiso se ven el valor y el total; sin él, ni la columna; las filas sin costo no suman ni fingen un cero.
+  - **Depende de:** F10-KPI-09 · **Estimación:** 3 h
+
+#### F10-KPI-CTRL — Dónde se va el dinero
+
+- [ ] **F10-KPI-11** *(2026-11-22)* — API: el reporte «Ventas» lee el descuento y los motivos
+  - **Por qué:** «Control» dice cuánto; este reporte tiene que decir cuáles, quién y por qué.
+  - **Salida:** `SalesReportRow` gana `discount`, `discountReason`, `cancelReason`, `canceledAt` y `canceledBy: { id, name } | null`. `salesReportQuerySchema` gana el filtro `discounted` (solo ventas con `discount > 0`), resuelto en `buildSalesWhere` como condición opcional: el historial del punto de venta usa la misma función y no cambia. `list()` devuelve además `discountTotal` del periodo filtrado, sobre las cobradas. El Excel agrega AL FINAL «Descuento», «Motivo del descuento», «Canceló», «Fecha de cancelación» y «Motivo de la cancelación»: las columnas de hoy no se mueven. El espejo del backoffice hereda el DTO.
+  - **Verificar:** specs del reporte y del export: los campos llegan; `discounted` filtra; el total de descuentos es de todo el periodo, no de la página; el orden de las columnas de hoy no cambió. El e2e del historial del punto de venta sigue en verde.
+  - **Depende de:** nada · **Estimación:** 2.5 h
+- [ ] **F10-KPI-12** *(2026-11-22)* — Web: «Ventas» con Descuento, Motivo y «Solo con descuento»
+  - **Por qué:** es la pantalla a la que llevan los contadores de descuentos y de cancelaciones.
+  - **Salida:** en `sales-report.tsx`, las columnas «Descuento» y «Motivo» (el del descuento en una venta cobrada; el de la cancelación en una cancelada), y el pie gana «Descuentos: $X». En `sales-filters.tsx`, la casilla «Solo con descuento». La ruta `reports.sales.tsx` acepta `status`, `discounted`, `from` y `to` en la URL (`validateSearch`), para llegar ya filtrada como `/reports/stock`. Skill sellpoint-tables. Textos es/en (`reports.json`); capítulo 31 con la captura `reports-sales`; `VISTAS.md` §10.
+  - **Verificar:** prueba del reporte: las columnas y el pie; llegar por URL aplica los filtros; `pnpm --filter manual test`.
+  - **Depende de:** F10-KPI-11 · **Estimación:** 2.5 h
+- [ ] **F10-KPI-13** *(2026-11-22)* — «Cierres de turno» filtra por diferencia y la totaliza
+  - **Por qué:** hoy, para encontrar los turnos con faltante hay que recorrer la lista completa.
+  - **Salida:** API: `shiftsReportQuerySchema` gana `difference: "shortage" | "overage" | "balanced"` (solo turnos cerrados: `cashDifference` menor, mayor o igual a cero) y `list()` devuelve `differenceTotals: { shortage, overage }` del periodo filtrado; el export respeta el filtro. Web: `shifts-report.tsx` gana el selector «Diferencia» (Todas · Con faltante · Con sobrante · Cuadró) y, al pie, «Faltó $X · Sobró $Y»; la ruta `reports.shifts.tsx` acepta `difference`, `from` y `to` en la URL. Textos es/en; capítulo 31 con la captura `reports-shifts`; `VISTAS.md` §10.
+  - **Verificar:** spec del servicio (los tres valores; los abiertos, fuera; totales del periodo y no de la página) y prueba web (el selector, el pie y la llegada por URL).
+  - **Depende de:** nada · **Estimación:** 3.5 h
+- [ ] **F10-KPI-14** *(2026-11-22)* — API: `GET /reports/dashboard/control`
+  - **Por qué:** los faltantes de caja, los descuentos y las cancelaciones se guardan desde el primer día y nadie los suma. Es lo primero que un dueño pregunta cuando sospecha.
+  - **Salida:** `DashboardControlService.control(user, scope, period)` sobre `resolvePeriodWindow`, registrado en `reports.module.ts` y en el controlador con `@RequirePermissions("reports:read")`. Respuesta: `cash: { shortage: { amount, shifts }, overage: { amount, shifts }, closedShifts }` (turnos CERRADOS con `closedAt` en el periodo; faltantes y sobrantes por separado, nunca compensados); `discounts: { amount, tickets, pctOfSales }` (ventas cobradas del periodo con `discount > 0`; el porcentaje es descuento ÷ (cobrado + descuento), `null` sin ventas); `cancellations: { count, amount }` (ventas con `canceledAt` en el periodo). Espejo `GET admin/tenants/:tenantId/dashboard/control`. El servicio no lee `user.userId`.
+  - **Verificar:** `dashboard-widgets.integration.spec.ts`: un faltante de 200 y un sobrante de 200 NO dan cero; un turno abierto no cuenta; el descuento de una venta cancelada no suma; la cancelación cuenta por su fecha de cancelación, en la zona del negocio; alcance por sucursal; un periodo vacío da ceros y `pctOfSales: null`. e2e: sin `reports:read`, 403.
+  - **Depende de:** nada · **Estimación:** 3.5 h
+- [ ] **F10-KPI-15** *(2026-11-22)* — Web: la tarjeta «Control»
+  - **Por qué:** tres números que hoy exigen abrir tres reportes y sumar a mano.
+  - **Salida:** `getDashboardControl` y `useDashboardControl(period)` en `lib/dashboard/`, con `useRuta()` y el `tenantId` en la query key, como los demás. `control-card.tsx`, bajo las pestañas de periodo, con tres contadores que navegan a su reporte ya filtrado: «Faltantes de caja» (importe y turnos, con los sobrantes en un renglón menor), «Descuentos» (importe, % de tus ventas y tickets) y «Cancelaciones» (ventas e importe). En cero, cada contador dice 0 en color neutro. La puerta del permiso vive en `enabled` de la query. Textos es/en; capítulo 30 con una captura nueva, `dashboard-control`; `VISTAS.md` §5.
+  - **Verificar:** `routes/dashboard-widgets.test.tsx`: cambiar el periodo pide el nuevo; sin `reports:read` no se pide; cada contador navega con su filtro; el caso espejo del color. En el expediente del backoffice la tarjeta carga por el espejo.
+  - **Depende de:** F10-KPI-12, F10-KPI-13, F10-KPI-14 · **Estimación:** 3 h
+
+#### F10-KPI-AVISOS — El panel avisa más
+
+- [ ] **F10-KPI-16** *(2026-11-22)* — API: lo que pide atención, dentro de `kpis`
+  - **Por qué:** los avisos se componen en el cliente con datos ya cargados. Para avisar de gastos por pagar y de turnos con faltante, esos datos tienen que venir en una respuesta que el panel ya pide.
+  - **Salida:** `DashboardKpis.attention`: `payables: { overdueCount, overdueAmount, dueSoonCount, dueSoonAmount }` (gastos activos, `paymentStatus: "pending"` y con `dueDate`: vencidos, los de antes de hoy; por vencer, los de hoy a siete días; fechas locales, como `expenseDate`) y `shiftShortages: { count, amount }` (turnos cerrados desde el inicio de ayer, hora local, con `cashDifference < 0`). Alcance por sucursal.
+  - **Verificar:** integration spec: un gasto que vence hoy es «por vencer», no «vencido»; uno pagado o anulado no cuenta; uno sin `dueDate` no cuenta; un faltante de anteayer no cuenta; un sobrante no cuenta.
+  - **Depende de:** nada · **Estimación:** 2.5 h
+- [ ] **F10-KPI-17** *(2026-11-22)* — Web: cuatro avisos nuevos, con orden y tope
+  - **Por qué:** el aviso es lo único del panel que busca al dueño en vez de esperar a que él busque.
+  - **Salida:** `alerts-block.tsx` gana cuatro reglas. `caja-faltante`: «1 turno cerró con faltante de $150», a Cierres de turno con faltante. `gastos-por-pagar`: «2 gastos vencidos sin pagar ($1,850)» o «3 gastos vencen esta semana ($4,200)», al listado de Gastos con Pago: Pendiente (`expenses.index.tsx` gana `paymentStatus` en la URL); solo con el módulo de Gastos, y con enlace solo si el usuario tiene `expenses:read`. `bajo-costo`: «1 producto se vendió por debajo de su costo», al ancla `#margin-check`. `sin-costo`: «12 productos vendidos este mes no tienen costo: tu utilidad está incompleta», a la misma ancla. Orden por urgencia: faltante de caja, gastos vencidos, bajo costo, agotados, gastos por vencer, ventas abajo, sin costo, producto que creció, método dominante. Se ven cuatro; con más, «Ver N más» despliega el resto. Textos es/en con sus plurales (`dashboard.alerts.*`); capítulo 30 («Avisos y próximos a vencer»).
+  - **Verificar:** `routes/dashboard-widgets.test.tsx`: cada regla dispara con su dato y calla sin él; con seis condiciones se ven cuatro, en el orden dicho, y «Ver 2 más»; la prueba de la línea 254 sigue afirmando UNA llamada a cada fuente, porque ningún aviso nuevo pide nada. El guardián de `i18n/interpolacion-barrera.test.ts`, en verde.
+  - **Depende de:** F10-KPI-02, F10-KPI-13, F10-KPI-16 · **Estimación:** 3.5 h
+
+#### F10-KPI-CIERRE — Verificación
+
+- [ ] **F10-KPI-18** *(2026-11-22)* — Verificación integral y documentos
+  - **Por qué:** el panel es lo primero que se enseña en una demo y en un video; un «NaN» o un mosaico descuadrado ahí cuesta una venta.
+  - **Salida:** pasada con Playwright en un navegador real: escritorio y móvil; un tema claro y uno oscuro; un negocio NUEVO sin ventas (sin estimación, sin punto de equilibrio, «Control» en ceros, ningún aviso, cero NaN); un negocio con historia; un usuario sin `reports:read` (ningún dato nuevo viaja); un negocio sin módulo de Gastos y sin lotes; y el expediente del backoffice. El presupuesto de peticiones, medido y anotado aquí (se esperan 10 por carga). `PLANES-Y-FUNCIONALIDADES.md` («Reportes y panel») al día y, solo si cambia lo que promete, `SITIO-WEB-CONTENIDO.md` §4.6: el panel dibujado del sitio no se adelanta a la app.
+  - **Verificar:** capturas de las variantes revisadas; las compuertas desde la raíz (`pnpm lint`, `pnpm typecheck:full`, `pnpm test`), `pnpm --filter api build`, `pnpm --filter api test:e2e` y `pnpm --filter manual test`; Carlos da el visto a la pantalla.
+  - **Depende de:** F10-KPI-01..17 · **Estimación:** 3 h
+
+**Orden de ejecución:** F10-KPI-FIX primero (01 → 02 y 03 → 04): es lo que se nota en un video. Luego F10-KPI-MES (05 → 06 → 07 → 08). F10-KPI-CAD (09 → 10) es independiente y entra cuando convenga. En F10-KPI-CTRL van primero los reportes (11 → 12 y 13) y después la tarjeta que enlaza a ellos (14 → 15). F10-KPI-AVISOS (16 → 17) va al final porque usa el ancla de 02 y el filtro de 13. Cierra 18.
+
+**Qué videos destraba:** FIX, «Tu hora pico»; MES, «Lo que te queda después de pagar todo» y «¿Llegas a tu meta?»; CTRL, «¿Dónde se te va el dinero?»; CAD refuerza «Que nada se te caduque».
+
+**Pospuestos con nombre:** el negocio de demostración con dos o tres meses de historia para grabar (va antes de los videos y no es parte del panel); la tanda 2 de reportes (ventas por vendedor, estado de resultados, sin movimiento, sugerido de compra, merma y pérdidas, días y horas fuertes, comparativo de sucursales, rentabilidad por producto); las funcionalidades que piden datos nuevos (categoría del producto, resumen diario por correo, entradas y retiros de efectivo en el turno, cliente en la venta, fiado); gastos recurrentes (sin ellos, el punto de equilibrio depende de que alguien capture la renta); quién autorizó cada descuento (hoy es un solo código del negocio); umbrales de los avisos configurables por negocio; el cierre estimado afinado por día de la semana; y traducir los encabezados del Excel de ventas, que hoy van fijos en español.
+
+**≈51 h**
+
 ### Módulo F11-SITE — El sitio público de sellpointy.com (atomizado el 2026-09-18)
 
 > Carlos (2026-09-18): «quiero hacer mi sitio web para sellpointy.com… pocas secciones, solo para anunciar lo que hace la plataforma y beneficios para el negocio de los clientes. Es mi página del producto, enfócate en que sea atractivo para comprar». De tres propuestas de diseño eligió **«El Punto»**; la dirección visual completa —colores, tipografía, medidas, CSS y HTML del prototipo— vive en [`SITIO-WEB-DISENO.md`](SITIO-WEB-DISENO.md) y **este módulo no la repite**.
@@ -6241,6 +6387,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-11-22** — El panel gana margen, cierre estimado, punto de equilibrio, caducidad en dinero, cuatro avisos y la tarjeta «Control»: la tanda 1 de la revisión de indicadores para los videos de ventas — `topic_key: sellpoint/f10-kpi` — afecta: F10-KPI-01..18 (nuevas)
 - **2026-11-17** — 2FA con app, opcional para Administradores y obligatorio en el backoffice; cerrar una sesión puntual — `topic_key: sellpoint/f10-mfa` — afecta: F10-MFA-01..12, F10-SESS-01..03 (nuevas)
 - **2026-10-30 (✅ DECIDIDO, en F10-THEME-05 — QUINCE TEMAS: SELLPOINTY CLARO Y EL ORDEN DEL SELECTOR)** — Carlos pidió un tema con el menú de SellPointy y todo lo demás de Claro: «SellPointy Claro» / «SellPointy Light» (id `sellpointy-light`, cabe justo en `VARCHAR(16)`); el bloque es Claro con las fichas del menú de la marca, y `themes.test.ts` compara cada mitad con su original. SellPointy pasa a llamarse «SellPointy Clásico» / «SellPointy Classic» con el mismo id, y el selector queda en el orden de Carlos: Claro, Oscuro, los dos SellPointy, Arena… y Cabina al final — `topic_key: sellpoint/temas-piel-por-componente` — afecta: F10-THEME-05 (mod)
 - **2026-10-30 (✅ HECHO — EL CÓDIGO DE BARRAS SE VALIDA Y TODA ALTA APORTA AL CATÁLOGO COMPARTIDO)** — El 7503010020615 de un cliente no le aparecía a otro negocio porque solo la Carga rápida aportaba (de 751 códigos válidos de esa farmacia, 2 llegaron), y el mismo negocio tenía «CUBREADULTOAZUL» como código de barras. Carlos eligió las tres partes: aportan también Nuevo producto, la edición, las presentaciones e Importar (solo la unidad base, con el nombre del producto); el código se valida al guardarlo (6 a 14 dígitos y dígito verificador, UPC-E incluido), solo si cambia, para no castigar los 34 códigos con letras que ya existen; y se rellena una vez el catálogo con los ~707 códigos que ya estaban en producción. Los términos T6/P6 ya lo cubrían — `topic_key: sellpoint/catalogo-global-aportes` — afecta: F10-QUICKCAT-05 (mod)
