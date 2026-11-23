@@ -138,6 +138,7 @@ model Tenant {
   stock             StockByWarehouse[]
   services          Service[]
   cashboxSessions   CashboxSession[]
+  cashMovements     CashMovement[]
   sales             Sale[]
   saleItems         SaleItem[]
   quotes            Quote[]
@@ -275,6 +276,8 @@ model User {
   documentsCanceled        InventoryDocument[]      @relation("DocumentCanceledBy")
   cashboxOpened            CashboxSession[]         @relation("CashboxOpenedBy")
   cashboxClosed            CashboxSession[]         @relation("CashboxClosedBy")
+  cashMovementsCreated     CashMovement[]           @relation("CashMovementCreatedBy")
+  cashMovementsCanceled    CashMovement[]           @relation("CashMovementCanceledBy")
   salesCreated             Sale[]                   @relation("SaleCreatedBy")
   salesCanceled            Sale[]                   @relation("SaleCanceledBy")
   quotesCreated            Quote[]                  @relation("QuoteCreatedBy")
@@ -1510,17 +1513,82 @@ model CashboxSession {
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant    Tenant    @relation(fields: [tenantId], references: [id])
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  opener    User      @relation("CashboxOpenedBy", fields: [openedBy], references: [id])
-  closer    User?     @relation("CashboxClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
-  sales     Sale[]
-  expenses  Expense[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  warehouse     Warehouse      @relation(fields: [warehouseId], references: [id])
+  opener        User           @relation("CashboxOpenedBy", fields: [openedBy], references: [id])
+  closer        User?          @relation("CashboxClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
+  sales         Sale[]
+  expenses      Expense[]
+  cashMovements CashMovement[]
 
   @@unique([tenantId, folio])
   @@index([tenantId])
   @@index([tenantId, warehouseId, openedAt(sort: Desc)], map: "cashbox_sessions_tenant_warehouse_opened_idx")
   @@map("cashbox_sessions")
+}
+
+/// F10-CASHMOV-01 — hacia dónde va el efectivo: `in` entra al cajón y `out`
+/// sale. El importe siempre es positivo; la dirección la dice el tipo.
+enum CashMovementType {
+  in
+  out
+}
+
+/// F10-CASHMOV-01 — por qué se movió el efectivo. `change_fund` («Fondo para
+/// cambio») solo con `in`; `safe` («A la caja fuerte»), `bank_deposit`
+/// («Depósito al banco») y `owner` («Retiro del dueño») solo con `out`;
+/// `other` («Otro») con los dos y con nota obligatoria. Lo cuida un CHECK.
+enum CashMovementReason {
+  change_fund
+  safe
+  bank_deposit
+  owner
+  other
+}
+
+/// F10-CASHMOV-01 — un movimiento se anula, nunca se borra.
+enum CashMovementStatus {
+  active
+  canceled
+}
+
+/// F10-CASHMOV-01 — una ENTRADA o un RETIRO de efectivo dentro de un turno:
+/// el fondo que se trae para dar cambio, el efectivo que se lleva a la caja
+/// fuerte o al banco, lo que se lleva el dueño. **No es un gasto**: no toca la
+/// utilidad ni el reporte de Gastos; solo cambia el efectivo esperado del
+/// turno al que pertenece.
+///
+/// No lleva sucursal propia: la hereda del turno, que es quien la fija.
+/// `authorized` dice si el alta pasó por el código de autorización del
+/// negocio. Un movimiento se ANULA con quién, cuándo y por qué, mientras el
+/// turno está abierto; la fila se queda.
+///
+/// CHECKs (en la migración): amount > 0; el motivo corresponde al tipo;
+/// `other` exige una nota que no esté en blanco; anulado ⇔ (canceled_at ∧
+/// canceled_by ∧ cancel_reason no en blanco), y activo sin ninguno de los tres.
+model CashMovement {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
+  cashboxSessionId String             @map("cashbox_session_id") @db.Uuid
+  type             CashMovementType
+  reason           CashMovementReason
+  amount           Decimal            @db.Decimal(14, 2)
+  note             String?            @db.VarChar(300)
+  authorized       Boolean            @default(false)
+  status           CashMovementStatus @default(active)
+  createdBy        String             @map("created_by") @db.Uuid
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  canceledBy       String?            @map("canceled_by") @db.Uuid
+  canceledAt       DateTime?          @map("canceled_at") @db.Timestamptz(6)
+  cancelReason     String?            @map("cancel_reason")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id])
+  cashboxSession CashboxSession @relation(fields: [cashboxSessionId], references: [id], onDelete: Restrict)
+  creator        User           @relation("CashMovementCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  canceler       User?          @relation("CashMovementCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, cashboxSessionId])
+  @@map("cash_movements")
 }
 
 /// La VENTA. Su folio sale de la serie `VTA` del tenant, igual que `ENT`/`SAL`

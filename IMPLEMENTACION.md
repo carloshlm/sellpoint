@@ -6192,11 +6192,22 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-CASHMOV-API — El dato y la cuenta
 
-- [ ] **F10-CASHMOV-01** — Migración: la tabla `cash_movements`
+- [x] **F10-CASHMOV-01** *(cerrada el 2026-11-23)* — Migración: la tabla `cash_movements`
   - **Por qué:** sin un lugar donde guardar el retiro, la única salida del cajón es un gasto.
   - **Salida:** modelo `CashMovement` con `id`, `tenantId`, `cashboxSessionId` (FK, `onDelete: Restrict`), `type` (enum `CashMovementType`: `in`, `out`), `reason` (enum `CashMovementReason`: `change_fund`, `safe`, `bank_deposit`, `owner`, `other`), `amount` Decimal(14,2), `note`, `authorized` (boolean: si pasó por el código), `status` (`active`, `canceled`), `createdBy`, `createdAt`, `canceledBy`, `canceledAt` y `cancelReason`. CHECK en la base: `amount > 0`; el motivo corresponde al tipo (`change_fund` solo con `in`; `safe`, `bank_deposit` y `owner` solo con `out`; `other` con los dos); `other` exige nota; y una anulación coherente (anulado ⇔ `canceledAt`, `canceledBy` y `cancelReason`), como `cashbox_sessions_closed_coherent`. Índices por `(tenant_id, cashbox_session_id)`. Políticas RLS como las del turno. Migración `<YYYYMMDDHHMMSS>_f10_cashmov_cash_movements`.
   - **Verificar:** spec de RLS (como `f4-pos-rls.integration.spec.ts`): un negocio no ve ni escribe los movimientos de otro. Una spec de los CHECK: cada combinación inválida rebota en la base. Además, `prisma migrate deploy` sobre una copia de `sellpoint_dev` con la cuenta de filas de las tablas existentes antes y después, que debe ser idéntica.
   - **Depende de:** nada · **Estimación:** 3 h · **Riesgo:** puntos 1 y 2
+  - **Cerrado (2026-11-23):** migración `20261123100000_f10_cashmov_cash_movements`.
+    - **Modelo:** tres enums nuevos, `CashMovementType`, `CashMovementReason` y `CashMovementStatus`. Ningún enum existente tenía exactamente `active` y `canceled`; Gastos usa VARCHAR con CHECK.
+    - **Columnas:** `note` es VARCHAR(300), como `Expense.description`, y `cancel_reason` es TEXT. No hay `updated_at`: un movimiento solo cambia al anularse, y eso lo dice `canceled_at`.
+    - **Restricciones:** los cuatro CHECK, con nombre. La anulación también rechaza un motivo en blanco. Todas las llaves foráneas son RESTRICT, como las de Gastos.
+    - **RLS:** ENABLE y FORCE con `tenant_isolation`, el mismo bloque DO del turno y de Gastos.
+    - **Purga:** `purge_tenant()`, el teardown de los e2e y los guiones `purge-tenants*.sql` encuentran las tablas solas, por su columna `tenant_id`, así que ninguna lista cambió. Ni el turno ni Gastos tienen disparador de retención, así que esta tabla tampoco.
+    - **Seguridad de la migración:** sobre una copia de `sellpoint_dev` (78 tablas, 981,589 filas), `migrate deploy` aplicó solo esta migración. Las otras 77 tablas quedaron con la misma cuenta y apareció `cash_movements` en 0. La copia se borró. `sellpoint_dev` quedó migrado: le faltaba también `20261117100000_f4_ticket_show_item_counts`.
+    - **Pruebas nuevas:** `f10-cashmov-rls.integration.spec.ts` (7) y `cash-movements-schema.integration.spec.ts` (31), que incluye la purga de un negocio de prueba con movimientos activos y anulados.
+    - **Rojo observado:** 38 de 38, primero sin el cliente y luego sin la tabla.
+    - **Mutantes cazados (6), sobre la migración real reaplicada:** sin el CHECK del importe; `change_fund` permitido con `out`; «Otro» con una nota en blanco; un activo con sellos de anulación; sin RLS; la llave del turno en CASCADE. Se restauró cada uno y se comprobó con `cmp`.
+    - **Suite del API:** 222 archivos y 2,140 pruebas en verde, con `typecheck:full`.
 - [ ] **F10-CASHMOV-02** — API: registrar y anular un movimiento
   - **Por qué:** es el botón que le falta al cajero.
   - **Salida:**
