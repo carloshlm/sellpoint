@@ -6323,7 +6323,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **La lista:** cada fila gana `cashIn` y `cashOut` al final, con `movimientosPorSesion` en el mismo `Promise.all` que los gastos. Es una consulta por página, nunca una por fila, y lo prueba un `Proxy` que cuenta las llamadas.
     - **El detalle:** gana `cashIn`, `cashOut` y `movements`, del más viejo al más nuevo, con los anulados. Las sumas salen de la misma función que el arqueo, no de sumar la lista.
     - **El PDF:**
-      - en el desglose del esperado, «Entradas de efectivo» con «+» y «Retiros de efectivo» con «−», solo si son mayores que cero;
+      - en el desglose del esperado, «Entradas de efectivo» y «Retiros de efectivo», solo si son mayores que cero y sin signo, como los demás renglones del desglose del PDF;
       - después de los gastos del cajón, la lista de movimientos;
       - un anulado va tachado y dice «Anulado»; un retiro sin código dice «Sin código», aunque el negocio nunca haya tenido código, porque es literal.
     - **El Excel:** gana «Entradas de efectivo» y «Retiros de efectivo» al final, como números.
@@ -6356,13 +6356,36 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-CASHMOV-CIERRE — Verificación
 
-- [ ] **F10-CASHMOV-08** — Verificación integral y documentos
+- [x] **F10-CASHMOV-08** *(cerrada el 2026-11-23)* — Verificación integral y documentos
   - **Por qué:** es dinero del cajón: un esperado mal sumado acusa a un cajero honesto.
   - **Salida:**
     - **Pasada con Playwright:** el cajero abre turno, vende en efectivo, registra un retiro con código y una entrada, anula una, cierra y cuadra. El dueño ve el turno en «Cierres de turno», en el PDF, en el Excel y en «Control» sin faltante. Va en escritorio y móvil, en claro y oscuro, y con un negocio sin código de autorización.
     - **Documentos:** `ARQUITECTURA.md` («La caja»), `PLANES-Y-FUNCIONALIDADES.md` y `VISTAS.md` §9.4, donde la ruta dice `/pos/close-cashbox` y la real es `/pos/close`.
   - **Verificar:** las compuertas desde la raíz (`pnpm lint`, `pnpm typecheck:full`, `pnpm test`), `pnpm --filter api build`, `pnpm --filter api test:e2e` y `pnpm --filter manual test`; Carlos da el visto a la pantalla.
   - **Depende de:** F10-CASHMOV-01..07 · **Estimación:** 3 h
+  - **Cerrado (2026-11-23):**
+    - **Verificador independiente (sobre 61235eb4..e15155e6):** PASS en las siete especificaciones, sin bloqueantes.
+      - 41 comandos rechazados no cambiaron ni una fila de `cash_movements`, `cashbox_sessions` ni `audit_logs` (md5 y cuenta).
+      - Sin movimientos, lo de antes sale igual a la base: el cierre, los totales, el descuento y su bloqueo, «Control», `kpis`, y la lista, el detalle, el Excel y el PDF de los turnos. Solo se agregan campos y las dos columnas al final.
+      - En 34 carreras entre un movimiento y el cierre, lo guardado coincidió con el recálculo en SQL.
+      - Leer o anular por id lo de otro negocio da 404. El plan gratis funciona.
+    - **Pasada con Playwright en la demo del manual:**
+      - **El cajero:** venta en efectivo, retiro de $300 con código (`authorized` en verdadero), entrada de $200, retiro mayor que el cajón («…hay $768.50.»), anulación de la entrada con motivo y código, y una entrada con «Otro» que sin nota no se registra. El cierre desglosó +$100 y −$300, esperó $668.50 = 500 + 458.50 + 100 − 300 − 90 y cerró en «Cuadró». En `audit_logs` quedaron 3 altas y 1 anulación.
+      - **La dueña:** «Control» sin faltante y ningún aviso. «Cierres de turno» con las columnas y el detalle, el PDF con los movimientos y el Excel con las dos columnas al final.
+      - **Sin código:** después de «Quitar código», el retiro ya no pide el campo y el reporte y el PDF lo marcan «Sin código».
+      - **Tamaños y temas:** 1280 y 390, claro y oscuro, sin scroll horizontal, NaN ni claves crudas.
+    - **Capturas retomadas:** `cash-movement`, `close-shift`, `open-shift`, las cinco de venta, `quote-load`, `menu-phone`, `drawer-expense-close`, `discounts` y `reports-shifts`. Esta última pasó a 1720 de ancho, porque a 1600 «PDF» quedaba fuera de la vista.
+    - **Corregido aquí, cada uno con su prueba y su rojo observado:**
+      - el aviso «hay $…» de un retiro rechazado ya no se queda en el diálogo cuando cambian los movimientos, por ejemplo al anular uno;
+      - en «Cierres de turno», el signo de «Gastos en efectivo», «Entradas» y «Retiros» ya no se separa del importe a 1280, donde el «−» solo parecía el «—» de una celda vacía;
+      - la ayuda y el aviso de «Descuentos en caja» mencionan los retiros.
+    - **Compuertas desde la raíz:** `pnpm lint`, `pnpm typecheck:full`, `pnpm test`, `pnpm --filter api test:e2e` (105 archivos, 1,445 pruebas) y `pnpm build`, todo en verde. Después de los arreglos, otra vez la suite del web (2,543), `tsc -b` y la prueba del manual (78).
+    - **Avisos del verificador, sin corregir:**
+      - un movimiento que gana el candado puede quedar con hora posterior al cierre, porque `close()` toma la hora en JS antes de esperar; el dinero es correcto y el patrón ya existía con los gastos;
+      - un `code` mal formado en una entrada da 400 en lugar de ignorarse, y el web nunca lo manda;
+      - el campo del motivo de anulación no tiene `maxLength`, aunque el API responde con su mensaje;
+      - una venta en efectivo cancelada después de un retiro puede dejar el esperado negativo, porque la regla se revisa solo al retirar.
+    - **Carlos da el visto a la pantalla** cuando vuelva.
 
 **Orden de ejecución:** 01 → 02 y 03 (pueden ir en paralelo, sobre la misma tabla) → 04 → 05 → 06 → 07 → 08. Tres commits de riesgo van solos: 01, 02 y 03. Lo del cajero (02 a 05) se sube junto: un retiro registrado que el cierre no cuenta, o un cierre que lo cuenta sin un botón para registrarlo, confunde más que hoy.
 
