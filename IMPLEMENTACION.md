@@ -6147,9 +6147,150 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 **Qué videos destraba:** FIX, «Tu hora pico»; MES, «Lo que te queda después de pagar todo» y «¿Llegas a tu meta?»; CTRL, «¿Dónde se te va el dinero?»; CAD refuerza «Que nada se te caduque».
 
-**Pospuestos con nombre:** el negocio de demostración con dos o tres meses de historia para grabar (va antes de los videos y no es parte del panel); la tanda 2 de reportes (ventas por vendedor, estado de resultados, sin movimiento, sugerido de compra, merma y pérdidas, días y horas fuertes, comparativo de sucursales, rentabilidad por producto); las funcionalidades que piden datos nuevos (categoría del producto, resumen diario por correo, entradas y retiros de efectivo en el turno, cliente en la venta, fiado); gastos recurrentes (sin ellos, el punto de equilibrio depende de que alguien capture la renta); quién autorizó cada descuento (hoy es un solo código del negocio); umbrales de los avisos configurables por negocio; el cierre estimado afinado por día de la semana; y traducir los encabezados del Excel de ventas, que hoy van fijos en español.
+**Pospuestos con nombre:** el negocio de demostración con dos o tres meses de historia para grabar (va antes de los videos y no es parte del panel); la tanda 2 de reportes (ventas por vendedor, estado de resultados, sin movimiento, sugerido de compra, merma y pérdidas, días y horas fuertes, comparativo de sucursales, rentabilidad por producto); las funcionalidades que piden datos nuevos (categoría del producto, resumen diario por correo, entradas y retiros de efectivo en el turno (atomizado el 2026-11-23 como F10-CASHMOV), cliente en la venta, fiado); gastos recurrentes (sin ellos, el punto de equilibrio depende de que alguien capture la renta); quién autorizó cada descuento (hoy es un solo código del negocio); umbrales de los avisos configurables por negocio; el cierre estimado afinado por día de la semana; y traducir los encabezados del Excel de ventas, que hoy van fijos en español.
 
 **≈51 h**
+
+### Módulo F10-CASHMOV — Entradas y retiros de efectivo en el turno (atomizado el 2026-11-23)
+
+> Carlos (2026-11-23), después de subir F10-KPI: «sí, atomiza los retiros de efectivo». Es el punto 3 de las funcionalidades nuevas de la revisión de indicadores (`tmp/docs/indicadores-y-reportes-recomendaciones.md`, fuera de git), adelantado porque la tarjeta «Control» y el aviso de faltante de caja ya están en producción: hoy del cajón solo salen gastos, así que **un retiro legítimo, por ejemplo el efectivo que se lleva a la caja fuerte, aparece como faltante** en el arqueo, en «Cierres de turno», en «Control» y en el aviso. Mientras eso pase, el dueño no le va a creer al número.
+>
+> **Lo que ya existe (verificado en el código el 2026-11-23):**
+> - El turno es `CashboxSession` (`schema.prisma:1484`), con `openingCash`, `declaredCash`, `calculatedCash` y `cashDifference` (declarado − calculado). Las dos últimas se GUARDAN al cerrar y no se vuelven a calcular. Hay un solo turno abierto por usuario (UNIQUE parcial en la migración).
+> - El efectivo esperado se calcula en UN lugar, `efectivoEsperado({ fondo, ventas, gastos })` (`pos/cashbox-expenses.ts:128`): fondo + ventas cobradas en efectivo (`cashbox-totals.ts`, sin canceladas) − gastos en efectivo pagados y activos ligados por `Expense.cashboxSessionId`. Lo usan `CashboxService.arqueo` y `close()` (`cashbox.service.ts:158` y `:202`).
+> - `close()` aparta el turno con `updateMany WHERE status = 'open'`. Un gasto se liga al turno con `FOR UPDATE` sobre su fila (`expenses.service.ts:590-607`): solo el turno propio, abierto y de la misma sucursal.
+> - El punto de venta no importa `ExpensesModule`, porque ese módulo tiene candado de plan. Lee la tabla de gastos con un `Pick<TransactionClient, "expense">` (`cashbox-expenses.ts:38-46`).
+> - Endpoints del turno: `GET/POST /pos/session`, `GET /pos/session/totals`, `POST /pos/session/close` y el PDF, todos con `pos:sell`. Abrir y cerrar llevan `@AllowedInFreeTier`. El Cajero (`POS_SELLER_CODES`, `tenants/role-catalog.ts:124`) solo tiene `pos:sell`, `pos:quote`, `pos:view` y la lectura de productos y servicios.
+> - El código de autorización del negocio (`Tenant.discountCodeHash`) ya existe. Hoy autoriza el descuento en `SalesService.autorizarDescuento` (`sales.service.ts:129`), con un tope de intentos en Redis. El punto de venta sabe si está configurado por `user.tenant.discountCodeSetAt` (`checkout-panel.tsx:86`) y lo llama «Código de autorización». Lo define el administrador en Mi perfil (`profile/discount-settings.tsx`).
+> - Leen el arqueo guardado: «Cierres de turno» (`reports/shifts-report.service.ts`), su Excel (`shifts-export.service.ts`, con encabezados fijos en español), el PDF del turno (`shift-pdf.service.ts` y `shift-pdf.renderer.ts`), «Control» (`dashboard-control.service.ts:95`), `kpis.attention.shiftShortages` (`dashboard-kpis.service.ts:337`) y el espejo del backoffice (`admin/admin-tenants.controller.ts:284`).
+> - `AuditService.record(tx, …)` existe y Gastos lo usa. Abrir y cerrar turno no dejan rastro.
+> - El punto de venta no funciona sin red: no hay cola ni outbox, y el service worker nunca guarda el API (`lib/pwa/pwa-contract.test.ts`).
+>
+> **Lo que NO existe:** una tabla de movimientos de efectivo; una forma de sacar o meter efectivo que no sea un gasto (y el gasto pide el módulo de Gastos y `expenses:manage`, que el Cajero no tiene); y un rastro de auditoría del turno.
+>
+> **Decisiones de producto** (propuestas por Claude el 2026-11-23; confirmadas por Carlos el mismo día: «si, implementalo como lo recomiendes y sube a producción sin preguntarme nada»):
+> 1. Un movimiento es una **entrada** o un **retiro** de efectivo. Lleva importe, un motivo de una lista y una nota opcional. Motivos de una entrada: «Fondo para cambio» y «Otro». Motivos de un retiro: «A la caja fuerte», «Depósito al banco», «Retiro del dueño» y «Otro». Con «Otro», la nota es obligatoria.
+> 2. **Un movimiento no es un gasto:** no toca la utilidad ni el reporte de Gastos. Pagarle a un proveedor con dinero del cajón sigue siendo un Gasto, si el negocio tiene el módulo.
+> 3. Lo registra **quien tiene el turno abierto, en su propio turno**, con `pos:sell`, así que el Cajero también puede. Para un retiro que hace el encargado, el cajero lo registra y el encargado escribe el código.
+> 4. **El retiro pide el código de autorización del negocio, si el negocio lo tiene.** Es el mismo código del descuento y comparte su tope de intentos. Sin código configurado, el retiro pasa y queda registrado quién lo hizo. La entrada no pide código.
+> 5. Un retiro no puede dejar el efectivo esperado por debajo de cero. Así un dedazo (10,000 por 1,000) no pasa sin que nadie lo vea.
+> 6. Un movimiento se **anula** mientras el turno está abierto, con motivo, y nunca se borra. Anular una entrada pide el código, igual que un retiro, porque las dos cosas bajan el efectivo esperado. Con el turno cerrado, ya no se toca.
+> 7. Sin candado de plan: sigue la regla del turno, que existe en todos los planes y también donde hoy se abre y cierra con `@AllowedInFreeTier`.
+>
+> **Decisiones de arquitectura:**
+> 1. Una tabla nueva, `cash_movements`, con RLS como las demás. **No se modifica ninguna fila existente.** Los turnos ya cerrados no cambian, porque su `calculated_cash` está guardado y no tenían movimientos.
+> 2. La fórmula sigue viviendo SOLO en `efectivoEsperado`, que gana `entradas` y `retiros` como argumentos con nombre: fondo + ventas + entradas − retiros − gastos. Ningún reporte la repite.
+> 3. El punto de venta lee los movimientos con un ayudante `Pick<TransactionClient, "cashMovement">`, como lee los gastos. Los reportes usan el mismo ayudante.
+> 4. Registrar o anular toma la fila del turno con `FOR UPDATE`, como lo hace Gastos, para que un movimiento no se cuele mientras el turno se cierra.
+> 5. Cada alta y cada anulación quedan en `audit_logs`.
+> 6. La verificación del código sale de `SalesService` a un ayudante compartido del punto de venta. El descuento se sigue comportando igual, y eso lo prueba su e2e sin tocarlo.
+> 7. Todo campo nuevo en las respuestas va al final y el web lo trata como opcional: durante un deploy, un web nuevo puede hablar con un API anterior. El dinero viaja como string.
+>
+> **Regla:** cada tarea que cambia una pantalla corrige su capítulo del manual y retoma su captura (skill sellpoint-manual), y actualiza `VISTAS.md` donde describa lo que cambió, en el MISMO commit. El capítulo es el 5 (`02-sell/05-cash-shift.md`) y gana una sección: un capítulo nuevo obligaría a renumerar todos los que siguen.
+>
+> **Riesgo:** F10-CASHMOV-01..03 tocan tres puntos de la lista de alto riesgo. El 1 por una migración con tabla nueva. El 2 por RLS y la verificación del código. El 4 por la concurrencia con el cierre. Cada una lleva su verificador independiente y su propio commit. Las demás solo leen o pintan.
+
+#### F10-CASHMOV-API — El dato y la cuenta
+
+- [ ] **F10-CASHMOV-01** — Migración: la tabla `cash_movements`
+  - **Por qué:** sin un lugar donde guardar el retiro, la única salida del cajón es un gasto.
+  - **Salida:** modelo `CashMovement` con `id`, `tenantId`, `cashboxSessionId` (FK, `onDelete: Restrict`), `type` (enum `CashMovementType`: `in`, `out`), `reason` (enum `CashMovementReason`: `change_fund`, `safe`, `bank_deposit`, `owner`, `other`), `amount` Decimal(14,2), `note`, `authorized` (boolean: si pasó por el código), `status` (`active`, `canceled`), `createdBy`, `createdAt`, `canceledBy`, `canceledAt` y `cancelReason`. CHECK en la base: `amount > 0`; el motivo corresponde al tipo (`change_fund` solo con `in`; `safe`, `bank_deposit` y `owner` solo con `out`; `other` con los dos); `other` exige nota; y una anulación coherente (anulado ⇔ `canceledAt`, `canceledBy` y `cancelReason`), como `cashbox_sessions_closed_coherent`. Índices por `(tenant_id, cashbox_session_id)`. Políticas RLS como las del turno. Migración `<YYYYMMDDHHMMSS>_f10_cashmov_cash_movements`.
+  - **Verificar:** spec de RLS (como `f4-pos-rls.integration.spec.ts`): un negocio no ve ni escribe los movimientos de otro. Una spec de los CHECK: cada combinación inválida rebota en la base. Además, `prisma migrate deploy` sobre una copia de `sellpoint_dev` con la cuenta de filas de las tablas existentes antes y después, que debe ser idéntica.
+  - **Depende de:** nada · **Estimación:** 3 h · **Riesgo:** puntos 1 y 2
+- [ ] **F10-CASHMOV-02** — API: registrar y anular un movimiento
+  - **Por qué:** es el botón que le falta al cajero.
+  - **Salida:**
+    - **Endpoints**, con `pos:sell` y `@AllowedInFreeTier`: `POST /pos/session/movements` (`{ type, reason, amount, note?, code? }`), `GET /pos/session/movements` (los del turno abierto propio, del más nuevo al más viejo, con quién los registró) y `POST /pos/session/movements/:id/cancel` (`{ reason, code? }`).
+    - **Reglas:** turno propio y abierto (`pos.no_session`), con la fila del turno tomada con `FOR UPDATE`. Un importe con dos decimales, con el tope que ya usa el fondo inicial. El motivo debe corresponder al tipo. Un retiro, o la anulación de una entrada, pide el código si `discountCodeHash` existe y no puede dejar el esperado debajo de cero (`pos.cash_out_exceeds_drawer`, que dice cuánto hay). Un movimiento ya anulado o de un turno cerrado no se anula.
+    - **El código:** su verificación sale de `SalesService.autorizarDescuento` a un ayudante del punto de venta que comparte la llave de intentos y el bloqueo.
+    - **Rastro:** `AuditService.record` en el alta y en la anulación.
+    - **Mensajes:** es/en en `apps/api/src/i18n/*/pos.json`.
+  - **Verificar:**
+    - **Integration spec del servicio:** el cajero registra en su turno y no en el de otro; un turno cerrado rebota; el motivo cruzado rebota; el retiro sin código rebota cuando el negocio lo tiene y pasa cuando no lo tiene; el código equivocado suma un intento y, con el tope, bloquea también el descuento; el retiro mayor que el esperado rebota; anular deja la fila y su rastro.
+    - **Concurrencia:** un movimiento y un cierre al mismo tiempo, o entra antes del cierre y cuenta, o rebota.
+    - **e2e** en `pos-cashbox.e2e-spec.ts`: 403 sin `pos:sell` y la forma de la respuesta. El e2e del descuento sigue en verde sin tocarlo.
+    - **Diferencial:** las specs del descuento corridas contra la base y contra el cambio.
+  - **Depende de:** F10-CASHMOV-01 · **Estimación:** 4.5 h · **Riesgo:** puntos 2 y 4
+- [ ] **F10-CASHMOV-03** — API: el arqueo cuenta las entradas y los retiros
+  - **Por qué:** registrar el retiro no sirve si el cierre lo sigue llamando faltante.
+  - **Salida:**
+    - **La fórmula:** `efectivoEsperado` gana `entradas` y `retiros`. Un ayudante `movimientosPorSesion(tx, sessionIds)` suma los activos por tipo.
+    - **Respuestas:** `SessionArqueo`, `GET /pos/session/totals` (también su respuesta sin turno, `pos.controller.ts:140`) y lo que devuelve el cierre ganan `cashIn` y `cashOut`, al final.
+    - **El cierre:** `close()` guarda `calculatedCash` y `cashDifference` con la fórmula nueva.
+    - **El resto, sin cambios:** «Control», el aviso y los reportes leen lo guardado, así que con esto ya dicen la verdad para los turnos nuevos.
+  - **Verificar:**
+    - **Unit de `efectivoEsperado`:** el caso de siempre al centavo, con entradas y retiros en `"0"`.
+    - **Integration del turno:** un retiro de 2,000 a la caja fuerte con 2,000 menos en el cajón cierra en «Cuadró», no en faltante. Un movimiento anulado no cuenta. Uno de otro turno no cuenta.
+    - **Lo que se apoya en el arqueo:** con el retiro, «Control» y `attention.shiftShortages` dan cero.
+    - **Diferencial:** las specs del turno, de «Control» y de `kpis` contra la base, iguales sin movimientos.
+    - **Contrapruebas por mutación:** el retiro que suma; el anulado que cuenta.
+  - **Depende de:** F10-CASHMOV-01 · **Estimación:** 3 h · **Riesgo:** punto 1, porque cambia lo que se guarda al cerrar · **No subir sin F10-CASHMOV-02 y 04**
+
+#### F10-CASHMOV-POS — El cajero lo registra
+
+- [ ] **F10-CASHMOV-04** — Web: «Entrada o retiro» en el punto de venta
+  - **Por qué:** el cajero tiene que poder registrar el retiro en el momento, sin salir de la venta.
+  - **Salida:**
+    - **Dónde:** en `session-bar.tsx`, un botón «Efectivo» que abre un diálogo (skill sellpoint-forms).
+    - **El diálogo:** Entrada o Retiro, importe y motivo (la lista cambia con el tipo). La nota es obligatoria con «Otro». El campo «Código de autorización» aparece en un retiro solo si `discountCodeSetAt` existe.
+    - **El listado:** abajo, los movimientos del turno con «Anular», que pide un motivo y, si hace falta, el código. Los errores del API se dicen con sus palabras.
+    - **Tipos y textos:** `lib/pos/api.ts` y `hooks.ts`; textos es/en en `pos.json`.
+    - **Documentos:** el capítulo 5 gana la sección «Entradas y retiros de efectivo», con la captura nueva `cash-movement`. El capítulo 10 dice cuándo es Gasto y cuándo es retiro. `VISTAS.md` §9.4.
+  - **Verificar:** prueba del diálogo: el motivo cambia con el tipo; la nota con «Otro»; el código solo en el retiro y solo con código configurado; el alta refresca los totales del turno; anular. Además, `pnpm --filter manual test`.
+  - **Depende de:** F10-CASHMOV-02 · **Estimación:** 4 h
+- [ ] **F10-CASHMOV-05** — Web: el cierre y el panel del vendedor dicen entradas y retiros
+  - **Por qué:** el cajero cuenta el cajón contra un esperado que tiene que poder explicar.
+  - **Salida:**
+    - **El cierre:** en `close-session.tsx`, el desglose del esperado gana «Entradas de efectivo» y «Retiros de efectivo» entre las ventas y los gastos. Solo aparecen si hay movimientos.
+    - **El panel del vendedor:** también lee `cashIn` y `cashOut` como opcionales. Un API anterior lo deja como hoy.
+    - **Documentos:** capítulo 5 con la captura `close-shift` retomada; capítulo 11 si cambia lo que se ve.
+  - **Verificar:** `close-session.test.tsx` (con y sin movimientos, y con un API anterior) y `dashboard-seller.test.tsx`.
+  - **Depende de:** F10-CASHMOV-03, F10-CASHMOV-04 · **Estimación:** 2 h
+
+#### F10-CASHMOV-REP — El dueño lo ve
+
+- [ ] **F10-CASHMOV-06** — API: «Cierres de turno», su detalle, su PDF y su Excel con los movimientos
+  - **Por qué:** el dueño tiene que poder ver quién sacó qué, cuándo y por qué, sobre todo si el retiro pasó sin código.
+  - **Salida:**
+    - **«Cierres de turno»:** cada fila gana `cashIn` y `cashOut` al final.
+    - **El detalle:** gana `movements` (tipo, motivo, importe, nota, quién y cuándo, si pasó por el código, y la anulación con su motivo).
+    - **El PDF:** gana los dos renglones en el desglose del esperado y la lista de movimientos, como hoy lista los gastos del cajón.
+    - **El Excel:** agrega «Entradas de efectivo» y «Retiros de efectivo» AL FINAL. Las columnas de hoy no se mueven.
+    - **Lo que no cambia:** el espejo del backoffice hereda los servicios. Los textos del PDF van en `pdf.json` es/en.
+  - **Verificar:** `shifts-report.service.integration.spec.ts` (los campos y el detalle, con el anulado marcado), la spec del export (las columnas de hoy, en su orden) y la del PDF. e2e en `reports-shifts` y `admin-tenants`.
+  - **Depende de:** F10-CASHMOV-03 · **Estimación:** 3.5 h
+- [ ] **F10-CASHMOV-07** — Web: «Cierres de turno» enseña entradas, retiros y la lista de movimientos
+  - **Por qué:** es la pantalla a la que lleva el contador de faltantes de «Control».
+  - **Salida:**
+    - **El listado y el detalle:** `shifts-report.tsx` gana las dos columnas (skill sellpoint-tables). El detalle del turno enseña los movimientos; uno anulado se ve tachado y uno sin código, marcado.
+    - **Tipos y textos:** campos opcionales en `lib/reports/api.ts`; textos es/en en `reports.json`.
+    - **Documentos:** capítulo 31 con la captura `reports-shifts`; `VISTAS.md` §10.
+  - **Verificar:** `routes/reports-screens.test.tsx` (las columnas, el detalle, el anulado y un API anterior) y `pnpm --filter manual test`.
+  - **Depende de:** F10-CASHMOV-06 · **Estimación:** 2.5 h
+
+#### F10-CASHMOV-CIERRE — Verificación
+
+- [ ] **F10-CASHMOV-08** — Verificación integral y documentos
+  - **Por qué:** es dinero del cajón: un esperado mal sumado acusa a un cajero honesto.
+  - **Salida:**
+    - **Pasada con Playwright:** el cajero abre turno, vende en efectivo, registra un retiro con código y una entrada, anula una, cierra y cuadra. El dueño ve el turno en «Cierres de turno», en el PDF, en el Excel y en «Control» sin faltante. Va en escritorio y móvil, en claro y oscuro, y con un negocio sin código de autorización.
+    - **Documentos:** `ARQUITECTURA.md` («La caja»), `PLANES-Y-FUNCIONALIDADES.md` y `VISTAS.md` §9.4, donde la ruta dice `/pos/close-cashbox` y la real es `/pos/close`.
+  - **Verificar:** las compuertas desde la raíz (`pnpm lint`, `pnpm typecheck:full`, `pnpm test`), `pnpm --filter api build`, `pnpm --filter api test:e2e` y `pnpm --filter manual test`; Carlos da el visto a la pantalla.
+  - **Depende de:** F10-CASHMOV-01..07 · **Estimación:** 3 h
+
+**Orden de ejecución:** 01 → 02 y 03 (pueden ir en paralelo, sobre la misma tabla) → 04 → 05 → 06 → 07 → 08. Tres commits de riesgo van solos: 01, 02 y 03. Lo del cajero (02 a 05) se sube junto: un retiro registrado que el cierre no cuenta, o un cierre que lo cuenta sin un botón para registrarlo, confunde más que hoy.
+
+**Qué videos destraba:** «¿Dónde se te va el dinero?», porque el faltante de «Control» ya no incluye los retiros legítimos.
+
+**Pospuestos con nombre:**
+- el comprobante impreso del retiro, para la bolsa de la caja fuerte;
+- que el encargado retire del cajón de otro sin entrar a su sesión;
+- conciliar la caja fuerte (lo que entró contra lo que se depositó);
+- saber quién autorizó cada retiro (hoy el código es uno solo para todo el negocio);
+- los retiros en la tarjeta «Control»;
+- un rastro de auditoría de abrir y cerrar turno.
+
+**≈25.5 h**
 
 ### Módulo F11-SITE — El sitio público de sellpointy.com (atomizado el 2026-09-18)
 
@@ -6405,6 +6546,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-11-23** — Se atomiza F10-CASHMOV, entradas y retiros de efectivo en el turno. Se adelanta porque «Control» y el aviso de faltante ya están en producción y hoy un retiro legítimo se ve como faltante. Carlos confirma las siete decisiones de producto y autoriza implementarlo y subirlo sin preguntar — `topic_key: sellpoint/f10-cashmov` — afecta: F10-CASHMOV-01..08 (nuevas)
 - **2026-11-23** — Carlos confirma las seis decisiones de producto de F10-KPI: cinco mosaicos, punto de equilibrio como avance, cierre estimado con días cerrados, ocho avisos con tope de cuatro, «Control» por periodo y sin compensar, y sin candado de plan — `topic_key: sellpoint/f10-kpi` — afecta: F10-KPI-01..18
 - **2026-11-22** — El panel gana margen, cierre estimado, punto de equilibrio, caducidad en dinero, cuatro avisos y la tarjeta «Control»: la tanda 1 de la revisión de indicadores para los videos de ventas — `topic_key: sellpoint/f10-kpi` — afecta: F10-KPI-01..18 (nuevas)
 - **2026-11-17** — 2FA con app, opcional para Administradores y obligatorio en el backoffice; cerrar una sesión puntual — `topic_key: sellpoint/f10-mfa` — afecta: F10-MFA-01..12, F10-SESS-01..03 (nuevas)
