@@ -337,6 +337,11 @@ describe("la lista de movimientos y anular", () => {
     expect(within(confirmar).queryByLabelText("Código de autorización")).not.toBeInTheDocument();
     const boton = within(confirmar).getByRole("button", { name: "Anular el movimiento" });
     expect(boton).toBeDisabled();
+    // F10-PEND-04: el mismo tope que el API (300), como la nota.
+    expect(within(confirmar).getByLabelText("Por qué se anula")).toHaveAttribute(
+      "maxLength",
+      "300",
+    );
 
     await user.type(within(confirmar).getByLabelText("Por qué se anula"), "Se registró dos veces");
     expect(boton).toBeEnabled();

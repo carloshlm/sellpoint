@@ -32,7 +32,7 @@ const REASONS: Record<CashMovementType, readonly CashMovementReason[]> = {
 
 const TYPES: readonly CashMovementType[] = ["in", "out"];
 
-/** El largo de la columna `note` (VARCHAR(300)): más que eso, la base lo rechaza. */
+/** El largo de la nota y del motivo de anulación (VARCHAR(300)): el API rechaza más. */
 const NOTE_MAX = 300;
 
 /** El motivo de una anulación, como el de una venta: decirlo antes del clic. */
@@ -392,6 +392,7 @@ function MovementRow({ movimiento }: { movimiento: CashMovement }) {
           <TextField
             label={t("pos.cashMovement.cancelReason")}
             value={motivo}
+            maxLength={NOTE_MAX}
             placeholder={t("pos.cashMovement.cancelReasonPlaceholder")}
             onChange={(event) => setMotivo(event.target.value)}
           />
