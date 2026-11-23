@@ -29,8 +29,15 @@ import { useAuthStore } from "@/stores/auth.store";
  * el resumen del filtro en su propia consulta; los anulados se ven marcados.
  * El cargando y el error van DENTRO del JSX, no en un `return` temprano:
  * cambiar un filtro no puede borrar la barra que el usuario está tocando.
+ *
+ * F10-KPI-17: `initialPaymentStatus` llega de la URL (el aviso de gastos del
+ * panel) y es el valor INICIAL de «Pago», como el filtro de `/reports/stock`.
  */
-export function ExpensesList() {
+export function ExpensesList({
+  initialPaymentStatus,
+}: {
+  initialPaymentStatus?: ExpensePaymentStatus;
+} = {}) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
@@ -41,7 +48,7 @@ export function ExpensesList() {
   const [texto, setTexto] = useState("");
   const termino = useDebouncedValue(texto.trim());
   const [estado, setEstado] = useState<"todos" | ExpenseStatus>("todos");
-  const [pago, setPago] = useState<"todos" | ExpensePaymentStatus>("todos");
+  const [pago, setPago] = useState<"todos" | ExpensePaymentStatus>(initialPaymentStatus ?? "todos");
   const [categoria, setCategoria] = useState("");
   const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
   const [pagina, setPagina] = useState(1);

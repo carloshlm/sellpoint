@@ -23,6 +23,9 @@ Puedes **Buscar** por folio, descripción, referencia o proveedor, y filtrar por
 **Estado** (activo o anulado), por **Pago** (pendiente o pagado), por
 **Categoría** y por fechas. **Exportar** baja a Excel lo que estás viendo.
 
+Si llegas desde un aviso del panel («2 gastos vencidos sin pagar»), el listado
+abre con **Pago** en **Pendiente** (capítulo 30, «Avisos y próximos a vencer»).
+
 ## Registrar un gasto
 
 1. Presiona **Registrar gasto**.
@@ -62,8 +65,9 @@ En **Pago** eliges una de dos cosas:
   puedes indicar que salió de ese cajón: se resta del efectivo que el turno
   espera al cerrar (capítulo 10, «Gastos pagados desde el cajón»).
 - **Pendiente de pago**: la factura llegó pero todavía no la pagas. Escribe en
-  **Vence** la fecha límite, para no olvidarla. No puede ser anterior a la fecha
-  del gasto.
+  **Vence** la fecha límite, para no olvidarla: el panel te avisa desde siete
+  días antes y, si pasa sin pagarse, como vencido. No puede ser anterior a la
+  fecha del gasto.
 
 Cuando pagues uno pendiente, ábrelo con **Ver** y presiona **Marcar como
 pagado**. Elige el **Método de pago** y confirma: el gasto queda pagado completo,

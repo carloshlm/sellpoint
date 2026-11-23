@@ -98,6 +98,18 @@
     "outOfStock_one": "{{count}} producto agotado",
     "salesDown": "Ventas {{pct}}% abajo del mismo día de la semana pasada",
     "productUp": "{{name}} creció {{pct}}% sus ventas este mes",
-    "dominantMethod": "El {{pct}}% de tus ventas del mes es con {{method}}"
+    "dominantMethod": "El {{pct}}% de tus ventas del mes es con {{method}}",
+    "title": "Avisos",
+    "shiftShortage": "{{count}} turnos cerraron con faltante de {{amount}}",
+    "shiftShortage_one": "{{count}} turno cerró con faltante de {{amount}}",
+    "payablesOverdue": "{{count}} gastos vencidos sin pagar ({{amount}})",
+    "payablesOverdue_one": "{{count}} gasto vencido sin pagar ({{amount}})",
+    "payablesDueSoon": "{{count}} gastos vencen esta semana ({{amount}})",
+    "payablesDueSoon_one": "{{count}} gasto vence esta semana ({{amount}})",
+    "belowCost": "{{count}} productos se vendieron por debajo de su costo",
+    "belowCost_one": "{{count}} producto se vendió por debajo de su costo",
+    "uncosted": "{{count}} productos vendidos este mes no tienen costo: tu utilidad está incompleta",
+    "uncosted_one": "{{count}} producto vendido este mes no tiene costo: tu utilidad está incompleta",
+    "showMore": "Ver {{count}} más"
   }
 }

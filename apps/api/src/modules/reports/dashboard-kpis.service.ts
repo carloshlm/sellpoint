@@ -27,6 +27,39 @@ export interface DashboardBreakEven {
   remainingSales: string | null;
 }
 
+/**
+ * F10-KPI-16 — los gastos ACTIVOS por pagar que tienen fecha de vencimiento,
+ * por día del negocio (DATE con DATE, como `expenseDate`). Un gasto sin
+ * vencimiento no entra: no hay de qué avisar.
+ */
+export interface DashboardPayables {
+  /** Los que vencieron antes de hoy. */
+  overdueCount: number;
+  overdueAmount: string;
+  /** Los que vencen de hoy a siete días (los dos incluidos). */
+  dueSoonCount: number;
+  dueSoonAmount: string;
+}
+
+/** F10-KPI-16 — los turnos CERRADOS desde el inicio de ayer (hora local) con faltante. */
+export interface DashboardShiftShortages {
+  count: number;
+  /** Lo que faltó, en POSITIVO; un sobrante nunca lo compensa. */
+  amount: string;
+  /**
+   * Los días del negocio que cubre la cuenta (ayer y hoy), para que el aviso
+   * enlace a «Cierres de turno» con las mismas fechas sin repetir en el
+   * navegador la cuenta del calendario ni depender de su reloj.
+   */
+  range: { from: string; to: string };
+}
+
+/** F10-KPI-16 — lo que pide atención: los avisos del panel se componen de aquí. */
+export interface DashboardAttention {
+  payables: DashboardPayables;
+  shiftShortages: DashboardShiftShortages;
+}
+
 /** Los cuatro números de arriba del dashboard (F5-DASH-03). */
 export interface DashboardKpis {
   today: {
@@ -76,7 +109,11 @@ export interface DashboardKpis {
     marginPct: number | null;
     breakEven: DashboardBreakEven;
   };
+  attention: DashboardAttention;
 }
+
+/** El alcance por almacén, listo para un `where` de Prisma. */
+type Alcance = { warehouseId?: { in: string[] } };
 
 /** Lo que dejaron las líneas con costo congelado de un período. */
 interface LineasConCosto {
@@ -110,6 +147,13 @@ const DIAS_CERRADOS_MINIMOS = 3;
  *
  * El «ahora» viene de ClockPort (f1-auth §6): toda la matemática es relativa
  * a él y con reloj inyectado los bordes se fijan en tests de una vez.
+ *
+ * **Todo dentro de UNA transacción** (F10-KPI-16): antes cada consulta abría
+ * la suya, once a la vez por carga contra un pool de diez conexiones, y un e2e
+ * llegó a fallar con «Unable to start a transaction in the given time». La
+ * lectura del negocio (zona y meta) y las consultas van en secuencia sobre el
+ * mismo `tx`, como en «Control» (F10-KPI-14). No lee `user.userId`: el
+ * expediente del backoffice llega con un actor sintético.
  */
 @Injectable()
 export class DashboardKpisService {
@@ -119,7 +163,15 @@ export class DashboardKpisService {
   ) {}
 
   async kpis(user: AuthUser, scope: UserScope): Promise<DashboardKpis> {
-    const tenant = await this.prisma.tenant.findUnique({
+    return this.prisma.withTenantContext(user.tenantId, (tx) => this.calcular(tx, user, scope));
+  }
+
+  private async calcular(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    scope: UserScope,
+  ): Promise<DashboardKpis> {
+    const tenant = await tx.tenant.findUnique({
       where: { id: user.tenantId },
       select: { timezone: true, monthlySalesGoal: true },
     });
@@ -146,7 +198,7 @@ export class DashboardKpisService {
     // anteriores, días del negocio.
     const inicioUltimos30 = startOfDayUtc(sumarDias(hoy, -29), zona);
 
-    const alcance =
+    const alcance: Alcance =
       scope.warehouseIds === "all" ? {} : { warehouseId: { in: [...scope.warehouseIds] } };
     const base = { tenantId: user.tenantId, status: "completed" as const, ...alcance };
 
@@ -156,66 +208,73 @@ export class DashboardKpisService {
      * cerrados del 1 al 9 que le bajen el promedio.
      */
     const primeraVenta = async () => {
-      const agregado = await this.prisma.withTenantContext(user.tenantId, (tx) =>
-        tx.sale.aggregate({
-          where: { ...base, createdAt: { lt: ahora } },
-          _min: { createdAt: true },
-        }),
-      );
+      const agregado = await tx.sale.aggregate({
+        where: { ...base, createdAt: { lt: ahora } },
+        _min: { createdAt: true },
+      });
       return agregado._min.createdAt;
     };
 
     const suma = async (desde: Date, hasta: Date) => {
-      const agregado = await this.prisma.withTenantContext(user.tenantId, (tx) =>
-        tx.sale.aggregate({
-          where: { ...base, createdAt: { gte: desde, lt: hasta } },
-          _sum: { total: true },
-          _count: true,
-        }),
-      );
+      const agregado = await tx.sale.aggregate({
+        where: { ...base, createdAt: { gte: desde, lt: hasta } },
+        _sum: { total: true },
+        _count: true,
+      });
       return {
         total: agregado._sum.total ?? new Prisma.Decimal(0),
         tickets: agregado._count,
       };
     };
 
-    const [
-      diaHoy,
-      diaPasado,
-      mesActual,
-      mesPasado,
-      conCostoMes,
-      conCostoMesPasado,
-      gastos,
-      gastosPasados,
-      conCostoUltimos30,
-      utilidadPorDia,
-      primera,
-    ] = await Promise.all([
-      suma(inicioHoy, ahora),
-      suma(inicioMismoDiaPasado, haceUnaSemana),
-      suma(inicioMes, ahora),
-      suma(inicioMesAnterior, corteMesAnterior),
-      this.lineasConCosto(user.tenantId, alcance, inicioMes, ahora),
-      this.lineasConCosto(user.tenantId, alcance, inicioMesAnterior, corteMesAnterior),
-      // Los gastos van por DÍA del negocio (DATE con DATE): el corte corrido
-      // se traduce a los días locales de los dos instantes.
-      this.gastosDelMes(
-        user.tenantId,
-        alcance,
-        localCalendarDate(zona, inicioMes),
-        localCalendarDate(zona, ahora),
-      ),
-      this.gastosDelMes(
-        user.tenantId,
-        alcance,
-        localCalendarDate(zona, inicioMesAnterior),
-        localCalendarDate(zona, corteMesAnterior),
-      ),
-      this.lineasConCosto(user.tenantId, alcance, inicioUltimos30, ahora),
-      this.utilidadPorDia(user.tenantId, alcance, zona, inicioMes, ahora),
-      primeraVenta(),
-    ]);
+    // En secuencia sobre el MISMO `tx`: una transacción es una conexión, y
+    // un `Promise.all` ahí adentro tampoco correría en paralelo.
+    const diaHoy = await suma(inicioHoy, ahora);
+    const diaPasado = await suma(inicioMismoDiaPasado, haceUnaSemana);
+    const mesActual = await suma(inicioMes, ahora);
+    const mesPasado = await suma(inicioMesAnterior, corteMesAnterior);
+    const conCostoMes = await this.lineasConCosto(tx, user.tenantId, alcance, inicioMes, ahora);
+    const conCostoMesPasado = await this.lineasConCosto(
+      tx,
+      user.tenantId,
+      alcance,
+      inicioMesAnterior,
+      corteMesAnterior,
+    );
+    // Los gastos van por DÍA del negocio (DATE con DATE): el corte corrido
+    // se traduce a los días locales de los dos instantes.
+    const gastos = await this.gastosDelMes(
+      tx,
+      user.tenantId,
+      alcance,
+      localCalendarDate(zona, inicioMes),
+      localCalendarDate(zona, ahora),
+    );
+    const gastosPasados = await this.gastosDelMes(
+      tx,
+      user.tenantId,
+      alcance,
+      localCalendarDate(zona, inicioMesAnterior),
+      localCalendarDate(zona, corteMesAnterior),
+    );
+    const conCostoUltimos30 = await this.lineasConCosto(
+      tx,
+      user.tenantId,
+      alcance,
+      inicioUltimos30,
+      ahora,
+    );
+    const utilidadPorDia = await this.utilidadPorDia(
+      tx,
+      user.tenantId,
+      alcance,
+      zona,
+      inicioMes,
+      ahora,
+    );
+    const primera = await primeraVenta();
+    const attention = await this.atencion(tx, user.tenantId, alcance, zona, hoy);
+
     const utilidad = conCostoMes.utilidad;
     const utilidadPasada = conCostoMesPasado.utilidad;
     const neta = utilidad === null ? null : utilidad.minus(gastos);
@@ -266,6 +325,59 @@ export class DashboardKpisService {
             : null,
         breakEven: puntoDeEquilibrio(utilidad, gastos, utilidadPorDia, conCostoUltimos30),
       },
+      attention,
+    };
+  }
+
+  /**
+   * F10-KPI-16 — lo que pide atención. Los gastos ACTIVOS por pagar con
+   * vencimiento: vencidos, los de antes de hoy; por vencer, los de hoy a siete
+   * días (DATE con DATE, días del negocio; un gasto sin `dueDate` no cuenta).
+   * Y los turnos CERRADOS desde el inicio de ayer, hora local, con faltante
+   * (`cashDifference < 0`): el sobrante no cuenta ni lo compensa.
+   */
+  private async atencion(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    alcance: Alcance,
+    zona: string,
+    hoy: string,
+  ): Promise<DashboardAttention> {
+    const porPagar = { tenantId, status: "active", paymentStatus: "pending", ...alcance };
+    const vencidos = await tx.expense.aggregate({
+      where: { ...porPagar, dueDate: { lt: new Date(hoy) } },
+      _sum: { total: true },
+      _count: { _all: true },
+    });
+    const porVencer = await tx.expense.aggregate({
+      where: { ...porPagar, dueDate: { gte: new Date(hoy), lte: new Date(sumarDias(hoy, 7)) } },
+      _sum: { total: true },
+      _count: { _all: true },
+    });
+    const ayer = sumarDias(hoy, -1);
+    const faltantes = await tx.cashboxSession.aggregate({
+      where: {
+        tenantId,
+        ...alcance,
+        status: "closed",
+        closedAt: { gte: startOfDayUtc(ayer, zona) },
+        cashDifference: { lt: 0 },
+      },
+      _sum: { cashDifference: true },
+      _count: { _all: true },
+    });
+    return {
+      payables: {
+        overdueCount: vencidos._count._all,
+        overdueAmount: dinero(vencidos._sum.total),
+        dueSoonCount: porVencer._count._all,
+        dueSoonAmount: dinero(porVencer._sum.total),
+      },
+      shiftShortages: {
+        count: faltantes._count._all,
+        amount: dinero(faltantes._sum.cashDifference?.abs()),
+        range: { from: ayer, to: hoy },
+      },
     };
   }
 
@@ -277,22 +389,21 @@ export class DashboardKpisService {
    * porque «no gastó nada» es un número, no un hueco.
    */
   private async gastosDelMes(
+    tx: Prisma.TransactionClient,
     tenantId: string,
-    alcance: { warehouseId?: { in: string[] } },
+    alcance: Alcance,
     desdeDia: string,
     hastaDia: string,
   ): Promise<Prisma.Decimal> {
-    const agregado = await this.prisma.withTenantContext(tenantId, (tx) =>
-      tx.expense.aggregate({
-        where: {
-          tenantId,
-          status: "active",
-          ...alcance,
-          expenseDate: { gte: new Date(desdeDia), lte: new Date(hastaDia) },
-        },
-        _sum: { total: true },
-      }),
-    );
+    const agregado = await tx.expense.aggregate({
+      where: {
+        tenantId,
+        status: "active",
+        ...alcance,
+        expenseDate: { gte: new Date(desdeDia), lte: new Date(hastaDia) },
+      },
+      _sum: { total: true },
+    });
     return agregado._sum.total ?? new Prisma.Decimal(0);
   }
 
@@ -315,16 +426,17 @@ export class DashboardKpisService {
    * que deja cada peso cobrado»), siempre de las MISMAS líneas con costo.
    */
   private async lineasConCosto(
+    tx: Prisma.TransactionClient,
     tenantId: string,
-    alcance: { warehouseId?: { in: string[] } },
+    alcance: Alcance,
     desde: Date,
     hasta: Date,
   ): Promise<LineasConCosto> {
     const almacenes = alcance.warehouseId?.in;
     type Fila = { profit: string | null; base: string | null; charged: string | null };
-    const filas = await this.prisma.withTenantContext(tenantId, (tx) =>
+    const filas =
       almacenes === undefined
-        ? tx.$queryRaw<Fila[]>`
+        ? await tx.$queryRaw<Fila[]>`
             SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit,
                    SUM(i.line_total - i.tax_amount)::text AS base,
                    SUM(i.line_total)::text AS charged
@@ -334,7 +446,7 @@ export class DashboardKpisService {
                AND s.status = 'completed'
                AND s.created_at >= ${desde} AND s.created_at < ${hasta}
                AND i.unit_cost IS NOT NULL`
-        : tx.$queryRaw<Fila[]>`
+        : await tx.$queryRaw<Fila[]>`
             SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit,
                    SUM(i.line_total - i.tax_amount)::text AS base,
                    SUM(i.line_total)::text AS charged
@@ -344,8 +456,7 @@ export class DashboardKpisService {
                AND s.status = 'completed'
                AND s.warehouse_id = ANY(${almacenes}::uuid[])
                AND s.created_at >= ${desde} AND s.created_at < ${hasta}
-               AND i.unit_cost IS NOT NULL`,
-    );
+               AND i.unit_cost IS NOT NULL`;
     const decimal = (crudo: string | null | undefined) =>
       crudo === null || crudo === undefined ? null : new Prisma.Decimal(crudo);
     return {
@@ -361,17 +472,15 @@ export class DashboardKpisService {
    * la acumulada alcanzó los gastos. Un día sin líneas con costo no aparece.
    */
   private async utilidadPorDia(
+    tx: Prisma.TransactionClient,
     tenantId: string,
-    alcance: { warehouseId?: { in: string[] } },
+    alcance: Alcance,
     zona: string,
     desde: Date,
     hasta: Date,
   ): Promise<{ dia: number; utilidad: Prisma.Decimal }[]> {
     const almacenes = alcance.warehouseId?.in ?? null;
-    const filas = await this.prisma.withTenantContext(
-      tenantId,
-      (tx) =>
-        tx.$queryRaw<{ dia: number; profit: string }[]>`
+    const filas = await tx.$queryRaw<{ dia: number; profit: string }[]>`
         SELECT EXTRACT(DAY FROM (s.created_at AT TIME ZONE ${zona}))::int AS dia,
                SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit
           FROM sale_items i
@@ -382,10 +491,14 @@ export class DashboardKpisService {
            AND s.created_at >= ${desde} AND s.created_at < ${hasta}
            AND i.unit_cost IS NOT NULL
          GROUP BY dia
-         ORDER BY dia`,
-    );
+         ORDER BY dia`;
     return filas.map((fila) => ({ dia: fila.dia, utilidad: new Prisma.Decimal(fila.profit) }));
   }
+}
+
+/** Dinero con dos decimales; sin nada que sumar, «0.00»: no deber nada es un número. */
+function dinero(valor: Prisma.Decimal | null | undefined): string {
+  return (valor ?? new Prisma.Decimal(0)).toFixed(2);
 }
 
 /**

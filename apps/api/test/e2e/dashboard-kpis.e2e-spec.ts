@@ -92,6 +92,20 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
         marginPct: null,
         breakEven: { expenses: "0.00", coveredPct: null, coveredOnDay: null, remainingSales: null },
       },
+      // F10-KPI-16: sin gastos por pagar ni turnos con faltante, ceros de verdad.
+      attention: {
+        payables: {
+          overdueCount: 0,
+          overdueAmount: "0.00",
+          dueSoonCount: 0,
+          dueSoonAmount: "0.00",
+        },
+        shiftShortages: {
+          count: 0,
+          amount: "0.00",
+          range: { from: expect.any(String), to: expect.any(String) },
+        },
+      },
     });
   });
 

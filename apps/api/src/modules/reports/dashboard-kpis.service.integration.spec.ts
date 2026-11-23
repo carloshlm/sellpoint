@@ -817,4 +817,248 @@ describe("DashboardKpisService (integration)", () => {
       });
     });
   });
+
+  /**
+   * F10-KPI-16 — lo que pide atención: los gastos por pagar con fecha de
+   * vencimiento y los turnos que cerraron con faltante desde ayer. Viaja en
+   * `kpis` porque los avisos del panel se componen de lo que ya se cargó.
+   */
+  describe("lo que pide atención (F10-KPI-16)", () => {
+    /** Un gasto con vencimiento; `pagado` y `anulado` dicen su estado. */
+    async function porPagar(
+      esc: Escenario,
+      datos: {
+        vence: string | null;
+        total: number;
+        pagado?: boolean;
+        anulado?: boolean;
+        warehouseId?: string;
+        // El día del gasto no acota: uno de enero que vence esta semana cuenta.
+        fecha?: string;
+      },
+    ): Promise<void> {
+      const { usuarioId } = contexto.get(esc.tenantId) as { usuarioId: string };
+      await prisma.withTenantContext(esc.tenantId, async (tx) => {
+        const categoria =
+          (await tx.expenseCategory.findFirst({
+            where: { tenantId: esc.tenantId, code: "rent" },
+          })) ??
+          (await tx.expenseCategory.create({
+            data: { tenantId: esc.tenantId, code: "rent", name: "Renta" },
+          }));
+        await tx.expense.create({
+          data: {
+            tenantId: esc.tenantId,
+            folio: `G-${randomUUID().slice(0, 12)}`,
+            warehouseId: datos.warehouseId ?? esc.warehouseId,
+            expenseDate: new Date(datos.fecha ?? "2026-03-01"),
+            categoryId: categoria.id,
+            description: "Gasto por pagar",
+            amount: datos.total,
+            total: datos.total,
+            taxMode: "included",
+            createdBy: usuarioId,
+            ...(datos.vence !== null && { dueDate: new Date(datos.vence) }),
+            // Los CHECK de coherencia: pagado trae método y fecha; anulado, quién, cuándo y por qué.
+            ...(datos.pagado && {
+              paymentStatus: "paid",
+              paymentMethod: "cash",
+              paidAt: new Date("2026-03-10T18:00:00Z"),
+            }),
+            ...(datos.anulado && {
+              status: "canceled",
+              canceledAt: new Date("2026-03-10T18:00:00Z"),
+              canceledBy: usuarioId,
+              cancelReason: "duplicado",
+            }),
+          },
+        });
+      });
+    }
+
+    /** Un turno CERRADO en `cerradoEn` con su diferencia (declarado − calculado). */
+    async function turnoCerrado(
+      esc: Escenario,
+      cerradoEn: string,
+      diferencia: string | null,
+      warehouseId = esc.warehouseId,
+    ): Promise<void> {
+      const { usuarioId } = contexto.get(esc.tenantId) as { usuarioId: string };
+      const cierre = new Date(cerradoEn);
+      await prisma.withTenantContext(esc.tenantId, (tx) =>
+        tx.cashboxSession.create({
+          data: {
+            tenantId: esc.tenantId,
+            folio: `TUR-${randomUUID().slice(0, 8)}`,
+            warehouseId,
+            status: "closed",
+            openedBy: usuarioId,
+            openedAt: new Date(cierre.getTime() - 8 * 60 * 60 * 1000),
+            closedBy: usuarioId,
+            closedAt: cierre,
+            cashDifference: diferencia,
+          },
+        }),
+      );
+    }
+
+    it("un gasto que vence hoy es «por vencer», no «vencido»; los de antes de hoy sí son vencidos", async () => {
+      const esc = await escenario();
+      await porPagar(esc, { vence: "2026-03-15", total: 100 });
+      await porPagar(esc, { vence: "2026-03-14", total: 200 });
+      await porPagar(esc, { vence: "2026-02-28", total: 50.5, fecha: "2026-01-20" });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.attention.payables).toEqual({
+        overdueCount: 2,
+        overdueAmount: "250.50",
+        dueSoonCount: 1,
+        dueSoonAmount: "100.00",
+      });
+    });
+
+    it("«por vencer» llega hasta siete días después de hoy, contándolos por fecha local", async () => {
+      const esc = await escenario();
+      await porPagar(esc, { vence: "2026-03-22", total: 30, fecha: "2026-01-20" });
+      await porPagar(esc, { vence: "2026-03-23", total: 999 });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.attention.payables).toEqual({
+        overdueCount: 0,
+        overdueAmount: "0.00",
+        dueSoonCount: 1,
+        dueSoonAmount: "30.00",
+      });
+    });
+
+    it("uno pagado o anulado no cuenta", async () => {
+      const esc = await escenario();
+      await porPagar(esc, { vence: "2026-03-10", total: 70 });
+      await porPagar(esc, { vence: "2026-03-10", total: 500, pagado: true });
+      await porPagar(esc, { vence: "2026-03-16", total: 600, pagado: true });
+      await porPagar(esc, { vence: "2026-03-10", total: 700, anulado: true });
+      await porPagar(esc, { vence: "2026-03-16", total: 800, anulado: true });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.attention.payables).toEqual({
+        overdueCount: 1,
+        overdueAmount: "70.00",
+        dueSoonCount: 0,
+        dueSoonAmount: "0.00",
+      });
+    });
+
+    it("uno sin fecha de vencimiento no cuenta: no hay de qué avisar", async () => {
+      const esc = await escenario();
+      await porPagar(esc, { vence: null, total: 1000 });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.attention.payables).toEqual({
+        overdueCount: 0,
+        overdueAmount: "0.00",
+        dueSoonCount: 0,
+        dueSoonAmount: "0.00",
+      });
+    });
+
+    it("los faltantes son de los turnos cerrados desde el inicio de ayer, hora local: uno de anteayer no cuenta", async () => {
+      const esc = await escenario();
+      // 00:30 del 14 en CDMX: ayer, el primer minuto que cuenta.
+      await turnoCerrado(esc, "2026-03-14T06:30:00Z", "-150.00");
+      await turnoCerrado(esc, "2026-03-15T17:00:00Z", "-50.25");
+      // 23:30 del 13 en CDMX (en UTC ya es 14): anteayer, no cuenta.
+      await turnoCerrado(esc, "2026-03-14T05:30:00Z", "-999.00");
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // El faltante se dice en positivo, como en «Control».
+      expect(kpis.attention.shiftShortages).toEqual({
+        count: 2,
+        amount: "200.25",
+        range: { from: "2026-03-14", to: "2026-03-15" },
+      });
+    });
+
+    it("un sobrante no cuenta, ni compensa un faltante", async () => {
+      const esc = await escenario();
+      await turnoCerrado(esc, "2026-03-15T01:00:00Z", "-100.00");
+      await turnoCerrado(esc, "2026-03-15T02:00:00Z", "300.00");
+      await turnoCerrado(esc, "2026-03-15T03:00:00Z", "0.00");
+      // Un cierre sin arqueo: no se sabe si faltó.
+      await turnoCerrado(esc, "2026-03-15T04:00:00Z", null);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.attention.shiftShortages.count).toBe(1);
+      expect(kpis.attention.shiftShortages.amount).toBe("100.00");
+    });
+
+    it("el alcance por sucursal acota los gastos y los faltantes", async () => {
+      const esc = await escenario();
+      await porPagar(esc, { vence: "2026-03-10", total: 40 });
+      await porPagar(esc, { vence: "2026-03-10", total: 4000, warehouseId: esc.otroAlmacenId });
+      await porPagar(esc, { vence: "2026-03-18", total: 5000, warehouseId: esc.otroAlmacenId });
+      await turnoCerrado(esc, "2026-03-15T17:00:00Z", "-10.00");
+      await turnoCerrado(esc, "2026-03-15T17:00:00Z", "-900.00", esc.otroAlmacenId);
+
+      const central = await service.kpis(
+        { tenantId: esc.tenantId } as never,
+        { warehouseIds: [esc.warehouseId] } as never,
+      );
+      const todas = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(central.attention.payables).toEqual({
+        overdueCount: 1,
+        overdueAmount: "40.00",
+        dueSoonCount: 0,
+        dueSoonAmount: "0.00",
+      });
+      expect(central.attention.shiftShortages).toMatchObject({ count: 1, amount: "10.00" });
+      expect(todas.attention.payables).toEqual({
+        overdueCount: 2,
+        overdueAmount: "4040.00",
+        dueSoonCount: 1,
+        dueSoonAmount: "5000.00",
+      });
+      expect(todas.attention.shiftShortages).toMatchObject({ count: 2, amount: "910.00" });
+    });
+  });
+
+  /**
+   * El panel abría once transacciones a la vez por carga (una por consulta)
+   * contra un pool de diez conexiones: un e2e falló con «Unable to start a
+   * transaction in the given time». Ahora todas las consultas de `kpis()` van
+   * dentro de UNA, como en «Control» (F10-KPI-14).
+   */
+  it("hace todas sus consultas dentro de UNA sola transacción", async () => {
+    const esc = await escenarioCompleto();
+    await gasto(esc.tenantId, esc.warehouseId, "2026-03-02", 500);
+    let transacciones = 0;
+    // Cualquier cosa del cliente que no sea `withTenantContext` revienta:
+    // así ninguna consulta se escapa de la transacción, tampoco la del negocio.
+    const soloUnaTransaccion = new Proxy(prisma, {
+      get(objetivo, propiedad) {
+        if (propiedad === "withTenantContext") {
+          return (...args: Parameters<PrismaService["withTenantContext"]>) => {
+            transacciones += 1;
+            return objetivo.withTenantContext(...args);
+          };
+        }
+        throw new Error(`consulta fuera de la transacción: ${String(propiedad)}`);
+      },
+    });
+    const contado = new DashboardKpisService(soloUnaTransaccion, relojFalso);
+
+    const kpis = await contado.kpis({ tenantId: esc.tenantId } as never, todo);
+
+    expect(transacciones).toBe(1);
+    // Y los números son los de siempre: la meta del negocio se leyó adentro.
+    expect(kpis.month.total).toBe("1687");
+    expect(kpis.month.goalPct).toBe(84.4);
+    expect(kpis.profit.breakEven.expenses).toBe("500.00");
+  });
 });

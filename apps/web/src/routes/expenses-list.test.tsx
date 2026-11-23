@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -200,6 +200,42 @@ describe("Gastos — listado (F9-EXP-13)", () => {
         expect.objectContaining({ from: "2026-09-01", page: 1 }),
       ),
     );
+  });
+
+  /**
+   * F10-KPI-17 — el aviso de gastos del panel llega con `paymentStatus` en la
+   * URL: el listado abre con «Pago: Pendiente» ya puesto, y lo manda al API.
+   */
+  it("llegar con paymentStatus=pending en la URL abre con «Pago: Pendiente» y filtra", async () => {
+    await renderEn("/expenses?paymentStatus=pending", ["expenses:read"]);
+    await screen.findByTestId("expense-g1");
+
+    expect(screen.getByLabelText("Pago")).toHaveValue("pending");
+    await waitFor(() =>
+      expect(mocked.listExpenses).toHaveBeenLastCalledWith(
+        expect.objectContaining({ paymentStatus: "pending", page: 1 }),
+      ),
+    );
+    expect(mocked.getExpenseSummary).toHaveBeenLastCalledWith(
+      expect.objectContaining({ paymentStatus: "pending" }),
+    );
+  });
+
+  it("un paymentStatus inválido en la URL se descarta, y sin él abre como siempre: «Todos»", async () => {
+    const router = await renderEn("/expenses?paymentStatus=quizas", ["expenses:read"]);
+    await screen.findByTestId("expense-g1");
+
+    expect(screen.getByLabelText("Pago")).toHaveValue("todos");
+    expect(mocked.listExpenses.mock.calls.at(-1)?.[0]).not.toHaveProperty("paymentStatus");
+    // El router no deja pasar el valor crudo: la búsqueda validada no lo trae.
+    expect(router.state.location.search).toEqual({});
+
+    cleanup();
+    mocked.listExpenses.mockClear();
+    await renderEn("/expenses", ["expenses:read"]);
+    await screen.findByTestId("expense-g1");
+    expect(screen.getByLabelText("Pago")).toHaveValue("todos");
+    expect(mocked.listExpenses.mock.calls.at(-1)?.[0]).not.toHaveProperty("paymentStatus");
   });
 
   /**

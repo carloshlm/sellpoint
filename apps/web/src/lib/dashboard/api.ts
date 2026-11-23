@@ -40,6 +40,30 @@ export interface DashboardKpis {
     /** F10-KPI-06 — el punto de equilibrio; se pinta solo con Gastos, como la neta. */
     breakEven?: DashboardBreakEven;
   };
+  /**
+   * F10-KPI-16 — lo que pide atención, para los avisos del panel. Opcional:
+   * durante un deploy, este web puede hablar con un API que todavía no lo manda.
+   */
+  attention?: DashboardAttention;
+}
+
+/** F10-KPI-16 — los gastos por pagar con vencimiento y los turnos con faltante desde ayer. */
+export interface DashboardAttention {
+  payables: {
+    /** Vencidos antes de hoy, sin pagar. */
+    overdueCount: number;
+    overdueAmount: string;
+    /** Vencen de hoy a siete días. */
+    dueSoonCount: number;
+    dueSoonAmount: string;
+  };
+  shiftShortages: {
+    count: number;
+    /** Lo que faltó, en positivo. */
+    amount: string;
+    /** Ayer y hoy en el calendario del negocio: las fechas del enlace a Cierres de turno. */
+    range: { from: string; to: string };
+  };
 }
 
 /** F10-KPI-06 — cuánto de los gastos del mes ya cubrió la utilidad. */

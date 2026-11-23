@@ -192,13 +192,36 @@ transferencia.
 ## Avisos y próximos a vencer
 
 Entre los mosaicos y las gráficas pueden aparecer **avisos** de una línea, y
-cada uno te lleva al reporte que lo explica. Salen solo cuando hay algo que
-contar:
+cada uno te lleva a donde está el detalle. Salen solo cuando hay algo que
+contar, y van del más urgente al menos urgente:
 
-- productos agotados;
-- ventas de hoy 10% o más abajo que el mismo día de la semana pasada;
-- un producto que creció 20% o más sus ventas este mes;
-- un método de pago que ya es el 60% o más de tus ventas del mes.
+1. **Turnos con faltante**: los turnos que cerraron ayer u hoy con faltante de
+   caja, y cuánto faltó («1 turno cerró con faltante de $150.00»). Un sobrante
+   no lo compensa. Te lleva a **Cierres de turno** (capítulo 31) con solo esos
+   turnos.
+2. **Gastos vencidos**: los gastos pendientes de pago cuya fecha **Vence** ya
+   pasó, con cuánto suman («2 gastos vencidos sin pagar ($1,850.00)»).
+3. **Vendidos por debajo de su costo**: cuántos productos vendiste este mes por
+   menos de lo que te costaron. Te lleva a los avisos de **Mayor utilidad**, en
+   este mismo panel.
+4. **Productos agotados**.
+5. **Gastos por vencer**: los pendientes de pago que vencen de hoy a siete días
+   («3 gastos vencen esta semana ($4,200.00)»).
+6. **Ventas abajo**: las de hoy, 10% o más abajo que el mismo día de la semana
+   pasada.
+7. **Vendidos sin costo**: cuántos productos vendidos este mes no tienen costo
+   capturado, así que tu utilidad está incompleta. También te lleva a los avisos
+   de **Mayor utilidad**.
+8. **Un producto que creció** 20% o más sus ventas este mes.
+9. **Un método de pago** que ya es el 60% o más de tus ventas del mes.
+
+Se ven cuatro a la vez. Si hay más, el botón **Ver 2 más** (o los que sean)
+despliega el resto.
+
+Los avisos de gastos aparecen solo si tu negocio tiene el módulo de **Gastos**.
+Si puedes ver los gastos, te llevan al listado con **Pago** en **Pendiente**
+(capítulo 27); si no, se leen, pero no te llevan a ningún lado. Un gasto sin
+fecha **Vence** no avisa.
 
 Al final, **Próximos a vencer** muestra los lotes que caducan en los próximos 30
 días, los más urgentes primero, con **Ver todos** para la lista completa

@@ -98,6 +98,18 @@
     "outOfStock_one": "{{count}} product out of stock",
     "salesDown": "Sales {{pct}}% below the same day last week",
     "productUp": "{{name}} grew {{pct}}% in sales this month",
-    "dominantMethod": "{{pct}}% of this month's sales are {{method}}"
+    "dominantMethod": "{{pct}}% of this month's sales are {{method}}",
+    "title": "Alerts",
+    "shiftShortage": "{{count}} shifts came up {{amount}} short",
+    "shiftShortage_one": "{{count}} shift came up {{amount}} short",
+    "payablesOverdue": "{{count}} unpaid expenses are overdue ({{amount}})",
+    "payablesOverdue_one": "{{count}} unpaid expense is overdue ({{amount}})",
+    "payablesDueSoon": "{{count}} expenses are due this week ({{amount}})",
+    "payablesDueSoon_one": "{{count}} expense is due this week ({{amount}})",
+    "belowCost": "{{count}} products sold below cost",
+    "belowCost_one": "{{count}} product sold below cost",
+    "uncosted": "{{count}} products sold this month have no cost: your profit is incomplete",
+    "uncosted_one": "{{count}} product sold this month has no cost: your profit is incomplete",
+    "showMore": "Show {{count}} more"
   }
 }

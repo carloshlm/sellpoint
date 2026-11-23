@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as dashboardApi from "../lib/dashboard/api";
 import { createQueryClient } from "../lib/query-client";
@@ -132,10 +133,20 @@ const CONTROL: dashboardApi.DashboardControl = {
   range: { from: "2026-03-01", to: "2026-03-15" },
 };
 
-const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
+const demoUser = (permissions: string[], modules: string[] = []): AuthUser =>
+  buildAuthUser({
+    permissions,
+    // F10-KPI-17: el aviso de gastos solo aparece con el módulo de Gastos.
+    ...(modules.length > 0 && {
+      subscription: { ...SUBSCRIPTION_PLUS, modules: modules as never },
+    }),
+  });
 
-async function renderDashboard(permissions: string[] = ["reports:read", "inventory:read"]) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+async function renderDashboard(
+  permissions: string[] = ["reports:read", "inventory:read"],
+  modules: string[] = [],
+) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, modules));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
@@ -633,5 +644,330 @@ describe("F10-KPI-15: la tarjeta «Control»", () => {
 
     await screen.findByText("Más vendidos");
     expect(screen.queryByRole("heading", { name: "Control" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * F10-KPI-17 — cuatro avisos nuevos: faltante de caja, gastos vencidos o por
+ * vencer, lo vendido bajo costo y lo vendido sin costo. Salen de `kpis` y de
+ * `products` del mes, que ya están cargados; se ordenan por urgencia y se ven
+ * cuatro a la vez.
+ */
+const SIN_ATENCION: dashboardApi.DashboardAttention = {
+  payables: { overdueCount: 0, overdueAmount: "0.00", dueSoonCount: 0, dueSoonAmount: "0.00" },
+  shiftShortages: {
+    count: 0,
+    amount: "0.00",
+    range: { from: "2026-03-14", to: "2026-03-15" },
+  },
+};
+
+/** Los `kpis` con lo que pide atención (el resto, como en `KPIS`). */
+function conAtencion(
+  atencion: {
+    payables?: Partial<dashboardApi.DashboardAttention["payables"]>;
+    shiftShortages?: Partial<dashboardApi.DashboardAttention["shiftShortages"]>;
+  },
+  base: dashboardApi.DashboardKpis = KPIS,
+): dashboardApi.DashboardKpis {
+  return {
+    ...base,
+    attention: {
+      payables: { ...SIN_ATENCION.payables, ...atencion.payables },
+      shiftShortages: { ...SIN_ATENCION.shiftShortages, ...atencion.shiftShortages },
+    },
+  };
+}
+
+/** Las condiciones de hoy que no se prueban aquí, apagadas. */
+function sinLasDeSiempre() {
+  mocked.getDashboardKpis.mockResolvedValue(
+    conAtencion({}, { ...KPIS, today: { ...KPIS.today, deltaVsLastWeekPct: 2 } }),
+  );
+  mocked.getDashboardInventory.mockResolvedValue({ ...INVENTORY, outOfStock: 0 });
+  mocked.getDashboardProducts.mockResolvedValue({
+    ...PRODUCTS,
+    topSold: PRODUCTS.topSold.map((p) => ({ ...p, deltaPct: null })),
+  });
+  mocked.getDashboardPayments.mockResolvedValue({
+    methods: [
+      { method: "cash", total: "500", pct: 50 },
+      { method: "card", total: "500", pct: 50 },
+    ],
+  });
+}
+
+/** El renglón de un aviso: su `<li>`, por su texto. */
+async function aviso(texto: RegExp): Promise<HTMLElement> {
+  return (await screen.findByText(texto)).closest("li") as HTMLElement;
+}
+
+/** Los avisos a la vista, en su orden. */
+function avisosALaVista(): string[] {
+  return within(screen.getByRole("list", { name: "Avisos" }))
+    .getAllByRole("listitem")
+    .map((li) => li.textContent ?? "");
+}
+
+const CON_GASTOS = ["reports:read", "inventory:read", "expenses:read"];
+
+describe("F10-KPI-17: los avisos nuevos, con orden y tope", () => {
+  it("caja-faltante: dice los turnos con faltante y lleva a Cierres de turno ya filtrado", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ shiftShortages: { count: 1, amount: "150.00" } }),
+    );
+    await renderDashboard();
+
+    const renglon = await aviso(/1 turno cerró con faltante de \$150\.00/);
+    const href = renglon.querySelector("a")?.getAttribute("href") ?? "";
+    const url = new URL(href, "http://panel.test");
+    expect(url.pathname).toBe("/reports/shifts");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      difference: "shortage",
+      from: "2026-03-14",
+      to: "2026-03-15",
+    });
+
+    // Y el plural.
+    cleanup();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ shiftShortages: { count: 2, amount: "300.50" } }),
+    );
+    await renderDashboard();
+    expect(await screen.findByText(/2 turnos cerraron con faltante de \$300\.50/)).toBeVisible();
+  });
+
+  it("caja-faltante calla sin faltantes, y con un API anterior", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ payables: { dueSoonCount: 1, dueSoonAmount: "10.00" } }),
+    );
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+    await screen.findByText(/1 gasto vence esta semana/);
+    // «Control» también dice «turnos con faltante»: el aviso es el que «cerró».
+    expect(screen.queryByText(/cerr(ó|aron) con faltante/)).not.toBeInTheDocument();
+
+    cleanup();
+    // Un API anterior no manda `attention`: ningún aviso nuevo, ninguno roto.
+    mocked.getDashboardKpis.mockResolvedValue(KPIS);
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+    await screen.findByText(/14% abajo del mismo día/);
+    expect(screen.queryByText(/cerr(ó|aron) con faltante|gastos? venc/)).not.toBeInTheDocument();
+  });
+
+  it("gastos vencidos: con el módulo de Gastos, al listado con Pago: Pendiente", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ payables: { overdueCount: 2, overdueAmount: "1850.00" } }),
+    );
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+
+    const renglon = await aviso(/2 gastos vencidos sin pagar \(\$1,850\.00\)/);
+    expect(renglon.querySelector("a")?.getAttribute("href")).toBe(
+      "/expenses?paymentStatus=pending",
+    );
+    expect(screen.queryByText(/vencen? esta semana/)).not.toBeInTheDocument();
+  });
+
+  it("gastos por vencer: «vencen esta semana», con su singular", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ payables: { dueSoonCount: 3, dueSoonAmount: "4200.00" } }),
+    );
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+
+    const renglon = await aviso(/3 gastos vencen esta semana \(\$4,200\.00\)/);
+    expect(renglon.querySelector("a")?.getAttribute("href")).toBe(
+      "/expenses?paymentStatus=pending",
+    );
+    expect(screen.queryByText(/vencidos? sin pagar/)).not.toBeInTheDocument();
+
+    cleanup();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ payables: { overdueCount: 1, overdueAmount: "99.00" } }),
+    );
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+    expect(await screen.findByText(/1 gasto vencido sin pagar \(\$99\.00\)/)).toBeVisible();
+  });
+
+  it("los avisos de gastos: sin el módulo no aparecen, y sin expenses:read no enlazan", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({
+        payables: { overdueCount: 2, overdueAmount: "1850.00" },
+        shiftShortages: { count: 1, amount: "150.00" },
+      }),
+    );
+    // Sin el módulo de Gastos: el API los calcula, el panel no los dice.
+    await renderDashboard(CON_GASTOS);
+    await screen.findByText(/1 turno cerró con faltante/);
+    expect(screen.queryByText(/gastos vencidos/)).not.toBeInTheDocument();
+
+    cleanup();
+    // Con el módulo pero sin permiso para ver Gastos: el aviso se lee, no enlaza.
+    await renderDashboard(["reports:read", "inventory:read"], ["expenses"]);
+    const renglon = await aviso(/2 gastos vencidos sin pagar/);
+    expect(renglon.querySelector("a")).toBeNull();
+  });
+
+  it("bajo-costo: dice cuántos se vendieron por debajo de su costo y lleva a «Mayor utilidad»", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: [],
+      belowCost: MARGENES.belowCost?.slice(0, 1),
+      belowCostCount: 1,
+    });
+    await renderDashboard();
+
+    const renglon = await aviso(/1 producto se vendió por debajo de su costo/);
+    expect(renglon.querySelector("a")?.getAttribute("href")).toBe("/dashboard#margin-check");
+
+    cleanup();
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: [],
+      ...MARGENES,
+      uncosted: [],
+      uncostedCount: 0,
+    });
+    await renderDashboard();
+    expect(
+      await screen.findByText(/2 productos se vendieron por debajo de su costo/),
+    ).toBeVisible();
+  });
+
+  it("sin-costo: dice cuántos productos del mes no tienen costo, y lleva a la misma ancla", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: [],
+      uncosted: MARGENES.uncosted,
+      uncostedCount: 12,
+    });
+    await renderDashboard();
+
+    const renglon = await aviso(
+      /12 productos vendidos este mes no tienen costo: tu utilidad está incompleta/,
+    );
+    expect(renglon.querySelector("a")?.getAttribute("href")).toBe("/dashboard#margin-check");
+    expect(screen.queryByText(/por debajo de su costo/)).not.toBeInTheDocument();
+  });
+
+  it("bajo-costo y sin-costo callan sin lo suyo, y con un API anterior", async () => {
+    sinLasDeSiempre();
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({ shiftShortages: { count: 1, amount: "150.00" } }),
+    );
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: [],
+      belowCost: [],
+      belowCostCount: 0,
+      uncosted: [],
+      uncostedCount: 0,
+    });
+    await renderDashboard();
+    await screen.findByText(/1 turno cerró con faltante/);
+    expect(screen.queryByText(/por debajo de su costo|no tienen? costo/)).not.toBeInTheDocument();
+
+    cleanup();
+    // `PRODUCTS` es la forma de un API anterior: sin `belowCost` ni `uncosted`.
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, topSold: [] });
+    await renderDashboard();
+    await screen.findByText(/1 turno cerró con faltante/);
+    expect(screen.queryByText(/por debajo de su costo|no tienen? costo/)).not.toBeInTheDocument();
+  });
+
+  it("con seis condiciones se ven cuatro, en el orden de urgencia, y «Ver 2 más» despliega el resto", async () => {
+    // Faltante, vencidos, bajo costo, agotados, por vencer y ventas abajo.
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({
+        shiftShortages: { count: 1, amount: "150.00" },
+        payables: {
+          overdueCount: 2,
+          overdueAmount: "1850.00",
+          dueSoonCount: 3,
+          dueSoonAmount: "4200.00",
+        },
+      }),
+    );
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: PRODUCTS.topSold.map((p) => ({ ...p, deltaPct: null })),
+      belowCost: MARGENES.belowCost?.slice(0, 1),
+      belowCostCount: 1,
+    });
+    mocked.getDashboardPayments.mockResolvedValue({
+      methods: [
+        { method: "cash", total: "500", pct: 50 },
+        { method: "card", total: "500", pct: 50 },
+      ],
+    });
+    const user = userEvent.setup();
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+    await screen.findByText(/1 turno cerró con faltante/);
+
+    const visibles = avisosALaVista();
+    expect(visibles).toHaveLength(4);
+    expect(visibles[0]).toMatch(/turno cerró con faltante/);
+    expect(visibles[1]).toMatch(/gastos vencidos sin pagar/);
+    expect(visibles[2]).toMatch(/se vendió por debajo de su costo/);
+    expect(visibles[3]).toMatch(/productos agotados/);
+    expect(screen.queryByText(/vencen esta semana/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/abajo del mismo día/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ver 2 más" }));
+
+    const todos = avisosALaVista();
+    expect(todos).toHaveLength(6);
+    expect(todos[4]).toMatch(/gastos vencen esta semana/);
+    expect(todos[5]).toMatch(/14% abajo del mismo día/);
+    expect(screen.queryByRole("button", { name: /^Ver \d+ más$/ })).not.toBeInTheDocument();
+  });
+
+  it("con las nueve, el orden completo es el de urgencia y nada se pide de más", async () => {
+    mocked.getDashboardKpis.mockResolvedValue(
+      conAtencion({
+        shiftShortages: { count: 1, amount: "150.00" },
+        payables: {
+          overdueCount: 2,
+          overdueAmount: "1850.00",
+          dueSoonCount: 3,
+          dueSoonAmount: "4200.00",
+        },
+      }),
+    );
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, ...MARGENES });
+    const user = userEvent.setup();
+    await renderDashboard(CON_GASTOS, ["expenses"]);
+    await screen.findByText(/1 turno cerró con faltante/);
+
+    await user.click(screen.getByRole("button", { name: "Ver 5 más" }));
+
+    const orden = avisosALaVista();
+    const esperado = [
+      /turno cerró con faltante/,
+      /gastos vencidos sin pagar/,
+      /productos se vendieron por debajo de su costo/,
+      /productos agotados/,
+      /gastos vencen esta semana/,
+      /abajo del mismo día/,
+      /productos vendidos este mes no tienen costo/,
+      /Coca-Cola 600ml creció 32%/,
+      /de tus ventas del mes es con efectivo/,
+    ];
+    expect(orden).toHaveLength(esperado.length);
+    esperado.forEach((patron, i) => {
+      expect(orden[i]).toMatch(patron);
+    });
+
+    // Ningún aviso nuevo pidió nada: cada fuente, UNA vez.
+    expect(mocked.getDashboardKpis).toHaveBeenCalledTimes(1);
+    expect(mocked.getDashboardProducts).toHaveBeenCalledTimes(1);
+    expect(mocked.getDashboardInventory).toHaveBeenCalledTimes(1);
+    expect(mocked.getDashboardPayments).toHaveBeenCalledTimes(1);
+    expect(mocked.getDashboardControl).toHaveBeenCalledTimes(1);
   });
 });

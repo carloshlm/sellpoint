@@ -241,6 +241,18 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     );
     expect(diferencia).toBeLessThan(0);
 
+    // F10-KPI-16: el mismo faltante viaja en `kpis.attention` por el espejo
+    // (B cerró hoy su turno: cae desde el inicio de ayer).
+    const kpis = await comoAdmin("dashboard/kpis").expect(200);
+    expect((kpis.body as { attention: unknown }).attention).toEqual({
+      payables: { overdueCount: 0, overdueAmount: "0.00", dueSoonCount: 0, dueSoonAmount: "0.00" },
+      shiftShortages: {
+        count: 1,
+        amount: (-diferencia).toFixed(2),
+        range: { from: expect.any(String), to: expect.any(String) },
+      },
+    });
+
     const control = await comoAdmin("dashboard/control?period=month").expect(200);
     expect(control.body).toEqual({
       cash: {
