@@ -45,10 +45,11 @@ export const INSIGHTS: Screen[] = [
     chapter: DASHBOARD,
     as: "owner",
     path: "/dashboard",
-    target: (page) => [
-      page.locator("main fieldset").filter({ has: page.getByRole("button", { name: "Hoy" }) }),
-      gridWith(page, "Más vendidos"),
-    ],
+    // F10-KPI-18: solo la rejilla de las dos listas. Desde F10-KPI-15, «Control»
+    // queda entre las pestañas y las listas: juntarlas daba una captura más alta
+    // que la ventana, cortada en el primer renglón. Las pestañas ya salen en
+    // `dashboard-control`.
+    target: (page) => [gridWith(page, "Más vendidos")],
   },
   {
     // F10-KPI-15: la tarjeta «Control», justo bajo las pestañas de periodo.

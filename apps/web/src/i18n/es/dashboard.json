@@ -87,6 +87,7 @@
     "overage": "Sobrantes: {{amount}}",
     "discounts": "Descuentos",
     "pctOfSales": "{{pct}}% de tus ventas",
+    "pctOfSalesUnder": "Menos de 0.1% de tus ventas",
     "tickets": "{{count}} tickets",
     "tickets_one": "{{count}} ticket",
     "cancellations": "Cancelaciones",

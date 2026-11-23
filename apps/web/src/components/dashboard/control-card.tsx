@@ -121,7 +121,11 @@ function ControlCard({ period }: { period: DashboardPeriod }) {
             [
               ...(discounts.pctOfSales === null
                 ? []
-                : [t("dashboard.control.pctOfSales", { pct: discounts.pctOfSales })]),
+                : // El API redondea a un decimal: un descuento real que llega como 0
+                  // diría «0%» junto a su importe.
+                  discounts.pctOfSales === 0 && Number(discounts.amount) > 0
+                  ? [t("dashboard.control.pctOfSalesUnder")]
+                  : [t("dashboard.control.pctOfSales", { pct: discounts.pctOfSales })]),
               t("dashboard.control.tickets", { count: discounts.tickets }),
             ].join(" · "),
           ]}

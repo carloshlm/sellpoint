@@ -552,6 +552,33 @@ describe("F10-KPI-15: la tarjeta «Control»", () => {
     expect(within(tarjeta).getByText("3 ventas")).toBeInTheDocument();
   });
 
+  // F10-KPI-18: el API redondea a un decimal; $15 de descuento sobre $40,000
+  // vendidos llega como 0, y «0% de tus ventas» junto a $15.00 se contradice.
+  it("un descuento que redondea a 0% dice «Menos de 0.1%», nunca «0%»", async () => {
+    mocked.getDashboardControl.mockResolvedValue({
+      ...CONTROL,
+      discounts: { amount: "15.00", tickets: 1, pctOfSales: 0 },
+    });
+    await renderDashboard();
+
+    const tarjeta = await tarjetaControl();
+    expect(
+      await within(tarjeta).findByText("Menos de 0.1% de tus ventas · 1 ticket"),
+    ).toBeInTheDocument();
+    expect(within(tarjeta).queryByText(/^0% de tus ventas/)).not.toBeInTheDocument();
+  });
+
+  it("sin descuentos sigue diciendo 0% de tus ventas", async () => {
+    mocked.getDashboardControl.mockResolvedValue({
+      ...CONTROL,
+      discounts: { amount: "0.00", tickets: 0, pctOfSales: 0 },
+    });
+    await renderDashboard();
+
+    const tarjeta = await tarjetaControl();
+    expect(await within(tarjeta).findByText("0% de tus ventas · 0 tickets")).toBeInTheDocument();
+  });
+
   it("cambiar el periodo pide el nuevo", async () => {
     const user = userEvent.setup();
     await renderDashboard();

@@ -87,6 +87,7 @@
     "overage": "Overages: {{amount}}",
     "discounts": "Discounts",
     "pctOfSales": "{{pct}}% of your sales",
+    "pctOfSalesUnder": "Less than 0.1% of your sales",
     "tickets": "{{count}} tickets",
     "tickets_one": "{{count}} ticket",
     "cancellations": "Cancellations",

@@ -128,8 +128,8 @@ en tres reportes:
   todavía no cuenta.
 - **Descuentos**: lo que descontaste en las ventas cobradas del periodo, qué
   parte es de tus ventas (el descuento entre lo que habrías cobrado sin él) y
-  en cuántos tickets. El descuento de una venta que después se canceló no
-  cuenta.
+  en cuántos tickets. Si descontaste muy poco, dice **Menos de 0.1% de tus
+  ventas**. El descuento de una venta que después se canceló no cuenta.
 - **Cancelaciones**: cuánto sumaban las ventas que se cancelaron en el periodo,
   y cuántas son. Cuenta el día en que se canceló cada venta, no el día en que
   se vendió.

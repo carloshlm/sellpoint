@@ -129,7 +129,7 @@ La columna **Hoy** dice el plan mínimo en el que vive cada funcionalidad. «Tod
 
 | Funcionalidad | Hoy |
 |---|---|
-| Productos con código, código de barras, categoría e impuesto | Todos |
+| Productos con código, unidad de medida, impuesto y código de barras en cada presentación (el producto no tiene categoría) | Todos |
 | Presentaciones con factor de conversión, costo y precio | Todos |
 | Unidades de medida con conversión (pieza, kilo, litro, metro…) | Todos |
 | Servicios | Todos |
@@ -180,12 +180,23 @@ La columna **Hoy** dice el plan mínimo en el que vive cada funcionalidad. «Tod
 | Funcionalidad | Hoy |
 |---|---|
 | Panel del negocio con indicadores del período, incluida la utilidad | Todos |
+| Margen del mes y cierre estimado del mes; con meta, cuánto falta vender al día | Todos |
+| Ventas de hoy por hora contra el promedio del mismo día de las últimas 4 semanas | Todos |
+| «Mayor utilidad» solo con lo que deja, y avisos de lo vendido por debajo del costo y de lo vendido sin costo | Todos |
+| Tarjeta «Control» del período: faltantes de caja (sin compensarlos con sobrantes), descuentos y cancelaciones, cada uno abre su reporte ya filtrado | Todos |
+| Avisos del panel ordenados por urgencia (turnos con faltante, productos agotados, ventas abajo, lo vendido bajo costo o sin costo…), cuatro a la vista | Todos |
+| Utilidad neta del mes y punto de equilibrio: «N% de tus gastos cubiertos» o «Gastos cubiertos desde el día N» | Basic (módulo de Gastos) |
+| Avisos de gastos vencidos y por vencer en la semana | Basic (módulo de Gastos) |
+| Lo que está por caducar, en dinero al costo: en el panel, en «Próximos a vencer» y en su Excel | Plus (lotes) |
 | Panel del vendedor: su turno, lo cobrado y sus ventas | Todos |
-| Reporte de ventas por período | Basic |
-| Reporte de cierres de turno | Basic |
+| Reporte de ventas por período, con descuento, motivo y el filtro «Solo con descuento» | Basic |
+| Reportes de ventas por producto y por servicio, ticket por ticket | Basic |
+| Reporte de cierres de turno, con filtro por diferencia (con faltante, con sobrante, cuadró) y el total de faltantes y sobrantes | Basic |
 | Reporte de existencias | Basic |
 | Reporte de impuestos | Basic |
 | Exportación de reportes a Excel | Basic |
+
+Nada de lo que agregó F10-KPI (2026-11-23) lleva candado de plan: el panel sigue la regla del permiso `reports:read`, y quien no lo tiene no ve ni recibe ningún importe. Lo que depende de Gastos o de lotes aparece solo donde está ese módulo.
 
 ### Usuarios, seguridad y negocio
 
