@@ -24,6 +24,7 @@ export interface DashboardProducts {
     /** Δ% de la venta vs el período comparable; null sin historia previa. */
     deltaPct: number | null;
   }[];
+  /** Lo que más DEJÓ: solo utilidad mayor que cero (F10-KPI-01). */
   topProfit: {
     itemId: string;
     sku: string;
@@ -33,6 +34,47 @@ export interface DashboardProducts {
     profit: string;
     marginPct: number;
   }[];
+  /**
+   * F10-KPI-01 — lo vendido por DEBAJO de su costo en el periodo, de la mayor
+   * pérdida a la menor (hasta 5). Una pérdida no es un «top»: es una noticia.
+   */
+  belowCost: {
+    itemId: string;
+    kind: "product" | "service";
+    sku: string;
+    name: string;
+    revenue: string;
+    cost: string;
+    profit: string;
+    /** null si se vendió en $0 (un regalo): ahí el margen no existe. */
+    marginPct: number | null;
+  }[];
+  /** Cuántos se vendieron bajo costo en total, aunque la lista traiga 5. */
+  belowCostCount: number;
+  /**
+   * F10-KPI-01 — productos y servicios vendidos SIN costo congelado, por importe
+   * (hasta 5): esas ventas no cuentan en la utilidad. El importe es solo el de
+   * las líneas sin costo. Un concepto libre no entra: no tiene ficha donde
+   * capturarle uno.
+   */
+  uncosted: {
+    itemId: string;
+    kind: "product" | "service";
+    sku: string;
+    name: string;
+    revenue: string;
+  }[];
+  uncostedCount: number;
+}
+
+/** Hasta cuántos renglones trae cada lista de avisos. */
+const AVISOS_MAX = 5;
+
+function margen(profit: string, revenue: string): number | null {
+  const venta = new Prisma.Decimal(revenue);
+  return venta.greaterThan(0)
+    ? Number(new Prisma.Decimal(profit).dividedBy(venta).times(100).toDP(1).toString())
+    : null;
 }
 
 /**
@@ -104,15 +146,23 @@ export class DashboardProductsService {
            LIMIT 10`,
       );
 
-    const [top, previos, utilidad] = await Promise.all([
+    const [top, previos, conCosto, sinCosto] = await Promise.all([
       vendidos(ventana.desde, ventana.hasta),
       vendidos(ventana.desdeAnterior, ventana.hastaAnterior),
+      // «Mayor utilidad» y «bajo costo» salen del MISMO agregado, partido por el
+      // signo de la utilidad ya redondeada a centavos: así las dos listas no se
+      // contradicen, y lo que quedó justo en $0.00 no está en ninguna. El
+      // conteo de cada lado viaja con sus renglones (la ventana corre antes del
+      // LIMIT de cinco).
       this.prisma.withTenantContext(
         user.tenantId,
         (tx) =>
           tx.$queryRaw<
             {
+              lado: "gain" | "loss";
+              en_su_lado: number;
               item_id: string;
+              kind: "product" | "service";
               sku: string;
               name: string;
               revenue: string;
@@ -120,28 +170,76 @@ export class DashboardProductsService {
               profit: string;
             }[]
           >`
-          SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
+          WITH por_articulo AS (
+            SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
+                   i.kind,
+                   COALESCE(p.sku, sv.code, '') AS sku,
+                   COALESCE(p.name, sv.name, i.concept_description) AS name,
+                   SUM(i.line_total - i.tax_amount) AS revenue,
+                   SUM(i.unit_cost * i.quantity)::numeric(14,2) AS cost,
+                   SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::numeric(14,2) AS profit
+              FROM sale_items i
+              JOIN sales s ON s.id = i.sale_id
+              LEFT JOIN products p ON p.id = i.product_id
+              LEFT JOIN services sv ON sv.id = i.service_id
+             WHERE s.tenant_id = ${user.tenantId}::uuid
+               AND s.status = 'completed'
+               AND i.unit_cost IS NOT NULL
+               AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
+               AND s.created_at >= ${ventana.desde} AND s.created_at < ${ventana.hasta}
+             GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), i.kind, COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description)
+          ), por_lado AS (
+            SELECT *,
+                   CASE WHEN profit > 0 THEN 'gain' ELSE 'loss' END AS lado,
+                   ROW_NUMBER() OVER (PARTITION BY profit > 0 ORDER BY abs(profit) DESC, name) AS puesto,
+                   COUNT(*) OVER (PARTITION BY profit > 0)::int AS en_su_lado
+              FROM por_articulo
+             WHERE profit <> 0
+          )
+          SELECT lado, en_su_lado, item_id, kind, sku, name,
+                 revenue::text AS revenue, cost::text AS cost, profit::text AS profit
+            FROM por_lado
+           WHERE puesto <= ${AVISOS_MAX}
+           ORDER BY lado, puesto`,
+      ),
+      this.prisma.withTenantContext(
+        user.tenantId,
+        (tx) =>
+          tx.$queryRaw<
+            {
+              total: number;
+              item_id: string;
+              kind: "product" | "service";
+              sku: string;
+              name: string;
+              revenue: string;
+            }[]
+          >`
+          SELECT COALESCE(i.product_id::text, i.service_id::text) AS item_id,
+                 i.kind,
                  COALESCE(p.sku, sv.code, '') AS sku,
-                 COALESCE(p.name, sv.name, i.concept_description) AS name,
+                 COALESCE(p.name, sv.name) AS name,
                  SUM(i.line_total - i.tax_amount)::text AS revenue,
-                 SUM(i.unit_cost * i.quantity)::numeric(14,2)::text AS cost,
-                 SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::numeric(14,2)::text AS profit
+                 COUNT(*) OVER ()::int AS total
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
             LEFT JOIN products p ON p.id = i.product_id
             LEFT JOIN services sv ON sv.id = i.service_id
            WHERE s.tenant_id = ${user.tenantId}::uuid
              AND s.status = 'completed'
-             AND i.unit_cost IS NOT NULL
+             AND i.unit_cost IS NULL
+             AND i.kind <> 'concept'
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${ventana.desde} AND s.created_at < ${ventana.hasta}
-           GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description)
-           ORDER BY SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity) DESC
-           LIMIT 5`,
+           GROUP BY COALESCE(i.product_id::text, i.service_id::text), i.kind, COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name)
+           ORDER BY SUM(i.line_total - i.tax_amount) DESC, COALESCE(p.name, sv.name)
+           LIMIT ${AVISOS_MAX}`,
       ),
     ]);
 
     const ventaPrevia = new Map(previos.map((f) => [f.item_id, new Prisma.Decimal(f.revenue)]));
+    const ganan = conCosto.filter((f) => f.lado === "gain");
+    const pierden = conCosto.filter((f) => f.lado === "loss");
 
     return {
       topSold: top.map((f) => {
@@ -160,20 +258,35 @@ export class DashboardProductsService {
               : null,
         };
       }),
-      topProfit: utilidad.map((f) => {
-        const revenue = new Prisma.Decimal(f.revenue);
-        return {
-          itemId: f.item_id,
-          sku: f.sku,
-          name: f.name,
-          revenue: f.revenue,
-          cost: f.cost,
-          profit: f.profit,
-          marginPct: revenue.greaterThan(0)
-            ? Number(new Prisma.Decimal(f.profit).dividedBy(revenue).times(100).toDP(1).toString())
-            : 0,
-        };
-      }),
+      // Con utilidad mayor que cero la venta también lo es: el margen siempre existe.
+      topProfit: ganan.map((f) => ({
+        itemId: f.item_id,
+        sku: f.sku,
+        name: f.name,
+        revenue: f.revenue,
+        cost: f.cost,
+        profit: f.profit,
+        marginPct: margen(f.profit, f.revenue) ?? 0,
+      })),
+      belowCost: pierden.map((f) => ({
+        itemId: f.item_id,
+        kind: f.kind,
+        sku: f.sku,
+        name: f.name,
+        revenue: f.revenue,
+        cost: f.cost,
+        profit: f.profit,
+        marginPct: margen(f.profit, f.revenue),
+      })),
+      belowCostCount: pierden[0]?.en_su_lado ?? 0,
+      uncosted: sinCosto.map((f) => ({
+        itemId: f.item_id,
+        kind: f.kind,
+        sku: f.sku,
+        name: f.name,
+        revenue: f.revenue,
+      })),
+      uncostedCount: sinCosto[0]?.total ?? 0,
     };
   }
 }

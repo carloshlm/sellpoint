@@ -102,7 +102,14 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
       .get("/reports/dashboard/products?period=week")
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
-    expect(products.body).toEqual({ topSold: [], topProfit: [] });
+    expect(products.body).toEqual({
+      topSold: [],
+      topProfit: [],
+      belowCost: [],
+      belowCostCount: 0,
+      uncosted: [],
+      uncostedCount: 0,
+    });
 
     const payments = await request(app.getHttpServer())
       .get("/reports/dashboard/payment-methods")

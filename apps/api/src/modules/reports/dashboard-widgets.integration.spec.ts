@@ -119,9 +119,10 @@ describe("Los widgets del dashboard (integration)", () => {
     method?: "cash" | "card" | "transfer";
   }
 
-  async function vender(ctx: Ctx, v: Venta): Promise<void> {
+  /** Devuelve el id de la venta, para cancelarla cuando el caso lo pide. */
+  async function vender(ctx: Ctx, v: Venta): Promise<string> {
     const total = v.unitPrice * v.quantity;
-    await prisma.withTenantContext(ctx.tenantId, (tx) =>
+    const venta = await prisma.withTenantContext(ctx.tenantId, (tx) =>
       tx.sale.create({
         data: {
           tenantId: ctx.tenantId,
@@ -162,6 +163,33 @@ describe("Los widgets del dashboard (integration)", () => {
           },
         },
       }),
+    );
+    return venta.id;
+  }
+
+  async function cancelar(ctx: Ctx, ventaId: string): Promise<void> {
+    await prisma.withTenantContext(ctx.tenantId, (tx) =>
+      tx.sale.update({
+        where: { id: ventaId },
+        data: {
+          status: "canceled",
+          canceledAt: new Date("2026-03-14T21:00:00Z"),
+          canceledBy: ctx.usuarioId,
+          cancelReason: "Prueba",
+        },
+      }),
+    );
+  }
+
+  /** Un producto o servicio más, con el nombre que el caso necesita leer. */
+  async function articulo(ctx: Ctx, tipo: "product" | "service", nombre: string): Promise<string> {
+    const clave = `${nombre.slice(0, 3).toUpperCase()}-${randomUUID().slice(0, 6)}`;
+    return prisma.withTenantContext(ctx.tenantId, async (tx) =>
+      tipo === "product"
+        ? (await tx.product.create({ data: { tenantId: ctx.tenantId, sku: clave, name: nombre } }))
+            .id
+        : (await tx.service.create({ data: { tenantId: ctx.tenantId, code: clave, name: nombre } }))
+            .id,
     );
   }
 
@@ -471,6 +499,211 @@ describe("Los widgets del dashboard (integration)", () => {
     expect(Number(flete?.revenue)).toBe(450);
     expect(r.topProfit.map((f) => f.name)).not.toContain("Flete a domicilio");
     expect(r.topProfit[0]?.name).toBe("Agua 1L");
+  });
+
+  /**
+   * F10-KPI-01 — una pérdida no es un «top»: es una noticia. En el panel de
+   * Carlos del 19 de septiembre, «Fotocopia» salió en «Mayor utilidad» con
+   * −248.8% de margen y −$2.14.
+   */
+  it("F10-KPI-01: «Mayor utilidad» solo lista lo que deja; lo vendido bajo costo va a `belowCost`", async () => {
+    const ctx = await escenario();
+    const fotocopia = await articulo(ctx, "service", "Fotocopia");
+    const alCosto = await articulo(ctx, "product", "Al costo");
+    const cancelado = await articulo(ctx, "product", "Cancelado");
+    const deFebrero = await articulo(ctx, "product", "De febrero");
+
+    // Deja: 5 × 100 con costo 20 → utilidad 400.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: ctx.productoB,
+      quantity: 5,
+      unitPrice: 100,
+      unitCost: 20,
+    });
+    // El caso de la captura: 1 × 0.86 con costo 3 → −2.14, margen −248.8%.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:10:00Z",
+      servicioId: fotocopia,
+      quantity: 1,
+      unitPrice: 0.86,
+      unitCost: 3,
+    });
+    // La pérdida más grande va primero: 10 × 5 con costo 6 → −10, margen −20%.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:20:00Z",
+      productoId: ctx.productoA,
+      quantity: 10,
+      unitPrice: 5,
+      unitCost: 6,
+    });
+    // Vendido justo a su costo: utilidad cero, no está en ninguna de las dos.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:30:00Z",
+      productoId: alCosto,
+      quantity: 2,
+      unitPrice: 15,
+      unitCost: 15,
+    });
+    // Una venta cancelada no pierde nada, y una de febrero no es de este mes.
+    await cancelar(
+      ctx,
+      await vender(ctx, {
+        creadaEn: "2026-03-14T18:40:00Z",
+        productoId: cancelado,
+        quantity: 1,
+        unitPrice: 1,
+        unitCost: 100,
+      }),
+    );
+    await vender(ctx, {
+      creadaEn: "2026-02-10T18:00:00Z",
+      productoId: deFebrero,
+      quantity: 1,
+      unitPrice: 1,
+      unitCost: 100,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    expect(r.topProfit.map((f) => f.name)).toEqual(["Botana"]);
+    expect(r.belowCost.map((f) => f.name)).toEqual(["Agua 1L", "Fotocopia"]);
+    expect(r.belowCostCount).toBe(2);
+    expect(r.belowCost[0]).toMatchObject({
+      itemId: ctx.productoA,
+      kind: "product",
+      revenue: "50.00",
+      cost: "60.00",
+      profit: "-10.00",
+      marginPct: -20,
+    });
+    expect(r.belowCost[1]).toMatchObject({
+      itemId: fotocopia,
+      kind: "service",
+      revenue: "0.86",
+      cost: "3.00",
+      profit: "-2.14",
+      marginPct: -248.8,
+    });
+  });
+
+  it("F10-KPI-01: las listas no se rellenan — llegan hasta cinco y el conteo dice cuántos hay", async () => {
+    const ctx = await escenario();
+    // Uno solo deja: «Mayor utilidad» queda con un renglón, sin pérdidas de relleno.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: ctx.productoB,
+      quantity: 1,
+      unitPrice: 50,
+      unitCost: 10,
+    });
+    // Seis pierden (1 a 6 pesos) y seis se venden sin costo (10 a 60 pesos).
+    for (let n = 1; n <= 6; n++) {
+      await vender(ctx, {
+        creadaEn: "2026-03-14T18:00:00Z",
+        productoId: await articulo(ctx, "product", `Pierde ${n}`),
+        quantity: 1,
+        unitPrice: 10,
+        unitCost: 10 + n,
+      });
+      await vender(ctx, {
+        creadaEn: "2026-03-14T18:00:00Z",
+        productoId: await articulo(ctx, "product", `Sin costo ${n}`),
+        quantity: 1,
+        unitPrice: 10 * n,
+      });
+    }
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    expect(r.topProfit.map((f) => f.name)).toEqual(["Botana"]);
+    expect(r.belowCost.map((f) => f.name)).toEqual([
+      "Pierde 6",
+      "Pierde 5",
+      "Pierde 4",
+      "Pierde 3",
+      "Pierde 2",
+    ]);
+    expect(r.belowCostCount).toBe(6);
+    expect(r.uncosted.map((f) => f.name)).toEqual([
+      "Sin costo 6",
+      "Sin costo 5",
+      "Sin costo 4",
+      "Sin costo 3",
+      "Sin costo 2",
+    ]);
+    expect(r.uncostedCount).toBe(6);
+  });
+
+  it("F10-KPI-01: productos y servicios vendidos sin costo van a `uncosted`; un concepto no", async () => {
+    const ctx = await escenario();
+    const misterio = await articulo(ctx, "product", "Misterio");
+    const corte = await articulo(ctx, "service", "Corte");
+    const viejo = await articulo(ctx, "product", "Viejo");
+
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: misterio,
+      quantity: 50,
+      unitPrice: 40,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:10:00Z",
+      servicioId: corte,
+      quantity: 3,
+      unitPrice: 100,
+    });
+    // Un concepto libre no tiene ficha donde capturar un costo: no cuenta.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:20:00Z",
+      concepto: "Flete a domicilio",
+      quantity: 1,
+      unitPrice: 150,
+    });
+    // Agua tiene costo en una venta y no en otra: solo cuenta lo que se vendió sin él.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:30:00Z",
+      productoId: ctx.productoA,
+      quantity: 2,
+      unitPrice: 30,
+      unitCost: 28,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:40:00Z",
+      productoId: ctx.productoA,
+      quantity: 4,
+      unitPrice: 25,
+    });
+    // Fuera del periodo: no es de este mes.
+    await vender(ctx, {
+      creadaEn: "2026-02-10T18:00:00Z",
+      productoId: viejo,
+      quantity: 1,
+      unitPrice: 500,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    expect(r.uncosted).toEqual([
+      {
+        itemId: misterio,
+        kind: "product",
+        sku: expect.any(String),
+        name: "Misterio",
+        revenue: "2000.00",
+      },
+      { itemId: corte, kind: "service", sku: expect.any(String), name: "Corte", revenue: "300.00" },
+      {
+        itemId: ctx.productoA,
+        kind: "product",
+        sku: expect.any(String),
+        name: "Agua 1L",
+        revenue: "100.00",
+      },
+    ]);
+    expect(r.uncostedCount).toBe(3);
+    // Lo que sí tiene costo sigue en su lugar.
+    expect(r.topProfit.map((f) => f.name)).toEqual(["Agua 1L"]);
   });
 
   it("inventario: cuenta agotados y bajos, predice días y el valor solo viaja con reports:read", async () => {
