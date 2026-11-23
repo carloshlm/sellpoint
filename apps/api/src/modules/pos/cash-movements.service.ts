@@ -221,7 +221,11 @@ export class CashMovementsService {
       throw new UnprocessableEntityException({ message: "pos.cash_movement_code_required" });
     }
     if (!isDiscountCode(code)) {
-      throw new BadRequestException({ message: "pos.discount_code_invalid" });
+      // Con su `errors`, como lo respondía el DTO: el 400 conserva su forma.
+      throw new BadRequestException({
+        message: "pos.discount_code_invalid",
+        errors: [{ key: "code", message: "pos.discount_code_invalid" }],
+      });
     }
     await this.authorizationCode.verify(user, tenant.discountCodeHash, code, this.logger);
     return true;

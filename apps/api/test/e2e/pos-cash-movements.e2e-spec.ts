@@ -65,6 +65,9 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
   const totales = (token: string) =>
     http().get("/pos/session/totals").set("Authorization", bearer(token));
   const mensaje = (res: { body: unknown }) => (res.body as { message: string }).message;
+  const espera = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+  const cerrarTurno = (token: string, declaredCash: number) =>
+    http().post("/pos/session/close").set("Authorization", bearer(token)).send({ declaredCash });
 
   /** Un cajero nuevo con SOLO el rol de fábrica Seller («Cajero»): cada uno con su cuenta de intentos. */
   const cajeroNuevo = (prefijo: string) => usuarioConRol(app, negocio, "seller", prefijo);
@@ -202,6 +205,32 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
   });
 
   /**
+   * F10-PEND-01 — la carrera de verdad, por HTTP: un retiro y el cierre a la
+   * vez, con unos milisegundos de desfase. En la base, el cierre quedaba ANTES
+   * del retiro que contó en 8 de 40 rondas (verificador de F10-PEND).
+   */
+  it("un retiro que gana la fila queda antes de la hora del cierre que lo cuenta (carrera real)", async () => {
+    const cajero = await cajeroNuevo("cashmov-cierre-carrera");
+    for (let i = 0; i < 30; i += 1) {
+      await abrir(cajero, 500).expect(201);
+      const [mov, cierre] = await Promise.all([
+        registrar(cajero, { type: "out", reason: "safe", amount: 40 }),
+        espera((i % 8) * 2).then(() => cerrarTurno(cajero, 460)),
+      ]);
+      expect(cierre.status).toBe(200);
+      if (mov.status === 201) {
+        expect(cierre.body).toMatchObject({ cashOut: "40", expectedCash: "460" });
+        expect(new Date(cierre.body.session.closedAt).getTime()).toBeGreaterThanOrEqual(
+          new Date(mov.body.createdAt).getTime(),
+        );
+      } else {
+        expect(mov.status).toBe(409);
+        expect(cierre.body).toMatchObject({ cashOut: "0", expectedCash: "500" });
+      }
+    }
+  });
+
+  /**
    * F10-PEND-03 — la regla del retiro se revisaba solo al retirar: cancelar
    * después una venta en efectivo del turno dejaba el esperado debajo de cero.
    * Ahora la cancelación también la revisa, con la fila del turno tomada.
@@ -236,7 +265,7 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
       const rebota = await cancelarVenta(venta.id).expect(422);
 
       expect(mensaje(rebota)).toBe(
-        "El cajón del turno no alcanza para devolver $300.00 en efectivo: hay $50.00. Primero registra una entrada de efectivo en ese turno.",
+        "El cajón del turno no alcanza para devolver $300.00 en efectivo: hay $50.00. Quien tiene el turno debe registrar primero una entrada de efectivo.",
       );
       expect(await esperado(cajero)).toBe(50);
       const fila = await prisma.withTenantContext(negocio.tenantId, (tx) =>
@@ -247,6 +276,27 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
       await registrar(cajero, { type: "in", reason: "change_fund", amount: 250 }).expect(201);
       await cancelarVenta(venta.id).expect(200);
       expect(await esperado(cajero)).toBe(0);
+    });
+
+    // En la base, 25 de 40 rondas dejaban el cajón en negativo (verificador de F10-PEND).
+    it("cancelar y retirar a la vez nunca dejan el cajón debajo de cero", async () => {
+      const cajero = await cajeroNuevo("cashmov-cancela-carrera");
+      for (let i = 0; i < 16; i += 1) {
+        await abrir(cajero, 0).expect(201);
+        const venta = await vender(cajero, "cash");
+        const desfase = (i % 8) * 2;
+        const [cancelada, retiro] = await Promise.all([
+          espera(i % 2 === 0 ? desfase : 0).then(() => cancelarVenta(venta.id)),
+          espera(i % 2 === 1 ? desfase : 0).then(() =>
+            registrar(cajero, { type: "out", reason: "safe", amount: 200 }),
+          ),
+        ]);
+        expect([cancelada.status, retiro.status].sort()).toEqual(
+          cancelada.status === 200 ? [200, 422] : [201, 422],
+        );
+        expect(await esperado(cajero)).toBeGreaterThanOrEqual(0);
+        await cerrarTurno(cajero, 0).expect(200);
+      }
     });
 
     it("una venta con tarjeta, o de un turno ya cerrado, se cancela como siempre", async () => {
@@ -386,6 +436,9 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
           code: "12ab",
         }).expect(400);
         expect(mensaje(malo)).toBe("El código de autorización no es correcto.");
+        expect(malo.body).toMatchObject({
+          errors: [{ key: "code", message: "El código de autorización no es correcto." }],
+        });
       }
       // Cinco mal escritos no cierran el candado: el bueno pasa.
       const retiro = await registrar(cajero, {
