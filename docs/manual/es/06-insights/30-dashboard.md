@@ -82,7 +82,21 @@ de pago**; los mosaicos de arriba no cambian. La semana empieza el lunes.
   anterior.
 - **Mayor utilidad**: los 5 que más te dejaron, con su **margen**. Vender mucho
   no es ganar mucho: al ver las dos listas juntas descubres cuál es tu producto
-  estrella de verdad.
+  estrella de verdad. Solo entra lo que te dejó algo; si nada te dejó utilidad en
+  el periodo, dice **Nada dejó utilidad en este período.**
+
+Debajo de **Mayor utilidad** pueden aparecer dos avisos, cada uno con cuántos
+son. Presiona uno para ver su lista:
+
+- **Se vendieron por debajo de su costo**: lo que te hizo perder dinero en el
+  periodo, de la mayor pérdida a la menor, con su margen. Revisa su precio o su
+  costo.
+- **Se vendieron sin costo: no cuentan en tu utilidad**: los productos y
+  servicios que vendiste sin costo capturado. Captúralo para que tu utilidad
+  esté completa.
+
+Cada lista muestra hasta cinco y, si hay más, dice cuántos faltan. Si puedes ver
+el catálogo, cada nombre te lleva a su producto o a la lista de servicios.
 
 ## Inventario y métodos de pago
 

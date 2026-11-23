@@ -67,18 +67,18 @@ const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
 const mockedSalesLines = vi.mocked(reportsApi.getSalesLinesReport);
 const mockedSalesLinesExport = vi.mocked(reportsApi.downloadSalesLinesReport);
 
-const demoUser = (isPlatformAdmin: boolean): AuthUser =>
+const demoUser = (isPlatformAdmin: boolean, permissions = ["tenants:manage"]): AuthUser =>
   buildAuthUser({
     email: "admin@example.com",
     firstName: "Carlos",
     lastName: "H",
-    permissions: ["tenants:manage"],
+    permissions,
     isPlatformAdmin,
     tenant: buildTenantBlock({ name: "SellPointy HQ" }),
   });
 
-async function renderEn(path: string, isPlatformAdmin = true) {
-  useAuthStore.getState().setAuth("jwt", demoUser(isPlatformAdmin));
+async function renderEn(path: string, isPlatformAdmin = true, permissions?: string[]) {
+  useAuthStore.getState().setAuth("jwt", demoUser(isPlatformAdmin, permissions));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -396,6 +396,43 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
     await renderEn("/admin/tenants/t1?tab=dashboard");
     await screen.findByTestId("tenant-dashboard");
     await waitFor(() => expect(mockedKpis).toHaveBeenCalledWith("/admin/tenants/t1"));
+  });
+
+  it("Panel: lo vendido bajo costo se lee, pero no enlaza al catálogo propio (F10-KPI-02)", async () => {
+    // Aunque el administrador tenga permiso de catálogo en SU negocio, el
+    // producto es del negocio mirado: un enlace abriría el catálogo equivocado.
+    vi.mocked(dashboardApi.getDashboardProducts).mockResolvedValueOnce({
+      topSold: [],
+      topProfit: [],
+      belowCost: [
+        {
+          itemId: "p9",
+          kind: "product",
+          sku: "LEC-1L",
+          name: "Leche 1L",
+          revenue: "50.00",
+          cost: "60.00",
+          profit: "-10.00",
+          marginPct: -20,
+        },
+      ],
+      belowCostCount: 1,
+      uncosted: [],
+      uncostedCount: 0,
+    });
+    const user = userEvent.setup();
+    await renderEn("/admin/tenants/t1?tab=dashboard", true, [
+      "tenants:manage",
+      "products:read",
+      "services:read",
+    ]);
+
+    await user.click(
+      await screen.findByRole("button", { name: "1 se vendió por debajo de su costo" }),
+    );
+
+    expect(screen.getByText("Leche 1L")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Leche 1L" })).not.toBeInTheDocument();
   });
 
   it("Reportes: pide las ventas del negocio mirado con el prefijo del expediente", async () => {

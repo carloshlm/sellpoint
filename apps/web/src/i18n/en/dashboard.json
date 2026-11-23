@@ -41,7 +41,13 @@
     "profitCol": "Profit",
     "margin": "Margin",
     "empty": "No sales in this period",
-    "profitEmpty": "No frozen costs yet. Record your purchases with cost and every new sale will track its profit."
+    "profitEmpty": "No frozen costs yet. Record your purchases with cost and every new sale will track its profit.",
+    "profitNone": "Nothing made a profit in this period.",
+    "belowCost_one": "{{count}} sold below cost",
+    "belowCost": "{{count}} sold below cost",
+    "uncosted_one": "{{count}} sold without a cost: not counted in your profit",
+    "uncosted": "{{count}} sold without a cost: not counted in your profit",
+    "more": "and {{count}} more"
   },
   "inventory": {
     "title": "Inventory",

@@ -296,3 +296,121 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     expect(enlace?.getAttribute("href")).toContain("belowMin=true");
   });
 });
+
+/**
+ * F10-KPI-02 — bajo «Mayor utilidad», dos avisos plegables: lo que se vendió
+ * por debajo de su costo y lo que se vendió sin costo. El caso de la captura
+ * de Carlos del 19 de septiembre: «Fotocopia», −$2.14 y −248.8% de margen.
+ */
+const MARGENES: Pick<
+  dashboardApi.DashboardProducts,
+  "belowCost" | "belowCostCount" | "uncosted" | "uncostedCount"
+> = {
+  belowCost: [
+    {
+      itemId: "p9",
+      kind: "product",
+      sku: "LEC-1L",
+      name: "Leche 1L",
+      revenue: "50.00",
+      cost: "60.00",
+      profit: "-10.00",
+      marginPct: -20,
+    },
+    {
+      itemId: "s1",
+      kind: "service",
+      sku: "FOT",
+      name: "Fotocopia",
+      revenue: "0.86",
+      cost: "3.00",
+      profit: "-2.14",
+      marginPct: -248.8,
+    },
+  ],
+  belowCostCount: 2,
+  uncosted: [
+    { itemId: "p7", kind: "product", sku: "DES", name: "Despensa básica", revenue: "646.56" },
+    { itemId: "s2", kind: "service", sku: "ENV", name: "Envío a domicilio", revenue: "90.51" },
+  ],
+  uncostedCount: 3,
+};
+
+const CON_CATALOGO = ["reports:read", "inventory:read", "products:read", "services:read"];
+
+describe("F10-KPI-02: «Mayor utilidad» avisa lo que pierde y lo que no tiene costo", () => {
+  it("lo vendido bajo costo se avisa y, al abrirlo, cada fila lleva a su ficha", async () => {
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, ...MARGENES });
+    const user = userEvent.setup();
+    await renderDashboard(CON_CATALOGO);
+
+    const aviso = await screen.findByRole("button", {
+      name: "2 se vendieron por debajo de su costo",
+    });
+    expect(aviso).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("margin-check")).not.toBeNull();
+    // Cerrado, no enseña las filas.
+    expect(screen.queryByRole("link", { name: "Fotocopia" })).not.toBeInTheDocument();
+
+    await user.click(aviso);
+
+    expect(aviso).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("-248.8% margen")).toBeInTheDocument();
+    expect(screen.getByText("-20% margen")).toBeInTheDocument();
+    // El producto abre su ficha; el servicio, la lista de servicios.
+    const leche = screen.getByRole("link", { name: "Leche 1L" });
+    expect(leche.getAttribute("href")).toContain("/catalog/products");
+    expect(leche.getAttribute("href")).toContain("open=p9");
+    expect(screen.getByRole("link", { name: "Fotocopia" }).getAttribute("href")).toBe(
+      "/catalog/services",
+    );
+    // «Mayor utilidad» sigue con lo suyo.
+    expect(screen.getByText("80% margen")).toBeInTheDocument();
+  });
+
+  it("lo vendido sin costo se avisa, y dice cuántos más hay fuera de la lista", async () => {
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, ...MARGENES });
+    const user = userEvent.setup();
+    await renderDashboard(CON_CATALOGO);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "3 se vendieron sin costo: no cuentan en tu utilidad",
+      }),
+    );
+
+    expect(screen.getByRole("link", { name: "Despensa básica" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Envío a domicilio" })).toBeInTheDocument();
+    expect(screen.getByText("y 1 más")).toBeInTheDocument();
+  });
+
+  it("sin permiso para ver el catálogo, el nombre se lee pero no enlaza", async () => {
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, ...MARGENES });
+    const user = userEvent.setup();
+    await renderDashboard();
+
+    await user.click(
+      await screen.findByRole("button", { name: "2 se vendieron por debajo de su costo" }),
+    );
+
+    expect(screen.getByText("Leche 1L")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Leche 1L" })).not.toBeInTheDocument();
+  });
+
+  it("si nada dejó utilidad, el vacío no culpa a los costos", async () => {
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, ...MARGENES, topProfit: [] });
+    await renderDashboard(CON_CATALOGO);
+
+    expect(await screen.findByText("Nada dejó utilidad en este período.")).toBeInTheDocument();
+    expect(screen.queryByText(/Aún sin costos congelados/)).not.toBeInTheDocument();
+  });
+
+  it("un API anterior, sin los campos nuevos, deja el recuadro como estaba", async () => {
+    await renderDashboard(CON_CATALOGO);
+
+    await screen.findByText("80% margen");
+    expect(screen.queryByText(/por debajo de su costo/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sin costo:/)).not.toBeInTheDocument();
+    expect(document.getElementById("margin-check")).toBeNull();
+  });
+});

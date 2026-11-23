@@ -63,6 +63,31 @@ export interface DashboardProducts {
     profit: string;
     marginPct: number;
   }[];
+  /**
+   * F10-KPI-01 — lo vendido por debajo de su costo (hasta 5) y lo vendido sin
+   * costo (hasta 5), cada uno con su conteo total. Opcionales: durante un
+   * deploy, este web puede hablar con un API que todavía no los manda.
+   */
+  belowCost?: {
+    itemId: string;
+    kind: "product" | "service";
+    sku: string;
+    name: string;
+    revenue: string;
+    cost: string;
+    profit: string;
+    /** null si se vendió en $0: ahí el margen no existe. */
+    marginPct: number | null;
+  }[];
+  belowCostCount?: number;
+  uncosted?: {
+    itemId: string;
+    kind: "product" | "service";
+    sku: string;
+    name: string;
+    revenue: string;
+  }[];
+  uncostedCount?: number;
 }
 
 export interface DashboardInventory {
