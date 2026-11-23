@@ -49,5 +49,10 @@ Cuando una venta se cancela:
 - Lo que se vendió **vuelve al inventario** de la sucursal.
 - Si se cancela mientras tu turno sigue abierto, **deja de contar en tu
   cierre**: su dinero ya no está en tu cajón (capítulo 5).
+- Si se cobró en **efectivo** y tu turno sigue abierto, el dinero se devuelve de
+  tu cajón, así que la cancelación no puede dejarlo por debajo de cero. Si ya
+  llevaste efectivo a la caja fuerte y no alcanza, la venta no se cancela y el
+  aviso dice cuánto hay. Registra primero una **entrada** de efectivo
+  (capítulo 5) y después se puede cancelar.
 - No se puede volver a cobrar. Si el cliente sí se lleva algo, se cobra como una
   venta nueva.

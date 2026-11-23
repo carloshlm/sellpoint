@@ -80,7 +80,8 @@ hora y quién lo registró. Cuando terminas, presiona **Cerrar**.
   registrado quién lo hizo. Una entrada nunca pide código.
 - **No por debajo de cero.** Un retiro no puede sacar más efectivo del que debe
   haber en tu cajón. Si tecleas 10,000 en lugar de 1,000, SellPointy no lo
-  registra y te dice cuánto efectivo hay.
+  registra y te dice cuánto efectivo hay. Lo mismo al cancelar una venta en
+  efectivo de tu turno: su dinero sale de tu cajón (capítulo 8).
 - **Un retiro no es un gasto.** El dinero que llevas a la caja fuerte o al banco
   sigue siendo del negocio: no aparece en los gastos ni baja la utilidad. Si con
   dinero del cajón se le paga algo a alguien, eso sí es un gasto (capítulo 10).

@@ -6,7 +6,9 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
+  type Currency,
   discountCapCents,
+  formatMoney,
   localCalendarDate,
   type PosLineKind,
   prorateDiscountCents,
@@ -25,7 +27,7 @@ import type { ResolvedLine } from "../inventory/line-resolver";
 import { resolveLotsFefo } from "../inventory/lot-fefo";
 import { StockLedgerService } from "../inventory/stock-ledger.service";
 import { AuthorizationCodeService } from "./authorization-code.service";
-import { CashboxService } from "./cashbox.service";
+import { CashboxService, type TurnoDelArqueo } from "./cashbox.service";
 import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
@@ -646,6 +648,13 @@ export class SalesService {
    * con `count = 1`. Leer el estado y después actualizar deja una ventana
    * donde dos anulaciones simultáneas devolverían el stock DOS veces — el
    * mismo patrón de `markConfirmed` en F3.
+   *
+   * F10-PEND-03: una venta en EFECTIVO devuelve su dinero del cajón de su
+   * turno, y si el turno sigue abierto la cancelación no puede dejar el
+   * esperado debajo de cero, la misma regla que un retiro (F10-CASHMOV-02).
+   * Sin esto, un retiro a la caja fuerte seguido de una cancelación dejaba el
+   * esperado en negativo. La fila del turno se toma ANTES que la de la venta,
+   * en el mismo orden que el cierre y los movimientos.
    */
   async cancel(user: AuthUser, id: string, dto: CancelSaleDto) {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
@@ -656,6 +665,10 @@ export class SalesService {
       if (venta === null) {
         throw new NotFoundException({ message: "pos.sale_not_found" });
       }
+      const turno =
+        venta.paymentMethod === "cash"
+          ? await this.tomarTurnoDeLaVenta(tx, user, venta.cashboxSessionId)
+          : null;
 
       const tomadas = await tx.sale.updateMany({
         where: { id, tenantId: user.tenantId, status: "completed" },
@@ -668,6 +681,9 @@ export class SalesService {
       });
       if (tomadas.count !== 1) {
         throw new ConflictException({ message: "pos.sale_already_canceled" });
+      }
+      if (turno?.status === "open") {
+        await this.assertCajonAlcanza(tx, user, turno, venta.total);
       }
 
       // El reverso sale de los MOVIMIENTOS asentados, no de las líneas de la
@@ -719,6 +735,56 @@ export class SalesService {
           taxes: { orderBy: { sortOrder: "asc" } },
         },
       });
+    });
+  }
+
+  /** La fila del turno de la venta, con `FOR UPDATE`: el cierre y los movimientos la esperan. */
+  private async tomarTurnoDeLaVenta(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    sessionId: string,
+  ): Promise<TurnoDelArqueo & { status: string }> {
+    await tx.$queryRaw`
+      SELECT 1 FROM cashbox_sessions
+       WHERE id = ${sessionId}::uuid AND tenant_id = ${user.tenantId}::uuid
+       FOR UPDATE`;
+    return tx.cashboxSession.findUniqueOrThrow({
+      where: { id: sessionId },
+      select: { id: true, status: true, openingCash: true },
+    });
+  }
+
+  /**
+   * Que devolver la venta no deje el cajón debajo de cero. La venta ya va
+   * cancelada en esta transacción, así que el arqueo (el MISMO del cierre) ya
+   * no la cuenta: lo que da es lo que quedaría. Si no alcanza, la excepción
+   * deshace la cancelación entera.
+   */
+  private async assertCajonAlcanza(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    turno: TurnoDelArqueo,
+    devuelve: Prisma.Decimal,
+  ): Promise<void> {
+    const queda = new Prisma.Decimal(
+      (await this.cashbox.arqueo(tx, user.tenantId, turno)).expectedCash,
+    );
+    if (queda.greaterThanOrEqualTo(0)) {
+      return;
+    }
+    const tenant = await tx.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { currency: true },
+    });
+    const moneda = tenant?.currency as Currency | undefined;
+    // Un esperado que ya era negativo se dice como $0, como en el retiro.
+    const hay = Prisma.Decimal.max(queda.plus(devuelve), 0).toNumber();
+    throw new UnprocessableEntityException({
+      message: "pos.sale_cancel_exceeds_drawer",
+      args: {
+        amount: formatMoney(devuelve.toNumber(), moneda, user.locale),
+        available: formatMoney(hay, moneda, user.locale),
+      },
     });
   }
 

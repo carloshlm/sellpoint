@@ -35,6 +35,7 @@ aquí el mensaje que ves, o el problema, y lo que hay que hacer.
 | Demasiados intentos con el código de autorización. Espera 15 minutos. | Después de cinco códigos equivocados, los descuentos y los retiros de efectivo se bloquean 15 minutos. |
 | Este movimiento pide el código de autorización del negocio. | El negocio tiene código: un retiro de efectivo, o anular una entrada, lo pide. Que lo escriba quien lo conoce (capítulos 5 y 14). |
 | El efectivo del cajón no puede quedar debajo de cero: hay … | El retiro es mayor que el efectivo que debería haber en el cajón. Revisa el importe; si falta registrar una venta o una entrada, regístrala primero (capítulo 5). |
+| El cajón del turno no alcanza para devolver … en efectivo: hay … | La venta se cobró en efectivo y su turno sigue abierto, pero en ese cajón ya no está su dinero (por ejemplo, se llevó a la caja fuerte). Quien tiene el turno registra primero una entrada de efectivo (capítulo 5) y después se cancela la venta (capítulo 8). |
 | Este negocio no tiene código de autorización de descuentos. | El administrador tiene que crear el código en **Mi perfil** antes de que se puedan dar descuentos (capítulo 14). |
 | El descuento supera el tope del negocio (… % del subtotal). | El descuento es mayor que el máximo que definió el administrador. Da uno menor o pide que cambien el tope (capítulo 14). |
 | El descuento no puede ser mayor que el subtotal. | Un descuento no puede dejar la venta en negativo. |

@@ -48,6 +48,7 @@
   "cash_movement_note_too_long": "The note allows up to 300 characters.",
   "cash_movement_code_required": "This movement requires the business authorization code.",
   "cash_out_exceeds_drawer": "The cash in the drawer cannot go below zero: there is {available}.",
+  "sale_cancel_exceeds_drawer": "The shift's drawer doesn't have enough to refund {amount} in cash: there is {available}. First record a cash entry in that shift.",
   "cash_movement_not_found": "We could not find that cash movement.",
   "cash_movement_not_own": "That movement belongs to someone else's shift.",
   "cash_movement_session_closed": "That movement belongs to a closed shift: it can no longer be canceled.",

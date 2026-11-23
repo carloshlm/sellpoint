@@ -11,6 +11,7 @@ import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import {
   almacenInicial,
   bearer,
+  cargarStock,
   crearProducto,
   registerTenant,
   type TenantFixture,
@@ -198,6 +199,73 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
     );
 
     expect(mensaje(res)).toBe("El efectivo del cajón no puede quedar debajo de cero: hay $300.00.");
+  });
+
+  /**
+   * F10-PEND-03 — la regla del retiro se revisaba solo al retirar: cancelar
+   * después una venta en efectivo del turno dejaba el esperado debajo de cero.
+   * Ahora la cancelación también la revisa, con la fila del turno tomada.
+   */
+  describe("cancelar una venta en efectivo revisa el cajón del turno", () => {
+    const vender = async (cajero: string, paymentMethod: "cash" | "card") => {
+      const producto = await crearProducto(app, negocio.token, 300);
+      await cargarStock(app, negocio.token, principal, producto.id, 1);
+      const venta = await http()
+        .post("/pos/sales")
+        .set("Authorization", bearer(cajero))
+        .send({ paymentMethod, lines: [{ productId: producto.id, quantity: 1 }] })
+        .expect(201);
+      return venta.body as { id: string; total: string };
+    };
+    const cancelarVenta = (id: string) =>
+      http()
+        .post(`/pos/sales/${id}/cancel`)
+        .set("Authorization", bearer(negocio.token))
+        .send({ reason: "Cobro duplicado" });
+    const esperado = async (cajero: string) =>
+      Number((await totales(cajero).expect(200)).body.expectedCash);
+
+    it("si no alcanza, 422 y la venta sigue cobrada; con una entrada antes, se cancela", async () => {
+      const cajero = await cajeroNuevo("cashmov-cancela-venta");
+      await abrir(cajero, 100).expect(201);
+      const venta = await vender(cajero, "cash");
+      expect(Number(venta.total)).toBe(300);
+      // Fondo 100 + venta 300 = 400; a la caja fuerte se van 350: quedan 50.
+      await registrar(cajero, { type: "out", reason: "safe", amount: 350 }).expect(201);
+
+      const rebota = await cancelarVenta(venta.id).expect(422);
+
+      expect(mensaje(rebota)).toBe(
+        "El cajón del turno no alcanza para devolver $300.00 en efectivo: hay $50.00. Primero registra una entrada de efectivo en ese turno.",
+      );
+      expect(await esperado(cajero)).toBe(50);
+      const fila = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.sale.findUniqueOrThrow({ where: { id: venta.id }, select: { status: true } }),
+      );
+      expect(fila.status).toBe("completed");
+
+      await registrar(cajero, { type: "in", reason: "change_fund", amount: 250 }).expect(201);
+      await cancelarVenta(venta.id).expect(200);
+      expect(await esperado(cajero)).toBe(0);
+    });
+
+    it("una venta con tarjeta, o de un turno ya cerrado, se cancela como siempre", async () => {
+      const cajero = await cajeroNuevo("cashmov-cancela-otras");
+      await abrir(cajero, 0).expect(201);
+      const conTarjeta = await vender(cajero, "card");
+      const enEfectivo = await vender(cajero, "cash");
+      await registrar(cajero, { type: "out", reason: "safe", amount: 300 }).expect(201);
+
+      await cancelarVenta(conTarjeta.id).expect(200);
+      expect(await esperado(cajero)).toBe(0);
+
+      await http()
+        .post("/pos/session/close")
+        .set("Authorization", bearer(cajero))
+        .send({ declaredCash: 0 })
+        .expect(200);
+      await cancelarVenta(enEfectivo.id).expect(200);
+    });
   });
 
   /**
