@@ -1,5 +1,6 @@
 import { formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollableList } from "@/components/ui/scrollable-list";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
@@ -13,13 +14,24 @@ import { useAuthStore } from "@/stores/auth.store";
  * `inventory:read` — es de quien opera el almacén; el VALOR (dinero) solo
  * llega del API si además hay `reports:read`, y acá simplemente no se pinta
  * lo que no llegó.
+ *
+ * F10-PEND-06: las columnas las decide el ancho de la TARJETA (`@container`),
+ * no el de la pantalla: a 1280 px con el menú abierto la tarjeta mide media
+ * pantalla y en tres columnas «$53,853.00» se salía de su mosaico. Mientras no
+ * caben tres, el valor ocupa su propio renglón; y si un número enorme aún no
+ * cabe, se parte antes que salirse.
+ *
+ * F10-PEND-07: en el expediente del backoffice los contadores se leen SIN
+ * enlace, como «Control»: `/reports/stock` es el reporte del negocio propio, y
+ * el del negocio mirado vive en la pestaña Reportes del expediente.
  */
 function InventoryWidgets() {
   const { t } = useTranslation();
   const { has } = usePermissions();
   const currency = useScopedCurrency();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const { forcePermission } = useAdminTenantScope();
+  const { forcePermission, tenantId } = useAdminTenantScope();
+  const enlaza = tenantId === null;
   const puedeVer = forcePermission || has("inventory:read");
   const { data } = useDashboardInventory(puedeVer);
 
@@ -28,43 +40,32 @@ function InventoryWidgets() {
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
+    <section className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 className="font-medium text-sm">{t("dashboard.inventory.title")}</h2>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-        <Link
-          to="/reports/stock"
-          search={{ belowMin: true }}
-          className="flex flex-col rounded-md border p-3 transition-colors hover:bg-muted"
-        >
+      <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
+        <Mosaico enlaza={enlaza} soloBajoMinimo>
           <span className="font-semibold text-2xl text-destructive tabular-nums">
             {data.outOfStock}
           </span>
           <span className="text-muted-foreground text-xs">
             🔴 {t("dashboard.inventory.outOfStock")}
           </span>
-        </Link>
-        <Link
-          to="/reports/stock"
-          search={{ belowMin: true }}
-          className="flex flex-col rounded-md border p-3 transition-colors hover:bg-muted"
-        >
+        </Mosaico>
+        <Mosaico enlaza={enlaza} soloBajoMinimo>
           <span className="font-semibold text-2xl text-warning tabular-nums">{data.belowMin}</span>
           <span className="text-muted-foreground text-xs">
             🟠 {t("dashboard.inventory.belowMin")}
           </span>
-        </Link>
+        </Mosaico>
         {data.inventoryValue !== undefined && (
-          <Link
-            to="/reports/stock"
-            className="flex flex-col rounded-md border p-3 transition-colors hover:bg-muted"
-          >
-            <span className="font-semibold text-2xl tabular-nums">
+          <Mosaico enlaza={enlaza} className="col-span-2 @lg:col-span-1">
+            <span className="wrap-anywhere font-semibold text-2xl tabular-nums">
               {formatMoney(Number(data.inventoryValue), currency, locale)}
             </span>
             <span className="text-muted-foreground text-xs">
               💰 {t("dashboard.inventory.value")}
             </span>
-          </Link>
+          </Mosaico>
         )}
       </div>
       <h3 className="text-muted-foreground text-xs uppercase">
@@ -100,6 +101,31 @@ function InventoryWidgets() {
         </ScrollableList>
       )}
     </section>
+  );
+}
+
+type MosaicoProps = {
+  /** Sin enlace (el expediente del backoffice), el mosaico se lee sin navegar. */
+  enlaza: boolean;
+  /** Llega al reporte con «Solo bajo mínimo» puesto. */
+  soloBajoMinimo?: boolean;
+  className?: string;
+  children: ReactNode;
+};
+
+function Mosaico({ enlaza, soloBajoMinimo = false, className = "", children }: MosaicoProps) {
+  const clase = `flex min-w-0 flex-col rounded-md border p-3 ${className}`.trim();
+  if (!enlaza) {
+    return <div className={clase}>{children}</div>;
+  }
+  return (
+    <Link
+      to="/reports/stock"
+      {...(soloBajoMinimo && { search: { belowMin: true } })}
+      className={`${clase} transition-colors hover:bg-muted`}
+    >
+      {children}
+    </Link>
   );
 }
 

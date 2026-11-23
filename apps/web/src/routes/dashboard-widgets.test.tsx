@@ -322,6 +322,29 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     expect(enlace?.getAttribute("href")).toContain("/reports/stock");
     expect(enlace?.getAttribute("href")).toContain("belowMin=true");
   });
+
+  /**
+   * F10-PEND-06 — a 1280 px con el menú abierto, «$53,853.00» se salía de su
+   * mosaico: tres columnas en una tarjeta de media pantalla. Ahora las columnas
+   * las decide el ancho de la TARJETA (consulta de contenedor), y el valor
+   * ocupa el renglón entero mientras no caben tres. Lo que se ve, se verificó
+   * en el navegador; esto fija la estructura.
+   */
+  it("el valor del inventario ocupa su renglón hasta que la tarjeta da para tres columnas", async () => {
+    mocked.getDashboardInventory.mockResolvedValue({ ...INVENTORY, inventoryValue: "53853.00" });
+    await renderDashboard();
+
+    const valor = await screen.findByText("$53,853.00");
+    const mosaico = valor.closest("a") as HTMLElement;
+    const rejilla = mosaico.parentElement as HTMLElement;
+    expect(rejilla.closest("section")?.className).toContain("@container");
+    expect(rejilla.className).toContain("grid-cols-2");
+    expect(rejilla.className).toContain("@lg:grid-cols-3");
+    expect(rejilla.className).not.toMatch(/(^|\s)lg:grid-cols-3/);
+    expect(mosaico.className).toContain("col-span-2");
+    expect(mosaico.className).toContain("@lg:col-span-1");
+    expect(valor.className).toContain("wrap-anywhere");
+  });
 });
 
 /**

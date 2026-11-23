@@ -461,6 +461,28 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
     expect(within(tarjeta).queryAllByRole("link")).toHaveLength(0);
   });
 
+  it("Panel: los mosaicos de «Inventario» se leen sin enlazar al stock propio (F10-PEND-07)", async () => {
+    // `/reports/stock` es el reporte del negocio propio; el del mirado vive en
+    // la pestaña Reportes del expediente.
+    vi.mocked(dashboardApi.getDashboardInventory).mockResolvedValueOnce({
+      outOfStock: 2,
+      belowMin: 3,
+      inventoryValue: "53853.00",
+      attention: [],
+    });
+    await renderEn("/admin/tenants/t1?tab=dashboard");
+
+    const titulo = await screen.findByRole("heading", { name: "Inventario" });
+    const tarjeta = titulo.closest("section") as HTMLElement;
+    expect(await within(tarjeta).findByText("$53,853.00")).toBeInTheDocument();
+    expect(
+      within(tarjeta)
+        .getByText(/Agotados/)
+        .closest("a"),
+    ).toBeNull();
+    expect(within(tarjeta).queryAllByRole("link")).toHaveLength(0);
+  });
+
   it("Reportes: pide las ventas del negocio mirado con el prefijo del expediente", async () => {
     await renderEn("/admin/tenants/t1?tab=reports");
     await screen.findByTestId("tenant-reports");
