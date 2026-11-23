@@ -310,6 +310,107 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
         }
       }
     });
+
+    it("un cobro que rebota con 409 no gasta folio ni código de barras, no mueve stock y no carga la cotización", async () => {
+      const cajero = await cajeroNuevo("cashmov-cobro-rastro");
+      const turno = (await abrir(cajero, 100).expect(201)).body as { id: string; openedBy: string };
+      const producto = await crearProducto(app, negocio.token, 40);
+      await cargarStock(app, negocio.token, principal, producto.id, 5);
+      await cobrar(cajero, producto.id).expect(201);
+      const cotizacion = await http()
+        .post("/pos/quotes")
+        .set("Authorization", bearer(negocio.token))
+        .send({ lines: [{ productId: producto.id, quantity: 1 }] })
+        .expect(201);
+      const quoteId = (cotizacion.body as { id: string }).id;
+      const foto = () =>
+        prisma.withTenantContext(negocio.tenantId, async (tx) => ({
+          series:
+            await tx.$queryRaw`SELECT key, next_value::text AS v FROM tenant_sequences ORDER BY key`,
+          ventas: await tx.sale.count(),
+          movimientos: await tx.stockMovement.count({ where: { productId: producto.id } }),
+          stock:
+            await tx.$queryRaw`SELECT quantity::text AS q FROM stock_by_warehouse WHERE product_id = ${producto.id}::uuid`,
+          cotizacion: (await tx.quote.findUniqueOrThrow({ where: { id: quoteId } })).status,
+        }));
+      const antes = await foto();
+
+      let soltar = () => {};
+      const suelta = new Promise<void>((resolve) => {
+        soltar = resolve;
+      });
+      let avisarCerrado = () => {};
+      const cerrado = new Promise<void>((resolve) => {
+        avisarCerrado = resolve;
+      });
+      const cierre = prisma.withTenantContext(negocio.tenantId, async (tx) => {
+        await tx.$executeRaw`
+          UPDATE cashbox_sessions
+             SET status = 'closed', closed_by = ${turno.openedBy}::uuid, closed_at = now()
+           WHERE id = ${turno.id}::uuid`;
+        avisarCerrado();
+        await suelta;
+      });
+      await cerrado;
+      const cobros = Promise.all([
+        cobrar(cajero, producto.id),
+        http()
+          .post("/pos/sales")
+          .set("Authorization", bearer(cajero))
+          .send({
+            paymentMethod: "cash",
+            quoteId,
+            lines: [{ productId: producto.id, quantity: 1 }],
+          }),
+      ]);
+      await espera(300);
+      soltar();
+      await cierre;
+
+      for (const res of await cobros) {
+        expect(res.status).toBe(409);
+        expect(res.body).toMatchObject({
+          code: "pos.no_session",
+          message: "Abre un turno antes de vender.",
+        });
+      }
+      expect(await foto()).toEqual(antes);
+      expect(antes.cotizacion).toBe("open");
+    });
+
+    it("dos cobros del mismo turno no se esperan entre sí; el cierre sí espera al cobro", async () => {
+      const cajero = await cajeroNuevo("cashmov-cobro-share");
+      const turno = (await abrir(cajero, 0).expect(201)).body as { id: string };
+      const producto = await crearProducto(app, negocio.token, 300);
+      await cargarStock(app, negocio.token, principal, producto.id, 5);
+
+      // Otro cobro en vuelo sostiene la fila con FOR SHARE.
+      let soltar = () => {};
+      const suelta = new Promise<void>((resolve) => {
+        soltar = resolve;
+      });
+      let avisar = () => {};
+      const tomada = new Promise<void>((resolve) => {
+        avisar = resolve;
+      });
+      const enVuelo = prisma.withTenantContext(negocio.tenantId, async (tx) => {
+        await tx.$queryRaw`SELECT 1 FROM cashbox_sessions WHERE id = ${turno.id}::uuid FOR SHARE`;
+        avisar();
+        await suelta;
+      });
+      await tomada;
+      await cobrar(cajero, producto.id).expect(201);
+      let cerro = false;
+      const cierre = cerrarTurno(cajero, 0).then((res) => {
+        cerro = true;
+        return res;
+      });
+      await espera(400);
+      expect(cerro).toBe(false);
+      soltar();
+      await enVuelo;
+      expect((await cierre).body).toMatchObject({ expectedCash: "300" });
+    });
   });
 
   /**
