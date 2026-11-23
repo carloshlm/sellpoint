@@ -84,7 +84,9 @@ export class LotsController {
    */
   /**
    * F5-EXP-01: lo mismo en Excel. `inventory:read` y no `reports:read`: es la
-   * misma lectura de la pantalla en otro formato.
+   * misma lectura de la pantalla en otro formato. Lo que sí pide
+   * `reports:read` son las dos columnas de dinero del final (F10-KPI-09), y
+   * eso lo decide el servicio por campo, no esta puerta.
    */
   @Get("inventory/expiring/export")
   @RequirePermissions("inventory:read")
@@ -113,7 +115,9 @@ export class LotsController {
     query: ExpiringQueryDto,
   ) {
     // `days` basura cae en los 30 del tablero y `onlyExpired` es su propio
-    // filtro, no un plazo: lo decide el DTO (`dto/lots-query.dto.ts`).
+    // filtro, no un plazo: lo decide el DTO (`dto/lots-query.dto.ts`). El
+    // costo y el valor de cada fila viajan solo con `reports:read`
+    // (F10-KPI-09): gating por campo, dentro del servicio.
     return this.lots.listExpiring(user, scope, query);
   }
 

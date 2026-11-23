@@ -70,6 +70,9 @@
     "noPace": "Sin ritmo de venta",
     "empty": "Nada que atender: el stock está sano"
   },
+  "expiring": {
+    "atRisk": "{{amount}} en riesgo"
+  },
   "payments": {
     "title": "Métodos de pago",
     "cash": "Efectivo",

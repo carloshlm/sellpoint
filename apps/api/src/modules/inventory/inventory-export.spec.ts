@@ -1,5 +1,7 @@
 import ExcelJS from "exceljs";
 import { InventoryExportService } from "./inventory-export.service";
+import type { KardexService } from "./kardex.service";
+import type { LotsService } from "./lots.service";
 
 /**
  * Carlos (2026-10-31): en el Excel de vencimientos y en el de tránsito, la
@@ -73,6 +75,71 @@ describe("InventoryExportService — vencimientos y tránsito en Excel", () => {
         numFmt: fila.get(columna)?.numFmt,
       }).toEqual({ columna, value: valor, numFmt: "@" });
     }
+  });
+
+  /**
+   * F10-KPI-09 — «Costo promedio» y «Valor» son dinero: se deciden con el
+   * PERMISO del usuario y no con lo que traiga la fila. Aunque la consulta
+   * mandara los campos por error, el archivo de quien no tiene
+   * `reports:read` no los lleva.
+   */
+  describe("el costo y el valor (F10-KPI-09)", () => {
+    /** El exportador con una sola fila de vencimientos, con o sin costo. */
+    const exportador = (unitCost: string | null, value: string | null) =>
+      new InventoryExportService(
+        {
+          listExpiring: jest.fn().mockResolvedValue([
+            {
+              name: "Paracetamol",
+              sku: "001000000018",
+              lot: { lotCode: "0042", expiresAt: new Date("2026-11-15T00:00:00.000Z") },
+              daysLeft: 4,
+              warehouse: { name: "Centro" },
+              location: "A-01",
+              quantity: "12.5",
+              unitCost,
+              value,
+            },
+          ]),
+        } as unknown as LotsService,
+        kardex as unknown as KardexService,
+      );
+    const DUENO = { ...USER, permissions: ["inventory:read", "reports:read"] };
+
+    it("con `reports:read`, el costo y el valor son números", async () => {
+      const { body } = await exportador("8.50", "106.25").expiring(
+        DUENO,
+        SCOPE,
+        { days: 30 },
+        "xlsx",
+      );
+      const fila = await primeraFila(body);
+
+      expect(fila.get("Costo promedio")?.value).toBe(8.5);
+      expect(fila.get("Costo promedio")?.type).toBe(ExcelJS.ValueType.Number);
+      expect(fila.get("Valor")?.value).toBe(106.25);
+      expect(fila.get("Valor")?.type).toBe(ExcelJS.ValueType.Number);
+    });
+
+    it("sin costo, las dos celdas quedan vacías: un 0 se sumaría", async () => {
+      const { body } = await exportador(null, null).expiring(DUENO, SCOPE, { days: 30 }, "xlsx");
+      const fila = await primeraFila(body);
+
+      expect([fila.get("Costo promedio")?.value, fila.get("Valor")?.value]).toEqual(["", ""]);
+    });
+
+    it("sin `reports:read` no salen, aunque la fila traiga los campos", async () => {
+      const { body } = await exportador("8.50", "106.25").expiring(
+        USER,
+        SCOPE,
+        { days: 30 },
+        "xlsx",
+      );
+      const fila = await primeraFila(body);
+
+      expect([...fila.keys()]).not.toContain("Costo promedio");
+      expect([...fila.keys()]).not.toContain("Valor");
+    });
   });
 
   it("en tránsito: la cantidad es número; sku, lote, folio y fecha, texto", async () => {

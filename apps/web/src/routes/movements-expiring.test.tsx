@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { expectRowActionsColumn } from "@/test/row-actions";
 import { buildWarehouse } from "@/test/warehouse-fixture";
+import { summarizeExpiringValue } from "../components/inventory/expiring-list";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { ExpiringRow } from "../lib/inventory/types";
@@ -275,5 +276,128 @@ describe("Próximos a vencer (F3-LOTS-03)", () => {
 
     await screen.findByText("YOG-1");
     expect(screen.queryByRole("button", { name: /dar salida/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * F10-KPI-10 — es donde el dueño decide qué poner al frente o en promoción,
+   * y lo decide por dinero, no por piezas. El valor es dinero: solo con
+   * `reports:read`.
+   */
+  describe("cuánto vale lo que vence (F10-KPI-10)", () => {
+    const CON_DINERO = ["inventory:read", "inventory:movement", "reports:read"];
+    const otra = (overrides: Partial<ExpiringRow>) =>
+      fila({
+        productId: "p2",
+        sku: "LEC-1",
+        name: "Leche entera",
+        lot: { id: "l2", lotCode: "st20", expiresAt: "2026-07-05T00:00:00.000Z" },
+        ...overrides,
+      });
+
+    it("con `reports:read` se ven la columna «Valor» y el total del plazo", async () => {
+      mocked.listExpiring.mockResolvedValue([
+        fila({ unitCost: "8.00", value: "32.00" }),
+        otra({ unitCost: "3.52", value: "10.55" }),
+      ]);
+      await renderExpiring(CON_DINERO);
+
+      const filaYogur = (await screen.findByText("YOG-1")).closest("tr") as HTMLElement;
+      expect(screen.getByRole("columnheader", { name: "Valor" })).toBeInTheDocument();
+      expect(within(filaYogur).getByText("$32.00")).toHaveClass("text-right", "tabular-nums");
+      expect(
+        screen.getByText("$42.55 al costo en los próximos 30 días", { exact: false }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/sin contar/)).not.toBeInTheDocument();
+      // La columna nueva va antes de las acciones: «Acciones» sigue siendo la última.
+      const [salida] = screen.getAllByRole("button", { name: "Dar salida por caducado" });
+      expectRowActionsColumn(salida as HTMLElement);
+    });
+
+    it("el total dice el plazo que está elegido, y «ya vencido» con Vencidos", async () => {
+      mocked.listExpiring.mockResolvedValue([fila({ unitCost: "8.00", value: "32.00" })]);
+      const { user } = await renderExpiring(CON_DINERO);
+      await screen.findByText("YOG-1");
+
+      await user.click(screen.getByRole("button", { name: "7 días" }));
+      expect(
+        await screen.findByText("$32.00 al costo en los próximos 7 días", { exact: false }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Vencidos" }));
+      expect(
+        await screen.findByText("$32.00 al costo, ya vencido", { exact: false }),
+      ).toBeInTheDocument();
+    });
+
+    /**
+     * Una fila sin costo dice «—»: no suma ni finge un cero. Y el total
+     * avisa cuántos PRODUCTOS se quedaron fuera (la leche sale en dos lotes y
+     * cuenta una vez).
+     */
+    it("una fila sin costo dice «—», no suma, y el total avisa cuántos productos no cuentan", async () => {
+      mocked.listExpiring.mockResolvedValue([
+        fila({ unitCost: "8.00", value: "32.00" }),
+        otra({ unitCost: null, value: null }),
+        otra({
+          lot: { id: "l3", lotCode: "st21", expiresAt: "2026-07-06T00:00:00.000Z" },
+          unitCost: null,
+          value: null,
+        }),
+      ]);
+      await renderExpiring(CON_DINERO);
+
+      const filaLeche = (await screen.findByText("st20")).closest("tr") as HTMLElement;
+      expect(within(filaLeche).getByText("—")).toBeInTheDocument();
+      expect(within(filaLeche).queryByText(/\$0/)).not.toBeInTheDocument();
+      expect(
+        screen.getByText("$32.00 al costo en los próximos 30 días", { exact: false }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("sin contar 1 producto sin costo", { exact: false }),
+      ).toBeInTheDocument();
+    });
+
+    it("si ninguna fila tiene costo, no hay un total en $0.00", async () => {
+      mocked.listExpiring.mockResolvedValue([fila({ unitCost: null, value: null })]);
+      await renderExpiring(CON_DINERO);
+
+      const filaYogur = (await screen.findByText("YOG-1")).closest("tr") as HTMLElement;
+      expect(within(filaYogur).getByText("—")).toBeInTheDocument();
+      expect(screen.queryByText(/al costo/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\$0\.00/)).not.toBeInTheDocument();
+    });
+
+    it("sin `reports:read` no hay columna ni total, aunque llegara el valor", async () => {
+      mocked.listExpiring.mockResolvedValue([fila({ unitCost: "8.00", value: "32.00" })]);
+      await renderExpiring(["inventory:read", "inventory:movement"]);
+
+      await screen.findByText("YOG-1");
+      expect(screen.queryByRole("columnheader", { name: "Valor" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/al costo/)).not.toBeInTheDocument();
+      expect(screen.queryByText("$32.00")).not.toBeInTheDocument();
+    });
+
+    it("con un API anterior (sin los campos) la pantalla queda como hoy", async () => {
+      await renderExpiring(CON_DINERO);
+
+      await screen.findByText("YOG-1");
+      expect(screen.queryByRole("columnheader", { name: "Valor" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/al costo/)).not.toBeInTheDocument();
+    });
+
+    /**
+     * El total se suma en centavos ENTEROS. Con flotantes, 0.57 + 1.15 da
+     * 1.7199999999999998, y en centavos 56.99999999999999 + 114.99999999999999:
+     * la pantalla lo redondea y no se nota, pero el número ya está mal.
+     */
+    it("el total se suma en centavos enteros, nunca con flotantes", () => {
+      const resumen = summarizeExpiringValue([
+        fila({ value: "0.57" }),
+        otra({ value: "1.15" }),
+        fila({ productId: "p3", value: "0.07" }),
+      ]);
+
+      expect(resumen).toEqual({ totalCents: 179, uncostedProducts: 0 });
+    });
   });
 });

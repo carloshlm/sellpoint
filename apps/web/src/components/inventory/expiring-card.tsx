@@ -1,8 +1,12 @@
+import { formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { summarizeExpiringValue } from "@/components/inventory/expiring-list";
 import { ScrollableList } from "@/components/ui/scrollable-list";
+import { useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useExpiring } from "@/lib/inventory/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 
 /**
  * F3-LOTS-03, rediseñada con el panel (Carlos, 2026-09-01) — el aviso de
@@ -13,10 +17,17 @@ import { useExpiring } from "@/lib/inventory/hooks";
  * **Solo aparece si hay algo que avisar** (criterio original intacto): un
  * negocio sin lotes nunca tiene filas y uno sano no necesita una tarjeta que
  * diga «0». Sin permiso no se consulta siquiera.
+ *
+ * F10-KPI-10 — junto al título, «$X en riesgo»: lo que valen TODAS las filas
+ * del plazo, no solo las tres a la vista, sumado como en la pantalla
+ * (`summarizeExpiringValue`). Es dinero: solo con `reports:read`, y calla si
+ * ninguna fila tiene costo o si el API no lo manda.
  */
 export function ExpiringCard() {
   const { t } = useTranslation();
   const { has } = usePermissions();
+  const currency = useScopedCurrency();
+  const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const puedeVer = has("inventory:read");
   const { data } = useExpiring({ days: 30 }, { enabled: puedeVer });
 
@@ -27,6 +38,7 @@ export function ExpiringCard() {
 
   // Lo más urgente primero; lo vencido (daysLeft negativo) encabeza solo.
   const urgentes = [...data].sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 3);
+  const enRiesgo = has("reports:read") ? summarizeExpiringValue(data)?.totalCents : null;
 
   return (
     <section
@@ -38,6 +50,13 @@ export function ExpiringCard() {
         <span className="rounded-full bg-destructive/15 px-2 py-0.5 font-semibold text-destructive text-sm">
           {total}
         </span>
+        {enRiesgo != null && (
+          <span className="ml-auto font-semibold text-sm tabular-nums">
+            {t("dashboard.expiring.atRisk", {
+              amount: formatMoney(enRiesgo / 100, currency, locale),
+            })}
+          </span>
+        )}
       </div>
       {/* Caja deslizable con `min-w`: en un celular las filas no caben y sin
           scroll se cortaban en el borde (revisión móvil, Carlos 2026-08-31). */}

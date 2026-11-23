@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { CostModule } from "../cost/cost.module";
 import { ProductsModule } from "../products/products.module";
 import { ConfirmService } from "./confirm.service";
 import { CountTemplateService } from "./count-template.service";
@@ -23,10 +24,12 @@ import { TransfersService } from "./transfers.service";
  *
  * `PrismaService` es global (ver `PrismaModule`), así que solo se importa lo
  * que no lo es. `AuditModule` porque cada movimiento asentado deja rastro en
- * la MISMA transacción que lo escribe (F3-CORE-07).
+ * la MISMA transacción que lo escribe (F3-CORE-07). `CostModule` porque
+ * «Próximos a vencer» dice cuánto vale lo que vence (F10-KPI-09); no cierra
+ * ningún ciclo: el costeo no depende de nadie.
  */
 @Module({
-  imports: [AuditModule, ProductsModule],
+  imports: [AuditModule, CostModule, ProductsModule],
   controllers: [DocumentsController, LotsController, TransfersController, KardexController],
   providers: [
     DocumentsService,

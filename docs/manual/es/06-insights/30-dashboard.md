@@ -170,4 +170,8 @@ contar:
 
 Al final, **Próximos a vencer** muestra los lotes que caducan en los próximos 30
 días, los más urgentes primero, con **Ver todos** para la lista completa
-(capítulo 26). Si no hay ninguno, el recuadro no aparece.
+(capítulo 26). Si no hay ninguno, el recuadro no aparece. Si puedes consultar
+reportes, junto al título dice cuánto vale todo lo que vence en esos 30 días al
+costo promedio de tus compras (por ejemplo, «$4,300.00 en riesgo»), y no solo
+lo de los tres renglones a la vista. Lo que nunca compraste con costo no suma; si
+nada tiene costo, el importe no aparece.

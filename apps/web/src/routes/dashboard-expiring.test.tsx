@@ -165,6 +165,59 @@ describe("Tarjeta de próximos a vencer (F3-LOTS-03)", () => {
     expect(screen.queryByTestId("expiring-card")).not.toBeInTheDocument();
   });
 
+  /**
+   * F10-KPI-10 — «14 piezas vencen en 6 días» no mueve a nadie; «$4,300 en
+   * riesgo», sí. Suma TODO lo del plazo (no solo las tres filas a la vista),
+   * en centavos, y solo con `reports:read`.
+   */
+  describe("cuánto vale (F10-KPI-10)", () => {
+    const CON_DINERO = ["inventory:read", "reports:read"];
+    const cuatro = (valores: (string | null | undefined)[]) =>
+      valores.map((value, i) =>
+        fila({
+          productId: `p${i}`,
+          name: `Producto ${i}`,
+          lot: { id: `l${i}`, lotCode: `lote${i}`, expiresAt: "2026-07-01T00:00:00.000Z" },
+          daysLeft: 10 + i,
+          ...(value === undefined ? {} : { unitCost: value, value }),
+        }),
+      );
+
+    it("con `reports:read`, junto al título dice cuánto vale lo que vence", async () => {
+      // La cuarta fila no se ve en el recuadro, pero vence en el plazo: cuenta.
+      mocked.listExpiring.mockResolvedValue(cuatro(["32.00", "10.55", null, "7.45"]));
+
+      await renderDashboard(CON_DINERO);
+
+      const tarjeta = await screen.findByTestId("expiring-card");
+      expect(within(tarjeta).getByText("$50.00 en riesgo")).toBeInTheDocument();
+      // El conteo sigue diciendo las filas, no el dinero.
+      expect(within(tarjeta).getByText("4")).toBeInTheDocument();
+    });
+
+    it("sin `reports:read` el recuadro no dice dinero, aunque llegara el valor", async () => {
+      mocked.listExpiring.mockResolvedValue(cuatro(["32.00", "10.55"]));
+
+      await renderDashboard(["inventory:read"]);
+
+      const tarjeta = await screen.findByTestId("expiring-card");
+      expect(tarjeta).not.toHaveTextContent("en riesgo");
+      expect(tarjeta).not.toHaveTextContent("$");
+    });
+
+    it("si ninguna fila tiene costo, no finge «$0.00 en riesgo»", async () => {
+      mocked.listExpiring.mockResolvedValue(cuatro([null, null]));
+      await renderDashboard(CON_DINERO);
+      expect(await screen.findByTestId("expiring-card")).not.toHaveTextContent("en riesgo");
+    });
+
+    it("con un API anterior, que no manda el valor, el recuadro queda como hoy", async () => {
+      mocked.listExpiring.mockResolvedValue(cuatro([undefined, undefined]));
+      await renderDashboard(CON_DINERO);
+      expect(await screen.findByTestId("expiring-card")).not.toHaveTextContent("en riesgo");
+    });
+  });
+
   /** Sin permiso de inventario no se consulta siquiera. */
   it("sin `inventory:read` no se pide nada ni se muestra tarjeta", async () => {
     mocked.listExpiring.mockResolvedValue([fila()]);

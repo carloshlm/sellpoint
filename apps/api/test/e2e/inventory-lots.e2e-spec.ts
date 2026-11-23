@@ -400,6 +400,50 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       return { token, tenantId, ...datos };
     }
 
+    /** El dueño del negocio con SOLO `inventory:read`: ve el almacén, no el dinero. */
+    async function soloInventario(tenantId: string): Promise<string> {
+      const userId = await prisma.withTenantContext(tenantId, async (tx) => {
+        const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+        return owner.id;
+      });
+      return app.get(TokenService).signAccessToken({
+        sub: userId,
+        tenantId,
+        permissions: ["inventory:read"],
+        locale: "es",
+      });
+    }
+
+    /**
+     * F10-KPI-09 — cuánto vale lo que vence. Es dinero: con `reports:read`
+     * cada fila trae `unitCost` y `value` (aquí `null`: el yogur nunca se
+     * compró con costo); sin el permiso, los dos campos NO viajan.
+     */
+    it("el costo y el valor viajan solo con `reports:read`", async () => {
+      const { token, tenantId } = await conCaducidades();
+      const almacenista = await soloInventario(tenantId);
+
+      const conPermiso = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=30")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const sinPermiso = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=30")
+        .set("Authorization", bearer(almacenista))
+        .expect(200);
+
+      const fila = (body: unknown) =>
+        (body as Record<string, unknown>[]).find(
+          (r) => (r.lot as { lotCode: string }).lotCode === "bbb-en10",
+        );
+      expect(fila(conPermiso.body)).toEqual(
+        expect.objectContaining({ unitCost: null, value: null }),
+      );
+      expect(Array.isArray(sinPermiso.body)).toBe(true);
+      expect(fila(sinPermiso.body)).not.toHaveProperty("unitCost");
+      expect(fila(sinPermiso.body)).not.toHaveProperty("value");
+    });
+
     it("con `days=30` trae el que vence en 10 y no el que vence en 90", async () => {
       const { token } = await conCaducidades();
 
@@ -503,6 +547,27 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
         );
 
         expect(rows.flat()).not.toContain("bbb-en10");
+      });
+
+      /**
+       * F10-KPI-09 — «Costo promedio» y «Valor» al final, solo con
+       * `reports:read`. Sin él, el archivo es el de siempre.
+       */
+      it("el costo y el valor salen al final solo con `reports:read`", async () => {
+        const { token, tenantId } = await conCaducidades();
+        const almacenista = await soloInventario(tenantId);
+
+        const conPermiso = await celdas(
+          (await descargar(token, "?days=30").expect(200)).body as Buffer,
+        );
+        const sinPermiso = await celdas(
+          (await descargar(almacenista, "?days=30").expect(200)).body as Buffer,
+        );
+
+        expect(conPermiso.rows[0]?.slice(-2)).toEqual(["Costo promedio", "Valor"]);
+        expect(sinPermiso.rows[0]).not.toContain("Costo promedio");
+        expect(sinPermiso.rows[0]).not.toContain("Valor");
+        expect(sinPermiso.rows[0]).toEqual(conPermiso.rows[0]?.slice(0, -2));
       });
 
       it("sin `inventory:read` no se exporta", async () => {

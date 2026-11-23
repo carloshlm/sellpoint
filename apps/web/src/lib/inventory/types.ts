@@ -209,4 +209,12 @@ export interface ExpiringRow {
   quantity: string;
   daysLeft: number;
   expired: boolean;
+  /**
+   * F10-KPI-09 — el costo promedio por unidad y lo que vale la fila (cantidad
+   * × ese costo), como texto con dos decimales. Solo viajan con
+   * `reports:read`; `null` si el producto nunca se compró con costo. Son
+   * OPCIONALES: durante un deploy, un API anterior no los manda.
+   */
+  unitCost?: string | null;
+  value?: string | null;
 }

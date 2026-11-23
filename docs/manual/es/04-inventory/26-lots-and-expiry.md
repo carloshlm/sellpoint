@@ -67,6 +67,25 @@ Arriba eliges el plazo: **7 días**, **30 días** (el que se abre) o **90 días*
 **Vencidos** muestra solo lo que ya caducó y sigue en tus sucursales.
 **Exportar Excel** baja la lista del plazo que estás viendo.
 
+### Cuánto vale lo que vence
+
+Si puedes consultar reportes (el permiso `reports:read`), la lista también te
+dice cuánto dinero tienes en lo que vence, para que decidas qué poner al frente
+o en promoción:
+
+- La columna **Valor** es la cantidad del renglón por el costo promedio de tus
+  compras, el mismo con el que el panel valora tu inventario.
+- Arriba de la tabla, el total del plazo que elegiste: por ejemplo, «$4,300.00
+  al costo en los próximos 30 días» o, con **Vencidos**, «al costo, ya
+  vencido».
+- Un producto que nunca compraste con costo dice «—» en **Valor** y no suma.
+  Si hay alguno, el total te avisa cuántos se quedaron fuera: «sin contar 2
+  productos sin costo». Para que cuente, captura su costo la próxima vez que lo
+  compres.
+
+El Excel trae lo mismo en dos columnas al final, **Costo promedio** y
+**Valor**. Sin ese permiso, la lista y el Excel no muestran nada de dinero.
+
 ### Dar salida a lo caducado
 
 1. En el renglón del lote, presiona **Dar salida por caducado**.

@@ -5,6 +5,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { WeightedCostService } from "../cost/weighted-cost.service";
 import { assertLotExpiry } from "./lot-expiry";
 import { assertWarehouseInScope } from "./warehouse-scope.helpers";
 
@@ -34,6 +35,23 @@ export interface ExpiringRow {
   /** Negativo si ya venció. */
   daysLeft: number;
   expired: boolean;
+  /**
+   * F10-KPI-09 — el costo promedio ponderado por unidad base, con dos
+   * decimales. Presente SOLO con `reports:read` (ver `canReadCost`); `null`
+   * si el producto nunca se compró con costo.
+   */
+  unitCost?: string | null;
+  /** Cantidad × ese costo, con dos decimales. Mismas reglas que `unitCost`. */
+  value?: string | null;
+}
+
+/**
+ * ¿Este usuario puede ver lo que cuesta la mercancía? Es dinero, y el dinero
+ * del negocio es de `reports:read` (la regla de `inventoryValue` en el panel).
+ * Vive aquí para que la consulta y el Excel la lean del MISMO lugar.
+ */
+export function canReadCost(user: AuthUser): boolean {
+  return user.permissions?.includes("reports:read") ?? false;
 }
 
 export interface ListLotsOptions {
@@ -61,6 +79,7 @@ export class LotsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly weightedCost: WeightedCostService,
   ) {}
 
   async listProductLots(
@@ -285,6 +304,12 @@ export class LotsService {
    *
    * Los lotes SIN caducidad no aparecen nunca: no vencen, así que no hay nada
    * que alertar.
+   *
+   * **F10-KPI-09 — cuánto vale.** Con `reports:read`, cada fila trae su
+   * `unitCost` (el promedio ponderado de `WeightedCostService`, el mismo con
+   * que el panel valora el inventario) y su `value`. Sin el permiso los dos
+   * campos NO viajan, ni siquiera en `null`. La respuesta sigue siendo un
+   * arreglo: la pantalla, el recuadro del panel y el Excel ya la consumen así.
    */
   async listExpiring(
     user: AuthUser,
@@ -306,7 +331,7 @@ export class LotsService {
     // se ignora: son dos preguntas distintas, no la misma con otro número.
     const ventana = options.onlyExpired === true ? { lt: hoy } : { lte: limite };
 
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+    const filas = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const rows = await tx.stockLot.findMany({
         where: {
           tenantId: user.tenantId,
@@ -348,6 +373,33 @@ export class LotsService {
           expired: daysLeft < 0,
         };
       });
+    });
+
+    if (!canReadCost(user) || filas.length === 0) {
+      return filas;
+    }
+
+    // Una sola consulta para todos los productos de la lista (un producto con
+    // varios lotes sale varias veces y se pregunta una).
+    const costos = await this.weightedCost.averageCosts(user.tenantId, [
+      ...new Set(filas.map((fila) => fila.productId)),
+    ]);
+
+    return filas.map((fila) => {
+      const costo = costos.get(fila.productId);
+      if (costo === undefined) {
+        // Nunca se compró con costo: «no sé», no «vale cero». Un 0 se sumaría
+        // al total de lo que vence y lo haría mentir.
+        return { ...fila, unitCost: null, value: null };
+      }
+      return {
+        ...fila,
+        unitCost: costo.toFixed(2),
+        // Se multiplica el costo ENTERO y no el de la celda ya redondeada,
+        // como al valorar el inventario del panel: 7.6733… × 3 son $23.02,
+        // no los $23.01 de «$7.67 × 3».
+        value: costo.times(new Prisma.Decimal(fila.quantity)).toFixed(2),
+      };
     });
   }
 

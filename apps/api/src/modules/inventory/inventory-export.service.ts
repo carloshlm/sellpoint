@@ -6,7 +6,7 @@ import { columnIndexes, type SpreadsheetFormat } from "../../common/spreadsheet/
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import { KardexService } from "./kardex.service";
-import { LotsService } from "./lots.service";
+import { canReadCost, LotsService } from "./lots.service";
 
 const EXPIRING_HEADER = [
   "Producto",
@@ -18,6 +18,12 @@ const EXPIRING_HEADER = [
   "Ubicación",
   "Cantidad",
 ];
+/**
+ * F10-KPI-09 — lo que vale lo que vence, solo con `reports:read`. Van AL
+ * FINAL: quien ya tiene una fórmula o una macro sobre las columnas de siempre
+ * no ve nada moverse de lugar.
+ */
+const EXPIRING_COST_HEADER = ["Costo promedio", "Valor"];
 const IN_TRANSIT_HEADER = [
   "Producto",
   "SKU",
@@ -32,7 +38,7 @@ const IN_TRANSIT_HEADER = [
  * Las que van como NÚMERO en el xlsx. El SKU, el lote, el folio y las fechas
  * quedan como texto.
  */
-const NUMERICAS = ["Días restantes", "Cantidad"];
+const NUMERICAS = ["Días restantes", "Cantidad", ...EXPIRING_COST_HEADER];
 
 /**
  * F5-EXP — vencimientos y tránsito en Excel.
@@ -62,6 +68,11 @@ export class InventoryExportService {
    *
    * Los YA VENCIDOS salen con días en NEGATIVO, no escondidos: son los que más
    * urge sacar del almacén.
+   *
+   * Con `reports:read` gana «Costo promedio» y «Valor» al final (F10-KPI-09).
+   * Se decide con el PERMISO y no con que la fila traiga los campos: el
+   * archivo no depende de que la consulta haya hecho bien su parte. Sin costo,
+   * las dos celdas quedan vacías, nunca en 0.
    */
   async expiring(
     user: AuthUser,
@@ -71,6 +82,8 @@ export class InventoryExportService {
     locale: Locale = "es",
   ) {
     const filas = await this.lots.listExpiring(user, scope, options);
+    const conCosto = canReadCost(user);
+    const header = conCosto ? [...EXPIRING_HEADER, ...EXPIRING_COST_HEADER] : EXPIRING_HEADER;
 
     return exportWithLimit({
       count: async () => filas.length,
@@ -84,9 +97,10 @@ export class InventoryExportService {
           fila.warehouse.name,
           fila.location,
           fila.quantity,
+          ...(conCosto ? [fila.unitCost ?? "", fila.value ?? ""] : []),
         ]),
-      header: EXPIRING_HEADER,
-      numericColumns: columnIndexes(EXPIRING_HEADER, NUMERICAS),
+      header,
+      numericColumns: columnIndexes(header, NUMERICAS),
       format,
       sheetName: "Vencimientos",
       filenameBase: spreadsheetFilenameBase("vencimientos", locale),

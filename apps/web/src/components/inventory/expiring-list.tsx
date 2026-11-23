@@ -1,3 +1,4 @@
+import { formatMoney, MONEY_DECIMALS, scaledInteger } from "@sellpoint/shared";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Download } from "lucide-react";
@@ -8,6 +9,7 @@ import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
+import { useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import {
   addDocumentLine,
@@ -18,6 +20,41 @@ import {
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { useExpiring } from "@/lib/inventory/hooks";
 import type { ExpiringRow } from "@/lib/inventory/types";
+import { useAuthStore } from "@/stores/auth.store";
+
+/**
+ * F10-KPI-10 — cuánto vale lo que vence, sumado para la pantalla y para el
+ * recuadro del panel (que lo importa de aquí: los dos tienen que dar el MISMO
+ * número).
+ *
+ * Devuelve `null` si el valor no viajó en ninguna fila: sin `reports:read`
+ * el API no lo manda, y un API anterior tampoco. En ese caso no hay nada que
+ * enseñar, ni siquiera un «—».
+ *
+ * La suma va en centavos ENTEROS (`scaledInteger`, el mismo de los totales
+ * del punto de venta): con flotantes, 0.10 + 0.20 ya no da 0.30. Una fila
+ * sin costo (`value: null`) NO suma —no es un cero, es un «no sé»— y cuenta
+ * en `uncostedProducts` una vez por producto, aunque salga en varios lotes.
+ * `totalCents` es `null` si ninguna fila tiene costo: un total de $0.00
+ * fingiría que lo que vence no vale nada.
+ */
+export function summarizeExpiringValue(
+  rows: readonly ExpiringRow[],
+): { totalCents: number | null; uncostedProducts: number } | null {
+  if (!rows.some((row) => row.value !== undefined)) {
+    return null;
+  }
+  let totalCents: number | null = null;
+  const sinCosto = new Set<string>();
+  for (const row of rows) {
+    if (row.value === null || row.value === undefined) {
+      sinCosto.add(row.productId);
+    } else {
+      totalCents = (totalCents ?? 0) + scaledInteger(row.value, MONEY_DECIMALS);
+    }
+  }
+  return { totalCents, uncostedProducts: sinCosto.size };
+}
 
 /** Los plazos que la pantalla ofrece. Días y no fechas: nadie calcula nada. */
 const PLAZOS = [7, 30, 90] as const;
@@ -53,6 +90,17 @@ export function ExpiringList() {
   const [exportando, setExportando] = useState(false);
   const [errorExport, setErrorExport] = useState<string | null>(null);
   const { data, isPending } = useExpiring(consulta);
+  const { has } = usePermissions();
+  const currency = useScopedCurrency();
+  // El locale de la CUENTA, como en los reportes.
+  const locale = useAuthStore((s) => s.user?.locale ?? "es");
+  // F10-KPI-10 — el dinero es de `reports:read`. El API ya no lo manda sin el
+  // permiso; la pantalla tampoco lo enseña si llegara.
+  const resumen = has("reports:read") ? summarizeExpiringValue(data ?? []) : null;
+  const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
+  // Dividir entre 100 solo para ESCRIBIR el total: la suma ya se hizo en enteros.
+  const total =
+    resumen?.totalCents == null ? null : formatMoney(resumen.totalCents / 100, currency, locale);
 
   return (
     <section className="flex flex-col gap-4">
@@ -126,31 +174,64 @@ export function ExpiringList() {
           {t(soloVencidos ? "inventory.expiring.emptyExpired" : "inventory.expiring.empty")}
         </p>
       ) : (
-        <ScrollableTable>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={`border-b ${TABLE_HEAD_ROW}`}>
-                <th className="px-2 py-2 font-medium">{t("inventory.expiring.product")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.expiring.lot")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.expiring.expiresAt")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.expiring.warehouse")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.expiring.quantity")}</th>
-                <RowActionsTh className="px-2 py-2 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {(data ?? []).map((row) => (
-                <Fila key={`${row.lot.id}-${row.warehouse.id}-${row.location}`} row={row} />
-              ))}
-            </tbody>
-          </table>
-        </ScrollableTable>
+        <>
+          {resumen !== null && total !== null && (
+            <p className="text-sm">
+              <span className="font-semibold tabular-nums">
+                {soloVencidos
+                  ? t("inventory.expiring.valueTotalExpired", { amount: total })
+                  : t("inventory.expiring.valueTotal", { amount: total, days: filtro })}
+              </span>
+              {resumen.uncostedProducts > 0 && (
+                <span className="text-muted-foreground">
+                  {" · "}
+                  {t("inventory.expiring.valueUncosted", { count: resumen.uncostedProducts })}
+                </span>
+              )}
+            </p>
+          )}
+          <ScrollableTable>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className={`border-b ${TABLE_HEAD_ROW}`}>
+                  <th className="px-2 py-2 font-medium">{t("inventory.expiring.product")}</th>
+                  <th className="px-2 py-2 font-medium">{t("inventory.expiring.lot")}</th>
+                  <th className="px-2 py-2 font-medium">{t("inventory.expiring.expiresAt")}</th>
+                  <th className="px-2 py-2 font-medium">{t("inventory.expiring.warehouse")}</th>
+                  <th className="px-2 py-2 font-medium">{t("inventory.expiring.quantity")}</th>
+                  {resumen !== null && (
+                    <th className="px-2 py-2 text-right font-medium">
+                      {t("inventory.expiring.value")}
+                    </th>
+                  )}
+                  <RowActionsTh className="px-2 py-2 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {(data ?? []).map((row) => (
+                  <Fila
+                    key={`${row.lot.id}-${row.warehouse.id}-${row.location}`}
+                    row={row}
+                    valor={
+                      resumen === null ? undefined : row.value == null ? "—" : dinero(row.value)
+                    }
+                  />
+                ))}
+              </tbody>
+            </table>
+          </ScrollableTable>
+        </>
       )}
     </section>
   );
 }
 
-function Fila({ row }: { row: ExpiringRow }) {
+/**
+ * `valor` llega ya escrito: `undefined` es «esta pantalla no tiene columna de
+ * valor» (sin `reports:read` o con un API anterior), y «—» es una fila sin
+ * costo. Una fila sin costo no es un $0.00.
+ */
+function Fila({ row, valor }: { row: ExpiringRow; valor?: string }) {
   const { t, i18n } = useTranslation();
   const { has } = usePermissions();
   const navigate = useNavigate();
@@ -210,6 +291,7 @@ function Fila({ row }: { row: ExpiringRow }) {
       </td>
       <td className="px-2 py-2">{row.warehouse.name}</td>
       <td className="px-2 py-2">{row.quantity}</td>
+      {valor !== undefined && <td className="px-2 py-2 text-right tabular-nums">{valor}</td>}
       <td className={`px-2 py-2 ${ROW_ACTIONS_CELL}`}>
         {has("inventory:movement") && (
           <button

@@ -70,6 +70,9 @@
     "noPace": "No sales pace",
     "empty": "Nothing to attend: stock is healthy"
   },
+  "expiring": {
+    "atRisk": "{{amount}} at risk"
+  },
   "payments": {
     "title": "Payment methods",
     "cash": "Cash",
