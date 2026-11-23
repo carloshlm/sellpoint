@@ -57,6 +57,7 @@ vi.mock("@/lib/reports/api", async (importOriginal) => ({
   getSalesReport: vi.fn(),
   getStockReport: vi.fn(),
   getShiftsReport: vi.fn(),
+  getShiftDetail: vi.fn(),
   getTaxReport: vi.fn(),
   getSalesLinesReport: vi.fn(),
   downloadSalesLinesReport: vi.fn(),
@@ -75,6 +76,7 @@ const mockedKpis = vi.mocked(dashboardApi.getDashboardKpis);
 const mockedControl = vi.mocked(dashboardApi.getDashboardControl);
 const mockedSales = vi.mocked(reportsApi.getSalesReport);
 const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
+const mockedShiftDetail = vi.mocked(reportsApi.getShiftDetail);
 const mockedSalesLines = vi.mocked(reportsApi.getSalesLinesReport);
 const mockedSalesLinesExport = vi.mocked(reportsApi.downloadSalesLinesReport);
 
@@ -565,6 +567,71 @@ describe("los cierres de turno del negocio mirado (F5-SHIFT-05)", () => {
     const enviado = mockedShifts.mock.calls[0]?.[0] ?? {};
     expect(enviado).not.toHaveProperty("from");
     expect(enviado).not.toHaveProperty("to");
+  });
+
+  /**
+   * F10-CASHMOV-07 — el espejo usa el MISMO componente: soporte ve las
+   * entradas y los retiros del negocio mirado, y el detalle de un turno se
+   * pide con el prefijo del expediente.
+   */
+  it("el espejo muestra las entradas y los retiros, y el detalle trae los movimientos", async () => {
+    const turno: reportsApi.ShiftRow = {
+      id: "cs1",
+      folio: "TUR-000007",
+      status: "closed",
+      warehouse: { id: "w1", name: "Central" },
+      openedBy: { id: "u2", name: "Luis Cajero" },
+      openedAt: "2026-09-06T14:00:00.000Z",
+      closedBy: { id: "u2", name: "Luis Cajero" },
+      closedAt: "2026-09-06T22:00:00.000Z",
+      salesCount: 0,
+      totals: [],
+      openingCash: "0",
+      cashExpenses: { total: "0", count: 0 },
+      calculatedCash: "0.00",
+      declaredCash: "0.00",
+      cashDifference: "0.00",
+      closingNote: null,
+      cashIn: "0",
+      cashOut: "500.00",
+    };
+    mockedShifts.mockResolvedValue({ rows: [turno], total: 1, page: 1, pageSize: 20 });
+    mockedShiftDetail.mockResolvedValue({
+      ...turno,
+      sales: [],
+      movements: [
+        {
+          id: "m1",
+          type: "out",
+          reason: "safe",
+          amount: "500.00",
+          note: null,
+          authorized: false,
+          status: "active",
+          createdAt: "2026-09-06T17:30:00.000Z",
+          createdBy: { id: "u2", name: "Luis Cajero" },
+          canceledAt: null,
+          canceledBy: null,
+          cancelReason: null,
+        },
+      ],
+    });
+    await renderEn("/admin/tenants/t1?tab=reports");
+    await screen.findByTestId("tenant-reports");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("tab", { name: "Cierres de turno" }));
+    const reporte = await screen.findByTestId("shifts-report");
+    expect(
+      await within(reporte).findByRole("columnheader", { name: "Retiros" }),
+    ).toBeInTheDocument();
+    expect(within(reporte).getByText("−$500.00")).toBeInTheDocument();
+
+    await user.click(within(reporte).getByRole("button", { name: /ver turno/i }));
+    const detalle = await within(reporte).findByTestId("shift-detail");
+    expect(await within(detalle).findByText("A la caja fuerte")).toBeInTheDocument();
+    expect(within(detalle).getByText("Sin código")).toBeInTheDocument();
+    expect(mockedShiftDetail).toHaveBeenCalledWith("cs1", "/admin/tenants/t1/reports");
   });
 });
 

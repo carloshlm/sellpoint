@@ -139,7 +139,15 @@
     "differenceAll": "Todas",
     "differenceShortage": "Con faltante",
     "differenceOverage": "Con sobrante",
-    "differenceTotals": "Faltó {{shortage}} · Sobró {{overage}}"
+    "differenceTotals": "Faltó {{shortage}} · Sobró {{overage}}",
+    "cashIn": "Entradas",
+    "cashOut": "Retiros",
+    "movementType": "Tipo",
+    "movementReason": "Motivo",
+    "movementBy": "Registró",
+    "amount": "Importe",
+    "noCode": "Sin código",
+    "noCodeTitle": "Este retiro se registró sin el código de autorización del negocio."
   },
   "taxes": {
     "title": "Impuestos cobrados",

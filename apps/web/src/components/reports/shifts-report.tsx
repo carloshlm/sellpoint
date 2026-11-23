@@ -1,11 +1,12 @@
 import { formatMoney, localCalendarDate, shortName } from "@sellpoint/shared";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   TABLE_HEAD_ROW,
@@ -22,12 +23,14 @@ import { listUsers } from "@/lib/rbac/api";
 import {
   downloadShiftPdf,
   downloadShiftsReport,
+  type ShiftDetail,
   type ShiftDifference,
   type ShiftsReportQuery,
 } from "@/lib/reports/api";
 import { useShiftDetail, useShiftsReport } from "@/lib/reports/hooks";
 import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -46,6 +49,11 @@ export interface ShiftsFiltersInitial {
  * (F4-CASHBOX). Abre con el día actual del negocio, como Clientes; la
  * diferencia va en rojo cuando falta y en verde cuando sobra, y «Ver»
  * despliega abajo las ventas de ese turno, como el historial de pagos.
+ *
+ * F10-CASHMOV-07: cada turno dice también sus entradas y sus retiros de
+ * efectivo, y el detalle los lista debajo de las ventas. Es la pantalla a la
+ * que lleva el contador de faltantes de «Control»: un retiro registrado ya no
+ * aparece como faltante, y el dueño ve quién lo hizo y por qué.
  */
 export function ShiftsReport({
   initialFilters = {},
@@ -118,6 +126,13 @@ export function ShiftsReport({
         }).format(new Date(iso));
   const dinero = (valor: string | null) =>
     valor === null ? "—" : formatMoney(Number(valor), currency, locale);
+  // F10-CASHMOV-07: las entradas y los retiros, con signo como los gastos, y
+  // «—» en cero, como el fondo y los gastos. Un API anterior no los manda: lo
+  // que falta, o lo que no es un número, también es «—».
+  const movido = (signo: "+" | "−", valor: string | undefined) => {
+    const n = Number(valor ?? 0);
+    return !Number.isFinite(n) || n === 0 ? "—" : `${signo}${formatMoney(n, currency, locale)}`;
+  };
   const diferencia = (valor: string | null) => {
     if (valor === null) return "—";
     const n = Number(valor);
@@ -140,6 +155,10 @@ export function ShiftsReport({
     { key: "salesCount", header: t("reports.shifts.sales"), numeric: true },
     { key: "openingCash", header: t("reports.shifts.openingCash"), numeric: true },
     { key: "cashExpenses", header: t("reports.shifts.cashExpenses"), numeric: true },
+    // F10-CASHMOV-07: después de los gastos y antes de lo calculado, que ya
+    // las cuenta. El fondo y los gastos siguen juntos, como antes.
+    { key: "cashIn", header: t("reports.shifts.cashIn"), numeric: true },
+    { key: "cashOut", header: t("reports.shifts.cashOut"), numeric: true },
     { key: "calculated", header: t("reports.shifts.calculated"), numeric: true },
     { key: "declared", header: t("reports.shifts.declared"), numeric: true },
     { key: "difference", header: t("reports.shifts.difference"), numeric: true },
@@ -161,6 +180,8 @@ export function ShiftsReport({
     openingCash: Number(turno.openingCash) === 0 ? "—" : dinero(turno.openingCash),
     // F9-EXP-10: con signo, como se lee en un arqueo; «—» si no salió nada.
     cashExpenses: turno.cashExpenses.count === 0 ? "—" : `−${dinero(turno.cashExpenses.total)}`,
+    cashIn: movido("+", turno.cashIn),
+    cashOut: movido("−", turno.cashOut),
     calculated: dinero(turno.calculatedCash),
     declared: dinero(turno.declaredCash),
     difference: diferencia(turno.cashDifference),
@@ -357,43 +378,163 @@ export function ShiftsReport({
             <p role="alert" className="text-destructive text-sm">
               {detalle.error?.message}
             </p>
-          ) : detalle.data.sales.length === 0 ? (
-            <p className="text-muted-foreground text-sm">{t("reports.shifts.noSales")}</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className={TABLE_HEAD_ROW}>
-                  <TableHead className="px-2">{t("reports.shifts.folio")}</TableHead>
-                  <TableHead className="px-2">{t("reports.shifts.time")}</TableHead>
-                  <TableHead className="px-2">{t("reports.shifts.seller")}</TableHead>
-                  <TableHead className="px-2">{t("reports.shifts.method")}</TableHead>
-                  <TableHead className="px-2 text-right">{t("reports.shifts.total")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {detalle.data.sales.map((venta) => (
-                  <TableRow
-                    key={venta.id}
-                    className={
-                      venta.status === "canceled" ? "text-muted-foreground line-through" : ""
-                    }
-                  >
-                    <TableCell className="px-2 font-mono">{venta.folio}</TableCell>
-                    <TableCell className="px-2">{fecha(venta.createdAt)}</TableCell>
-                    <TableCell className="px-2">{venta.seller.name}</TableCell>
-                    <TableCell className="px-2">
-                      {t(`pos.payment.${venta.paymentMethod}`)}
-                    </TableCell>
-                    <TableCell className="px-2 text-right tabular-nums">
-                      {formatMoney(Number(venta.total), currency, locale)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              {detalle.data.sales.length === 0 ? (
+                <p className="text-muted-foreground text-sm">{t("reports.shifts.noSales")}</p>
+              ) : (
+                <ShiftSales sales={detalle.data.sales} fecha={fecha} />
+              )}
+              {/* F10-CASHMOV-07: debajo de las ventas, las entradas y los
+                  retiros. Sin ninguno, o con un API anterior, no se pinta
+                  nada: el detalle queda como antes. */}
+              {(detalle.data.movements ?? []).length > 0 && (
+                <ShiftMovements movements={detalle.data.movements ?? []} fecha={fecha} />
+              )}
+            </>
           )}
         </section>
       )}
     </section>
+  );
+}
+
+/** Las ventas del turno, con las canceladas tachadas. */
+function ShiftSales({
+  sales,
+  fecha,
+}: {
+  sales: ShiftDetail["sales"];
+  fecha: (iso: string | null) => string;
+}) {
+  const { t } = useTranslation();
+  const locale = useAuthStore((s) => s.user?.locale ?? "es");
+  const currency = useScopedCurrency();
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className={TABLE_HEAD_ROW}>
+          <TableHead className="px-2">{t("reports.shifts.folio")}</TableHead>
+          <TableHead className="px-2">{t("reports.shifts.time")}</TableHead>
+          <TableHead className="px-2">{t("reports.shifts.seller")}</TableHead>
+          <TableHead className="px-2">{t("reports.shifts.method")}</TableHead>
+          <TableHead className="px-2 text-right">{t("reports.shifts.total")}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sales.map((venta) => (
+          <TableRow
+            key={venta.id}
+            className={venta.status === "canceled" ? "text-muted-foreground line-through" : ""}
+          >
+            <TableCell className="px-2 font-mono">{venta.folio}</TableCell>
+            <TableCell className="px-2">{fecha(venta.createdAt)}</TableCell>
+            <TableCell className="px-2">{venta.seller.name}</TableCell>
+            <TableCell className="px-2">{t(`pos.payment.${venta.paymentMethod}`)}</TableCell>
+            <TableCell className="px-2 text-right tabular-nums">
+              {formatMoney(Number(venta.total), currency, locale)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+/**
+ * F10-CASHMOV-07 — las entradas y los retiros del turno: quién sacó qué,
+ * cuándo y por qué.
+ *
+ * El tipo, el motivo, «Anulado» y «Anuló…» salen de las MISMAS claves del
+ * diálogo del punto de venta (`pos.cashMovement.*`): lo que el cajero eligió
+ * se lee aquí con las mismas palabras, y las dos pantallas no pueden decir
+ * cosas distintas.
+ *
+ * Un anulado se tacha, pero quién lo anuló y por qué se lee sin tachar: es lo
+ * que el dueño viene a buscar. Un RETIRO que pasó sin el código del negocio se
+ * marca, discreto; una entrada nunca pide código, así que nunca se marca.
+ */
+function ShiftMovements({
+  movements,
+  fecha,
+}: {
+  movements: NonNullable<ShiftDetail["movements"]>;
+  fecha: (iso: string | null) => string;
+}) {
+  const { t } = useTranslation();
+  const locale = useAuthStore((s) => s.user?.locale ?? "es");
+  const currency = useScopedCurrency();
+  const titleId = useId();
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 id={titleId} className="font-medium">
+        {t("pos.cashMovement.title")}
+      </h3>
+      <Table aria-labelledby={titleId}>
+        <TableHeader>
+          <TableRow className={TABLE_HEAD_ROW}>
+            <TableHead className="px-2">{t("reports.shifts.time")}</TableHead>
+            <TableHead className="px-2">{t("reports.shifts.movementType")}</TableHead>
+            <TableHead className="px-2">{t("reports.shifts.movementReason")}</TableHead>
+            <TableHead className="px-2">{t("reports.shifts.note")}</TableHead>
+            <TableHead className="px-2">{t("reports.shifts.movementBy")}</TableHead>
+            <TableHead className="px-2 text-right">{t("reports.shifts.amount")}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {movements.map((movimiento) => {
+            const anulado = movimiento.status === "canceled";
+            const tachado = anulado ? "text-muted-foreground line-through" : "";
+            const entrada = movimiento.type === "in";
+            return (
+              <TableRow key={movimiento.id}>
+                <TableCell className={cn("px-2", tachado)}>{fecha(movimiento.createdAt)}</TableCell>
+                <TableCell className="px-2">
+                  <span className="flex flex-wrap items-center gap-1">
+                    <span className={tachado}>{t(`pos.cashMovement.type.${movimiento.type}`)}</span>
+                    {anulado && (
+                      <Badge variant="destructive">{t("pos.cashMovement.canceled")}</Badge>
+                    )}
+                    {!entrada && !movimiento.authorized && (
+                      <Badge title={t("reports.shifts.noCodeTitle")}>
+                        {t("reports.shifts.noCode")}
+                      </Badge>
+                    )}
+                  </span>
+                </TableCell>
+                <TableCell className="px-2">
+                  <span className={tachado}>
+                    {t(`pos.cashMovement.reasons.${movimiento.reason}`)}
+                  </span>
+                </TableCell>
+                <TableCell className="px-2">
+                  {movimiento.note !== null && movimiento.note !== "" && (
+                    <span className={cn("block max-w-64 break-words", tachado)}>
+                      {movimiento.note}
+                    </span>
+                  )}
+                  {anulado && (
+                    <span className="block max-w-64 break-words text-destructive text-xs">
+                      {t("pos.cashMovement.canceledBy", {
+                        name: movimiento.canceledBy?.name ?? "",
+                        reason: movimiento.cancelReason ?? "",
+                      })}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className={cn("px-2", tachado)}>{movimiento.createdBy.name}</TableCell>
+                <TableCell className="px-2 text-right tabular-nums">
+                  <span className={tachado}>
+                    {`${entrada ? "+" : "−"}${formatMoney(Number(movimiento.amount), currency, locale)}`}
+                  </span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

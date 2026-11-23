@@ -1,5 +1,8 @@
 import { api } from "@/lib/api";
 import { descargarBlob, nombreDeDescarga } from "@/lib/download";
+// Solo el tipo: el movimiento de efectivo es UNA fila, la misma que lee el
+// punto de venta (contrato L5 de F10-CASHMOV), y no se duplica aquí.
+import type { CashMovement } from "@/lib/pos/api";
 
 /**
  * Los exports DIRECTOS del hub (F5-CAT): bajan el archivo sin abrir pantalla.
@@ -261,6 +264,13 @@ export interface ShiftRow {
   declaredCash: string | null;
   cashDifference: string | null;
   closingNote: string | null;
+  /**
+   * F10-CASHMOV-06 — el efectivo que entró y el que salió del cajón sin una
+   * venta (solo los movimientos activos; «0» sin ninguno). El calculado ya los
+   * cuenta. Opcionales: un API anterior no los manda.
+   */
+  cashIn?: string;
+  cashOut?: string;
 }
 
 export interface ShiftSaleRow {
@@ -275,6 +285,12 @@ export interface ShiftSaleRow {
 
 export interface ShiftDetail extends ShiftRow {
   sales: ShiftSaleRow[];
+  /**
+   * F10-CASHMOV-06 — las entradas y los retiros del turno, del más viejo al
+   * más nuevo, con los anulados incluidos. La misma fila que lee el punto de
+   * venta. Opcional: un API anterior no la manda.
+   */
+  movements?: CashMovement[];
 }
 
 /** F10-KPI-13: los cierres con faltante, con sobrante o que cuadraron. */

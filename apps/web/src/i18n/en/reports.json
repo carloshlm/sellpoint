@@ -139,7 +139,15 @@
     "differenceAll": "All",
     "differenceShortage": "Short",
     "differenceOverage": "Over",
-    "differenceTotals": "Short {{shortage}} · Over {{overage}}"
+    "differenceTotals": "Short {{shortage}} · Over {{overage}}",
+    "cashIn": "Paid in",
+    "cashOut": "Paid out",
+    "movementType": "Type",
+    "movementReason": "Reason",
+    "movementBy": "Recorded by",
+    "amount": "Amount",
+    "noCode": "No code",
+    "noCodeTitle": "This cash was paid out without the business's authorization code."
   },
   "taxes": {
     "title": "Taxes collected",

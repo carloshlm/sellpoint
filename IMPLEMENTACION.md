@@ -6318,7 +6318,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **Lo que no cambia:** el espejo del backoffice hereda los servicios. Los textos del PDF van en `pdf.json` es/en.
   - **Verificar:** `shifts-report.service.integration.spec.ts` (los campos y el detalle, con el anulado marcado), la spec del export (las columnas de hoy, en su orden) y la del PDF. e2e en `reports-shifts` y `admin-tenants`.
   - **Depende de:** F10-CASHMOV-03 · **Estimación:** 3.5 h
-- [ ] **F10-CASHMOV-07** — Web: «Cierres de turno» enseña entradas, retiros y la lista de movimientos
+- [x] **F10-CASHMOV-07** *(cerrada el 2026-11-23, contra el contrato de la 06 fijado de antemano en `odd/tasks/f10-cashmov.md`, L6)* — Web: «Cierres de turno» enseña entradas, retiros y la lista de movimientos
   - **Por qué:** es la pantalla a la que lleva el contador de faltantes de «Control».
   - **Salida:**
     - **El listado y el detalle:** `shifts-report.tsx` gana las dos columnas (skill sellpoint-tables). El detalle del turno enseña los movimientos; uno anulado se ve tachado y uno sin código, marcado.
@@ -6326,6 +6326,19 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **Documentos:** capítulo 31 con la captura `reports-shifts`; `VISTAS.md` §10.
   - **Verificar:** `routes/reports-screens.test.tsx` (las columnas, el detalle, el anulado y un API anterior) y `pnpm --filter manual test`.
   - **Depende de:** F10-CASHMOV-06 · **Estimación:** 2.5 h
+  - **Cerrado (2026-11-23):**
+    - **Columnas:** «Entradas» y «Retiros» van después de «Gastos en efectivo» y antes de «Calculado», junto al total que alimentan. El fondo y los gastos siguen pegados, como lo exige su prueba. Las cifras llevan signo («+$200.00», «−$500.00»).
+    - **Cero o un API anterior:** la celda dice «—», como el fondo y los gastos. Un valor que no es número también, porque `formatMoney(NaN)` lanza.
+    - **El detalle** (la sección que abre «Ver») gana una segunda tabla, «Entradas y retiros de efectivo», debajo de las ventas, solo si hay movimientos.
+      - Un turno sin ventas sigue diciendo «Este turno no tuvo ventas.» y además lista sus movimientos.
+      - Un anulado va tachado, con su marca «Anulado». «Anuló Ana Pérez: <motivo>» va en rojo y sin tachar, porque es lo que el dueño viene a leer.
+      - Un retiro sin código lleva la marca gris «Sin código», con su explicación al pasar el cursor. Una entrada nunca la lleva.
+    - **Nombres:** el tipo y el motivo salen de las MISMAS claves del punto de venta (`pos.cashMovement.*`), así que no pueden decir cosas distintas. La fila se importa de `@/lib/pos/api`.
+    - **Capítulo 31:** las columnas, la fórmula de lo calculado y la lista de movimientos. `VISTAS.md` §10 no describe «Cierres de turno».
+    - **Pruebas:** 5 casos nuevos en `routes/reports-screens.test.tsx` y uno en `admin-tenants.test.tsx` (el espejo del backoffice).
+    - **Rojo observado:** 4 casos. Los 2 que protegen el detalle de hoy pasaban desde el inicio, a propósito.
+    - **Mutantes cazados (9):** entre ellos sin la columna, «+$0.00» en cero, sin la guarda de NaN, «Sin código» en una entrada, el anulado sin tachar, los movimientos escondidos sin ventas y el motivo crudo. Se restauró cada uno y se comprobó con `cmp`.
+    - **Verificado:** suite del web (2,542), `tsc -b` y `pnpm --filter manual test`.
 
 #### F10-CASHMOV-CIERRE — Verificación
 

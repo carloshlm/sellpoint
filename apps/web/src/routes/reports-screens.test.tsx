@@ -1185,6 +1185,196 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
   });
 
   /**
+   * F10-CASHMOV-07 — «Cierres de turno» dice el efectivo que entró y salió
+   * del cajón sin una venta. Es la pantalla a la que lleva el contador de
+   * faltantes de «Control»: el dueño tiene que ver quién sacó qué, cuándo y
+   * por qué, y sobre todo si un retiro pasó sin código. Con un API anterior,
+   * que no manda `cashIn`, `cashOut` ni `movements`, todo se ve como antes.
+   */
+  describe("cierres de turno con entradas y retiros (F10-CASHMOV-07)", () => {
+    /** Un movimiento como lo manda el API (contrato L5 de F10-CASHMOV). */
+    const movimiento = (
+      overrides: Partial<NonNullable<reportsApi.ShiftDetail["movements"]>[number]> = {},
+    ): NonNullable<reportsApi.ShiftDetail["movements"]>[number] => ({
+      id: "m1",
+      type: "out",
+      reason: "safe",
+      amount: "500.00",
+      note: null,
+      authorized: true,
+      status: "active",
+      createdAt: "2026-09-06T17:30:00.000Z",
+      createdBy: { id: "u2", name: "Luis Cajero" },
+      canceledAt: null,
+      canceledBy: null,
+      cancelReason: null,
+      ...overrides,
+    });
+
+    /** Las celdas de una columna, por su encabezado, en las filas de la tabla principal. */
+    const columna = (encabezado: string) => {
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      const indice = encabezados.indexOf(encabezado);
+      return screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((fila) => within(fila).getAllByRole("cell")[indice] as HTMLElement);
+    };
+
+    it("la tabla gana «Entradas» y «Retiros» junto a los gastos, antes de lo calculado", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [
+          turno({ cashIn: "200.00", cashOut: "500.00", calculatedCash: "-200.00" }),
+          turno({ id: "cs2", folio: "TUR-000008", cashIn: "0", cashOut: "0" }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/shifts");
+      await screen.findByRole("cell", { name: "TUR-000008" });
+
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      const gastos = encabezados.indexOf("Gastos en efectivo");
+      expect(encabezados.slice(gastos - 1, gastos + 4)).toEqual([
+        "Fondo inicial",
+        "Gastos en efectivo",
+        "Entradas",
+        "Retiros",
+        "Calculado",
+      ]);
+      const [entradaConMovimiento, entradaSinMovimiento] = columna("Entradas");
+      const [retiroConMovimiento, retiroSinMovimiento] = columna("Retiros");
+      // Con signo, como los gastos; en cero, «—», como el fondo y los gastos.
+      expect(entradaConMovimiento).toHaveTextContent(/^\+\$200\.00$/);
+      expect(retiroConMovimiento).toHaveTextContent(/^−\$500\.00$/);
+      expect(entradaSinMovimiento).toHaveTextContent(/^—$/);
+      expect(retiroSinMovimiento).toHaveTextContent(/^—$/);
+      // Dinero a la derecha, con cifras que no bailan.
+      expect(retiroConMovimiento).toHaveClass("text-right", "tabular-nums");
+    });
+
+    it("con un API anterior, sin los dos campos, dicen «—» y lo demás queda como hoy", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+
+      expect(columna("Entradas")[0]).toHaveTextContent(/^—$/);
+      expect(columna("Retiros")[0]).toHaveTextContent(/^—$/);
+      expect(columna("Calculado")[0]).toHaveTextContent("$100.00");
+      expect(columna("Contado")[0]).toHaveTextContent("$90.00");
+      expect(columna("Diferencia")[0]).toHaveTextContent("-$10.00");
+    });
+
+    it("el detalle lista los movimientos: hora, tipo, motivo, importe, nota y quién", async () => {
+      mocked.getShiftDetail.mockResolvedValue({
+        ...turno({ cashIn: "200.00", cashOut: "500.00" }),
+        sales: [],
+        movements: [
+          // Una entrada nunca pide código: aunque diga `authorized: false`, no se marca.
+          movimiento({
+            id: "m1",
+            type: "in",
+            reason: "change_fund",
+            amount: "200.00",
+            authorized: false,
+            createdAt: "2026-09-06T16:05:00.000Z",
+          }),
+          movimiento({ id: "m2", authorized: false, note: "Bolsa 14" }),
+          movimiento({
+            id: "m3",
+            reason: "bank_deposit",
+            amount: "300.00",
+            status: "canceled",
+            canceledAt: "2026-09-06T18:00:00.000Z",
+            canceledBy: { id: "u1", name: "Ana Pérez" },
+            cancelReason: "Se registró dos veces",
+          }),
+        ],
+      });
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /ver turno/i }));
+
+      const detalle = await screen.findByTestId("shift-detail");
+      // Sin ventas lo sigue diciendo, y los movimientos van igual.
+      expect(await within(detalle).findByText("Este turno no tuvo ventas.")).toBeInTheDocument();
+      const tabla = within(detalle).getByRole("table", { name: "Entradas y retiros de efectivo" });
+      expect(
+        within(tabla)
+          .getAllByRole("columnheader")
+          .map((th) => th.textContent),
+      ).toEqual(["Hora", "Tipo", "Motivo", "Nota", "Registró", "Importe"]);
+      const [entrada, retiro, anulado] = within(tabla).getAllByRole("row").slice(1) as [
+        HTMLElement,
+        HTMLElement,
+        HTMLElement,
+      ];
+
+      // 16:05 UTC son las 10:05 en la Ciudad de México.
+      expect(entrada).toHaveTextContent("10:05");
+      expect(entrada).toHaveTextContent("Entrada");
+      expect(entrada).toHaveTextContent("Fondo para cambio");
+      expect(entrada).toHaveTextContent("+$200.00");
+      expect(entrada).toHaveTextContent("Luis Cajero");
+      expect(entrada).not.toHaveTextContent("Sin código");
+
+      expect(retiro).toHaveTextContent("Retiro");
+      expect(retiro).toHaveTextContent("A la caja fuerte");
+      expect(retiro).toHaveTextContent("Bolsa 14");
+      expect(retiro).toHaveTextContent("−$500.00");
+      expect(within(retiro).getByText("Sin código")).toBeInTheDocument();
+
+      // El anulado: tachado, con quién lo anuló y por qué, que sí se lee.
+      expect(within(anulado).getByText("−$300.00")).toHaveClass("line-through");
+      expect(within(anulado).getByText("Depósito al banco")).toHaveClass("line-through");
+      expect(anulado).toHaveTextContent("Anulado");
+      const motivo = within(anulado).getByText("Anuló Ana Pérez: Se registró dos veces");
+      expect(motivo).not.toHaveClass("line-through");
+      expect(within(anulado).queryByText("Sin código")).not.toBeInTheDocument();
+    });
+
+    /** Abre el detalle del único turno de la lista y lo devuelve ya cargado. */
+    async function abrirDetalle() {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+      await userEvent.setup().click(screen.getByRole("button", { name: /ver turno/i }));
+      const detalle = await screen.findByTestId("shift-detail");
+      await within(detalle).findByText("VTA-000001");
+      return detalle;
+    }
+
+    it("con un API anterior, sin `movements`, el detalle solo trae las ventas, como hoy", async () => {
+      const detalle = await abrirDetalle();
+
+      expect(within(detalle).getAllByRole("table")).toHaveLength(1);
+      expect(within(detalle).queryByText("Entradas y retiros de efectivo")).not.toBeInTheDocument();
+    });
+
+    it("un turno sin movimientos tampoco agrega nada al detalle", async () => {
+      mocked.getShiftDetail.mockResolvedValue({
+        ...turno({ cashIn: "0", cashOut: "0" }),
+        sales: [
+          {
+            id: "s1",
+            folio: "VTA-000001",
+            createdAt: "2026-09-06T15:00:00.000Z",
+            seller: { id: "u2", name: "Luis Cajero" },
+            paymentMethod: "cash",
+            status: "completed",
+            total: "100.00",
+          },
+        ],
+        movements: [],
+      });
+      const detalle = await abrirDetalle();
+
+      expect(within(detalle).getAllByRole("table")).toHaveLength(1);
+      expect(within(detalle).queryByText("Entradas y retiros de efectivo")).not.toBeInTheDocument();
+    });
+  });
+
+  /**
    * F10-KPI-13 — «Cierres de turno» filtra por diferencia y la totaliza: los
    * turnos con faltante se encuentran sin recorrer la lista, y el pie dice
    * cuánto faltó y cuánto sobró, cada uno por su lado.

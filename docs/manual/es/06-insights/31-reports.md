@@ -113,13 +113,26 @@ la pantalla, sin columna de estado.
 
 Cada turno cerrado con su **Folio**, la **Apertura** y el **Cierre** (la fecha y
 la hora en que se abrió y se cerró) y su arqueo: el **Fondo inicial** con que
-abrió el cajón, los **Gastos en efectivo** que salieron de él, lo **Calculado**
-(lo que debía haber en el cajón: el fondo, más lo vendido en efectivo, menos
-esos gastos), lo **Contado** (lo que declaró el cajero), la **Diferencia** y la
-**Nota** del cierre. Un turno que abrió sin fondo o que no tuvo gastos dice «—» en esa
+abrió el cajón, los **Gastos en efectivo** que salieron de él, las **Entradas**
+y los **Retiros** de efectivo que el cajero registró sin una venta (capítulo 5),
+lo **Calculado** (lo que debía haber en el cajón: el fondo, más lo vendido en
+efectivo, más las entradas, menos los retiros y esos gastos), lo **Contado** (lo
+que declaró el cajero), la **Diferencia** y la **Nota** del cierre. Un turno que
+abrió sin fondo, o que no tuvo gastos, entradas o retiros, dice «—» en esa
 columna. Una diferencia sale en rojo cuando faltó dinero y en verde cuando
-sobró; si todo coincide, dice **Cuadró**. Presiona **Ver** para abrir las
-ventas de ese turno, o **PDF** para descargar su cierre en tamaño carta: arriba
+sobró; si todo coincide, dice **Cuadró**. Un retiro registrado, por ejemplo el
+efectivo que se llevó a la caja fuerte, ya está restado de lo calculado: no
+aparece como faltante.
+
+Presiona **Ver** para abrir las ventas de ese turno y, debajo, sus **Entradas y
+retiros de efectivo**, si tuvo alguno: la **Hora**, el **Tipo**, el **Motivo**,
+la **Nota**, quién lo **Registró** y el **Importe**. Uno anulado sale tachado y
+marcado **Anulado**, con quién lo anuló y por qué. Un retiro que pasó sin el
+código de autorización del negocio lleva la marca **Sin código**; si tu negocio
+no tiene código (capítulo 14), todos los retiros la llevan. Las entradas nunca
+piden código.
+
+Presiona **PDF** para descargar el cierre del turno en tamaño carta: arriba
 el arqueo y abajo las ventas y los gastos del cajón. El Excel trae las mismas
 columnas y, además, quién abrió el turno y lo vendido con cada forma de pago.
 
