@@ -10,7 +10,14 @@
     "ticketsToday": "Today's tickets",
     "averageTicket": "{{value}} average",
     "profitPending": "No cost data yet",
-    "netProfitMonth": "This month's net profit"
+    "netProfitMonth": "This month's net profit",
+    "margin": "{{pct}}% margin",
+    "projected": "Month-end forecast: {{value}}",
+    "requiredDaily": "To reach your goal: {{value}} a day",
+    "goalReached": "Goal reached",
+    "expensesCovered": "{{pct}}% of your expenses covered",
+    "remainingSales": "Sell {{value}} more to cover them",
+    "coveredSince": "Expenses covered since day {{day}}"
   },
   "charts": {
     "monthVsPrev": "Sales: this month vs last",

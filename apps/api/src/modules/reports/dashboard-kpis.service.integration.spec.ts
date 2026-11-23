@@ -261,46 +261,70 @@ describe("DashboardKpisService (integration)", () => {
     expect(kpis.profit.deltaVsPrevMonthPct).toBe(250);
   });
 
+  /** Un gasto con su día del negocio; `canceled` lo deja anulado. */
+  async function gasto(
+    tenantId: string,
+    warehouseId: string,
+    dia: string,
+    total: number,
+    canceled = false,
+  ): Promise<void> {
+    const { usuarioId } = contexto.get(tenantId) as { usuarioId: string };
+    await prisma.withTenantContext(tenantId, async (tx) => {
+      const categoria =
+        (await tx.expenseCategory.findFirst({ where: { tenantId, code: "rent" } })) ??
+        (await tx.expenseCategory.create({ data: { tenantId, code: "rent", name: "Renta" } }));
+      await tx.expense.create({
+        data: {
+          tenantId,
+          folio: `G-${randomUUID().slice(0, 12)}`,
+          warehouseId,
+          expenseDate: new Date(dia),
+          categoryId: categoria.id,
+          description: "Gasto",
+          amount: total,
+          total,
+          taxMode: "included",
+          createdBy: usuarioId,
+          ...(canceled && {
+            status: "canceled",
+            canceledAt: new Date(),
+            canceledBy: usuarioId,
+            cancelReason: "x",
+          }),
+        },
+      });
+    });
+  }
+
+  /** El mismo servicio con el reloj en otro instante (el borde de los días cerrados). */
+  const servicioEn = (iso: string) =>
+    new DashboardKpisService(prisma, { now: () => new Date(iso) });
+
+  /** Una venta de `total` a las 12:00 de CDMX de cada día de marzo, de `desde` a `hasta`. */
+  async function ventasDiarias(
+    esc: Escenario,
+    desde: number,
+    hasta: number,
+    total: number,
+    warehouseId = esc.warehouseId,
+  ): Promise<void> {
+    for (let dia = desde; dia <= hasta; dia++) {
+      await venta(esc.tenantId, {
+        creadaEn: `2026-03-${String(dia).padStart(2, "0")}T18:00:00Z`,
+        total,
+        warehouseId,
+      });
+    }
+  }
+
+  const todo = { warehouseIds: "all" } as never;
+
   /**
    * F9-EXP-11 — la utilidad NETA: bruta − gastos ACTIVOS del mes por DÍA del
    * negocio y en el alcance. Sin bruta no hay neta, aunque haya gastos.
    */
   describe("utilidad neta (F9-EXP-11)", () => {
-    async function gasto(
-      tenantId: string,
-      warehouseId: string,
-      dia: string,
-      total: number,
-      canceled = false,
-    ): Promise<void> {
-      const { usuarioId } = contexto.get(tenantId) as { usuarioId: string };
-      await prisma.withTenantContext(tenantId, async (tx) => {
-        const categoria =
-          (await tx.expenseCategory.findFirst({ where: { tenantId, code: "rent" } })) ??
-          (await tx.expenseCategory.create({ data: { tenantId, code: "rent", name: "Renta" } }));
-        await tx.expense.create({
-          data: {
-            tenantId,
-            folio: `G-${randomUUID().slice(0, 12)}`,
-            warehouseId,
-            expenseDate: new Date(dia),
-            categoryId: categoria.id,
-            description: "Gasto",
-            amount: total,
-            total,
-            taxMode: "included",
-            createdBy: usuarioId,
-            ...(canceled && {
-              status: "canceled",
-              canceledAt: new Date(),
-              canceledBy: usuarioId,
-              cancelReason: "x",
-            }),
-          },
-        });
-      });
-    }
-
     it("resta los gastos activos del mes corriente, por día del negocio; un anulado no resta", async () => {
       const esc = await escenarioCompleto();
       // Día 1 del mes: cuenta, aunque a las 20:00 de CDMX ya sea día 2 en UTC.
@@ -422,5 +446,375 @@ describe("DashboardKpisService (integration)", () => {
     expect(kpis.month.goalPct).toBeNull();
     expect(kpis.profit.month).toBeNull();
     expect(kpis.profit.deltaVsPrevMonthPct).toBeNull();
+    // F10-KPI-05/06: sin utilidad no hay margen; sin ninguna venta no hay de
+    // dónde estimar el cierre; sin meta no hay ritmo; sin gastos no hay avance.
+    expect(kpis.profit.marginPct).toBeNull();
+    expect(kpis.month.projected).toBeNull();
+    expect(kpis.month.requiredDaily).toBeNull();
+    expect(kpis.profit.breakEven).toEqual({
+      expenses: "0.00",
+      coveredPct: null,
+      coveredOnDay: null,
+      remainingSales: null,
+    });
+  });
+
+  /**
+   * F10-KPI-05 — el margen del mes y a dónde vas. El cierre estimado usa solo
+   * días CERRADOS (no se mueve durante el día) y calla hasta tener tres; lo
+   * que falta para la meta se reparte entre los días que quedan, contando hoy.
+   */
+  describe("margen, cierre estimado y ritmo para la meta (F10-KPI-05)", () => {
+    it("14 días cerrados proyectan los 31: lo vendido más su promedio por los días que faltan, contando hoy", async () => {
+      const esc = await escenario();
+      await ventasDiarias(esc, 1, 14, 100);
+      // Hoy también se vendió; la estimación no lo usa.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-15T17:00:00Z",
+        total: 300,
+        warehouseId: esc.warehouseId,
+      });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // 1,400 en 14 días cerrados = 100 al día, por los 17 que faltan (15 al 31).
+      expect(kpis.month.projected).toBe("3100.00");
+    });
+
+    it("la venta de hoy no mueve la estimación", async () => {
+      const esc = await escenario();
+      await ventasDiarias(esc, 1, 14, 100);
+      const antes = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-15T17:30:00Z",
+        total: 5000,
+        warehouseId: esc.warehouseId,
+      });
+      const despues = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(antes.month.projected).toBe("3100.00");
+      expect(despues.month.projected).toBe("3100.00");
+      // Lo vendido del mes sí se movió: la venta existe, solo no estima.
+      expect(despues.month.total).toBe("6400");
+    });
+
+    it("calla hasta tener tres días cerrados: el día 2 no hay estimación", async () => {
+      const esc = await escenario();
+      // El negocio ya vendía en febrero: sus días cerrados empiezan el 1.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-02-20T18:00:00Z",
+        total: 500,
+        warehouseId: esc.warehouseId,
+      });
+      await ventasDiarias(esc, 1, 3, 100);
+      const usuario = { tenantId: esc.tenantId } as never;
+
+      const dia2 = await servicioEn("2026-03-02T18:00:00Z").kpis(usuario, todo);
+      const dia3 = await servicioEn("2026-03-03T18:00:00Z").kpis(usuario, todo);
+      const dia4 = await servicioEn("2026-03-04T18:00:00Z").kpis(usuario, todo);
+
+      expect(dia2.month.projected).toBeNull();
+      expect(dia3.month.projected).toBeNull();
+      // Tres días cerrados (1, 2 y 3): 300 = 100 al día, por los 28 que faltan.
+      expect(dia4.month.projected).toBe("3100.00");
+    });
+
+    it("un negocio que empezó el día 10 promedia desde su primera venta, no desde el 1", async () => {
+      const esc = await escenario();
+      // Una cancelada del día 5 no es su primera venta: no existe para el panel.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-05T18:00:00Z",
+        total: 999,
+        warehouseId: esc.warehouseId,
+        canceled: true,
+      });
+      await ventasDiarias(esc, 10, 14, 200);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // Cinco días cerrados (10 al 14): 1,000 = 200 al día, por 17. Contando
+      // desde el 1 diría 2,214.29: castigaría los días en que no existía.
+      expect(kpis.month.projected).toBe("4400.00");
+    });
+
+    it("con el alcance, la primera venta es la de las sucursales que ves", async () => {
+      const esc = await escenario();
+      // La Sucursal ya vendía el día 1; Central abrió el 10.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-01T18:00:00Z",
+        total: 50,
+        warehouseId: esc.otroAlmacenId,
+      });
+      await ventasDiarias(esc, 10, 14, 200);
+
+      const central = await service.kpis(
+        { tenantId: esc.tenantId } as never,
+        { warehouseIds: [esc.warehouseId] } as never,
+      );
+      const todas = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(central.month.projected).toBe("4400.00");
+      // Las dos juntas: 1,050 en 14 días cerrados = 75 al día, por 17.
+      expect(todas.month.projected).toBe("2325.00");
+    });
+
+    it("lo que falta para la meta se reparte entre los días que quedan, contando hoy", async () => {
+      const esc = await escenarioCompleto();
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // Meta 2,000 − 1,687 vendidos = 313, entre 17 días (del 15 al 31).
+      expect(kpis.month.requiredDaily).toBe("18.41");
+    });
+
+    it("con la meta alcanzada, lo que falta al día es «0.00»", async () => {
+      const esc = await escenarioCompleto();
+      await prisma.tenant.update({
+        where: { id: esc.tenantId },
+        data: { monthlySalesGoal: "1000" },
+      });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.month.goalPct).toBe(168.7);
+      expect(kpis.month.requiredDaily).toBe("0.00");
+    });
+
+    it("sin meta no hay ritmo para la meta: null, no 0", async () => {
+      const esc = await escenario(null);
+      await ventasDiarias(esc, 1, 14, 100);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.month.requiredDaily).toBeNull();
+      // El cierre estimado no depende de la meta.
+      expect(kpis.month.projected).toBe("3100.00");
+    });
+
+    it("el margen ignora las líneas sin costo", async () => {
+      const esc = await escenarioCompleto();
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // 140 de utilidad sobre los 200 de la línea con costo. La de 100 sin
+      // costo no entra al divisor: con ella diría 46.7%.
+      expect(kpis.profit.marginPct).toBe(70);
+    });
+
+    it("el margen va sobre el precio sin impuesto, como la utilidad", async () => {
+      const esc = await escenario();
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-10T18:00:00Z",
+        total: 112,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 112, quantity: 1, unitCost: 40, taxAmount: 12 }],
+      });
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-11T18:00:00Z",
+        total: 116,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 116, quantity: 1, unitCost: 50, taxAmount: 16 }],
+      });
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // 110 de utilidad sobre 200 de base; sobre lo cobrado (228) diría 48.2%.
+      expect(kpis.profit.marginPct).toBe(55);
+    });
+  });
+
+  /**
+   * F10-KPI-06 — el punto de equilibrio. A medio mes la neta sale negativa
+   * por construcción (la renta entra completa con su fecha y las ventas se
+   * acumulan día a día); el panel lo dice como avance: cuánto de los gastos
+   * ya cubrió la utilidad, desde qué día, o cuánto falta vender.
+   */
+  describe("punto de equilibrio (F10-KPI-06)", () => {
+    /** Una venta de una línea que deja exactamente `utilidad` (precio = 2 × costo). */
+    const conUtilidad = (esc: Escenario, creadaEn: string, utilidad: number) =>
+      venta(esc.tenantId, {
+        creadaEn,
+        total: utilidad * 2,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: utilidad * 2, quantity: 1, unitCost: utilidad }],
+      });
+
+    it("el caso de la captura: 6,782.19 de utilidad contra 9,740.00 de gastos es 69.6% cubierto", async () => {
+      const esc = await escenario();
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-10T18:00:00Z",
+        total: 10000,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 10000, quantity: 1, unitCost: 3217.81 }],
+      });
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-01", 9740);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.month).toBe("6782.19");
+      expect(kpis.profit.netMonth).toBe("-2957.81");
+      expect(kpis.profit.breakEven).toEqual({
+        expenses: "9740.00",
+        coveredPct: 69.6,
+        coveredOnDay: null,
+        // Faltan 2,957.81 de utilidad y cada peso cobrado dejó 0.678219.
+        remainingSales: "4361.14",
+      });
+    });
+
+    it("el día en que se cruza: el primer día local en que la utilidad acumulada alcanzó los gastos", async () => {
+      const esc = await escenario();
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-01", 1000);
+      await conUtilidad(esc, "2026-03-03T18:00:00Z", 400);
+      await conUtilidad(esc, "2026-03-07T18:00:00Z", 400);
+      // 23:30 del día 9 en CDMX (05:30 del 10 en UTC): con esta se cruza, y es del 9.
+      await conUtilidad(esc, "2026-03-10T05:30:00Z", 300);
+      await conUtilidad(esc, "2026-03-12T18:00:00Z", 200);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.breakEven).toEqual({
+        expenses: "1000.00",
+        coveredPct: 130,
+        coveredOnDay: 9,
+        remainingSales: null,
+      });
+    });
+
+    it("si una pérdida los vuelve a destapar, «cubiertos desde» es el día del nuevo cruce", async () => {
+      const esc = await escenario();
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-01", 1000);
+      await conUtilidad(esc, "2026-03-03T18:00:00Z", 1100);
+      // El día 6 se vendió por debajo del costo: la acumulada baja a 800.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-06T18:00:00Z",
+        total: 100,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 100, quantity: 1, unitCost: 400 }],
+      });
+      await conUtilidad(esc, "2026-03-11T18:00:00Z", 300);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.breakEven.coveredPct).toBe(110);
+      expect(kpis.profit.breakEven.coveredOnDay).toBe(11);
+    });
+
+    it("sin gastos no hay avance que medir: null, no 100%", async () => {
+      const esc = await escenarioCompleto();
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.month).toBe("140");
+      expect(kpis.profit.breakEven).toEqual({
+        expenses: "0.00",
+        coveredPct: null,
+        coveredOnDay: null,
+        remainingSales: null,
+      });
+    });
+
+    it("un gasto anulado no cuenta", async () => {
+      const esc = await escenarioCompleto();
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-02", 500);
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-03", 999, true);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.breakEven.expenses).toBe("500.00");
+      // 140 de utilidad ÷ 500 de gastos.
+      expect(kpis.profit.breakEven.coveredPct).toBe(28);
+    });
+
+    it("el alcance acota la utilidad y los gastos: mirando Central no cuentan los de la Sucursal", async () => {
+      const esc = await escenarioCompleto();
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-02", 100);
+      await gasto(esc.tenantId, esc.otroAlmacenId, "2026-03-02", 5000);
+      // La Sucursal dejó 1,000 el día 4: si se colara, Central «cubriría» ese día.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-04T18:00:00Z",
+        total: 2000,
+        warehouseId: esc.otroAlmacenId,
+        items: [{ lineTotal: 2000, quantity: 1, unitCost: 1000 }],
+      });
+
+      const central = await service.kpis(
+        { tenantId: esc.tenantId } as never,
+        { warehouseIds: [esc.warehouseId] } as never,
+      );
+      const todas = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      // Central: sus 140 de utilidad (de hoy) contra sus 100 de gastos.
+      expect(central.profit.breakEven).toEqual({
+        expenses: "100.00",
+        coveredPct: 140,
+        coveredOnDay: 15,
+        remainingSales: null,
+      });
+      // Las dos juntas: 1,140 ÷ 5,100.
+      expect(todas.profit.breakEven.expenses).toBe("5100.00");
+      expect(todas.profit.breakEven.coveredPct).toBe(22.4);
+      expect(todas.profit.breakEven.coveredOnDay).toBeNull();
+    });
+
+    it("lo que falta vender sale de lo que dejó cada peso cobrado en los últimos 30 días, solo con costo", async () => {
+      const esc = await escenario();
+      // Este mes: 1,160 cobrados (160 de impuesto) con 500 de costo: deja 500.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-10T18:00:00Z",
+        total: 1160,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 1160, quantity: 1, unitCost: 500, taxAmount: 160 }],
+      });
+      // Dentro de los 30 días (20 de febrero): 1,000 cobrados que dejaron 300.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-02-20T18:00:00Z",
+        total: 1000,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 1000, quantity: 1, unitCost: 700 }],
+      });
+      // Fuera de los 30 días (5 de febrero): no entra.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-02-05T18:00:00Z",
+        total: 1000,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 1000, quantity: 1, unitCost: 0 }],
+      });
+      // Sin costo: no dice cuánto deja un peso; no entra.
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-11T18:00:00Z",
+        total: 5000,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 5000, quantity: 1, unitCost: null }],
+      });
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-01", 2000);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.month).toBe("500");
+      // Faltan 1,500 de utilidad; cada peso cobrado dejó 800 ÷ 2,160.
+      expect(kpis.profit.breakEven.remainingSales).toBe("4050.00");
+    });
+
+    it("si cada peso cobrado no deja utilidad, no hay con qué estimar lo que falta", async () => {
+      const esc = await escenario();
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-10T18:00:00Z",
+        total: 100,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 100, quantity: 1, unitCost: 150 }],
+      });
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-01", 100);
+
+      const kpis = await service.kpis({ tenantId: esc.tenantId } as never, todo);
+
+      expect(kpis.profit.breakEven).toEqual({
+        expenses: "100.00",
+        coveredPct: -50,
+        coveredOnDay: null,
+        remainingSales: null,
+      });
+    });
   });
 });

@@ -22,9 +22,9 @@ algunas sucursales, el panel suma solo esas.
 | Mosaico | Qué es |
 |---|---|
 | **Ventas de hoy** | Lo cobrado hoy en ventas que no se cancelaron, con impuestos incluidos: lo que entró a la caja. |
-| **Ventas del mes** | Lo mismo, desde el día 1 del mes. La barra y el **% de la meta** comparan contra tu meta mensual de ventas (capítulo 12); sin meta, no aparecen. |
-| **Utilidad del mes** | Lo que te dejaron las ventas del mes: el precio sin impuestos menos el costo de lo vendido. |
-| **Utilidad neta del mes** | La utilidad del mes menos los gastos registrados con fecha de este mes (capítulo 27). Solo aparece si tu plan incluye Gastos. |
+| **Ventas del mes** | Lo mismo, desde el día 1 del mes. La barra y el **% de la meta** comparan contra tu meta mensual de ventas (capítulo 12); sin meta, no aparecen. Abajo, el **Cierre estimado** y, si tienes meta, cuánto te falta vender al día (más abajo, «A dónde vas en el mes»). |
+| **Utilidad del mes** | Lo que te dejaron las ventas del mes: el precio sin impuestos menos el costo de lo vendido. Abajo, tu **margen** (por ejemplo, «17.2% de margen»): de lo que vendiste sin impuestos, qué parte te quedó. |
+| **Utilidad neta del mes** | La utilidad del mes menos los gastos registrados con fecha de este mes (capítulo 27). Con gastos registrados, una barra dice cuánto de ellos ya cubrió tu utilidad. Solo aparece si tu plan incluye Gastos. |
 | **Tickets de hoy** | Cuántas ventas llevas hoy y, abajo, el ticket **promedio**. |
 
 ### De dónde sale la utilidad
@@ -38,12 +38,43 @@ algunas sucursales, el panel suma solo esas.
 - Una venta de algo **sin costo** no entra en la utilidad, ni suma ni resta. Si
   ninguna venta del mes tiene costo, el mosaico dice **Aún sin datos de costo**.
   Para arreglarlo, captura el costo de tus productos y servicios.
+- El **margen** se calcula con las mismas ventas: la utilidad entre su precio
+  sin impuestos. Lo vendido sin costo tampoco cuenta aquí.
+
+### A dónde vas en el mes
+
+Debajo de **Ventas del mes**:
+
+- **Cierre estimado**: lo que venderías en el mes si sigues al ritmo de los días
+  que ya terminaron. Suma lo vendido del día 1 a ayer y, por cada día que falta
+  (contando hoy), su promedio diario. Lo de hoy todavía no cuenta, así que el
+  número no cambia mientras vendes durante el día. Si tu negocio empezó a vender
+  este mes, el promedio cuenta desde tu primera venta. Necesita al menos tres
+  días terminados: los primeros días del mes no aparece.
+- **Para tu meta: $X al día**: lo que te falta para tu meta, repartido entre los
+  días que quedan del mes, contando hoy. Cuando la alcanzas, dice **Meta
+  alcanzada**. Sin meta, este renglón no aparece.
 
 ### Qué gastos resta la utilidad neta
 
 Todos los gastos del mes que no estén anulados, **pagados o todavía por
 pagar**: cuenta la fecha del gasto, no la del pago. En el negocio de ejemplo, la
 renta ya pagada y el recibo de luz pendiente restan los dos.
+
+A mitad de mes es normal que la utilidad neta salga **negativa**: la renta y los
+demás gastos entran completos con su fecha, mientras que las ventas se suman día
+a día. Por eso, debajo del número, una barra dice qué parte de tus gastos ya
+cubrió tu utilidad (por ejemplo, «70% de tus gastos cubiertos») y, abajo, uno
+de estos renglones:
+
+- **Te falta vender $X**: lo que tendrías que vender para cubrirlos, al ritmo de
+  lo que te dejó cada peso cobrado en los últimos 30 días (solo cuentan las
+  ventas con costo). Si con eso no se puede calcular, por ejemplo porque se
+  vendió por debajo del costo, este renglón no aparece.
+- **Gastos cubiertos desde el día 19**: tu utilidad ya alcanzó tus gastos, y
+  desde ese día del mes están cubiertos. La barra se pinta de verde.
+
+Si no registraste gastos este mes, la barra no aparece.
 
 ### Las flechas de comparación
 

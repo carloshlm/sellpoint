@@ -89,4 +89,111 @@ describe("KpiCard (F5-DASH-09)", () => {
 
     expect(screen.getByText("2 tickets · $150 promedio")).toBeInTheDocument();
   });
+
+  /** F10-KPI-07 — hasta dos renglones de detalle: los cinco mosaicos miden lo mismo. */
+  it("details pinta hasta dos renglones bajo el número", () => {
+    pintar(
+      <KpiCard
+        label="Ventas del mes"
+        value="$1,687.00"
+        details={["Cierre estimado: $3,100.00", "Para tu meta: $18.41 al día", "Un tercero"]}
+      />,
+    );
+
+    expect(screen.getByText("Cierre estimado: $3,100.00")).toBeInTheDocument();
+    expect(screen.getByText("Para tu meta: $18.41 al día")).toBeInTheDocument();
+    expect(screen.queryByText("Un tercero")).not.toBeInTheDocument();
+  });
+
+  /**
+   * F10-KPI-08 — `progress`: la misma barra de la meta con otra etiqueta. El
+   * dibujo se topa en 100 (y en 0), pero la etiqueta dice el número real.
+   */
+  describe("progress (F10-KPI-08)", () => {
+    const relleno = (container: HTMLElement) =>
+      container.querySelector("[data-slot='progress-fill']") as HTMLElement;
+
+    it("pinta la barra al porcentaje con SU etiqueta, no la de la meta", () => {
+      const { container } = pintar(
+        <KpiCard
+          label="Utilidad neta del mes"
+          value="-$2,957.81"
+          progress={{ pct: 69.6, label: "69.6% de tus gastos cubiertos" }}
+        />,
+      );
+
+      expect(screen.getByText("69.6% de tus gastos cubiertos")).toBeInTheDocument();
+      expect(screen.queryByText(/de la meta/)).not.toBeInTheDocument();
+      expect(relleno(container).style.width).toBe("69.6%");
+      // La barra de la meta es otra: no aparece sin goalPct.
+      expect(container.querySelector("[data-slot='goal-fill']")).toBeNull();
+    });
+
+    it("pasado el 100 se dibuja al tope y la etiqueta dice el número real", () => {
+      const { container } = pintar(
+        <KpiCard
+          label="Utilidad neta del mes"
+          value="$300.00"
+          progress={{ pct: 130, label: "130% de tus gastos cubiertos" }}
+        />,
+      );
+
+      expect(screen.getByText("130% de tus gastos cubiertos")).toBeInTheDocument();
+      expect(relleno(container).style.width).toBe("100%");
+    });
+
+    it("un avance negativo se dibuja vacío, no como barra llena", () => {
+      const { container } = pintar(
+        <KpiCard
+          label="Utilidad neta del mes"
+          value="-$150.00"
+          progress={{ pct: -50, label: "-50% de tus gastos cubiertos" }}
+        />,
+      );
+
+      expect(relleno(container).style.width).toBe("0%");
+    });
+
+    it("cubiertos, la barra es verde y no la primaria", () => {
+      const { container } = pintar(
+        <KpiCard
+          label="Utilidad neta del mes"
+          value="$300.00"
+          progress={{ pct: 130, label: "130% de tus gastos cubiertos" }}
+        />,
+      );
+
+      expect(relleno(container)).toHaveClass("bg-success");
+      expect(relleno(container)).not.toHaveClass("bg-primary");
+    });
+
+    it("sin cubrir, la barra es la primaria y no verde: un avance, no una alarma", () => {
+      // El caso espejo (F5-DASH-09): con cn(), dos colores en conflicto se
+      // deduplican; probar solo un sentido dejaría pasar al mutante.
+      const { container } = pintar(
+        <KpiCard
+          label="Utilidad neta del mes"
+          value="-$2,957.81"
+          progress={{ pct: 69.6, label: "69.6% de tus gastos cubiertos" }}
+        />,
+      );
+
+      expect(relleno(container)).toHaveClass("bg-primary");
+      expect(relleno(container)).not.toHaveClass("bg-success");
+      expect(relleno(container)).not.toHaveClass("bg-destructive");
+    });
+
+    it("con pct null no hay barra", () => {
+      const { container } = pintar(
+        <KpiCard
+          label="Utilidad neta del mes"
+          value="$1.00"
+          progress={{ pct: null, label: "x" }}
+        />,
+      );
+
+      expect(relleno(container)).toBeNull();
+      expect(screen.queryByText("x")).not.toBeInTheDocument();
+    });
+  });
 });

@@ -10,7 +10,14 @@
     "ticketsToday": "Tickets de hoy",
     "averageTicket": "{{value}} promedio",
     "profitPending": "Aún sin datos de costo",
-    "netProfitMonth": "Utilidad neta del mes"
+    "netProfitMonth": "Utilidad neta del mes",
+    "margin": "{{pct}}% de margen",
+    "projected": "Cierre estimado: {{value}}",
+    "requiredDaily": "Para tu meta: {{value}} al día",
+    "goalReached": "Meta alcanzada",
+    "expensesCovered": "{{pct}}% de tus gastos cubiertos",
+    "remainingSales": "Te falta vender {{value}}",
+    "coveredSince": "Gastos cubiertos desde el día {{day}}"
   },
   "charts": {
     "monthVsPrev": "Ventas: mes actual vs anterior",

@@ -19,6 +19,14 @@ export interface DashboardKpis {
     deltaVsPrevMonthPct: number | null;
     goal: string | null;
     goalPct: number | null;
+    /**
+     * F10-KPI-05 — el cierre estimado del mes (solo con días cerrados); null
+     * con menos de tres. Opcional, como todo lo de F10-KPI: durante un deploy,
+     * este web puede hablar con un API que todavía no lo manda.
+     */
+    projected?: string | null;
+    /** F10-KPI-05 — lo que falta al día para la meta; "0.00" si ya se alcanzó, null sin meta. */
+    requiredDaily?: string | null;
   };
   profit: {
     month: string | null;
@@ -27,7 +35,23 @@ export interface DashboardKpis {
     /** F9-EXP-11: bruta − gastos activos del mes; null sin bruta. Se pinta solo con Gastos. */
     netMonth: string | null;
     netDeltaVsPrevMonthPct: number | null;
+    /** F10-KPI-05 — utilidad ÷ precio sin impuesto de las líneas con costo; null sin utilidad. */
+    marginPct?: number | null;
+    /** F10-KPI-06 — el punto de equilibrio; se pinta solo con Gastos, como la neta. */
+    breakEven?: DashboardBreakEven;
   };
+}
+
+/** F10-KPI-06 — cuánto de los gastos del mes ya cubrió la utilidad. */
+export interface DashboardBreakEven {
+  /** Los gastos del mes: los mismos que resta la utilidad neta. */
+  expenses: string;
+  /** Utilidad ÷ gastos; null sin utilidad o sin gastos. */
+  coveredPct: number | null;
+  /** Día del mes desde el que están cubiertos; null si todavía no. */
+  coveredOnDay: number | null;
+  /** Lo que falta vender para cubrirlos; null si ya se cubrieron o no hay con qué estimar. */
+  remainingSales: string | null;
 }
 
 export async function getDashboardKpis(basePath = "/reports"): Promise<DashboardKpis> {

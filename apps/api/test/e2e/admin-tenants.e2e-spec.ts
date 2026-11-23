@@ -194,6 +194,22 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
   it("el dashboard es el de B: la venta de hoy y el valor del inventario", async () => {
     const kpis = await comoAdmin("dashboard/kpis").expect(200);
     expect((kpis.body as { today: { tickets: number } }).today.tickets).toBe(1);
+    // F10-KPI-05/06: el margen, el cierre estimado y el punto de equilibrio
+    // viajan por el espejo. B vendió solo hoy (ningún día cerrado), no tiene
+    // meta ni gastos.
+    const cuerpo = kpis.body as {
+      month: Record<string, unknown>;
+      profit: Record<string, unknown>;
+    };
+    expect(cuerpo.month).toHaveProperty("projected", null);
+    expect(cuerpo.month).toHaveProperty("requiredDaily", null);
+    expect(cuerpo.profit).toHaveProperty("marginPct");
+    expect(cuerpo.profit.breakEven).toEqual({
+      expenses: "0.00",
+      coveredPct: null,
+      coveredOnDay: null,
+      remainingSales: null,
+    });
 
     const inventario = await comoAdmin("dashboard/inventory").expect(200);
     // El actor sintético lleva reports:read: el valor del inventario viaja.

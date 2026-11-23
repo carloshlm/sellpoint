@@ -6,6 +6,27 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 
+/**
+ * F10-KPI-06 — el punto de equilibrio del mes: cuánto de los gastos ya cubrió
+ * la utilidad. Se dice como avance y no como pérdida: a medio mes la neta sale
+ * negativa por construcción (la renta entra completa con su fecha y las ventas
+ * se acumulan día a día).
+ */
+export interface DashboardBreakEven {
+  /** Los gastos del mes: el MISMO total que resta `netMonth`. */
+  expenses: string;
+  /** Utilidad ÷ gastos, con un decimal; null sin utilidad o sin gastos. */
+  coveredPct: number | null;
+  /** Día local desde el que la utilidad acumulada cubre los gastos; null si todavía no. */
+  coveredOnDay: number | null;
+  /**
+   * Lo que falta vender (en pesos cobrados) para cubrirlos, al ritmo de lo que
+   * dejó cada peso cobrado en los últimos 30 días; null si ya se cubrió o si
+   * no hay con qué estimar.
+   */
+  remainingSales: string | null;
+}
+
 /** Los cuatro números de arriba del dashboard (F5-DASH-03). */
 export interface DashboardKpis {
   today: {
@@ -22,6 +43,14 @@ export interface DashboardKpis {
     deltaVsPrevMonthPct: number | null;
     goal: string | null;
     goalPct: number | null;
+    /**
+     * F10-KPI-05 — el cierre estimado: lo vendido en los días CERRADOS más su
+     * promedio diario por los días que faltan, contando hoy. No se mueve
+     * durante el día; null con menos de tres días cerrados.
+     */
+    projected: string | null;
+    /** F10-KPI-05 — lo que falta para la meta ÷ los días que quedan, contando hoy; "0.00" si ya se alcanzó y null sin meta. */
+    requiredDaily: string | null;
   };
   profit: {
     /** null cuando NINGUNA línea del mes tiene costo congelado (F5-DASH-01). */
@@ -40,8 +69,27 @@ export interface DashboardKpis {
      */
     netMonth: string | null;
     netDeltaVsPrevMonthPct: number | null;
+    /**
+     * F10-KPI-05 — utilidad ÷ el precio sin impuesto de las MISMAS líneas con
+     * costo, con un decimal; null si la utilidad es null.
+     */
+    marginPct: number | null;
+    breakEven: DashboardBreakEven;
   };
 }
+
+/** Lo que dejaron las líneas con costo congelado de un período. */
+interface LineasConCosto {
+  /** Σ(base − costo); null si ninguna línea del período tiene costo. */
+  utilidad: Prisma.Decimal | null;
+  /** Σ(line_total − tax_amount): el precio sin impuesto, la base del margen. */
+  base: Prisma.Decimal | null;
+  /** Σ line_total: lo cobrado, impuesto incluido. */
+  cobrado: Prisma.Decimal | null;
+}
+
+/** Mínimo de días cerrados para estimar el cierre (decisión de Carlos, 2026-11-23). */
+const DIAS_CERRADOS_MINIMOS = 3;
 
 /**
  * F5-DASH-03 — el corazón numérico del dashboard.
@@ -94,9 +142,28 @@ export class DashboardKpisService {
       Math.min(inicioMesAnterior.getTime() + transcurrido, inicioMes.getTime()),
     );
 
+    // F10-KPI-06: el ritmo de «cada peso cobrado» sale de hoy y los 29 días
+    // anteriores, días del negocio.
+    const inicioUltimos30 = startOfDayUtc(sumarDias(hoy, -29), zona);
+
     const alcance =
       scope.warehouseIds === "all" ? {} : { warehouseId: { in: [...scope.warehouseIds] } };
     const base = { tenantId: user.tenantId, status: "completed" as const, ...alcance };
+
+    /**
+     * F10-KPI-05 — el instante de la primera venta completada del alcance (null
+     * si nunca ha vendido): un negocio que empezó el día 10 no tiene días
+     * cerrados del 1 al 9 que le bajen el promedio.
+     */
+    const primeraVenta = async () => {
+      const agregado = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+        tx.sale.aggregate({
+          where: { ...base, createdAt: { lt: ahora } },
+          _min: { createdAt: true },
+        }),
+      );
+      return agregado._min.createdAt;
+    };
 
     const suma = async (desde: Date, hasta: Date) => {
       const agregado = await this.prisma.withTenantContext(user.tenantId, (tx) =>
@@ -117,17 +184,20 @@ export class DashboardKpisService {
       diaPasado,
       mesActual,
       mesPasado,
-      utilidad,
-      utilidadPasada,
+      conCostoMes,
+      conCostoMesPasado,
       gastos,
       gastosPasados,
+      conCostoUltimos30,
+      utilidadPorDia,
+      primera,
     ] = await Promise.all([
       suma(inicioHoy, ahora),
       suma(inicioMismoDiaPasado, haceUnaSemana),
       suma(inicioMes, ahora),
       suma(inicioMesAnterior, corteMesAnterior),
-      this.utilidadDelMes(user.tenantId, alcance, inicioMes, ahora),
-      this.utilidadDelMes(user.tenantId, alcance, inicioMesAnterior, corteMesAnterior),
+      this.lineasConCosto(user.tenantId, alcance, inicioMes, ahora),
+      this.lineasConCosto(user.tenantId, alcance, inicioMesAnterior, corteMesAnterior),
       // Los gastos van por DÍA del negocio (DATE con DATE): el corte corrido
       // se traduce a los días locales de los dos instantes.
       this.gastosDelMes(
@@ -142,11 +212,19 @@ export class DashboardKpisService {
         localCalendarDate(zona, inicioMesAnterior),
         localCalendarDate(zona, corteMesAnterior),
       ),
+      this.lineasConCosto(user.tenantId, alcance, inicioUltimos30, ahora),
+      this.utilidadPorDia(user.tenantId, alcance, zona, inicioMes, ahora),
+      primeraVenta(),
     ]);
+    const utilidad = conCostoMes.utilidad;
+    const utilidadPasada = conCostoMesPasado.utilidad;
     const neta = utilidad === null ? null : utilidad.minus(gastos);
     const netaPasada = utilidadPasada === null ? null : utilidadPasada.minus(gastosPasados);
 
     const goal = tenant?.monthlySalesGoal ?? null;
+    const diaDelMes = Number(hoy.slice(8, 10));
+    // Los días que faltan, CONTANDO hoy: el 15 de marzo quedan 17 (del 15 al 31).
+    const diasQueQuedan = diasDelMes(hoy) - diaDelMes + 1;
     return {
       today: {
         total: diaHoy.total.toString(),
@@ -162,6 +240,18 @@ export class DashboardKpisService {
         goalPct: goal?.greaterThan(0)
           ? redondear(mesActual.total.dividedBy(goal).times(100))
           : null,
+        projected: cierreEstimado({
+          zona,
+          hoy,
+          primeraVenta: primera,
+          // Lo de los días cerrados es el mes menos hoy: antes de la primera
+          // venta no hay ventas que restar.
+          cerrado: mesActual.total.minus(diaHoy.total),
+          diasQueQuedan,
+        }),
+        requiredDaily: goal?.greaterThan(0)
+          ? Prisma.Decimal.max(goal.minus(mesActual.total), 0).dividedBy(diasQueQuedan).toFixed(2)
+          : null,
       },
       profit: {
         month: utilidad?.toString() ?? null,
@@ -170,6 +260,11 @@ export class DashboardKpisService {
         netMonth: neta?.toString() ?? null,
         netDeltaVsPrevMonthPct:
           neta !== null && netaPasada !== null ? deltaPct(neta, netaPasada) : null,
+        marginPct:
+          utilidad !== null && conCostoMes.base?.greaterThan(0)
+            ? redondear(utilidad.dividedBy(conCostoMes.base).times(100))
+            : null,
+        breakEven: puntoDeEquilibrio(utilidad, gastos, utilidadPorDia, conCostoUltimos30),
       },
     };
   }
@@ -214,26 +309,35 @@ export class DashboardKpisService {
    * que entró a la caja. Y `unit_cost` es NETO por construcción (F9-COSTMODE-08):
    * la venta desimpuesta el catálogo al congelar si el negocio captura «con
    * impuesto», así que precio y costo se restan en la MISMA base.
+   *
+   * F10-KPI-05/06: la misma consulta trae también la base (el precio sin
+   * impuesto, divisor del margen) y lo cobrado (con impuesto, divisor de «lo
+   * que deja cada peso cobrado»), siempre de las MISMAS líneas con costo.
    */
-  private async utilidadDelMes(
+  private async lineasConCosto(
     tenantId: string,
     alcance: { warehouseId?: { in: string[] } },
     desde: Date,
     hasta: Date,
-  ): Promise<Prisma.Decimal | null> {
+  ): Promise<LineasConCosto> {
     const almacenes = alcance.warehouseId?.in;
+    type Fila = { profit: string | null; base: string | null; charged: string | null };
     const filas = await this.prisma.withTenantContext(tenantId, (tx) =>
       almacenes === undefined
-        ? tx.$queryRaw<{ profit: string | null }[]>`
-            SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit
+        ? tx.$queryRaw<Fila[]>`
+            SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit,
+                   SUM(i.line_total - i.tax_amount)::text AS base,
+                   SUM(i.line_total)::text AS charged
               FROM sale_items i
               JOIN sales s ON s.id = i.sale_id
              WHERE s.tenant_id = ${tenantId}::uuid
                AND s.status = 'completed'
                AND s.created_at >= ${desde} AND s.created_at < ${hasta}
                AND i.unit_cost IS NOT NULL`
-        : tx.$queryRaw<{ profit: string | null }[]>`
-            SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit
+        : tx.$queryRaw<Fila[]>`
+            SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit,
+                   SUM(i.line_total - i.tax_amount)::text AS base,
+                   SUM(i.line_total)::text AS charged
               FROM sale_items i
               JOIN sales s ON s.id = i.sale_id
              WHERE s.tenant_id = ${tenantId}::uuid
@@ -242,9 +346,133 @@ export class DashboardKpisService {
                AND s.created_at >= ${desde} AND s.created_at < ${hasta}
                AND i.unit_cost IS NOT NULL`,
     );
-    const crudo = filas[0]?.profit ?? null;
-    return crudo === null ? null : new Prisma.Decimal(crudo);
+    const decimal = (crudo: string | null | undefined) =>
+      crudo === null || crudo === undefined ? null : new Prisma.Decimal(crudo);
+    return {
+      utilidad: decimal(filas[0]?.profit),
+      base: decimal(filas[0]?.base),
+      cobrado: decimal(filas[0]?.charged),
+    };
   }
+
+  /**
+   * F10-KPI-06 — la utilidad de cada día LOCAL del período (mismas líneas con
+   * costo que `lineasConCosto`), en orden: con ella se encuentra el día en que
+   * la acumulada alcanzó los gastos. Un día sin líneas con costo no aparece.
+   */
+  private async utilidadPorDia(
+    tenantId: string,
+    alcance: { warehouseId?: { in: string[] } },
+    zona: string,
+    desde: Date,
+    hasta: Date,
+  ): Promise<{ dia: number; utilidad: Prisma.Decimal }[]> {
+    const almacenes = alcance.warehouseId?.in ?? null;
+    const filas = await this.prisma.withTenantContext(
+      tenantId,
+      (tx) =>
+        tx.$queryRaw<{ dia: number; profit: string }[]>`
+        SELECT EXTRACT(DAY FROM (s.created_at AT TIME ZONE ${zona}))::int AS dia,
+               SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit
+          FROM sale_items i
+          JOIN sales s ON s.id = i.sale_id
+         WHERE s.tenant_id = ${tenantId}::uuid
+           AND s.status = 'completed'
+           AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
+           AND s.created_at >= ${desde} AND s.created_at < ${hasta}
+           AND i.unit_cost IS NOT NULL
+         GROUP BY dia
+         ORDER BY dia`,
+    );
+    return filas.map((fila) => ({ dia: fila.dia, utilidad: new Prisma.Decimal(fila.profit) }));
+  }
+}
+
+/**
+ * F10-KPI-05 — el cierre estimado del mes. Usa solo días CERRADOS (del 1 a
+ * ayer, o desde el día de la primera venta si fue este mes): así no se mueve
+ * durante el día ni castiga los días en que el negocio no existía. Calla
+ * (null) con menos de tres días cerrados o si nunca ha vendido.
+ */
+function cierreEstimado(datos: {
+  zona: string;
+  hoy: string;
+  primeraVenta: Date | null;
+  cerrado: Prisma.Decimal;
+  diasQueQuedan: number;
+}): string | null {
+  if (datos.primeraVenta === null) {
+    return null;
+  }
+  const diaPrimera = localCalendarDate(datos.zona, datos.primeraVenta);
+  const desdeDia =
+    diaPrimera.slice(0, 7) === datos.hoy.slice(0, 7) ? Number(diaPrimera.slice(8)) : 1;
+  const diasCerrados = Number(datos.hoy.slice(8, 10)) - desdeDia;
+  if (diasCerrados < DIAS_CERRADOS_MINIMOS) {
+    return null;
+  }
+  // cerrado + (cerrado ÷ díasCerrados) × díasQueQuedan, con una sola división.
+  return datos.cerrado
+    .times(diasCerrados + datos.diasQueQuedan)
+    .dividedBy(diasCerrados)
+    .toFixed(2);
+}
+
+/**
+ * F10-KPI-06 — el punto de equilibrio. Sin utilidad (no hay costos) o sin
+ * gastos no hay avance que medir: null, nunca 100%.
+ */
+function puntoDeEquilibrio(
+  utilidad: Prisma.Decimal | null,
+  gastos: Prisma.Decimal,
+  porDia: { dia: number; utilidad: Prisma.Decimal }[],
+  ultimos30: LineasConCosto,
+): DashboardBreakEven {
+  const expenses = gastos.toFixed(2);
+  if (utilidad === null || !gastos.greaterThan(0)) {
+    return { expenses, coveredPct: null, coveredOnDay: null, remainingSales: null };
+  }
+  const coveredPct = redondear(utilidad.dividedBy(gastos).times(100));
+  const falta = gastos.minus(utilidad);
+  if (!falta.greaterThan(0)) {
+    return {
+      expenses,
+      coveredPct,
+      coveredOnDay: diaDeCobertura(porDia, gastos),
+      remainingSales: null,
+    };
+  }
+  // Lo que falta, al ritmo de lo que dejó cada peso cobrado en los últimos 30
+  // días: falta ÷ (utilidad30 ÷ cobrado30). Si cada peso no deja nada (o
+  // pierde), vender más no cubre nada: no hay con qué estimar.
+  const { utilidad: utilidad30, cobrado: cobrado30 } = ultimos30;
+  const remainingSales =
+    utilidad30?.greaterThan(0) && cobrado30?.greaterThan(0)
+      ? falta.times(cobrado30).dividedBy(utilidad30).toFixed(2)
+      : null;
+  return { expenses, coveredPct, coveredOnDay: null, remainingSales };
+}
+
+/**
+ * El día desde el que la utilidad acumulada cubre los gastos y ya no los
+ * destapa: si una pérdida la regresa por debajo, cuenta el nuevo cruce. Así
+ * «Gastos cubiertos desde el día X» es verdad cualquier día después de X.
+ */
+function diaDeCobertura(
+  porDia: { dia: number; utilidad: Prisma.Decimal }[],
+  gastos: Prisma.Decimal,
+): number | null {
+  let acumulada = new Prisma.Decimal(0);
+  let desde: number | null = null;
+  for (const { dia, utilidad } of porDia) {
+    acumulada = acumulada.plus(utilidad);
+    if (acumulada.lessThan(gastos)) {
+      desde = null;
+    } else if (desde === null) {
+      desde = dia;
+    }
+  }
+  return desde;
 }
 
 /** Δ% redondeado a 1 decimal; null cuando el período anterior quedó en 0. */
@@ -257,6 +485,20 @@ function deltaPct(actual: Prisma.Decimal, anterior: Prisma.Decimal): number | nu
 
 function redondear(valor: Prisma.Decimal): number {
   return Number(valor.toDP(1).toString());
+}
+
+/** «2026-03-15» + (−29) → «2026-02-14»: aritmética de calendario, sin horas. */
+function sumarDias(iso: string, dias: number): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + dias))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** Los días del mes de esa fecha: «2026-03-15» → 31, «2026-02-10» → 28. */
+function diasDelMes(iso: string): number {
+  const [year, month] = iso.split("-").map(Number);
+  return new Date(Date.UTC(year ?? 1970, month ?? 1, 0)).getUTCDate();
 }
 
 /** «2026-03-15» → «2026-02»; enero retrocede de año. */

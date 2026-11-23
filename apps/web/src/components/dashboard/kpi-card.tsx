@@ -7,6 +7,12 @@ interface KpiCardProps {
   value: string | null;
   /** Texto secundario bajo el número («2 tickets · $150 promedio»). */
   detail?: string;
+  /**
+   * F10-KPI-07 — renglones secundarios (tras `detail`, si viene). Se pintan
+   * hasta dos en total: más alargarían este mosaico y dejaría de medir lo
+   * mismo que sus vecinos.
+   */
+  details?: string[];
   /** Δ% vs el período comparable; null u omitido = sin delta (no se inventa). */
   deltaPct?: number | null;
   /**
@@ -16,9 +22,19 @@ interface KpiCardProps {
   invertDelta?: boolean;
   /** Avance hacia la meta; el dibujo se topa en 100 pero el texto dice el real. */
   goalPct?: number | null;
+  /**
+   * F10-KPI-08 — la misma barra que `goalPct`, con su propia etiqueta (por
+   * ejemplo, «70% de tus gastos cubiertos»). Al llegar a 100 se pinta verde;
+   * antes, en el color primario: es un avance, no una alarma. Con `pct` null
+   * no hay barra.
+   */
+  progress?: { pct: number | null; label: string };
   /** Mini-tendencia inline; una serie plana pinta línea recta, no NaN. */
   sparkline?: number[];
 }
+
+/** Cuántos renglones de detalle caben sin alargar el mosaico. */
+const MAX_RENGLONES = 2;
 
 /**
  * F5-DASH-09 — la tarjeta que cuenta la historia: no un número suelto, sino
@@ -32,15 +48,21 @@ function KpiCard({
   label,
   value,
   detail,
+  details,
   deltaPct,
   invertDelta,
   goalPct,
+  progress,
   sparkline,
 }: KpiCardProps) {
   const { t } = useTranslation();
   const delta = deltaPct ?? null;
   const mejora = delta !== null && (invertDelta ? delta < 0 : delta > 0);
   const empeora = delta !== null && (invertDelta ? delta > 0 : delta < 0);
+  const renglones = [...(detail === undefined ? [] : [detail]), ...(details ?? [])].slice(
+    0,
+    MAX_RENGLONES,
+  );
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-card p-4 text-card-foreground">
@@ -62,21 +84,56 @@ function KpiCard({
           {delta}%
         </span>
       )}
-      {detail !== undefined && <span className="text-muted-foreground text-xs">{detail}</span>}
+      {renglones.map((renglon) => (
+        <span key={renglon} className="text-muted-foreground text-xs">
+          {renglon}
+        </span>
+      ))}
       {goalPct !== undefined && goalPct !== null && (
-        <div className="flex flex-col gap-1">
-          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-            <div
-              data-slot="goal-fill"
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${Math.min(goalPct, 100)}%` }}
-            />
-          </div>
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {t("dashboard.kpi.goalProgress", { pct: goalPct })}
-          </span>
-        </div>
+        <Barra
+          slot="goal-fill"
+          pct={goalPct}
+          label={t("dashboard.kpi.goalProgress", { pct: goalPct })}
+        />
       )}
+      {progress !== undefined && progress.pct !== null && (
+        <Barra
+          slot="progress-fill"
+          pct={progress.pct}
+          label={progress.label}
+          relleno={progress.pct >= 100 ? "bg-success" : "bg-primary"}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * La barra de avance con su etiqueta. El dibujo se topa entre 0 y 100 (un
+ * ancho negativo no es CSS válido y el navegador pintaría la barra llena);
+ * la etiqueta dice el número real.
+ */
+function Barra({
+  slot,
+  pct,
+  label,
+  relleno = "bg-primary",
+}: {
+  slot: string;
+  pct: number;
+  label: string;
+  relleno?: "bg-primary" | "bg-success";
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          data-slot={slot}
+          className={cn("h-full rounded-full", relleno)}
+          style={{ width: `${Math.max(0, Math.min(pct, 100))}%` }}
+        />
+      </div>
+      <span className="text-muted-foreground text-xs tabular-nums">{label}</span>
     </div>
   );
 }

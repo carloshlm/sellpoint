@@ -34,6 +34,31 @@ function KpiRow() {
 
   const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
 
+  // F10-KPI-07 — «¿voy a llegar?». Cada renglón calla sin su dato (null o un
+  // API anterior que no lo manda). La meta alcanzada se decide con los montos,
+  // no con requiredDaily: lo que falta puede redondear a $0.00 sin haber llegado.
+  const { projected, requiredDaily, goal } = data.month;
+  const metaAlcanzada = goal !== null && Number(data.month.total) >= Number(goal);
+  const renglonesMes = [
+    ...(projected == null ? [] : [t("dashboard.kpi.projected", { value: dinero(projected) })]),
+    ...(requiredDaily == null
+      ? []
+      : [
+          metaAlcanzada
+            ? t("dashboard.kpi.goalReached")
+            : t("dashboard.kpi.requiredDaily", { value: dinero(requiredDaily) }),
+        ]),
+  ];
+  const { marginPct } = data.profit;
+
+  // F10-KPI-08 — el punto de equilibrio explica la neta; sin gastos (sin
+  // avance que medir) el mosaico queda como antes.
+  const equilibrio = data.profit.breakEven;
+  const cubierto =
+    data.profit.netMonth !== null && equilibrio !== undefined && equilibrio.coveredPct !== null
+      ? equilibrio
+      : null;
+
   return (
     <div className={`grid gap-3 sm:grid-cols-2 ${conGastos ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
       <KpiCard
@@ -46,12 +71,19 @@ function KpiRow() {
         value={dinero(data.month.total)}
         deltaPct={data.month.deltaVsPrevMonthPct}
         goalPct={data.month.goalPct}
+        details={renglonesMes}
       />
       <KpiCard
         label={t("dashboard.kpi.profitMonth")}
         value={data.profit.month === null ? null : dinero(data.profit.month)}
         deltaPct={data.profit.deltaVsPrevMonthPct}
-        detail={data.profit.month === null ? t("dashboard.kpi.profitPending") : undefined}
+        detail={
+          data.profit.month === null
+            ? t("dashboard.kpi.profitPending")
+            : marginPct == null
+              ? undefined
+              : t("dashboard.kpi.margin", { pct: marginPct })
+        }
       />
       {conGastos && (
         <KpiCard
@@ -59,6 +91,23 @@ function KpiRow() {
           value={data.profit.netMonth === null ? null : dinero(data.profit.netMonth)}
           deltaPct={data.profit.netDeltaVsPrevMonthPct}
           detail={data.profit.netMonth === null ? t("dashboard.kpi.profitPending") : undefined}
+          progress={
+            cubierto === null
+              ? undefined
+              : {
+                  pct: cubierto.coveredPct,
+                  label: t("dashboard.kpi.expensesCovered", { pct: cubierto.coveredPct }),
+                }
+          }
+          details={
+            cubierto === null
+              ? undefined
+              : cubierto.coveredOnDay !== null
+                ? [t("dashboard.kpi.coveredSince", { day: cubierto.coveredOnDay })]
+                : cubierto.remainingSales !== null
+                  ? [t("dashboard.kpi.remainingSales", { value: dinero(cubierto.remainingSales) })]
+                  : undefined
+          }
         />
       )}
       <KpiCard

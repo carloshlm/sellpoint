@@ -2027,7 +2027,7 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Formulario** (`expense-form.tsx`, skill `sellpoint-forms`) | Fecha (`DateField`), categoría, proveedor (`SupplierPicker`) o beneficiario (excluyentes), monto y descuento (`MoneyField`), impuesto (`TaxGroupSelect`), pago («Pendiente» ⇒ vencimiento; método ⇒ cuenta con `<datalist>`; «Efectivo» ⇒ caja de origen), referencia, descripción y notas. | Al editar el pago no se toca (se paga desde la ficha); pagado ⇒ monto, descuento e impuesto deshabilitados. |
 | **Categorías** (`/expenses/categories`) | Las 18 de fábrica más las propias, con formulario inline. | Desactivar la esconde del selector; borrar una en uso rebota (409). |
 | **Cierre de turno** (`close-session.tsx`) | Renglón «Gastos en efectivo −X (n)» y «Efectivo esperado»; la diferencia se calcula contra el esperado. | La columna «Efectivo» sigue siendo ventas: la resta es un renglón aparte. El reporte de cierres y su XLSX ganan la columna. |
-| **Dashboard** (`kpi-row.tsx`) | Tarjeta «Utilidad neta del mes» = bruta − gastos activos del mes en el alcance. | Solo con el módulo; `null` (sin datos de costo) nunca es cero. |
+| **Dashboard** (`kpi-row.tsx`) | Tarjeta «Utilidad neta del mes» = bruta − gastos activos del mes en el alcance. Desde F10-KPI-08 lleva el punto de equilibrio: la barra «N% de tus gastos cubiertos» y el renglón «Te falta vender $X» o, ya cubiertos, «Gastos cubiertos desde el día N». | Solo con el módulo; `null` (sin datos de costo) nunca es cero. Sin gastos registrados, la tarjeta queda sin barra. |
 
 ## 15. Compras
 

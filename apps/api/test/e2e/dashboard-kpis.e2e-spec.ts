@@ -73,13 +73,24 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
 
     expect(res.body).toEqual({
       today: { total: "0", tickets: 0, averageTicket: null, deltaVsLastWeekPct: null },
-      month: { total: "0", deltaVsPrevMonthPct: null, goal: null, goalPct: null },
+      // F10-KPI-05: sin ninguna venta no hay cierre estimado; sin meta, no hay ritmo.
+      month: {
+        total: "0",
+        deltaVsPrevMonthPct: null,
+        goal: null,
+        goalPct: null,
+        projected: null,
+        requiredDaily: null,
+      },
       // F9-EXP-11: la neta viaja junto a la bruta; sin bruta, las dos son null.
+      // F10-KPI-05/06: sin utilidad no hay margen; sin gastos, no hay avance.
       profit: {
         month: null,
         deltaVsPrevMonthPct: null,
         netMonth: null,
         netDeltaVsPrevMonthPct: null,
+        marginPct: null,
+        breakEven: { expenses: "0.00", coveredPct: null, coveredOnDay: null, remainingSales: null },
       },
     });
   });
