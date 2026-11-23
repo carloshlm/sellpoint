@@ -214,6 +214,7 @@ export class SalesService {
 
     return this.prisma
       .withTenantContext(user.tenantId, async (tx) => {
+        await this.sostenerTurnoAbierto(tx, user, sesion.id);
         const precios = await this.resolverPrecios(tx, user, dto.lines, dto.quoteId);
 
         // F4-DISC: el descuento del ticket se PRORRATEA entre las líneas por
@@ -736,6 +737,31 @@ export class SalesService {
         },
       });
     });
+  }
+
+  /**
+   * F10-PEND-08 — el turno se revisa OTRA VEZ dentro de la transacción del
+   * cobro, con su fila tomada. `current()` lo leyó abierto antes de empezar,
+   * pero el cierre pudo llegar mientras se armaban precios e impuestos: la
+   * venta se guardaba en un turno cerrado cuyo esperado ya no la contaba.
+   *
+   * `FOR SHARE` y no `FOR UPDATE`: dos cobros del mismo turno (dos pestañas)
+   * pueden ir a la vez, pero el cierre, los movimientos y la cancelación
+   * (`FOR UPDATE`) se forman detrás. Va ANTES del stock, en el mismo orden que
+   * la cancelación (turno, luego venta y stock), para no abrir un interbloqueo.
+   */
+  private async sostenerTurnoAbierto(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    sessionId: string,
+  ): Promise<void> {
+    const filas = await tx.$queryRaw<{ status: string }[]>`
+      SELECT status FROM cashbox_sessions
+       WHERE id = ${sessionId}::uuid AND tenant_id = ${user.tenantId}::uuid
+       FOR SHARE`;
+    if (filas[0]?.status !== "open") {
+      throw new ConflictException({ message: "pos.no_session" });
+    }
   }
 
   /** La fila del turno de la venta, con `FOR UPDATE`: el cierre y los movimientos la esperan. */

@@ -243,8 +243,9 @@ export class CashboxService {
       // otra cosa que el papel. Con la fila tomada, un gasto en efectivo que
       // quiera ligarse (`FOR UPDATE` sobre la sesión) espera y encuentra el
       // turno cerrado. Lo mismo una entrada o un retiro de efectivo
-      // (F10-CASHMOV-02); y si el movimiento tomó la fila primero, el cierre
-      // lo espera y el arqueo de abajo ya lo cuenta.
+      // (F10-CASHMOV-02), y un cobro (F10-PEND-08: toma la fila con `FOR
+      // SHARE`); y si el movimiento o el cobro tomaron la fila primero, el
+      // cierre los espera y el arqueo de abajo ya los cuenta.
       //
       // F10-PEND-01: la fila se toma ANTES de leer la hora. Antes, `closedAt`
       // se calculaba al armar el `updateMany`, que después esperaba la fila:

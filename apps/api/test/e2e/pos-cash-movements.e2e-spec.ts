@@ -231,6 +231,88 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
   });
 
   /**
+   * F10-PEND-08 — el cobro revisaba el turno ANTES de abrir su transacción y
+   * guardaba la venta sin volver a mirarlo: un cobro que coincidía con el
+   * cierre del mismo turno quedaba en un turno cerrado cuyo esperado no lo
+   * contaba (el verificador de F10-PEND lo midió en 14 de 40 rondas).
+   */
+  describe("el cobro y el cierre del mismo turno", () => {
+    const cobrar = (cajero: string, productId: string) =>
+      http()
+        .post("/pos/sales")
+        .set("Authorization", bearer(cajero))
+        .send({ paymentMethod: "cash", lines: [{ productId, quantity: 1 }] });
+    const ventasDelTurno = (sessionId: string) =>
+      prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.sale.count({ where: { cashboxSessionId: sessionId } }),
+      );
+
+    it("un cobro que llega mientras el cierre tiene la fila lo espera y rebota con 409", async () => {
+      const cajero = await cajeroNuevo("cashmov-cobro-cierre");
+      const turno = (await abrir(cajero, 100).expect(201)).body as { id: string; openedBy: string };
+      const producto = await crearProducto(app, negocio.token, 300);
+      await cargarStock(app, negocio.token, principal, producto.id, 1);
+
+      // El cierre: aparta el turno y se queda con la fila hasta que se suelte.
+      let soltar = () => {};
+      const suelta = new Promise<void>((resolve) => {
+        soltar = resolve;
+      });
+      let avisarCerrado = () => {};
+      const cerrado = new Promise<void>((resolve) => {
+        avisarCerrado = resolve;
+      });
+      const cierre = prisma.withTenantContext(negocio.tenantId, async (tx) => {
+        await tx.$executeRaw`
+          UPDATE cashbox_sessions
+             SET status = 'closed', closed_by = ${turno.openedBy}::uuid, closed_at = now()
+           WHERE id = ${turno.id}::uuid`;
+        avisarCerrado();
+        await suelta;
+      });
+      await cerrado;
+
+      let llego = false;
+      const cobro = cobrar(cajero, producto.id).then((res) => {
+        llego = true;
+        return res;
+      });
+      await espera(400);
+      // Mientras el cierre tiene la fila, el cobro espera: no se guarda en un turno que se cierra.
+      expect(llego).toBe(false);
+      soltar();
+      await cierre;
+      const res = await cobro;
+
+      expect(res.status).toBe(409);
+      expect(mensaje(res)).toBe("Abre un turno antes de vender.");
+      expect(await ventasDelTurno(turno.id)).toBe(0);
+    });
+
+    it("cobrar y cerrar a la vez: el cierre cuenta la venta o la venta rebota (carrera real)", async () => {
+      const cajero = await cajeroNuevo("cashmov-cobro-carrera");
+      const producto = await crearProducto(app, negocio.token, 300);
+      await cargarStock(app, negocio.token, principal, producto.id, 20);
+      for (let i = 0; i < 20; i += 1) {
+        const turno = (await abrir(cajero, 0).expect(201)).body as { id: string };
+        const [venta, cierre] = await Promise.all([
+          cobrar(cajero, producto.id),
+          espera((i % 8) * 2).then(() => cerrarTurno(cajero, 0)),
+        ]);
+        expect(cierre.status).toBe(200);
+        if (venta.status === 201) {
+          expect(cierre.body).toMatchObject({ expectedCash: "300" });
+          expect(await ventasDelTurno(turno.id)).toBe(1);
+        } else {
+          expect(venta.status).toBe(409);
+          expect(cierre.body).toMatchObject({ expectedCash: "0" });
+          expect(await ventasDelTurno(turno.id)).toBe(0);
+        }
+      }
+    });
+  });
+
+  /**
    * F10-PEND-03 — la regla del retiro se revisaba solo al retirar: cancelar
    * después una venta en efectivo del turno dejaba el esperado debajo de cero.
    * Ahora la cancelación también la revisa, con la fila del turno tomada.
