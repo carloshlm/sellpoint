@@ -159,7 +159,8 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
         ),
       );
 
-      expect(json).toContain("1 Bolsa 10Kg (10.000 kilogramos)");
+      // Un valor redondo va entero (Carlos, 2026-11-23).
+      expect(json).toContain("1 Bolsa 10Kg (10 kilogramos)");
       expect(json).not.toContain("1.000 kilogramo");
     });
 

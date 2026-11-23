@@ -21,8 +21,12 @@ describe("formatQuantityWithDecimals (Carlos, 2026-09-15)", () => {
     expect(formatQuantityWithDecimals("5", 0)).toBe("5");
   });
 
-  it("una que se parte conserva su precisión fija", () => {
+  it("una que se parte conserva su precisión fija si tiene decimales", () => {
     expect(formatQuantityWithDecimals("2.5000", 3)).toBe("2.500");
+  });
+
+  it("y va entera si sus decimales son cero (Carlos, 2026-11-23)", () => {
+    expect(formatQuantityWithDecimals("100.0000", 3)).toBe("100");
   });
 
   it("la válvula de seguridad sigue: un decimal que no encaja se ve", () => {
@@ -49,11 +53,27 @@ describe("formatQuantity", () => {
     });
   });
 
-  describe("lo que se pesa o se mide conserva su precisión", () => {
-    it("mantiene los decimales fijos aunque el valor sea redondo", () => {
-      // Fijos y no recortados: la columna se lee en vertical y con decimales
-      // variables el ojo no puede comparar magnitudes.
-      expect(formatQuantity("2.0000", "kg")).toBe("2.000");
+  /**
+   * Carlos (2026-11-23): «Podrías quitar los decimales y dejarlo entero cuando
+   * los decimales sean cero. Si mantenlo en tres decimales como lo tenemos
+   * cuando por lo menos tenga un decimal por ejemplo 1.2 Kg se muestra como
+   * 1.200 Kg».
+   */
+  describe("lo que se pesa o se mide: entero si es redondo, tres decimales si no", () => {
+    it("un valor redondo va entero: «0 → 100», no «0.000 → 100.000»", () => {
+      expect(formatQuantity("0.0000", "kg")).toBe("0");
+      expect(formatQuantity("100.0000", "kg")).toBe("100");
+      expect(formatQuantity("2.0000", "kg")).toBe("2");
+    });
+
+    it("1.2 kg se muestra como 1.200", () => {
+      expect(formatQuantity("1.2", "kg")).toBe("1.200");
+      expect(formatQuantity("480.3000", "kg")).toBe("480.300");
+    });
+
+    it("el signo se conserva en los dos casos", () => {
+      expect(formatQuantity("-0.5000", "kg")).toBe("-0.500");
+      expect(formatQuantity("-33.0000", "kg")).toBe("-33");
     });
 
     it("2.5 kg se muestra con la precisión de la unidad", () => {
@@ -61,7 +81,7 @@ describe("formatQuantity", () => {
     });
 
     it("250 gramos", () => {
-      expect(formatQuantity("250.0000", "gr")).toBe("250.000");
+      expect(formatQuantity("250.0000", "gr")).toBe("250");
     });
 
     it("un litro y cuarto", () => {
@@ -90,13 +110,14 @@ describe("formatQuantity", () => {
 
   describe("bordes", () => {
     it("una unidad desconocida se trata como continua: mostrar de más no oculta", () => {
-      expect(formatQuantity("5.0000", "codigo-viejo")).toBe("5.000");
+      expect(formatQuantity("5.0000", "codigo-viejo")).toBe("5");
+      expect(formatQuantity("5.5000", "codigo-viejo")).toBe("5.500");
       expect(quantityDecimals("codigo-viejo")).toBe(3);
     });
 
     it("un valor sin punto decimal", () => {
       expect(formatQuantity("7", "unit")).toBe("7");
-      expect(formatQuantity("7", "kg")).toBe("7.000");
+      expect(formatQuantity("7", "kg")).toBe("7");
     });
 
     it("acepta números además de strings", () => {
@@ -109,7 +130,7 @@ describe("formatQuantity", () => {
 
     it("el cero se muestra como cero", () => {
       expect(formatQuantity("0.0000", "unit")).toBe("0");
-      expect(formatQuantity("0.0000", "kg")).toBe("0.000");
+      expect(formatQuantity("0.0000", "kg")).toBe("0");
     });
   });
 });
@@ -193,7 +214,7 @@ describe("multiplyQuantities", () => {
 describe("formatSoldQuantity", () => {
   it("una presentación con factor lleva su nombre y la equivalencia en la unidad base", () => {
     expect(formatSoldQuantity("1", "kg", { name: "Bolsa 10Kg", factor: "10.0000" }, "es")).toBe(
-      "1 Bolsa 10Kg (10.000 kilogramos)",
+      "1 Bolsa 10Kg (10 kilogramos)",
     );
     expect(formatSoldQuantity("5", "unit", { name: "Caja ×12", factor: "12" }, "es")).toBe(
       "5 Caja ×12 (60 piezas)",
@@ -237,7 +258,8 @@ describe("formatQuantityWithUnit", () => {
     expect(formatQuantityWithUnit("1.0000", "unit", "es")).toBe("1 pieza");
   });
 
-  it("un kilo exacto también es singular", () => {
-    expect(formatQuantityWithUnit("1", "kg", "es")).toBe("1.000 kilogramo");
+  it("un kilo exacto también es singular, y va entero", () => {
+    expect(formatQuantityWithUnit("1", "kg", "es")).toBe("1 kilogramo");
+    expect(formatQuantityWithUnit("1.2", "kg", "es")).toBe("1.200 kilogramos");
   });
 });

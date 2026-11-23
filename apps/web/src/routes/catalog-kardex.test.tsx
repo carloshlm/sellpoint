@@ -941,11 +941,28 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
     expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262$/);
   });
 
-  it("el MISMO valor en kilos conserva la precisión de su unidad", async () => {
+  // Carlos (2026-11-23): un valor redondo va entero también en kilos.
+  it("el MISMO valor en kilos va entero: es redondo", async () => {
     conMovimiento();
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="kg" />);
 
-    expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262\.000$/);
+    expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262$/);
+  });
+
+  it("en kilos, un saldo con fracción lleva los tres decimales de su unidad", async () => {
+    mocked.getKardex.mockResolvedValue({
+      rows: [movimiento({ quantity: "-0.5000", balanceAfter: "480.3000" })],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+      isComposite: false,
+    });
+    mocked.getStock.mockResolvedValue(resumen());
+    mocked.downloadKardex.mockResolvedValue(undefined);
+    mocked.getInTransit.mockResolvedValue({ rows: [] });
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="kg" />);
+
+    expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^480\.300$/);
   });
 
   /**

@@ -67,6 +67,10 @@ Si la unidad base es de peso, como **Kilogramo**, en la caja se puede cobrar
 una cantidad con decimales, como 0.750 kg de queso. Un producto en **Pieza** se
 vende solo en enteros: media pieza no existe.
 
+En el carrito, el ticket, las entradas y salidas, el stock y el kardex, una
+cantidad redonda se ve entera (**100 kilogramos**) y una con decimales lleva
+tres (**1.200 kilogramos**).
+
 ## Presentaciones: la caja, el paquete, la porción
 
 Un producto puede venderse de varias formas. El agua se vende suelta y también

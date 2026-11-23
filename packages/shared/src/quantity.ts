@@ -11,11 +11,14 @@ import { getUnit, unitName } from "./units";
  * no pueden significar nada. Uno que se pesa sí puede tener 0.250, y ahí los
  * decimales llevan información.
  *
- * La alternativa —recortar los ceros de cada valor por separado— parece más
- * simple y es peor: un kardex se lee EN VERTICAL, y con decimales variables la
- * columna queda `262`, `250.5`, `280`, `1.25` y el ojo ya no puede comparar
- * magnitudes de un vistazo. Los libros de inventario usan decimales fijos por
- * esa razón.
+ * Un valor REDONDO va entero en cualquier unidad (Carlos, 2026-11-23: «Podrías
+ * quitar los decimales y dejarlo entero cuando los decimales sean cero. Si
+ * mantenlo en tres decimales como lo tenemos cuando por lo menos tenga un
+ * decimal por ejemplo 1.2 Kg se muestra como 1.200 Kg»): «0 → 100 kilogramos»
+ * y no «0.000 → 100.000». Antes los tres decimales iban fijos para que una
+ * columna de kardex se leyera en vertical; los ceros de relleno pesaban más
+ * que esa alineación. Lo que sí tiene decimales los lleva completos (1.200,
+ * nunca 1.2), así que una columna con fracciones sigue alineada.
  */
 const DECIMALES_POR_CATEGORIA = {
   count: 0,
@@ -59,7 +62,8 @@ export function formatQuantity(value: string | number, baseUnit: string): string
  * unidad base sino la PRESENTACIÓN (Carlos, 2026-09-15): en una orden o una
  * compra se piden 10 «Caja ×12», y si esa presentación no se parte, «10.000»
  * es ruido. La válvula de seguridad no cambia: un decimal que no encaja se
- * muestra igual.
+ * muestra igual. Y un valor redondo va entero aunque la presentación se parta
+ * (2026-11-23).
  */
 export function formatQuantityWithDecimals(value: string | number, decimales: number): string {
   const texto = typeof value === "number" ? String(value) : value.trim();
@@ -75,11 +79,13 @@ export function formatQuantityWithDecimals(value: string | number, decimales: nu
   // peso. Lo que importa es cuántos dígitos SIGNIFICATIVOS hay.
   const significativa = fraccion.replace(/0+$/, "");
 
+  // Sin decimales significativos, entero en cualquier unidad (Carlos,
+  // 2026-11-23); con alguno, la precisión de la unidad completa: 1.200.
   const cuerpo =
-    significativa.length > decimales
-      ? `${entero}.${significativa}`
-      : decimales === 0
-        ? entero
+    significativa === ""
+      ? entero
+      : significativa.length > decimales
+        ? `${entero}.${significativa}`
         : `${entero}.${significativa.padEnd(decimales, "0")}`;
 
   return negativo ? `-${cuerpo}` : cuerpo;
@@ -196,7 +202,7 @@ export function multiplyQuantities(a: string | number, b: string | number): stri
  * Regla: si la presentación es la base (factor 1) o no hay presentación, se
  * imprime como siempre («0.300 kilogramos»). Si no, la cantidad va con el
  * NOMBRE de la presentación y, entre paréntesis, su equivalencia en la
- * unidad base: «1 Bolsa 10Kg (10.000 kilogramos)», «5 Caja ×12 (60 piezas)».
+ * unidad base: «1 Bolsa 10Kg (10 kilogramos)», «5 Caja ×12 (60 piezas)».
  * La cantidad de presentaciones se pinta como piezas (sin ceros de relleno).
  */
 export function formatSoldQuantity(
