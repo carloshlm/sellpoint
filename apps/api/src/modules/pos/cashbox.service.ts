@@ -8,6 +8,7 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
+import { movimientosPorSesion, sinMovimientos } from "./cash-movements";
 import {
   efectivoEsperado,
   gastosDelCajon,
@@ -35,7 +36,7 @@ import type { CloseSessionDto, OpenSessionDto } from "./dto/open-session.dto";
  */
 /**
  * Lo que el cierre muestra y persiste: ventas por método, gastos del cajón, el
- * fondo con que abrió y el esperado.
+ * fondo con que abrió, el esperado y las entradas y los retiros de efectivo.
  */
 export interface SessionArqueo {
   totals: SessionTotal[];
@@ -43,8 +44,18 @@ export interface SessionArqueo {
   cashExpenses: SessionCashExpensesDetail;
   /** F10-MANFIX-10: el fondo inicial del turno, como texto decimal («0» sin fondo). */
   openingCash: string;
-  /** Fondo + ventas en efectivo − gastos en efectivo: contra esto se cuenta el cajón. */
+  /**
+   * Fondo + ventas en efectivo + entradas − retiros − gastos en efectivo:
+   * contra esto se cuenta el cajón.
+   */
   expectedCash: string;
+  /**
+   * F10-CASHMOV-03: Σ de las entradas de efectivo activas del turno («0» sin
+   * entradas). Va al final: un web anterior no la conoce y la ignora.
+   */
+  cashIn: string;
+  /** F10-CASHMOV-03: Σ de los retiros de efectivo activos del turno («0» sin retiros). */
+  cashOut: string;
 }
 
 /**
@@ -154,21 +165,28 @@ export class CashboxService {
    * F10-MANFIX-10: el esperado suma el fondo inicial del turno —fondo +
    * ventas cash − gastos cash— y el fondo viaja en la respuesta, para que la
    * pantalla lo muestre en su renglón en vez de deducirlo.
+   *
+   * F10-CASHMOV-03: y las entradas y los retiros de efectivo ACTIVOS del
+   * turno, que también viajan en la respuesta (`cashIn`, `cashOut`) por la
+   * misma razón. El cierre llama a este método dentro de su transacción, así
+   * que lo que guarda es lo que la pantalla mostró.
    */
   private async arqueo(
     tx: Prisma.TransactionClient,
     tenantId: string,
     session: TurnoDelArqueo,
   ): Promise<SessionArqueo> {
-    const [porMetodo, gastos, items] = await Promise.all([
+    const [porMetodo, gastos, items, movimientos] = await Promise.all([
       totalesPorSesion(tx, tenantId, [session.id]),
       gastosEnEfectivoPorSesion(tx, tenantId, [session.id]),
       gastosDelCajon(tx, tenantId, session.id),
+      movimientosPorSesion(tx, tenantId, [session.id]),
     ]);
     const totals = porMetodo.get(session.id) ?? totalesEnCero();
     const cashExpenses = { ...(gastos.get(session.id) ?? sinGastos()), items };
     const openingCash = session.openingCash.toString();
     const ventasCash = totals.find((t) => t.method === "cash")?.total ?? "0";
+    const { cashIn, cashOut } = movimientos.get(session.id) ?? sinMovimientos();
     return {
       totals,
       cashExpenses,
@@ -176,8 +194,12 @@ export class CashboxService {
       expectedCash: efectivoEsperado({
         fondo: openingCash,
         ventas: ventasCash,
+        entradas: cashIn,
+        retiros: cashOut,
         gastos: cashExpenses.total,
       }),
+      cashIn,
+      cashOut,
     };
   }
 

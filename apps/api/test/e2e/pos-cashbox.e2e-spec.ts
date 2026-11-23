@@ -1470,7 +1470,12 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
           .get("/pos/session/totals")
           .set("Authorization", bearer(token))
           .expect(200);
-        expect(antes.body).toMatchObject({ openingCash: "500", expectedCash: "650" });
+        expect(antes.body).toMatchObject({
+          openingCash: "500",
+          expectedCash: "650",
+          cashIn: "0",
+          cashOut: "0",
+        });
         // La columna «Efectivo» sigue siendo ventas: el fondo es un renglón aparte.
         expect(
           (antes.body as { totals: { method: string; total: string }[] }).totals.find(
@@ -1488,6 +1493,8 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
           },
           openingCash: "500",
           expectedCash: "650",
+          cashIn: "0",
+          cashOut: "0",
         });
       });
 
@@ -1504,7 +1511,69 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
           cashExpenses: { total: "0", count: 0, items: [] },
           openingCash: "0",
           expectedCash: "0",
+          cashIn: "0",
+          cashOut: "0",
         });
+      });
+
+      /**
+       * F10-CASHMOV-03 — el efectivo que entra o sale del cajón sin ser venta
+       * ni gasto. El retiro a la caja fuerte ya no sale como faltante: el
+       * esperado es fondo + ventas + entradas − retiros − gastos, y uno
+       * anulado no cuenta. Los movimientos se siembran directo en la base: los
+       * endpoints para registrarlos llegan con F10-CASHMOV-02.
+       */
+      it("los totales y el cierre cuentan entradas y retiros: $500 + $150 + $100 − $400 = $350", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        const turno = (await abrir(token, { openingCash: 500 }).expect(201)).body as {
+          id: string;
+          openedBy: string;
+        };
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 10 }],
+        }).expect(201);
+        await prisma.withTenantContext(tenantId, (tx) => {
+          const base = { tenantId, cashboxSessionId: turno.id, createdBy: turno.openedBy };
+          return tx.cashMovement.createMany({
+            data: [
+              { ...base, type: "out", reason: "safe", amount: "400.00", authorized: true },
+              { ...base, type: "in", reason: "change_fund", amount: "100.00" },
+              {
+                ...base,
+                type: "out",
+                reason: "owner",
+                amount: "50.00",
+                status: "canceled",
+                canceledAt: new Date(),
+                canceledBy: turno.openedBy,
+                cancelReason: "Se capturó dos veces",
+              },
+            ],
+          });
+        });
+
+        const antes = await request(app.getHttpServer())
+          .get("/pos/session/totals")
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect(antes.body).toMatchObject({
+          openingCash: "500",
+          expectedCash: "350",
+          cashIn: "100",
+          cashOut: "400",
+        });
+
+        const res = await cerrar(token, { declaredCash: 350 }).expect(200);
+        expect(res.body).toMatchObject({
+          session: { calculatedCash: "350", declaredCash: "350", cashDifference: "0" },
+          expectedCash: "350",
+          cashIn: "100",
+          cashOut: "400",
+        });
+        // Lo nuevo va al final de la respuesta, como pide la regla del deploy.
+        expect(Object.keys(res.body as object).slice(-2)).toEqual(["cashIn", "cashOut"]);
       });
 
       it("con SOBRANTE también, y la diferencia sale positiva", async () => {

@@ -6222,7 +6222,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **e2e** en `pos-cashbox.e2e-spec.ts`: 403 sin `pos:sell` y la forma de la respuesta. El e2e del descuento sigue en verde sin tocarlo.
     - **Diferencial:** las specs del descuento corridas contra la base y contra el cambio.
   - **Depende de:** F10-CASHMOV-01 · **Estimación:** 4.5 h · **Riesgo:** puntos 2 y 4
-- [ ] **F10-CASHMOV-03** — API: el arqueo cuenta las entradas y los retiros
+- [x] **F10-CASHMOV-03** *(cerrada el 2026-11-23, antes que la 02: la regla «no por debajo de cero» necesita el esperado con los movimientos)* — API: el arqueo cuenta las entradas y los retiros
   - **Por qué:** registrar el retiro no sirve si el cierre lo sigue llamando faltante.
   - **Salida:**
     - **La fórmula:** `efectivoEsperado` gana `entradas` y `retiros`. Un ayudante `movimientosPorSesion(tx, sessionIds)` suma los activos por tipo.
@@ -6236,6 +6236,16 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **Diferencial:** las specs del turno, de «Control» y de `kpis` contra la base, iguales sin movimientos.
     - **Contrapruebas por mutación:** el retiro que suma; el anulado que cuenta.
   - **Depende de:** F10-CASHMOV-01 · **Estimación:** 3 h · **Riesgo:** punto 1, porque cambia lo que se guarda al cerrar · **No subir sin F10-CASHMOV-02 y 04**
+  - **Cerrado (2026-11-23):**
+    - **La fórmula:** `entradas` y `retiros` son argumentos OBLIGATORIOS de `efectivoEsperado`, así que un llamador que los olvide no compila. El único llamador de producción es `CashboxService.arqueo()`.
+    - **Lo que no cambió:** ningún reporte llama a la fórmula. «Cierres de turno», el PDF, el Excel, «Control» y `kpis` leen lo guardado, y el PDF de un turno abierto no enseña esperado. `close()` tampoco cambió: ya llamaba a `arqueo()` dentro de su transacción.
+    - **El ayudante:** `movimientosPorSesion(tx, tenantId, sessionIds)` vive en `pos/cash-movements.ts`. Hace un `groupBy` por turno y tipo, solo de los activos, y filtra el negocio además de la RLS, igual que el de los gastos.
+    - **Las respuestas:** el literal sin turno de `GET /pos/session/totals` va tipado con `satisfies SessionArqueo`, para que un campo nuevo no se le olvide.
+    - **Pruebas:** `cash-movements.spec.ts` (4) y `cashbox-movements.integration.spec.ts` (8). Esta última cubre el retiro de 2,000 a la caja fuerte que cierra en «Cuadró», el anulado y el de otro turno que no cuentan, y «Control» y `attention.shiftShortages` en cero después de ese cierre, con reloj real y su propio negocio. El e2e de `pos-cashbox` suma 500 + 150 + 100 − 400 = 350, con un anulado fuera, y cierra en 0.
+    - **Rojo observado:** 10 casos, entre ellos «Control» con un faltante de 2,000: el problema, reproducido.
+    - **Mutantes cazados (6):** el retiro que suma, el anulado que cuenta, la entrada ignorada, el cierre sin retiros, los campos al principio y el literal sin `cashOut`. Se restauró cada uno y se comprobó con `cmp`.
+    - **Diferencial contra 559ea9e1** (specs de antes con el código nuevo): de 64 casos unitarios y de integración, solo cambian los 2 de `efectivoEsperado` que no pasan los argumentos nuevos. De 111 e2e, solo cambia la forma sin turno, que gana las dos claves.
+    - **Suite del API:** 2,154 pruebas en verde, con los e2e de `pos-cashbox expenses reports-shifts admin-tenants dashboard-kpis` (112), `typecheck:full` y la emisión con `tsc -p tsconfig.build.json` a una carpeta temporal.
 
 #### F10-CASHMOV-POS — El cajero lo registra
 

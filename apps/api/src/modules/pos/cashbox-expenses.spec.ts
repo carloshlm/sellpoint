@@ -47,10 +47,17 @@ describe("gastosEnEfectivoPorSesion (F9-EXP-09)", () => {
     expect(groupBy).not.toHaveBeenCalled();
   });
 
+  /** F10-CASHMOV-03: sin entradas ni retiros (`"0"`), la cuenta de siempre al centavo. */
+  const sinMovimientos = { entradas: "0", retiros: "0" };
+
   it("sin fondo, el efectivo esperado es ventas cash menos gastos cash, en decimal", () => {
-    expect(efectivoEsperado({ fondo: "0", ventas: "500", gastos: "200" })).toBe("300");
-    expect(efectivoEsperado({ fondo: "0", ventas: "10.10", gastos: "0.20" })).toBe("9.9");
-    expect(efectivoEsperado({ fondo: "0", ventas: "0", gastos: "0" })).toBe("0");
+    expect(efectivoEsperado({ fondo: "0", ventas: "500", gastos: "200", ...sinMovimientos })).toBe(
+      "300",
+    );
+    expect(
+      efectivoEsperado({ fondo: "0", ventas: "10.10", gastos: "0.20", ...sinMovimientos }),
+    ).toBe("9.9");
+    expect(efectivoEsperado({ fondo: "0", ventas: "0", gastos: "0", ...sinMovimientos })).toBe("0");
   });
 
   /**
@@ -58,10 +65,38 @@ describe("gastosEnEfectivoPorSesion (F9-EXP-09)", () => {
    * él, un turno que abre con $500 salía sobrando $500 cada día.
    */
   it("el fondo inicial se suma: fondo + ventas cash − gastos cash, en decimal", () => {
-    expect(efectivoEsperado({ fondo: "500", ventas: "150", gastos: "0" })).toBe("650");
-    expect(efectivoEsperado({ fondo: "500", ventas: "430.50", gastos: "90" })).toBe("840.5");
+    expect(efectivoEsperado({ fondo: "500", ventas: "150", gastos: "0", ...sinMovimientos })).toBe(
+      "650",
+    );
+    expect(
+      efectivoEsperado({ fondo: "500", ventas: "430.50", gastos: "90", ...sinMovimientos }),
+    ).toBe("840.5");
     // Un fondo sin ventas: lo que hay que contar es el fondo mismo.
-    expect(efectivoEsperado({ fondo: "200.25", ventas: "0", gastos: "0" })).toBe("200.25");
+    expect(efectivoEsperado({ fondo: "200.25", ventas: "0", gastos: "0", ...sinMovimientos })).toBe(
+      "200.25",
+    );
+  });
+
+  /**
+   * F10-CASHMOV-03 — el efectivo que entra o sale del cajón sin ser venta ni
+   * gasto: fondo + ventas + entradas − retiros − gastos.
+   */
+  it("una entrada suma y un retiro resta, cada uno por su lado", () => {
+    const enCero = { fondo: "0", ventas: "0", gastos: "0" };
+    expect(efectivoEsperado({ ...enCero, entradas: "400", retiros: "0" })).toBe("400");
+    expect(efectivoEsperado({ ...enCero, entradas: "0", retiros: "2000" })).toBe("-2000");
+  });
+
+  it("todo junto, al centavo: 500 + 3000.50 + 400 − 2000 − 100.25 = 1800.25", () => {
+    expect(
+      efectivoEsperado({
+        fondo: "500",
+        ventas: "3000.50",
+        entradas: "400",
+        retiros: "2000",
+        gastos: "100.25",
+      }),
+    ).toBe("1800.25");
   });
 });
 

@@ -25,7 +25,7 @@ import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.de
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { ShiftPdfService } from "../reports/shift-pdf.service";
 import { type WarehouseSummary, WarehousesService } from "../warehouses/warehouses.service";
-import { CashboxService } from "./cashbox.service";
+import { CashboxService, type SessionArqueo } from "./cashbox.service";
 import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
 import {
   type CancelSaleDto,
@@ -131,18 +131,21 @@ export class PosController {
    */
   @Get("session/totals")
   @RequirePermissions("pos:sell")
-  async totals(@CurrentUser() user: AuthUser) {
+  async totals(@CurrentUser() user: AuthUser): Promise<SessionArqueo> {
     const sesion = await this.cashbox.current(user);
     // F9-EXP-09: además de lo vendido por método, los gastos en efectivo del
     // cajón y el efectivo ESPERADO (aditivo: `totals` sigue siendo ventas).
     // F10-MANFIX-10: y el fondo inicial, que el esperado ya trae sumado.
+    // F10-CASHMOV-03: y las entradas y los retiros de efectivo, al final.
     return sesion === null
-      ? {
+      ? ({
           totals: [],
           cashExpenses: { total: "0", count: 0, items: [] },
           openingCash: "0",
           expectedCash: "0",
-        }
+          cashIn: "0",
+          cashOut: "0",
+        } satisfies SessionArqueo)
       : this.cashbox.totals(user, sesion);
   }
 

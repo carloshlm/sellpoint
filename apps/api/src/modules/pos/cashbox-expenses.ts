@@ -115,23 +115,32 @@ export function sinGastos(): SessionCashExpenses {
 
 /**
  * El efectivo que DEBE haber en el cajón: el fondo con que abrió, más lo
- * vendido en efectivo, menos lo que salió.
+ * vendido en efectivo, más lo que entró, menos lo que salió.
  *
  * F10-MANFIX-10: el fondo entra aquí y en ningún otro lado. La pantalla del
  * cierre, el `calculated_cash` que se guarda y el reporte leen este número; si
  * cada uno sumara el fondo por su cuenta, un día dirían cosas distintas. Sin
  * fondo (`"0"`), la cuenta es la de F9-EXP-09 al centavo.
  *
- * Nombrados y no posicionales: son tres cadenas decimales, y cambiar dos de
+ * F10-CASHMOV-03: las entradas y los retiros de efectivo del turno
+ * (`movimientosPorSesion`), con la misma regla: viven aquí y en ningún otro
+ * lado. Con los dos en `"0"`, la cuenta es la de antes al centavo. Son
+ * obligatorios a propósito: quien calcule un esperado sin ellos no compila.
+ *
+ * Nombrados y no posicionales: son cinco cadenas decimales, y cambiar dos de
  * lugar compilaría y daría un arqueo equivocado.
  */
 export function efectivoEsperado(importes: {
   fondo: string;
   ventas: string;
+  entradas: string;
+  retiros: string;
   gastos: string;
 }): string {
   return new Prisma.Decimal(importes.fondo)
     .plus(new Prisma.Decimal(importes.ventas))
+    .plus(new Prisma.Decimal(importes.entradas))
+    .minus(new Prisma.Decimal(importes.retiros))
     .minus(new Prisma.Decimal(importes.gastos))
     .toString();
 }
