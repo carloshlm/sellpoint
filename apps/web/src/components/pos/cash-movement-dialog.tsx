@@ -88,6 +88,16 @@ function CashMovementForm({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [registrado, setRegistrado] = useState<CashMovementType | null>(null);
 
+  // Un aviso como «hay $768.50» deja de ser cierto en cuanto cambian los
+  // movimientos (por ejemplo, al anular uno desde la lista): se borra para no
+  // enseñar la cifra vieja del cajón. Se ajusta al pintar, no en un efecto.
+  const { data: movimientos } = useCashMovements();
+  const [movimientosVistos, setMovimientosVistos] = useState(movimientos);
+  if (movimientos !== movimientosVistos) {
+    setMovimientosVistos(movimientos);
+    setError(null);
+  }
+
   const cambiarTipo = (nuevo: CashMovementType) => {
     setTipo(nuevo);
     // El motivo que no existe en el otro tipo cambia al primero de su lista;

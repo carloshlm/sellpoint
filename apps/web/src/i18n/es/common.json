@@ -144,7 +144,7 @@
       "statusSet": "Código configurado el {{date}}. No se muestra: si se olvidó, define uno nuevo.",
       "code": "Código de autorización (4 a 8 dígitos)",
       "codeReplace": "Nuevo código (4 a 8 dígitos)",
-      "codeHint": "Se guarda cifrado; el cajero lo teclea al aplicar un descuento.",
+      "codeHint": "Se guarda cifrado; el cajero lo teclea al aplicar un descuento o registrar un retiro de efectivo.",
       "confirm": "Repite el código",
       "codeInvalid": "El código debe tener de 4 a 8 dígitos",
       "codeMismatch": "Los códigos no coinciden",
@@ -152,7 +152,7 @@
       "maxPercentHint": "Porcentaje máximo del subtotal que se puede descontar. Vacío = sin tope.",
       "remove": "Quitar código",
       "saved": "Descuentos guardados.",
-      "removedNotice": "Código quitado: los descuentos quedan apagados."
+      "removedNotice": "Código quitado: los descuentos quedan apagados y los retiros de efectivo ya no lo piden."
     },
     "preferences": {
       "title": "Preferencias",

@@ -144,7 +144,7 @@
       "statusSet": "Code set on {{date}}. It is not shown: if it was forgotten, set a new one.",
       "code": "Authorization code (4 to 8 digits)",
       "codeReplace": "New code (4 to 8 digits)",
-      "codeHint": "Stored encrypted; the cashier types it when applying a discount.",
+      "codeHint": "Stored encrypted; the cashier types it when applying a discount or recording a cash paid-out.",
       "confirm": "Repeat the code",
       "codeInvalid": "The code must be 4 to 8 digits",
       "codeMismatch": "The codes do not match",
@@ -152,7 +152,7 @@
       "maxPercentHint": "Maximum percentage of the subtotal that can be discounted. Empty = no limit.",
       "remove": "Remove code",
       "saved": "Discounts saved.",
-      "removedNotice": "Code removed: discounts are off."
+      "removedNotice": "Code removed: discounts are off and cash paid-outs no longer ask for it."
     },
     "preferences": {
       "title": "Preferences",

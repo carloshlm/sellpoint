@@ -355,6 +355,43 @@ describe("la lista de movimientos y anular", () => {
     );
   });
 
+  it("anular un movimiento borra el aviso de un retiro rechazado: su cifra ya no es la del cajón", async () => {
+    mocked.createCashMovement.mockRejectedValue({
+      statusCode: 422,
+      error: "Unprocessable Entity",
+      message: "El efectivo del cajón no puede quedar debajo de cero: hay $840.50.",
+    });
+    mocked.listCashMovements.mockResolvedValue({ movements: [ENTRADA, RETIRO] });
+    mocked.cancelCashMovement.mockResolvedValue({ ...RETIRO, status: "canceled" });
+    const user = montar(<SessionBar session={TURNO} />, null);
+    const dialogo = await abrirDialogo(user);
+
+    await user.type(within(dialogo).getByLabelText("Importe"), "10000");
+    await user.click(within(dialogo).getByRole("button", { name: "Registrar retiro" }));
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent("hay $840.50");
+
+    const lista = await within(dialogo).findByRole("list", { name: "Movimientos del turno" });
+    const retiro = within(lista).getAllByRole("listitem")[1] as HTMLElement;
+    mocked.listCashMovements.mockResolvedValue({
+      movements: [
+        ENTRADA,
+        {
+          ...RETIRO,
+          status: "canceled",
+          canceledAt: "2026-11-23T18:10:00.000Z",
+          canceledBy: { id: "u1", name: "Luis Ramírez" },
+          cancelReason: "Se registró dos veces",
+        },
+      ],
+    });
+    await user.click(within(retiro).getByRole("button", { name: "Anular" }));
+    const confirmar = within(dialogo).getByRole("alertdialog");
+    await user.type(within(confirmar).getByLabelText("Por qué se anula"), "Se registró dos veces");
+    await user.click(within(confirmar).getByRole("button", { name: "Anular el movimiento" }));
+
+    await waitFor(() => expect(within(dialogo).queryByRole("alert")).not.toBeInTheDocument());
+  });
+
   it("anular una entrada pide el código cuando el negocio lo tiene", async () => {
     mocked.listCashMovements.mockResolvedValue({ movements: [ENTRADA, RETIRO] });
     mocked.cancelCashMovement.mockResolvedValue({ ...ENTRADA, status: "canceled" });

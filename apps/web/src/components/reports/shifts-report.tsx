@@ -129,9 +129,14 @@ export function ShiftsReport({
   // F10-CASHMOV-07: las entradas y los retiros, con signo como los gastos, y
   // «—» en cero, como el fondo y los gastos. Un API anterior no los manda: lo
   // que falta, o lo que no es un número, también es «—».
+  // El signo va pegado a su importe: si la tabla se angosta, un «−» solo en un
+  // renglón se confunde con el «—» de una celda vacía.
+  const conSigno = (texto: string) => <span className="whitespace-nowrap">{texto}</span>;
   const movido = (signo: "+" | "−", valor: string | undefined) => {
     const n = Number(valor ?? 0);
-    return !Number.isFinite(n) || n === 0 ? "—" : `${signo}${formatMoney(n, currency, locale)}`;
+    return !Number.isFinite(n) || n === 0
+      ? "—"
+      : conSigno(`${signo}${formatMoney(n, currency, locale)}`);
   };
   const diferencia = (valor: string | null) => {
     if (valor === null) return "—";
@@ -179,7 +184,8 @@ export function ShiftsReport({
     // suma; «—» si abrió sin fondo, como los gastos.
     openingCash: Number(turno.openingCash) === 0 ? "—" : dinero(turno.openingCash),
     // F9-EXP-10: con signo, como se lee en un arqueo; «—» si no salió nada.
-    cashExpenses: turno.cashExpenses.count === 0 ? "—" : `−${dinero(turno.cashExpenses.total)}`,
+    cashExpenses:
+      turno.cashExpenses.count === 0 ? "—" : conSigno(`−${dinero(turno.cashExpenses.total)}`),
     cashIn: movido("+", turno.cashIn),
     cashOut: movido("−", turno.cashOut),
     calculated: dinero(turno.calculatedCash),

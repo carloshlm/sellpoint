@@ -1037,7 +1037,9 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       expect(
         await screen.findByRole("columnheader", { name: "Gastos en efectivo" }),
       ).toBeInTheDocument();
-      expect(screen.getByText("−$20.00")).toBeInTheDocument();
+      // El signo no se separa del importe al angostarse la tabla: un «−» solo
+      // en un renglón se confunde con el «—» de la celda vacía.
+      expect(screen.getByText("−$20.00")).toHaveClass("whitespace-nowrap");
       expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     });
 
@@ -1252,6 +1254,14 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       expect(retiroSinMovimiento).toHaveTextContent(/^—$/);
       // Dinero a la derecha, con cifras que no bailan.
       expect(retiroConMovimiento).toHaveClass("text-right", "tabular-nums");
+      // El signo va pegado a su importe: a 1280 px el «−» se iba solo a un
+      // renglón y parecía el «—» de una celda vacía.
+      expect(within(entradaConMovimiento as HTMLElement).getByText("+$200.00")).toHaveClass(
+        "whitespace-nowrap",
+      );
+      expect(within(retiroConMovimiento as HTMLElement).getByText("−$500.00")).toHaveClass(
+        "whitespace-nowrap",
+      );
     });
 
     it("con un API anterior, sin los dos campos, dicen «—» y lo demás queda como hoy", async () => {
