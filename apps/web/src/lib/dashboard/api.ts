@@ -142,6 +142,29 @@ export interface DashboardPayments {
   methods: { method: "cash" | "card" | "transfer"; total: string; pct: number }[];
 }
 
+/**
+ * F10-KPI-14 — el contrato de `GET /reports/dashboard/control`: dónde se va
+ * el dinero en el periodo de las pestañas. Los faltantes y los sobrantes van
+ * por separado y los dos en positivo: nunca se compensan.
+ */
+export interface DashboardControl {
+  cash: {
+    shortage: { amount: string; shifts: number };
+    overage: { amount: string; shifts: number };
+    closedShifts: number;
+  };
+  discounts: {
+    amount: string;
+    tickets: number;
+    /** Descuento ÷ (cobrado + descuento); null sin ventas cobradas. */
+    pctOfSales: number | null;
+  };
+  /** Por la fecha de CANCELACIÓN, no por la de la venta. */
+  cancellations: { count: number; amount: string };
+  /** El periodo en el calendario del negocio (`YYYY-MM-DD`): los filtros de los enlaces. */
+  range: { from: string; to: string };
+}
+
 export async function getDashboardSeries(basePath = "/reports"): Promise<DashboardSeries> {
   const { data } = await api.get<DashboardSeries>(`${basePath}/dashboard/series`);
   return data;
@@ -167,6 +190,16 @@ export async function getDashboardPayments(
   basePath = "/reports",
 ): Promise<DashboardPayments> {
   const { data } = await api.get<DashboardPayments>(`${basePath}/dashboard/payment-methods`, {
+    params: { period },
+  });
+  return data;
+}
+
+export async function getDashboardControl(
+  period: DashboardPeriod,
+  basePath = "/reports",
+): Promise<DashboardControl> {
+  const { data } = await api.get<DashboardControl>(`${basePath}/dashboard/control`, {
     params: { period },
   });
   return data;

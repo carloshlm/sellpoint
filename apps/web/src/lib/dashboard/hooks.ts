@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useAdminTenantScope } from "@/lib/admin/scope";
 import type { ApiError } from "@/lib/api";
 import {
+  type DashboardControl,
   type DashboardInventory,
   type DashboardKpis,
   type DashboardPayments,
   type DashboardPeriod,
   type DashboardProducts,
   type DashboardSeries,
+  getDashboardControl,
   getDashboardInventory,
   getDashboardKpis,
   getDashboardPayments,
@@ -76,6 +78,18 @@ export function useDashboardPayments(period: DashboardPeriod, enabled: boolean) 
     queryKey: ["dashboard", "payments", period, tenantId],
     queryFn: () =>
       base === undefined ? getDashboardPayments(period) : getDashboardPayments(period, base),
+    enabled,
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** F10-KPI-15 — la tarjeta «Control»; obedece a las pestañas de periodo. */
+export function useDashboardControl(period: DashboardPeriod, enabled: boolean) {
+  const { tenantId, base } = useRuta();
+  return useQuery<DashboardControl, ApiError>({
+    queryKey: ["dashboard", "control", period, tenantId],
+    queryFn: () =>
+      base === undefined ? getDashboardControl(period) : getDashboardControl(period, base),
     enabled,
     placeholderData: (previous) => previous,
   });

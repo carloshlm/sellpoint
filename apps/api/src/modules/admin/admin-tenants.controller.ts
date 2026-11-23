@@ -26,6 +26,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
 import { PlatformAdminGuard } from "../billing/guards/platform-admin.guard";
+import { DashboardControlService } from "../reports/dashboard-control.service";
 import { DashboardInventoryService } from "../reports/dashboard-inventory.service";
 import { DashboardKpisService } from "../reports/dashboard-kpis.service";
 import { DashboardPaymentsService } from "../reports/dashboard-payments.service";
@@ -104,6 +105,7 @@ export class AdminTenantsController {
     private readonly dashboardProducts: DashboardProductsService,
     private readonly dashboardInventory: DashboardInventoryService,
     private readonly dashboardPayments: DashboardPaymentsService,
+    private readonly dashboardControl: DashboardControlService,
     private readonly salesReport: SalesReportService,
     private readonly stockReport: StockReportService,
     private readonly salesExport: SalesExportService,
@@ -238,6 +240,17 @@ export class AdminTenantsController {
       SCOPE_ALL,
       period,
     );
+  }
+
+  /** F10-KPI-14 — «Control» del negocio mirado; el servicio no lee `user.userId`. */
+  @Get(":tenantId/dashboard/control")
+  control(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query("period", new ZodValidationPipe(dashboardPeriodSchema, "reports.invalid_query"))
+    period: DashboardPeriod,
+  ) {
+    return this.dashboardControl.control(platformAdminActor(tenantId, admin), SCOPE_ALL, period);
   }
 
   // ── Reportes (F9-ADMIN-05) ──────────────────────────────────────────────

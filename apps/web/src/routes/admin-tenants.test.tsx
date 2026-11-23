@@ -41,6 +41,16 @@ vi.mock("@/lib/dashboard/api", async (importOriginal) => ({
   getDashboardProducts: vi.fn().mockResolvedValue({ topSold: [], topProfit: [] }),
   getDashboardInventory: vi.fn().mockResolvedValue({ outOfStock: 0, belowMin: 0, attention: [] }),
   getDashboardPayments: vi.fn().mockResolvedValue({ methods: [] }),
+  getDashboardControl: vi.fn().mockResolvedValue({
+    cash: {
+      shortage: { amount: "10.00", shifts: 1 },
+      overage: { amount: "0.00", shifts: 0 },
+      closedShifts: 1,
+    },
+    discounts: { amount: "0.00", tickets: 0, pctOfSales: 0 },
+    cancellations: { count: 0, amount: "0.00" },
+    range: { from: "2026-03-01", to: "2026-03-15" },
+  }),
 }));
 vi.mock("@/lib/reports/api", async (importOriginal) => ({
   ...(await importOriginal<typeof reportsApi>()),
@@ -62,6 +72,7 @@ const mockedSuspend = vi.mocked(adminApi.suspendTenantUser);
 const mockedEnable = vi.mocked(billingApi.enableModule);
 const mockedCustomPrice = vi.mocked(billingApi.updateCustomPrice);
 const mockedKpis = vi.mocked(dashboardApi.getDashboardKpis);
+const mockedControl = vi.mocked(dashboardApi.getDashboardControl);
 const mockedSales = vi.mocked(reportsApi.getSalesReport);
 const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
 const mockedSalesLines = vi.mocked(reportsApi.getSalesLinesReport);
@@ -435,6 +446,19 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
     expect(screen.queryByRole("link", { name: "Leche 1L" })).not.toBeInTheDocument();
   });
 
+  it("Panel: «Control» carga por el espejo y no enlaza a los reportes propios (F10-KPI-15)", async () => {
+    // Los reportes del negocio mirado viven en otra pestaña del expediente: un
+    // enlace a /reports/... abriría los del negocio propio.
+    await renderEn("/admin/tenants/t1?tab=dashboard");
+
+    const titulo = await screen.findByRole("heading", { name: "Control" });
+    const tarjeta = titulo.closest("section") as HTMLElement;
+    expect(mockedControl).toHaveBeenCalledWith("month", "/admin/tenants/t1");
+    expect(await within(tarjeta).findByText("$10.00")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Faltantes de caja").closest("a")).toBeNull();
+    expect(within(tarjeta).queryAllByRole("link")).toHaveLength(0);
+  });
+
   it("Reportes: pide las ventas del negocio mirado con el prefijo del expediente", async () => {
     await renderEn("/admin/tenants/t1?tab=reports");
     await screen.findByTestId("tenant-reports");
@@ -563,5 +587,8 @@ describe("el dashboard del cliente no cambia (no-regresión)", () => {
     );
     await waitFor(() => expect(mockedKpis).toHaveBeenCalled());
     expect(mockedKpis).toHaveBeenCalledWith();
+    // F10-KPI-15: «Control» también pide el propio, sin prefijo.
+    await waitFor(() => expect(mockedControl).toHaveBeenCalled());
+    expect(mockedControl).toHaveBeenCalledWith("month");
   });
 });

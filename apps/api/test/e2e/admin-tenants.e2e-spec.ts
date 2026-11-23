@@ -111,6 +111,7 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       "dashboard/products?period=month",
       "dashboard/inventory",
       "dashboard/payment-methods?period=month",
+      "dashboard/control?period=month",
       "reports/sales",
       "reports/stock",
       "reports/sales/export?format=xlsx",
@@ -226,6 +227,33 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     await comoAdmin("dashboard/products?period=month").expect(200);
     await comoAdmin("dashboard/payment-methods?period=month").expect(200);
     await comoAdmin("dashboard/products?period=siempre").expect(400);
+  });
+
+  /**
+   * F10-KPI-14 — «Control» por el espejo: el turno de B cerró con faltante y
+   * su venta no llevó descuento. El actor sintético no es usuario de B y el
+   * servicio no lo necesita.
+   */
+  it("Control es el de B: su faltante de caja, sin descuentos ni cancelaciones", async () => {
+    const cierres = await comoAdmin("reports/shifts").expect(200);
+    const diferencia = Number(
+      (cierres.body as { rows: { cashDifference: string | null }[] }).rows[0]?.cashDifference,
+    );
+    expect(diferencia).toBeLessThan(0);
+
+    const control = await comoAdmin("dashboard/control?period=month").expect(200);
+    expect(control.body).toEqual({
+      cash: {
+        shortage: { amount: (-diferencia).toFixed(2), shifts: 1 },
+        overage: { amount: "0.00", shifts: 0 },
+        closedShifts: 1,
+      },
+      // Hubo una venta cobrada sin descuento: 0% de las ventas, no «sin dato».
+      discounts: { amount: "0.00", tickets: 0, pctOfSales: 0 },
+      cancellations: { count: 0, amount: "0.00" },
+      range: { from: expect.any(String), to: expect.any(String) },
+    });
+    await comoAdmin("dashboard/control?period=siempre").expect(400);
   });
 
   it("los reportes de ventas e inventario son los de B, con los mismos filtros", async () => {

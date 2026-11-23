@@ -79,6 +79,20 @@
     "card": "Tarjeta",
     "transfer": "Transferencia"
   },
+  "control": {
+    "title": "Control",
+    "shortage": "Faltantes de caja",
+    "shortageShifts": "{{count}} turnos con faltante",
+    "shortageShifts_one": "{{count}} turno con faltante",
+    "overage": "Sobrantes: {{amount}}",
+    "discounts": "Descuentos",
+    "pctOfSales": "{{pct}}% de tus ventas",
+    "tickets": "{{count}} tickets",
+    "tickets_one": "{{count}} ticket",
+    "cancellations": "Cancelaciones",
+    "sales": "{{count}} ventas",
+    "sales_one": "{{count}} venta"
+  },
   "alerts": {
     "outOfStock": "{{count}} productos agotados",
     "outOfStock_one": "{{count}} producto agotado",

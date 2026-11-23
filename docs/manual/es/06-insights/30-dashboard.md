@@ -109,8 +109,40 @@ ves las dos cifras juntas: lo de hoy y el promedio.
 ## Las listas y sus pestañas
 
 Debajo de las gráficas hay cuatro pestañas: **Hoy**, **Esta semana**, **Este
-mes** y **Mes anterior**. Cambian las dos listas de productos y los **Métodos
-de pago**; los mosaicos de arriba no cambian. La semana empieza el lunes.
+mes** y **Mes anterior**. Cambian la tarjeta **Control**, las dos listas de
+productos y los **Métodos de pago**; los mosaicos de arriba no cambian. La
+semana empieza el lunes.
+
+### Control: dónde se va el dinero
+
+![La tarjeta Control, bajo las pestañas](screen:dashboard-control)
+
+Justo debajo de las pestañas, **Control** suma tres cosas que SellPointy guarda
+en cada venta y en cada cierre de turno, y que de otro modo tendrías que buscar
+en tres reportes:
+
+- **Faltantes de caja**: cuánto faltó en los turnos que se cerraron en el
+  periodo, y en cuántos turnos. Abajo, en un renglón aparte, los **Sobrantes**.
+  Un faltante nunca se compensa con un sobrante: si en un turno faltaron $200 y
+  en otro sobraron $200, ves los dos, no un cero. Un turno que sigue abierto
+  todavía no cuenta.
+- **Descuentos**: lo que descontaste en las ventas cobradas del periodo, qué
+  parte es de tus ventas (el descuento entre lo que habrías cobrado sin él) y
+  en cuántos tickets. El descuento de una venta que después se canceló no
+  cuenta.
+- **Cancelaciones**: cuánto sumaban las ventas que se cancelaron en el periodo,
+  y cuántas son. Cuenta el día en que se canceló cada venta, no el día en que
+  se vendió.
+
+Cuando un contador tiene algo, su importe se pinta en color (los faltantes, en
+rojo). En cero dice $0.00, sin color: no hay nada que revisar.
+
+Presiona un contador para abrir su reporte (capítulo 31) ya filtrado con las
+fechas del periodo: **Faltantes de caja** abre **Cierres de turno** con «Con
+faltante»; **Descuentos**, las ventas cobradas con «Solo con descuento»; y
+**Cancelaciones**, las ventas canceladas. El reporte de ventas busca por el día
+de la venta: si cancelaste hoy una venta de otro día, la encuentras en el
+periodo en que se vendió.
 
 ![Los más vendidos y los de mayor utilidad](screen:dashboard-top-products)
 

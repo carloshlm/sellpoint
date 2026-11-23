@@ -27,6 +27,16 @@ vi.mock("../lib/dashboard/api", () => ({
   getDashboardProducts: vi.fn().mockResolvedValue({ topSold: [], topProfit: [] }),
   getDashboardInventory: vi.fn().mockResolvedValue({ outOfStock: 0, belowMin: 0, attention: [] }),
   getDashboardPayments: vi.fn().mockResolvedValue({ methods: [] }),
+  getDashboardControl: vi.fn().mockResolvedValue({
+    cash: {
+      shortage: { amount: "0.00", shifts: 0 },
+      overage: { amount: "0.00", shifts: 0 },
+      closedShifts: 0,
+    },
+    discounts: { amount: "0.00", tickets: 0, pctOfSales: null },
+    cancellations: { count: 0, amount: "0.00" },
+    range: { from: "2026-03-01", to: "2026-03-15" },
+  }),
 }));
 vi.mock("../lib/inventory/api", () => ({
   listExpiring: vi.fn().mockResolvedValue([]),

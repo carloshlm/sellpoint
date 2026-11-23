@@ -51,6 +51,19 @@ export const INSIGHTS: Screen[] = [
     ],
   },
   {
+    // F10-KPI-15: la tarjeta «Control», justo bajo las pestañas de periodo.
+    id: "dashboard-control",
+    chapter: DASHBOARD,
+    as: "owner",
+    path: "/dashboard",
+    target: (page) => [
+      page.locator("main fieldset").filter({ has: page.getByRole("button", { name: "Hoy" }) }),
+      page
+        .locator("main section")
+        .filter({ has: page.getByRole("heading", { name: "Control", exact: true }) }),
+    ],
+  },
+  {
     id: "dashboard-inventory",
     chapter: DASHBOARD,
     as: "owner",

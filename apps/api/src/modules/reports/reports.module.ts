@@ -3,6 +3,7 @@ import { CostModule } from "../cost/cost.module";
 import { InventoryModule } from "../inventory/inventory.module";
 import { ProductsModule } from "../products/products.module";
 import { CatalogExportService } from "./catalog-export.service";
+import { DashboardControlService } from "./dashboard-control.service";
 import { DashboardInventoryService } from "./dashboard-inventory.service";
 import { DashboardKpisService } from "./dashboard-kpis.service";
 import { DashboardPaymentsService } from "./dashboard-payments.service";
@@ -37,6 +38,7 @@ import { TaxReportService } from "./tax-report.service";
     DashboardProductsService,
     DashboardInventoryService,
     DashboardPaymentsService,
+    DashboardControlService,
     ReportsService,
     StockReportService,
     StockExportService,
@@ -61,6 +63,7 @@ import { TaxReportService } from "./tax-report.service";
     DashboardProductsService,
     DashboardInventoryService,
     DashboardPaymentsService,
+    DashboardControlService,
     SalesReportService,
     StockReportService,
     SalesExportService,

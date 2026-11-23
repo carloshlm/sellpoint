@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AlertsBlock } from "@/components/dashboard/alerts-block";
+import { ControlCard } from "@/components/dashboard/control-card";
 import { InventoryWidgets } from "@/components/dashboard/inventory-widgets";
 import { KpiRow } from "@/components/dashboard/kpi-row";
 import { PeriodFilter } from "@/components/dashboard/period-filter";
@@ -79,6 +80,7 @@ function DashboardContent() {
         <SalesCharts />
       </Suspense>
       {gobiernaAlgo && <PeriodFilter value={period} onChange={setPeriod} />}
+      <ControlCard period={period} />
       <TopProducts period={period} />
       <ClinicTop period={period} />
       <div className="grid gap-3 lg:grid-cols-2">

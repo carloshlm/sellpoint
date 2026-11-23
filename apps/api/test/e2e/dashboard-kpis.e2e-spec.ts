@@ -181,6 +181,55 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
       .expect(403);
   });
 
+  /**
+   * F10-KPI-14 — «Control» es dinero: los faltantes, los descuentos y las
+   * cancelaciones viajan solo con `reports:read`. La matemática vive en
+   * `dashboard-control.integration.spec.ts`.
+   */
+  it("Control responde su forma vacía con el periodo, y sin reports:read -> 403", async () => {
+    const { token, tenantId } = await ownerToken();
+
+    const control = await request(app.getHttpServer())
+      .get("/reports/dashboard/control?period=week")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    const cuerpo = control.body as { range: { from: string; to: string } };
+    expect(cuerpo).toEqual({
+      cash: {
+        shortage: { amount: "0.00", shifts: 0 },
+        overage: { amount: "0.00", shifts: 0 },
+        closedShifts: 0,
+      },
+      discounts: { amount: "0.00", tickets: 0, pctOfSales: null },
+      cancellations: { count: 0, amount: "0.00" },
+      range: { from: expect.any(String), to: expect.any(String) },
+    });
+    expect(cuerpo.range.from <= cuerpo.range.to).toBe(true);
+
+    // Sin `period`, el mes (como los demás widgets con pestañas).
+    await request(app.getHttpServer())
+      .get("/reports/dashboard/control")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get("/reports/dashboard/control?period=ayer")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(400);
+
+    for (const permisos of [["pos:sell", "pos:view"], ["inventory:read"]]) {
+      const sinReportes = tokenService.signAccessToken({
+        sub: randomUUID(),
+        tenantId,
+        permissions: permisos,
+        locale: "es",
+      });
+      await request(app.getHttpServer())
+        .get("/reports/dashboard/control?period=month")
+        .set("Authorization", `Bearer ${sinReportes}`)
+        .expect(403);
+    }
+  });
+
   it("un vendedor sin reports:read -> 403: los números del negocio no son del mostrador", async () => {
     const { tenantId } = await ownerToken();
     const vendedor = tokenService.signAccessToken({

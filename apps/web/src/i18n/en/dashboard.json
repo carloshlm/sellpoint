@@ -79,6 +79,20 @@
     "card": "Card",
     "transfer": "Transfer"
   },
+  "control": {
+    "title": "Control",
+    "shortage": "Cash shortages",
+    "shortageShifts": "{{count}} shifts came up short",
+    "shortageShifts_one": "{{count}} shift came up short",
+    "overage": "Overages: {{amount}}",
+    "discounts": "Discounts",
+    "pctOfSales": "{{pct}}% of your sales",
+    "tickets": "{{count}} tickets",
+    "tickets_one": "{{count}} ticket",
+    "cancellations": "Cancellations",
+    "sales": "{{count}} sales",
+    "sales_one": "{{count}} sale"
+  },
   "alerts": {
     "outOfStock": "{{count}} products out of stock",
     "outOfStock_one": "{{count}} product out of stock",

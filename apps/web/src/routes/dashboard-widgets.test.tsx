@@ -22,6 +22,7 @@ vi.mock("../lib/dashboard/api", () => ({
   getDashboardProducts: vi.fn(),
   getDashboardInventory: vi.fn(),
   getDashboardPayments: vi.fn(),
+  getDashboardControl: vi.fn(),
 }));
 vi.mock("../lib/inventory/api", () => ({
   listExpiring: vi.fn().mockResolvedValue([]),
@@ -119,6 +120,18 @@ const PAYMENTS: dashboardApi.DashboardPayments = {
   ],
 };
 
+/** F10-KPI-15 — «Control» con algo en cada contador. */
+const CONTROL: dashboardApi.DashboardControl = {
+  cash: {
+    shortage: { amount: "250.50", shifts: 2 },
+    overage: { amount: "200.00", shifts: 1 },
+    closedShifts: 5,
+  },
+  discounts: { amount: "400.00", tickets: 2, pctOfSales: 10 },
+  cancellations: { count: 3, amount: "800.00" },
+  range: { from: "2026-03-01", to: "2026-03-15" },
+};
+
 const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 async function renderDashboard(permissions: string[] = ["reports:read", "inventory:read"]) {
@@ -146,6 +159,7 @@ beforeEach(() => {
   mocked.getDashboardProducts.mockResolvedValue(PRODUCTS);
   mocked.getDashboardInventory.mockResolvedValue(INVENTORY);
   mocked.getDashboardPayments.mockResolvedValue(PAYMENTS);
+  mocked.getDashboardControl.mockResolvedValue(CONTROL);
 });
 
 afterEach(() => {
@@ -265,6 +279,8 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     expect(mocked.getDashboardProducts).toHaveBeenCalledTimes(1);
     expect(mocked.getDashboardInventory).toHaveBeenCalledTimes(1);
     expect(mocked.getDashboardPayments).toHaveBeenCalledTimes(1);
+    // F10-KPI-15: «Control» es la décima petición de la carga, y también una sola.
+    expect(mocked.getDashboardControl).toHaveBeenCalledTimes(1);
   });
 
   it("sin condiciones, el bloque de alertas desaparece completo", async () => {
@@ -484,5 +500,138 @@ describe("F10-KPI-02: «Mayor utilidad» avisa lo que pierde y lo que no tiene c
     expect(screen.queryByText(/por debajo de su costo/)).not.toBeInTheDocument();
     expect(screen.queryByText(/sin costo:/)).not.toBeInTheDocument();
     expect(document.getElementById("margin-check")).toBeNull();
+  });
+});
+
+/**
+ * F10-KPI-15 — la tarjeta «Control», bajo las pestañas de periodo: tres
+ * contadores que hoy exigen abrir tres reportes y sumar a mano. Cada uno lleva
+ * a su reporte ya filtrado con las fechas del periodo.
+ */
+async function tarjetaControl(): Promise<HTMLElement> {
+  const titulo = await screen.findByRole("heading", { name: "Control" });
+  return titulo.closest("section") as HTMLElement;
+}
+
+/** El enlace de un contador, ya leído: la ruta y sus filtros. */
+function enlaceDe(tarjeta: HTMLElement, etiqueta: string) {
+  const href = within(tarjeta).getByText(etiqueta).closest("a")?.getAttribute("href") ?? "";
+  const url = new URL(href, "http://panel.test");
+  return { ruta: url.pathname, filtros: Object.fromEntries(url.searchParams) };
+}
+
+/** El importe grande de un contador (el renglón que sigue a su etiqueta). */
+function importeDe(tarjeta: HTMLElement, etiqueta: string): HTMLElement {
+  return within(tarjeta).getByText(etiqueta).nextElementSibling as HTMLElement;
+}
+
+describe("F10-KPI-15: la tarjeta «Control»", () => {
+  it("dice los faltantes con sus turnos y los sobrantes aparte, los descuentos y las cancelaciones", async () => {
+    await renderDashboard();
+
+    const tarjeta = await tarjetaControl();
+    await waitFor(() => {
+      expect(within(tarjeta).getByText("$250.50")).toBeInTheDocument();
+    });
+    expect(within(tarjeta).getByText("2 turnos con faltante")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("Sobrantes: $200.00")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("$400.00")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("10% de tus ventas · 2 tickets")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("$800.00")).toBeInTheDocument();
+    expect(within(tarjeta).getByText("3 ventas")).toBeInTheDocument();
+  });
+
+  it("cambiar el periodo pide el nuevo", async () => {
+    const user = userEvent.setup();
+    await renderDashboard();
+    await tarjetaControl();
+    expect(mocked.getDashboardControl).toHaveBeenCalledWith("month");
+
+    await user.click(screen.getByRole("button", { name: "Hoy" }));
+
+    await waitFor(() => {
+      expect(mocked.getDashboardControl).toHaveBeenCalledWith("today");
+    });
+  });
+
+  it("sin reports:read no se pide ni se pinta", async () => {
+    await renderDashboard(["inventory:read"]);
+
+    // El inventario sí carga: la pantalla ya pintó lo que este rol puede ver.
+    await screen.findByText("Inventario");
+    expect(screen.queryByRole("heading", { name: "Control" })).not.toBeInTheDocument();
+    expect(mocked.getDashboardControl).not.toHaveBeenCalled();
+  });
+
+  it("cada contador navega a su reporte ya filtrado con las fechas del periodo", async () => {
+    await renderDashboard();
+    const tarjeta = await tarjetaControl();
+    await within(tarjeta).findByText("$250.50");
+
+    expect(enlaceDe(tarjeta, "Faltantes de caja")).toEqual({
+      ruta: "/reports/shifts",
+      filtros: { difference: "shortage", from: "2026-03-01", to: "2026-03-15" },
+    });
+    expect(enlaceDe(tarjeta, "Descuentos")).toEqual({
+      ruta: "/reports/sales",
+      filtros: { status: "completed", discounted: "true", from: "2026-03-01", to: "2026-03-15" },
+    });
+    expect(enlaceDe(tarjeta, "Cancelaciones")).toEqual({
+      ruta: "/reports/sales",
+      filtros: { status: "canceled", from: "2026-03-01", to: "2026-03-15" },
+    });
+  });
+
+  it("con algo que revisar, el importe va en color; en cero dice 0 en color neutro (caso espejo)", async () => {
+    // Sin faltantes, pero con descuentos y cancelaciones: el color es de cada
+    // contador, no de la tarjeta.
+    mocked.getDashboardControl.mockResolvedValue({
+      ...CONTROL,
+      cash: {
+        shortage: { amount: "0.00", shifts: 0 },
+        overage: { amount: "0.00", shifts: 0 },
+        closedShifts: 4,
+      },
+    });
+    await renderDashboard();
+    const tarjeta = await tarjetaControl();
+    await within(tarjeta).findByText("0 turnos con faltante");
+
+    const faltantes = importeDe(tarjeta, "Faltantes de caja");
+    expect(faltantes).toHaveTextContent("$0.00");
+    expect(faltantes).not.toHaveClass("text-destructive");
+    expect(faltantes).not.toHaveClass("text-warning");
+    expect(importeDe(tarjeta, "Descuentos")).toHaveClass("text-warning");
+    expect(importeDe(tarjeta, "Cancelaciones")).toHaveClass("text-warning");
+
+    // Y al revés: con faltantes va en rojo, y lo que está en cero, neutro.
+    cleanup();
+    mocked.getDashboardControl.mockResolvedValue({
+      ...CONTROL,
+      discounts: { amount: "0.00", tickets: 0, pctOfSales: null },
+      cancellations: { count: 0, amount: "0.00" },
+    });
+    await renderDashboard();
+    const otra = await tarjetaControl();
+    await within(otra).findByText("0 tickets");
+
+    expect(importeDe(otra, "Faltantes de caja")).toHaveClass("text-destructive");
+    for (const etiqueta of ["Descuentos", "Cancelaciones"]) {
+      const importe = importeDe(otra, etiqueta);
+      expect(importe).toHaveTextContent("$0.00");
+      expect(importe).not.toHaveClass("text-warning");
+      expect(importe).not.toHaveClass("text-destructive");
+    }
+    // Sin ventas no hay porcentaje: solo los tickets, sin «null%».
+    expect(within(otra).queryByText(/% de tus ventas/)).not.toBeInTheDocument();
+    expect(within(otra).getByText("0 ventas")).toBeInTheDocument();
+  });
+
+  it("un API anterior, sin el endpoint, deja el panel como estaba y sin la tarjeta", async () => {
+    mocked.getDashboardControl.mockRejectedValue(new Error("404"));
+    await renderDashboard();
+
+    await screen.findByText("Más vendidos");
+    expect(screen.queryByRole("heading", { name: "Control" })).not.toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CatalogExportService } from "./catalog-export.service";
+import { DashboardControlService } from "./dashboard-control.service";
 import { DashboardInventoryService } from "./dashboard-inventory.service";
 import { DashboardKpisService } from "./dashboard-kpis.service";
 import { DashboardPaymentsService } from "./dashboard-payments.service";
@@ -99,6 +100,7 @@ export class ReportsController {
     private readonly dashboardProducts: DashboardProductsService,
     private readonly dashboardInventory: DashboardInventoryService,
     private readonly dashboardPayments: DashboardPaymentsService,
+    private readonly dashboardControl: DashboardControlService,
   ) {}
 
   @Get()
@@ -181,6 +183,21 @@ export class ReportsController {
     period: DashboardPeriod,
   ) {
     return this.dashboardPayments.paymentMethods(user, scope, period);
+  }
+
+  /**
+   * F10-KPI-14 — «Control»: faltantes de caja, descuentos y cancelaciones del
+   * periodo de las pestañas. Es dinero: `reports:read`, como el resto.
+   */
+  @Get("dashboard/control")
+  @RequirePermissions("reports:read")
+  dashboardControlEndpoint(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query("period", new ZodValidationPipe(dashboardPeriodSchema, "reports.invalid_query"))
+    period: DashboardPeriod,
+  ) {
+    return this.dashboardControl.control(user, scope, period);
   }
 
   /** F5-SHIFT-01 — los turnos con su arqueo; F5-SHIFT-02 — uno con sus ventas. */
