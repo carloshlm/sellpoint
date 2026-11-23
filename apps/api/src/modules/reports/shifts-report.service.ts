@@ -61,7 +61,26 @@ export interface ShiftsReportPage {
   total: number;
   page: number;
   pageSize: number;
+  /**
+   * F10-KPI-13 — cuánto FALTÓ y cuánto SOBRÓ en los cierres de todo el
+   * periodo filtrado (no de la página), los dos en positivo y con dos
+   * decimales. Por separado: un faltante nunca se compensa con un sobrante.
+   */
+  differenceTotals: { shortage: string; overage: string };
 }
+
+type Diferencia = NonNullable<ShiftsReportQueryDto["difference"]>;
+
+/** Qué cierres deja cada valor del filtro «Diferencia». */
+const POR_DIFERENCIA: Record<Diferencia, Prisma.DecimalNullableFilter> = {
+  shortage: { lt: 0 },
+  overage: { gt: 0 },
+  balanced: { equals: 0 },
+};
+
+/** La suma de las diferencias, en positivo; sin ninguna, «0.00» (un cero real). */
+const enPositivo = (suma: Prisma.Decimal | null): string =>
+  suma === null ? "0.00" : suma.abs().toFixed(2);
 
 const nombre = (u: { id: string; firstName: string; lastName: string }): Persona => ({
   id: u.id,
@@ -90,7 +109,14 @@ export class ShiftsReportService {
   ): Promise<ShiftsReportPage> {
     const where = await this.where(user, scope, query);
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const [total, filas] = await Promise.all([
+      // F10-KPI-13: el pie suma cada lado por su cuenta, sobre el periodo
+      // filtrado entero. `AND` para no pisar lo que el `where` ya diga.
+      const sumaDe = (lado: Prisma.DecimalNullableFilter) =>
+        tx.cashboxSession.aggregate({
+          where: { AND: [where, { status: "closed", cashDifference: lado }] },
+          _sum: { cashDifference: true },
+        });
+      const [total, filas, faltantes, sobrantes] = await Promise.all([
         tx.cashboxSession.count({ where }),
         tx.cashboxSession.findMany({
           where,
@@ -108,6 +134,8 @@ export class ShiftsReportService {
             _count: { select: { sales: true } },
           },
         }),
+        sumaDe(POR_DIFERENCIA.shortage),
+        sumaDe(POR_DIFERENCIA.overage),
       ]);
       const ids = filas.map((f) => f.id);
       const [totales, gastos] = await Promise.all([
@@ -121,6 +149,10 @@ export class ShiftsReportService {
         total,
         page: query.page,
         pageSize: query.pageSize,
+        differenceTotals: {
+          shortage: enPositivo(faltantes._sum.cashDifference),
+          overage: enPositivo(sobrantes._sum.cashDifference),
+        },
       };
     });
   }
@@ -277,7 +309,7 @@ export class ShiftsReportService {
         (st === "open" ? { openedBy: query.userId } : { closedBy: query.userId })),
       ...(rango !== undefined && (st === "open" ? { openedAt: rango } : { closedAt: rango })),
     });
-    return {
+    const base: Prisma.CashboxSessionWhereInput = {
       tenantId: user.tenantId,
       ...(estado !== undefined
         ? porEstado(estado)
@@ -294,5 +326,14 @@ export class ShiftsReportService {
         folio: { contains: query.search, mode: "insensitive" as const },
       }),
     };
+    // F10-KPI-13 — la diferencia es de un CIERRE: el filtro deja solo
+    // cerrados, también buscando por folio (que trae abiertos y cerrados) o
+    // con «Abiertos» (que entonces no trae nada). `AND` para no pisar el
+    // estado ni el `OR` de arriba.
+    return query.difference === undefined
+      ? base
+      : {
+          AND: [base, { status: "closed", cashDifference: POR_DIFERENCIA[query.difference] }],
+        };
   }
 }

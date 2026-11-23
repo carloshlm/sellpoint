@@ -21,6 +21,18 @@ export interface SalesReportRow {
   warehouseId: string;
   warehouse: { id: string; name: string };
   seller: { id: string; name: string };
+  /**
+   * F10-KPI-11: el descuento TOTAL de la venta —el de sus líneas más el del
+   * ticket, que es lo que `sales.discount` ya guarda—, con dos decimales.
+   * «0.00» si no hubo descuento: es un cero real, no un dato que falta.
+   */
+  discount: string;
+  /** Por qué se descontó, en palabras del cajero; `null` si no lo dijo. */
+  discountReason: string | null;
+  /** Por qué se canceló; `null` en las cobradas. */
+  cancelReason: string | null;
+  canceledAt: string | null;
+  canceledBy: { id: string; name: string } | null;
 }
 
 /**
@@ -47,7 +59,8 @@ export class SalesReportService {
     const where = await this.where(user, scope, query);
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const [total, rows, totals] = await Promise.all([
+      const cobradas: Prisma.SaleWhereInput = { AND: [where, { status: "completed" }] };
+      const [total, rows, totals, descuentos] = await Promise.all([
         tx.sale.count({ where }),
         tx.sale.findMany({
           where,
@@ -60,6 +73,9 @@ export class SalesReportService {
           include: {
             warehouse: { select: { id: true, name: true } },
             seller: { select: { id: true, firstName: true, lastName: true } },
+            // Quién canceló viaja en la MISMA consulta (la relación `canceler`):
+            // nunca una consulta por fila.
+            canceler: { select: { id: true, firstName: true, lastName: true } },
           },
         }),
         // Los totales son del PERÍODO entero, no de la página: es el pie de la
@@ -71,9 +87,13 @@ export class SalesReportService {
         // (Carlos, 2026-11-02). Ahora con «Cancelada» no hay nada que sumar.
         tx.sale.groupBy({
           by: ["paymentMethod"],
-          where: { AND: [where, { status: "completed" }] },
+          where: cobradas,
           _sum: { total: true },
         }),
+        // F10-KPI-11: lo que se fue en descuentos, con la misma regla que el
+        // pie: del periodo filtrado entero y solo de las cobradas. Una venta
+        // cancelada no le costó nada al negocio.
+        tx.sale.aggregate({ where: cobradas, _sum: { discount: true } }),
       ]);
 
       return {
@@ -92,6 +112,14 @@ export class SalesReportService {
             id: venta.seller.id,
             name: shortName(venta.seller),
           },
+          discount: venta.discount.toFixed(2),
+          discountReason: venta.discountReason,
+          cancelReason: venta.cancelReason,
+          canceledAt: venta.canceledAt?.toISOString() ?? null,
+          canceledBy:
+            venta.canceler === null
+              ? null
+              : { id: venta.canceler.id, name: shortName(venta.canceler) },
         })),
         totals: totals.map((fila) => ({
           paymentMethod: fila.paymentMethod,
@@ -100,6 +128,9 @@ export class SalesReportService {
         total,
         page: query.page,
         pageSize: query.pageSize,
+        // Al final: un campo nuevo no mueve los de siempre. Suma de un periodo
+        // sin descuentos = «0.00», un cero real.
+        discountTotal: new Prisma.Decimal((descuentos._sum.discount ?? 0).toString()).toFixed(2),
       };
     });
   }
@@ -115,7 +146,11 @@ export class SalesReportService {
    * MISMAS ventas: una segunda copia del alcance y de la zona del negocio
    * diría otra cosa el día que una de las dos cambie.
    */
-  async where(user: AuthUser, scope: UserScope, query: SalesReportQueryDto) {
+  async where(
+    user: AuthUser,
+    scope: UserScope,
+    query: SalesReportQueryDto,
+  ): Promise<Prisma.SaleWhereInput> {
     if (query.warehouseId !== undefined) {
       // 403 y no una lista vacía: «ese almacén no vendió nada» sería mentira.
       assertWarehouseInScope(scope, query.warehouseId);
@@ -126,12 +161,18 @@ export class SalesReportService {
       select: { timezone: true },
     });
 
-    return buildSalesWhere({
-      ...query,
+    const { discounted, ...filtros } = query;
+    const ventas = buildSalesWhere({
+      ...filtros,
       tenantId: user.tenantId,
       timeZone: tenant?.timezone ?? "UTC",
       // A diferencia del POS, acá el alcance SIEMPRE viaja.
       ...(scope.warehouseIds !== "all" && { warehouseIds: scope.warehouseIds }),
     });
+    // F10-KPI-11 — «Solo con descuento» se resuelve AQUÍ y no en
+    // `buildSalesWhere`: ese builder también arma el historial del POS, que no
+    // tiene este filtro, y su contrato no se toca. `AND` y no un spread, para
+    // no pisar nada de lo que el builder diga.
+    return discounted === true ? { AND: [ventas, { discount: { gt: 0 } }] } : ventas;
   }
 }

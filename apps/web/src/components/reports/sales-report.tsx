@@ -3,9 +3,13 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
-import { SalesFilterBar, useSalesFilters } from "@/components/reports/sales-filters";
+import {
+  SalesFilterBar,
+  type SalesFiltersInitial,
+  useSalesFilters,
+} from "@/components/reports/sales-filters";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
-import { downloadSalesReport } from "@/lib/reports/api";
+import { downloadSalesReport, type SalesReportRow } from "@/lib/reports/api";
 import { useSalesReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -18,7 +22,7 @@ import { useAuthStore } from "@/stores/auth.store";
  * (`reports:read`, con alcance). Lo que comparten vive en el servidor, en el
  * builder del `where`.
  */
-export function SalesReport() {
+export function SalesReport({ initialFilters }: { initialFilters?: SalesFiltersInitial } = {}) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = useScopedCurrency();
@@ -27,8 +31,12 @@ export function SalesReport() {
   const { reportsPath, tenantId: negocioAjeno } = useAdminTenantScope();
 
   // Los filtros —y el rango con que abre: desde hoy— son los mismos de
-  // Ventas por producto y por servicio.
-  const { filtros, page, setPage, barra } = useSalesFilters();
+  // Ventas por producto y por servicio. F10-KPI-12: «Solo con descuento» es
+  // solo de esta pantalla, y un enlace puede traer los filtros puestos.
+  const { filtros, page, setPage, barra } = useSalesFilters({
+    showDiscounted: true,
+    ...(initialFilters !== undefined && { initial: initialFilters }),
+  });
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortDir, setSortDir] = useState<"asc" | "desc" | undefined>(undefined);
 
@@ -42,7 +50,11 @@ export function SalesReport() {
     { key: "warehouseName", header: t("reports.sales.warehouse") },
     { key: "statusLabel", header: t("reports.sales.status") },
     { key: "methodLabel", header: t("reports.sales.method") },
+    // F10-KPI-12: el descuento al lado del total, que ya lo trae restado; el
+    // motivo al final, porque es el texto más largo.
+    { key: "discount", header: t("reports.sales.discount"), numeric: true },
     { key: "total", header: t("reports.sales.total"), numeric: true },
+    { key: "reason", header: t("reports.sales.reason") },
   ];
 
   const filas = (data?.rows ?? []).map((venta) => ({
@@ -59,7 +71,14 @@ export function SalesReport() {
     statusLabel:
       venta.status === "canceled" ? t("pos.history.canceled") : t("pos.history.completed"),
     methodLabel: t(`pos.payment.${venta.paymentMethod}`),
+    // Sin descuento, la celda vacía (como el código de barras): así resaltan
+    // las que sí llevan. Un API anterior no lo manda y queda igual.
+    discount:
+      venta.discount !== undefined && Number(venta.discount) > 0
+        ? formatMoney(Number(venta.discount), currency, locale)
+        : "",
     total: formatMoney(Number(venta.total), currency, locale),
+    reason: <Motivo texto={motivo(venta)} />,
   }));
 
   return (
@@ -105,8 +124,38 @@ export function SalesReport() {
               </dd>
             </div>
           ))}
+          {/* F10-KPI-12: lo que se fue en descuentos en el periodo, de lo
+              cobrado. Aparte de las formas de pago: no es dinero que entró. */}
+          {data?.discountTotal !== undefined && (
+            <div className="flex items-baseline gap-2 border-l pl-4">
+              <dt className="text-muted-foreground">{t("reports.sales.discountTotal")}</dt>
+              <dd className="font-medium tabular-nums">
+                {formatMoney(Number(data.discountTotal), currency, locale)}
+              </dd>
+            </div>
+          )}
         </dl>
       )}
     </section>
+  );
+}
+
+/**
+ * F10-KPI-12 — el motivo que cuenta en cada venta: el de la cancelación en una
+ * cancelada (por qué no entró ese dinero) y el del descuento en una cobrada.
+ */
+function motivo(venta: SalesReportRow): string {
+  return (venta.status === "canceled" ? venta.cancelReason : venta.discountReason) ?? "";
+}
+
+/** Un motivo largo se corta en la tabla y se lee completo al pasar el cursor. */
+function Motivo({ texto }: { texto: string }) {
+  if (texto === "") {
+    return "";
+  }
+  return (
+    <span className="block max-w-56 truncate" title={texto}>
+      {texto}
+    </span>
   );
 }

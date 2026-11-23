@@ -163,6 +163,62 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
     });
   });
 
+  // ── F10-KPI-13 ────────────────────────────────────────────────────────
+  // Aquí hay dos cierres: Central con faltante de 10 y Norte cuadrado.
+
+  /**
+   * El diferencial: sin el filtro nuevo, la respuesta trae lo de siempre en
+   * su orden y el pie de diferencias va al final.
+   */
+  it("sin el filtro nuevo, la respuesta es la de siempre y el pie de diferencias va al final", async () => {
+    const res = await get(negocio.token, "/reports/shifts").expect(200);
+    const body = res.body as Record<string, unknown>;
+
+    expect(Object.keys(body)).toEqual(["rows", "total", "page", "pageSize", "differenceTotals"]);
+    expect(body.total).toBe(2);
+    // Lo que faltó y lo que sobró, cada uno por su lado: nunca se compensan.
+    expect(body.differenceTotals).toEqual({ shortage: "10.00", overage: "0.00" });
+  });
+
+  it("«Diferencia» deja los cierres con faltante, con sobrante o que cuadraron", async () => {
+    const ids = async (difference: string) =>
+      (
+        (await get(negocio.token, `/reports/shifts?difference=${difference}`).expect(200)).body as {
+          rows: { id: string }[];
+        }
+      ).rows.map((r) => r.id);
+
+    expect(await ids("shortage")).toEqual([turnoCentralId]);
+    expect(await ids("balanced")).toEqual([turnoNorteId]);
+    expect(await ids("overage")).toEqual([]);
+    await get(negocio.token, "/reports/shifts?difference=faltante").expect(400);
+  });
+
+  it("el Excel respeta el filtro «Diferencia», con las columnas de siempre", async () => {
+    const csv = await request(app.getHttpServer())
+      .get("/reports/shifts/export?format=csv&difference=balanced")
+      .set("Authorization", bearer(negocio.token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    const lineas = (csv.body as Buffer)
+      .toString("utf8")
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .split("\n");
+
+    expect(lineas[0]).toBe(
+      "Folio,Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
+    );
+    // Encabezado + el cierre cuadrado de Norte.
+    expect(lineas).toHaveLength(2);
+    expect(lineas[1]).toContain(",Beto Caja,Beto Caja,50,0,0,1,200,0,250,250,0,");
+  });
+
   it("filtra por quien cerró y por almacén", async () => {
     const porCajero = await get(negocio.token, `/reports/shifts?userId=${cajeroId}`).expect(200);
     expect((porCajero.body as { rows: { id: string }[] }).rows.map((r) => r.id)).toEqual([

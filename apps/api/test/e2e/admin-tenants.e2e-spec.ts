@@ -288,6 +288,56 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     expect(otro.headers["content-disposition"]).toContain("ventas-por-servicio");
   });
 
+  /**
+   * F10-KPI-11 y F10-KPI-13: el expediente usa los MISMOS DTO, así que los
+   * filtros y los campos nuevos de Ventas y de Cierres llegan solos. Sin los
+   * filtros nuevos, la respuesta es la de siempre con lo nuevo al final.
+   */
+  it("el expediente hereda el descuento de Ventas y la diferencia de Cierres", async () => {
+    const ventas = await comoAdmin("reports/sales").expect(200);
+    const cuerpo = ventas.body as { rows: Record<string, unknown>[] } & Record<string, unknown>;
+    expect(Object.keys(cuerpo)).toEqual([
+      "rows",
+      "totals",
+      "total",
+      "page",
+      "pageSize",
+      "discountTotal",
+    ]);
+    expect(cuerpo.discountTotal).toBe("0.00");
+    expect(cuerpo.rows[0]).toMatchObject({
+      discount: "0.00",
+      discountReason: null,
+      cancelReason: null,
+      canceledAt: null,
+      canceledBy: null,
+    });
+    // La venta de B no llevó descuento.
+    const conDescuento = await comoAdmin("reports/sales?discounted=true").expect(200);
+    expect((conDescuento.body as { rows: unknown[] }).rows).toHaveLength(0);
+    await comoAdmin("reports/sales/export?format=csv&discounted=true").expect(200);
+    // Ventas por producto sigue sin el filtro, como antes.
+    await comoAdmin("reports/sales-by-product?discounted=true").expect(400);
+
+    // El turno de B cerró con faltante: contó menos de lo calculado.
+    const cierres = await comoAdmin("reports/shifts").expect(200);
+    const pie = cierres.body as {
+      rows: { id: string; cashDifference: string | null }[];
+      differenceTotals: { shortage: string; overage: string };
+    };
+    expect(Object.keys(pie)).toEqual(["rows", "total", "page", "pageSize", "differenceTotals"]);
+    const diferencia = Number(pie.rows[0]?.cashDifference);
+    expect(diferencia).toBeLessThan(0);
+    expect(pie.differenceTotals).toEqual({ shortage: (-diferencia).toFixed(2), overage: "0.00" });
+    const faltante = await comoAdmin("reports/shifts?difference=shortage").expect(200);
+    expect((faltante.body as { rows: { id: string }[] }).rows.map((r) => r.id)).toEqual([
+      pie.rows[0]?.id,
+    ]);
+    const sobrante = await comoAdmin("reports/shifts?difference=overage").expect(200);
+    expect((sobrante.body as { rows: unknown[] }).rows).toHaveLength(0);
+    await comoAdmin("reports/shifts/export?format=csv&difference=overage").expect(200);
+  });
+
   it("las exportaciones bajan un archivo del negocio de la URL (F9-ADMIN-13)", async () => {
     const ventas = await comoAdmin("reports/sales/export?format=xlsx").expect(200);
     expect(ventas.headers["content-type"]).toContain("spreadsheet");

@@ -72,6 +72,9 @@ export const INSIGHTS: Screen[] = [
     chapter: REPORTS,
     as: "owner",
     path: "/reports/sales",
+    // Más ancha (F10-KPI-12): con «Descuento» y «Motivo», en 1280 la tabla se
+    // desliza y el motivo, del que habla el capítulo, queda fuera.
+    viewport: { width: 1600, height: 900 },
     // El título, los filtros, el botón de Excel y las primeras ventas: la
     // tabla completa no cabe en la hoja.
     target: (page) => [

@@ -18,6 +18,16 @@ export const salesReportQuerySchema = z
     folio: z.string().trim().max(32).optional(),
     sellerId: idField().optional(),
     status: z.enum(["completed", "canceled"]).optional(),
+    /**
+     * F10-KPI-11 — «Solo con descuento»: las ventas con `discount > 0` (el
+     * descuento TOTAL de la venta). Llega por la URL como texto, como el
+     * `belowMin` del stock. Opcional también a la salida: sin él, la consulta
+     * es la de siempre y el campo ni aparece.
+     */
+    discounted: z
+      .enum(["true", "false"])
+      .transform((valor) => valor === "true")
+      .optional(),
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),
   })
@@ -36,11 +46,20 @@ export type SalesExportQueryDto = z.infer<typeof salesExportQuerySchema>;
  * SIN `status`. Esos dos reportes listan solo lo cobrado (Carlos, 2026-11-02:
  * «sólo debe mostrar las ventas cobradas»), así que el estado no es un filtro
  * y mandarlo responde 400: `.omit` conserva el `.strict()`.
+ *
+ * Tampoco llevan `discounted` (F10-KPI-11): el descuento es del TICKET, y
+ * esos reportes son de líneas. Mandarlo sigue respondiendo 400, como antes.
  */
-export const salesLinesQuerySchema = salesReportQuerySchema.omit({ status: true });
+export const salesLinesQuerySchema = salesReportQuerySchema.omit({
+  status: true,
+  discounted: true,
+});
 
 export type SalesLinesQueryDto = z.infer<typeof salesLinesQuerySchema>;
 
-export const salesLinesExportQuerySchema = salesExportQuerySchema.omit({ status: true });
+export const salesLinesExportQuerySchema = salesExportQuerySchema.omit({
+  status: true,
+  discounted: true,
+});
 
 export type SalesLinesExportQueryDto = z.infer<typeof salesLinesExportQuerySchema>;

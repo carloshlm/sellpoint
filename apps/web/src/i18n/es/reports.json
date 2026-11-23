@@ -60,7 +60,11 @@
     "seller": "Vendió",
     "status": "Estado",
     "total": "Total",
-    "warehouse": "Sucursal"
+    "warehouse": "Sucursal",
+    "discount": "Descuento",
+    "reason": "Motivo",
+    "discountTotal": "Descuentos",
+    "onlyDiscounted": "Solo con descuento"
   },
   "salesLines": {
     "product": "Producto",
@@ -131,7 +135,11 @@
     "searchHint": "Busca en todas las fechas, abiertos y cerrados.",
     "pdf": "PDF",
     "pdfShift": "Descargar el PDF del turno {{folio}}",
-    "detailTitleOf": "Ventas del turno {{folio}}"
+    "detailTitleOf": "Ventas del turno {{folio}}",
+    "differenceAll": "Todas",
+    "differenceShortage": "Con faltante",
+    "differenceOverage": "Con sobrante",
+    "differenceTotals": "Faltó {{shortage}} · Sobró {{overage}}"
   },
   "taxes": {
     "title": "Impuestos cobrados",

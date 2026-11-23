@@ -32,6 +32,19 @@ function useRangoInicial(): RangoDeFechas {
   return { from: localCalendarDate(zona, new Date()), to: "" };
 }
 
+/**
+ * F10-KPI-12 — con qué filtros abre Ventas cuando se llega por un enlace
+ * (`/reports/sales?status=canceled&discounted=true`), ya validados por la
+ * ruta. Solo son el valor INICIAL: después, la pantalla los cambia como
+ * siempre.
+ */
+export interface SalesFiltersInitial {
+  status?: "completed" | "canceled";
+  discounted?: boolean;
+  from?: string;
+  to?: string;
+}
+
 interface SalesFiltersOptions {
   /**
    * Si la pantalla ofrece el filtro de Estado. Ventas sí; «Ventas por
@@ -39,16 +52,33 @@ interface SalesFiltersOptions {
    * cobrado y su API responde 400 si llega `status`.
    */
   showStatus?: boolean;
+  /**
+   * F10-KPI-12 — si ofrece «Solo con descuento». Solo Ventas: el descuento es
+   * del ticket, y los reportes de líneas responden 400 si llega `discounted`.
+   */
+  showDiscounted?: boolean;
+  initial?: SalesFiltersInitial;
 }
 
 /**
  * Los filtros de las ventas y su página. Cambiar un filtro vuelve a la página
  * 1: quedarse en la 7 de otra consulta muestra filas que no son las pedidas.
  */
-export function useSalesFilters({ showStatus = true }: SalesFiltersOptions = {}) {
-  const rangoInicial = useRangoInicial();
+export function useSalesFilters({
+  showStatus = true,
+  showDiscounted = false,
+  initial = {},
+}: SalesFiltersOptions = {}) {
+  const rangoPorOmision = useRangoInicial();
+  // Un enlace con fechas manda el rango completo: si trae solo «Hasta», no se
+  // asume «Desde» en hoy (daría un rango al revés).
+  const rangoInicial =
+    initial.from !== undefined || initial.to !== undefined
+      ? { from: initial.from ?? "", to: initial.to ?? "" }
+      : rangoPorOmision;
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
-  const [estado, setEstado] = useState<Estado>("todas");
+  const [estado, setEstado] = useState<Estado>(initial.status ?? "todas");
+  const [soloConDescuento, setSoloConDescuento] = useState(initial.discounted === true);
   const [rango, setRango] = useState<RangoDeFechas>(rangoInicial);
   const [page, setPage] = useState(1);
 
@@ -59,6 +89,7 @@ export function useSalesFilters({ showStatus = true }: SalesFiltersOptions = {})
   const filtros: SalesReportQuery = {
     ...(warehouseId !== null && { warehouseId }),
     ...(showStatus && estado !== "todas" && { status: estado }),
+    ...(showDiscounted && soloConDescuento && { discounted: true }),
     // Solo viajan con valor: mandar `from: ""` haría que el API rechace la
     // consulta por formato.
     ...(rango.from !== "" && { from: rango.from }),
@@ -76,11 +107,14 @@ export function useSalesFilters({ showStatus = true }: SalesFiltersOptions = {})
     setPage,
     barra: {
       showStatus,
+      showDiscounted,
       warehouseId,
       estado,
+      discounted: soloConDescuento,
       rango,
       onWarehouse: (valor: string | null) => alFiltrar(() => setWarehouseId(valor)),
       onEstado: (valor: Estado) => alFiltrar(() => setEstado(valor)),
+      onDiscounted: (valor: boolean) => alFiltrar(() => setSoloConDescuento(valor)),
       onRango: (valor: RangoDeFechas) => alFiltrar(() => setRango(valor)),
     },
   };
@@ -93,27 +127,34 @@ interface SalesFilterBarProps {
   showWarehouse: boolean;
   /** En `false` no hay filtro de Estado; lo decide `useSalesFilters`. */
   showStatus: boolean;
+  /** En `false` no hay «Solo con descuento»; lo decide `useSalesFilters`. */
+  showDiscounted: boolean;
   warehouseId: string | null;
   estado: Estado;
+  discounted: boolean;
   rango: RangoDeFechas;
   onWarehouse: (valor: string | null) => void;
   onEstado: (valor: Estado) => void;
+  onDiscounted: (valor: boolean) => void;
   onRango: (valor: RangoDeFechas) => void;
 }
 
 /**
  * Sucursal, Estado, Desde y Hasta: la barra de Ventas, compartida por sus dos
- * detalles, que no llevan Estado.
+ * detalles, que no llevan Estado. Ventas suma «Solo con descuento».
  */
 export function SalesFilterBar({
   id,
   showWarehouse,
   showStatus,
+  showDiscounted,
   warehouseId,
   estado,
+  discounted,
   rango,
   onWarehouse,
   onEstado,
+  onDiscounted,
   onRango,
 }: SalesFilterBarProps) {
   const { t } = useTranslation();
@@ -152,6 +193,18 @@ export function SalesFilterBar({
       )}
 
       <DateRangeFilter id={id} from={rango.from} to={rango.to} onChange={onRango} />
+
+      {showDiscounted && (
+        <label className="flex items-center gap-2 pb-2 text-sm">
+          <input
+            type="checkbox"
+            name="discounted"
+            checked={discounted}
+            onChange={(e) => onDiscounted(e.target.checked)}
+          />
+          {t("reports.sales.onlyDiscounted")}
+        </label>
+      )}
     </div>
   );
 }

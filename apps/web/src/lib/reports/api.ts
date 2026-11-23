@@ -79,6 +79,16 @@ export interface SalesReportRow {
   warehouseId: string;
   warehouse: { id: string; name: string };
   seller: { id: string; name: string };
+  /**
+   * F10-KPI-11: el descuento TOTAL de la venta (líneas más ticket), con dos
+   * decimales. Este campo y los cuatro siguientes son opcionales: durante un
+   * deploy, este web puede hablar con un API anterior que no los manda.
+   */
+  discount?: string;
+  discountReason?: string | null;
+  cancelReason?: string | null;
+  canceledAt?: string | null;
+  canceledBy?: { id: string; name: string } | null;
 }
 
 export interface SalesReportQuery {
@@ -87,6 +97,8 @@ export interface SalesReportQuery {
   to?: string;
   folio?: string;
   status?: "completed" | "canceled";
+  /** F10-KPI-11: solo las ventas con descuento. */
+  discounted?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -98,6 +110,8 @@ export interface SalesReportPage {
   total: number;
   page: number;
   pageSize: number;
+  /** F10-KPI-11: lo que se fue en descuentos en el periodo, solo de lo cobrado. */
+  discountTotal?: string;
 }
 
 export async function getSalesReport(
@@ -141,9 +155,10 @@ export interface SalesLineRow {
 
 /**
  * Los filtros de Ventas SIN el estado: estos dos reportes listan solo lo
- * cobrado y su API responde 400 si llega `status`.
+ * cobrado y su API responde 400 si llega `status`. Tampoco llevan
+ * `discounted`: el descuento es del ticket, no de la línea.
  */
-export type SalesLinesQuery = Omit<SalesReportQuery, "status">;
+export type SalesLinesQuery = Omit<SalesReportQuery, "status" | "discounted">;
 
 export interface SalesLinesPage {
   rows: SalesLineRow[];
@@ -262,12 +277,16 @@ export interface ShiftDetail extends ShiftRow {
   sales: ShiftSaleRow[];
 }
 
+/** F10-KPI-13: los cierres con faltante, con sobrante o que cuadraron. */
+export type ShiftDifference = "shortage" | "overage" | "balanced";
+
 export interface ShiftsReportQuery {
   /** El folio, completo o un pedazo: busca en todas las fechas y estados. */
   search?: string;
   warehouseId?: string;
   userId?: string;
   status?: "open" | "closed";
+  difference?: ShiftDifference;
   from?: string;
   to?: string;
   page?: number;
@@ -279,6 +298,11 @@ export interface ShiftsReportPage {
   total: number;
   page: number;
   pageSize: number;
+  /**
+   * F10-KPI-13: cuánto faltó y cuánto sobró en el periodo, en positivo y por
+   * separado. Opcional: un API anterior no lo manda.
+   */
+  differenceTotals?: { shortage: string; overage: string };
 }
 
 export async function getShiftsReport(

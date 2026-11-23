@@ -804,6 +804,153 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
   });
 
   /**
+   * F10-KPI-12 — «Ventas» con Descuento, Motivo y «Solo con descuento». Es la
+   * pantalla a la que llevarán los contadores de descuentos y cancelaciones
+   * del panel: dice cuáles, quién y por qué, y se puede llegar ya filtrada.
+   */
+  describe("ventas con descuento y motivo (F10-KPI-12)", () => {
+    const conDescuentos = () =>
+      mocked.getSalesReport.mockResolvedValue({
+        rows: [
+          filaVenta({ discount: "20.00", discountReason: "Cliente frecuente" }),
+          filaVenta({
+            id: "s2",
+            folio: "VTA-000002",
+            status: "canceled",
+            discount: "5.00",
+            discountReason: "Promoción",
+            cancelReason: "Se equivocó de producto",
+            canceledAt: "2026-08-24T18:00:00.000Z",
+            canceledBy: { id: "u2", name: "Luis Cajero" },
+          }),
+          filaVenta({ id: "s3", folio: "VTA-000003", discount: "0.00", discountReason: null }),
+        ],
+        totals: [{ paymentMethod: "cash", total: "200.00" }],
+        total: 3,
+        page: 1,
+        pageSize: 20,
+        discountTotal: "20.00",
+      });
+
+    /** La celda de `folio` bajo el encabezado `columna`. */
+    const celda = (folio: string, columna: string) => {
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      const fila = screen.getByText(folio).closest("tr") as HTMLElement;
+      return within(fila).getAllByRole("cell")[encabezados.indexOf(columna)];
+    };
+
+    it("Descuento y Motivo: el motivo del descuento en una cobrada y el de la cancelación en una cancelada", async () => {
+      conDescuentos();
+      await renderRuta("/reports/sales");
+      await screen.findByText("VTA-000001");
+
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      // El descuento al lado del total, que ya lo trae restado; el motivo al final.
+      expect(encabezados.indexOf("Descuento")).toBe(encabezados.indexOf("Total") - 1);
+      expect(encabezados.at(-1)).toBe("Motivo");
+      expect(celda("VTA-000001", "Descuento")).toHaveTextContent("$20.00");
+      expect(celda("VTA-000001", "Motivo")).toHaveTextContent("Cliente frecuente");
+      expect(celda("VTA-000002", "Motivo")).toHaveTextContent("Se equivocó de producto");
+      expect(celda("VTA-000002", "Motivo")).not.toHaveTextContent("Promoción");
+      // Sin descuento, la celda queda vacía: así resaltan las que sí llevan.
+      expect(celda("VTA-000003", "Descuento")).toHaveTextContent(/^$/);
+      expect(celda("VTA-000003", "Motivo")).toHaveTextContent(/^$/);
+    });
+
+    it("el pie dice cuánto se fue en descuentos en el periodo", async () => {
+      conDescuentos();
+      await renderRuta("/reports/sales");
+
+      const pie = await screen.findByTestId("sales-report-totals");
+      const descuentos = within(pie).getByText("Descuentos").closest("div") as HTMLElement;
+      expect(descuentos).toHaveTextContent("$20.00");
+    });
+
+    it("con un API anterior, sin los campos nuevos, la pantalla sigue como antes", async () => {
+      await renderRuta("/reports/sales");
+      await screen.findByText("VTA-000001");
+
+      const pie = screen.getByTestId("sales-report-totals");
+      expect(within(pie).queryByText("Descuentos")).not.toBeInTheDocument();
+      expect(within(pie).getByText(/100\.00/)).toBeInTheDocument();
+      expect(celda("VTA-000001", "Descuento")).toHaveTextContent(/^$/);
+    });
+
+    it("«Solo con descuento» viaja al API y al Excel; al quitarla, deja de viajar", async () => {
+      await renderRuta("/reports/sales");
+      await screen.findByText("VTA-000001");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("checkbox", { name: "Solo con descuento" }));
+      await waitFor(() =>
+        expect(mocked.getSalesReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ discounted: true, page: 1 }),
+        ),
+      );
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+      await waitFor(() =>
+        expect(mocked.downloadSalesReport).toHaveBeenCalledWith(
+          expect.objectContaining({ discounted: true }),
+        ),
+      );
+
+      await user.click(screen.getByRole("checkbox", { name: "Solo con descuento" }));
+      await waitFor(() =>
+        expect(mocked.getSalesReport.mock.lastCall?.[0]).not.toHaveProperty("discounted"),
+      );
+    });
+
+    it("llegar por URL aplica el estado, «Solo con descuento» y el rango", async () => {
+      await renderRuta(
+        "/reports/sales?status=canceled&discounted=true&from=2026-08-01&to=2026-08-31",
+      );
+      await screen.findByText("VTA-000001");
+
+      expect(mocked.getSalesReport.mock.calls[0]?.[0]).toMatchObject({
+        status: "canceled",
+        discounted: true,
+        from: "2026-08-01",
+        to: "2026-08-31",
+      });
+      expect(screen.getByLabelText(/estado/i)).toHaveValue("canceled");
+      expect(screen.getByRole("checkbox", { name: "Solo con descuento" })).toBeChecked();
+      expect(screen.getByLabelText(/desde/i)).toHaveValue("2026-08-01");
+      expect(screen.getByLabelText(/hasta/i)).toHaveValue("2026-08-31");
+    });
+
+    it("con solo «Hasta» en la URL, el rango es el de la URL: no asume hoy", async () => {
+      await renderRuta("/reports/sales?to=2026-08-31");
+      await screen.findByText("VTA-000001");
+
+      const primera = mocked.getSalesReport.mock.calls[0]?.[0] ?? {};
+      expect(primera).toMatchObject({ to: "2026-08-31" });
+      expect(primera).not.toHaveProperty("from");
+    });
+
+    it("lo inválido de la URL se descarta y la pantalla abre como siempre", async () => {
+      await renderRuta("/reports/sales?status=robada&discounted=quizas&from=2026-13-45&to=ayer");
+      await screen.findByText("VTA-000001");
+
+      const primera = mocked.getSalesReport.mock.calls[0]?.[0] ?? {};
+      expect(primera).toMatchObject({ from: hoyDelNegocio() });
+      expect(primera).not.toHaveProperty("status");
+      expect(primera).not.toHaveProperty("discounted");
+      expect(primera).not.toHaveProperty("to");
+      expect(screen.getByRole("checkbox", { name: "Solo con descuento" })).not.toBeChecked();
+    });
+
+    it("ventas por producto no ofrece «Solo con descuento» ni lo manda", async () => {
+      await renderRuta("/reports/sales-by-product?discounted=true");
+      await screen.findByText("Agua mineral");
+
+      expect(
+        screen.queryByRole("checkbox", { name: "Solo con descuento" }),
+      ).not.toBeInTheDocument();
+      expect(mocked.getSalesLinesReport.mock.lastCall?.[1]).not.toHaveProperty("discounted");
+    });
+  });
+
+  /**
    * F5-SHIFT-04 — los cierres de turno: lo que cada cajero registró al cerrar
    * («Efectivo contado en caja» y la nota) junto a lo que el sistema calculó.
    * La diferencia se pinta en color y «Ver» despliega las ventas del turno.
@@ -866,7 +1013,8 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
 
       const faltante = await screen.findByText(/-\$10\.00/);
       expect(faltante).toHaveClass("text-destructive");
-      expect(screen.getByText("Cuadró")).toBeInTheDocument();
+      // En la celda: «Cuadró» también es opción del filtro «Diferencia» (F10-KPI-13).
+      expect(screen.getByText("Cuadró", { selector: "td span" })).toBeInTheDocument();
     });
 
     /** F9-EXP-10 — los gastos que salieron del cajón, con signo, antes de lo calculado. */
@@ -1033,6 +1181,119 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await waitFor(() =>
         expect(screen.queryByText("Faltaron diez pesos")).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  /**
+   * F10-KPI-13 — «Cierres de turno» filtra por diferencia y la totaliza: los
+   * turnos con faltante se encuentran sin recorrer la lista, y el pie dice
+   * cuánto faltó y cuánto sobró, cada uno por su lado.
+   */
+  describe("cierres de turno por diferencia (F10-KPI-13)", () => {
+    it("«Diferencia» viaja al API y al Excel; «Todas» la quita", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+      const user = userEvent.setup();
+      const selector = screen.getByLabelText("Diferencia");
+
+      expect(
+        within(selector)
+          .getAllByRole("option")
+          .map((o) => o.textContent),
+      ).toEqual(["Todas", "Con faltante", "Con sobrante", "Cuadró"]);
+      await user.selectOptions(selector, "shortage");
+      await waitFor(() =>
+        expect(mocked.getShiftsReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ status: "closed", difference: "shortage", page: 1 }),
+        ),
+      );
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+      await waitFor(() =>
+        expect(mocked.downloadShiftsReport).toHaveBeenCalledWith(
+          expect.objectContaining({ difference: "shortage" }),
+        ),
+      );
+
+      await user.selectOptions(selector, "");
+      await waitFor(() =>
+        expect(mocked.getShiftsReport.mock.lastCall?.[0]).not.toHaveProperty("difference"),
+      );
+    });
+
+    it("el pie dice cuánto faltó y cuánto sobró, por separado", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [turno()],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        differenceTotals: { shortage: "10.00", overage: "5.50" },
+      });
+      await renderRuta("/reports/shifts");
+
+      expect(await screen.findByTestId("shifts-report-totals")).toHaveTextContent(
+        "Faltó $10.00 · Sobró $5.50",
+      );
+    });
+
+    it("con un API anterior, sin el pie de diferencias, la pantalla sigue como antes", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+
+      expect(screen.queryByTestId("shifts-report-totals")).not.toBeInTheDocument();
+    });
+
+    it("con «Abiertos» la diferencia no aplica: el selector se apaga, no viaja y no hay pie", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [turno()],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        differenceTotals: { shortage: "10.00", overage: "0.00" },
+      });
+      await renderRuta("/reports/shifts?difference=shortage");
+      await screen.findByText("Faltaron diez pesos");
+      expect(screen.getByTestId("shifts-report-totals")).toBeInTheDocument();
+      const user = userEvent.setup();
+
+      await user.selectOptions(screen.getByLabelText(/turnos/i), "open");
+
+      await waitFor(() =>
+        expect(mocked.getShiftsReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ status: "open" }),
+        ),
+      );
+      expect(mocked.getShiftsReport.mock.lastCall?.[0]).not.toHaveProperty("difference");
+      expect(screen.getByLabelText("Diferencia")).toBeDisabled();
+      // Un turno abierto no tiene arqueo: no hay faltantes ni sobrantes que sumar.
+      expect(screen.queryByTestId("shifts-report-totals")).not.toBeInTheDocument();
+    });
+
+    it("llegar por URL aplica la diferencia y el rango", async () => {
+      await renderRuta("/reports/shifts?difference=shortage&from=2026-09-01&to=2026-09-30");
+      await screen.findByText("Faltaron diez pesos");
+
+      expect(mocked.getShiftsReport.mock.calls[0]?.[0]).toMatchObject({
+        status: "closed",
+        difference: "shortage",
+        from: "2026-09-01",
+        to: "2026-09-30",
+      });
+      expect(screen.getByLabelText("Diferencia")).toHaveValue("shortage");
+      expect(screen.getByLabelText(/desde/i)).toHaveValue("2026-09-01");
+    });
+
+    it("lo inválido de la URL se descarta y la pantalla abre como siempre", async () => {
+      await renderRuta("/reports/shifts?difference=mucha&from=ayer&to=2026-02-30");
+      await screen.findByText("Faltaron diez pesos");
+
+      const primera = mocked.getShiftsReport.mock.calls[0]?.[0] ?? {};
+      expect(primera).toMatchObject({
+        status: "closed",
+        from: hoyDelNegocio(),
+        to: hoyDelNegocio(),
+      });
+      expect(primera).not.toHaveProperty("difference");
+      expect(screen.getByLabelText("Diferencia")).toHaveValue("");
     });
   });
 

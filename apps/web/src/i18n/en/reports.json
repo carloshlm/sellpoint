@@ -60,7 +60,11 @@
     "seller": "Sold by",
     "status": "Status",
     "total": "Total",
-    "warehouse": "Store"
+    "warehouse": "Store",
+    "discount": "Discount",
+    "reason": "Reason",
+    "discountTotal": "Discounts",
+    "onlyDiscounted": "Discounted only"
   },
   "salesLines": {
     "product": "Product",
@@ -131,7 +135,11 @@
     "searchHint": "Searches all dates, open and closed.",
     "pdf": "PDF",
     "pdfShift": "Download the PDF of shift {{folio}}",
-    "detailTitleOf": "Sales in shift {{folio}}"
+    "detailTitleOf": "Sales in shift {{folio}}",
+    "differenceAll": "All",
+    "differenceShortage": "Short",
+    "differenceOverage": "Over",
+    "differenceTotals": "Short {{shortage}} · Over {{overage}}"
   },
   "taxes": {
     "title": "Taxes collected",

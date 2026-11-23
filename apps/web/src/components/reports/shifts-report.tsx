@@ -19,11 +19,27 @@ import {
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { listUsers } from "@/lib/rbac/api";
-import { downloadShiftPdf, downloadShiftsReport, type ShiftsReportQuery } from "@/lib/reports/api";
+import {
+  downloadShiftPdf,
+  downloadShiftsReport,
+  type ShiftDifference,
+  type ShiftsReportQuery,
+} from "@/lib/reports/api";
 import { useShiftDetail, useShiftsReport } from "@/lib/reports/hooks";
 import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
+
+/**
+ * F10-KPI-13 — con qué filtros abre Cierres de turno cuando se llega por un
+ * enlace (`/reports/shifts?difference=shortage`), ya validados por la ruta.
+ * Solo son el valor INICIAL.
+ */
+export interface ShiftsFiltersInitial {
+  difference?: ShiftDifference;
+  from?: string;
+  to?: string;
+}
 
 /**
  * F5-SHIFT-04 — los cierres de turno: una LECTURA de lo que el cierre guardó
@@ -31,7 +47,11 @@ import { useAuthStore } from "@/stores/auth.store";
  * diferencia va en rojo cuando falta y en verde cuando sobra, y «Ver»
  * despliega abajo las ventas de ese turno, como el historial de pagos.
  */
-export function ShiftsReport() {
+export function ShiftsReport({
+  initialFilters = {},
+}: {
+  initialFilters?: ShiftsFiltersInitial;
+} = {}) {
   const { t, i18n } = useTranslation();
   const prefijoFolio = useFolioPrefix("cashbox_session");
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
@@ -46,7 +66,16 @@ export function ShiftsReport() {
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>("");
   const [estado, setEstado] = useState<"closed" | "open">("closed");
-  const [rango, setRango] = useState<RangoDeFechas>({ from: hoy, to: hoy });
+  // F10-KPI-13: un enlace con fechas manda el rango completo; sin fechas, hoy.
+  const [rango, setRango] = useState<RangoDeFechas>(
+    initialFilters.from !== undefined || initialFilters.to !== undefined
+      ? { from: initialFilters.from ?? "", to: initialFilters.to ?? "" }
+      : { from: hoy, to: hoy },
+  );
+  // "" es «Todas». La diferencia es de un CIERRE: solo viaja con «Cerrados».
+  const [filtroDiferencia, setFiltroDiferencia] = useState<ShiftDifference | "">(
+    initialFilters.difference ?? "",
+  );
   const [page, setPage] = useState(1);
   const [abierto, setAbierto] = useState<string | null>(null);
   // Carlos (2026-11-16): el turno se encuentra por su folio. Quien lo tiene en
@@ -64,6 +93,7 @@ export function ShiftsReport() {
         }
       : {
           status: estado,
+          ...(estado === "closed" && filtroDiferencia !== "" && { difference: filtroDiferencia }),
           ...(warehouseId !== null && { warehouseId }),
           ...(userId !== "" && { userId }),
           ...(rango.from !== "" && { from: rango.from }),
@@ -240,6 +270,25 @@ export function ShiftsReport() {
             <option value="open">{t("reports.shifts.open")}</option>
           </select>
         </label>
+        {/* F10-KPI-13: los turnos con faltante, sin recorrer la lista. Un turno
+            abierto todavía no tiene diferencia: con «Abiertos» no aplica. */}
+        <label htmlFor="shifts-report-difference" className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{t("reports.shifts.difference")}</span>
+          <select
+            id="shifts-report-difference"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50"
+            value={filtroDiferencia}
+            disabled={estado === "open"}
+            onChange={(e) =>
+              alFiltrar(() => setFiltroDiferencia(e.target.value as typeof filtroDiferencia))
+            }
+          >
+            <option value="">{t("reports.shifts.differenceAll")}</option>
+            <option value="shortage">{t("reports.shifts.differenceShortage")}</option>
+            <option value="overage">{t("reports.shifts.differenceOverage")}</option>
+            <option value="balanced">{t("reports.shifts.balanced")}</option>
+          </select>
+        </label>
         <DateRangeFilter
           id="shifts-report"
           from={rango.from}
@@ -268,6 +317,21 @@ export function ShiftsReport() {
             : downloadShiftsReport(filtros, "xlsx", reportsPath))
         }
       />
+
+      {/* F10-KPI-13: cuánto faltó y cuánto sobró en TODO el periodo filtrado,
+          cada uno por su lado: un faltante no se compensa con un sobrante. Con
+          «Abiertos» no hay cierres que sumar; un API anterior no lo manda. */}
+      {data?.differenceTotals !== undefined && (buscado !== "" || estado === "closed") && (
+        <p
+          className="rounded-lg border bg-card p-3 text-sm tabular-nums"
+          data-testid="shifts-report-totals"
+        >
+          {t("reports.shifts.differenceTotals", {
+            shortage: dinero(data.differenceTotals.shortage),
+            overage: dinero(data.differenceTotals.overage),
+          })}
+        </p>
+      )}
 
       {abierto !== null && (
         <section

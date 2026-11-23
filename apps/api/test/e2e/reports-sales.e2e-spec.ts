@@ -151,8 +151,10 @@ describe("Reporte de ventas (F5-SALES)", () => {
             cashboxSessionId: turnoNorte.id,
             status: "completed",
             paymentMethod: "card",
-            subtotal: "250.00",
-            discount: "0.00",
+            // F10-KPI-11: una cobrada CON descuento y su motivo.
+            subtotal: "270.00",
+            discount: "20.00",
+            discountReason: "Cliente frecuente",
             total: "250.00",
             createdBy: userId,
           },
@@ -163,8 +165,10 @@ describe("Reporte de ventas (F5-SALES)", () => {
             cashboxSessionId: turnoCentral.id,
             status: "canceled",
             paymentMethod: "cash",
-            subtotal: "70.00",
-            discount: "0.00",
+            // F10-KPI-11: una cancelada que también llevaba descuento; el total
+            // de descuentos no la cuenta.
+            subtotal: "80.00",
+            discount: "10.00",
             total: "70.00",
             createdBy: userId,
             // `canceled_by` y `canceled_at` van en PAREJA: lo exige el CHECK
@@ -404,6 +408,146 @@ describe("Reporte de ventas (F5-SALES)", () => {
     });
   });
 
+  // ── F10-KPI-11 ────────────────────────────────────────────────────────
+  /**
+   * El reporte dice cuáles ventas llevaron descuento, quién canceló y por qué.
+   * Lo de hoy no se mueve: los campos de siempre salen iguales y en su orden,
+   * y lo nuevo va al final.
+   */
+  describe("el descuento y los motivos (F10-KPI-11)", () => {
+    const CAMPOS_DE_HOY = [
+      "id",
+      "folio",
+      "barcode",
+      "createdAt",
+      "status",
+      "paymentMethod",
+      "total",
+      "taxTotal",
+      "warehouseId",
+      "warehouse",
+      "seller",
+    ];
+
+    /**
+     * El diferencial: sin los filtros nuevos, los campos de hoy salen con los
+     * mismos valores y en el mismo orden que antes del cambio (esta prueba
+     * pasa igual contra el código anterior).
+     */
+    it("sin los filtros nuevos, cada venta trae los campos de siempre, iguales y en su orden", async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/reports/sales?warehouseId=${centralId}&status=canceled`)
+        .set(auth())
+        .expect(200);
+
+      const body = response.body as { rows: Record<string, unknown>[] } & Record<string, unknown>;
+      expect(Object.keys(body).slice(0, 5)).toEqual([
+        "rows",
+        "totals",
+        "total",
+        "page",
+        "pageSize",
+      ]);
+      const fila = body.rows[0] as Record<string, unknown>;
+      expect(Object.keys(fila).slice(0, CAMPOS_DE_HOY.length)).toEqual(CAMPOS_DE_HOY);
+      expect(Object.fromEntries(CAMPOS_DE_HOY.map((k) => [k, fila[k]]))).toEqual({
+        id: expect.any(String),
+        folio: expect.stringMatching(/^VTA-X/),
+        barcode: null,
+        createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+        status: "canceled",
+        paymentMethod: "cash",
+        total: "70",
+        taxTotal: "0",
+        warehouseId: centralId,
+        warehouse: { id: centralId, name: "Central ventas" },
+        seller: { id: userId, name: "Ana Pérez" },
+      });
+      expect(body.totals).toEqual([]);
+      expect(body.total).toBe(1);
+    });
+
+    it("lo nuevo va al final: el descuento, los motivos y quién canceló", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/reports/sales")
+        .set(auth())
+        .expect(200);
+
+      const body = response.body as { rows: Record<string, unknown>[] } & Record<string, unknown>;
+      expect(Object.keys(body)).toEqual([
+        "rows",
+        "totals",
+        "total",
+        "page",
+        "pageSize",
+        "discountTotal",
+      ]);
+      const porFolio = new Map(body.rows.map((r) => [String(r.folio), r]));
+      const anulada = [...porFolio.values()].find((r) => r.status === "canceled");
+      expect(Object.keys(anulada ?? {})).toEqual([
+        ...CAMPOS_DE_HOY,
+        "discount",
+        "discountReason",
+        "cancelReason",
+        "canceledAt",
+        "canceledBy",
+      ]);
+      expect(anulada).toMatchObject({
+        discount: "10.00",
+        discountReason: null,
+        cancelReason: "prueba",
+        canceledAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+        canceledBy: { id: userId, name: "Ana Pérez" },
+      });
+      expect(porFolio.get(folioCentral)).toMatchObject({
+        discount: "0.00",
+        discountReason: null,
+        cancelReason: null,
+        canceledAt: null,
+        canceledBy: null,
+      });
+      const norte = [...porFolio.values()].find((r) => String(r.folio).startsWith("VTA-N"));
+      expect(norte).toMatchObject({ discount: "20.00", discountReason: "Cliente frecuente" });
+      // Del periodo entero y solo de lo cobrado: los 10 de la cancelada no cuentan.
+      expect(body.discountTotal).toBe("20.00");
+    });
+
+    it("«Solo con descuento» deja las ventas con descuento, cobradas o canceladas", async () => {
+      const response = await request(app.getHttpServer())
+        .get("/reports/sales?discounted=true")
+        .set(auth())
+        .expect(200);
+
+      const body = response.body as {
+        rows: { folio: string; status: string }[];
+        total: number;
+        discountTotal: string;
+      };
+      expect(body.total).toBe(2);
+      expect(body.rows.map((r) => r.status).sort()).toEqual(["canceled", "completed"]);
+      expect(body.rows.some((r) => r.folio === folioCentral)).toBe(false);
+      expect(body.discountTotal).toBe("20.00");
+
+      // `false` es la consulta de siempre; cualquier otra cosa, un 400.
+      const todas = await request(app.getHttpServer())
+        .get("/reports/sales?discounted=false")
+        .set(auth())
+        .expect(200);
+      expect((todas.body as { total: number }).total).toBe(3);
+      await request(app.getHttpServer())
+        .get("/reports/sales?discounted=quizas")
+        .set(auth())
+        .expect(400);
+    });
+
+    it("ventas por producto sigue sin aceptar `discounted`, como antes", async () => {
+      await request(app.getHttpServer())
+        .get("/reports/sales-by-product?discounted=true")
+        .set(auth())
+        .expect(400);
+    });
+  });
+
   /**
    * La no-regresión del builder extraído. El historial del POS es otra
    * audiencia con otro contrato, y refactorizar su `where` no puede cambiarlo
@@ -513,6 +657,68 @@ describe("Reporte de ventas (F5-SALES)", () => {
 
       // Encabezado + la única venta del Norte.
       expect(rows).toHaveLength(2);
+    });
+
+    /**
+     * F10-KPI-11 — el diferencial del archivo: las diez columnas de hoy salen
+     * iguales y en su lugar (esta parte pasa igual contra el código anterior);
+     * las cinco nuevas van después de «Total».
+     */
+    it("las columnas de hoy no se mueven; el descuento y los motivos van al final", async () => {
+      const response = await descargar("/reports/sales/export").expect(200);
+      const { rows } = await celdas(response.body as Buffer);
+
+      const HOY = [
+        "Folio",
+        "Código de barras",
+        "Fecha",
+        "Vendió",
+        "Sucursal",
+        "Estado",
+        "Pago",
+        "Neto",
+        "Impuesto",
+        "Total",
+      ];
+      expect(rows[0]?.slice(0, HOY.length)).toEqual(HOY);
+      const anulada = rows.find((r) => r[0]?.startsWith("VTA-X"));
+      expect(anulada?.slice(1, HOY.length)).toEqual([
+        "",
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        "Ana Pérez",
+        "Central ventas",
+        "Anulada",
+        "Efectivo",
+        "70",
+        "0",
+        "70",
+      ]);
+
+      expect(rows[0]?.slice(HOY.length)).toEqual([
+        "Descuento",
+        "Motivo del descuento",
+        "Canceló",
+        "Fecha de cancelación",
+        "Motivo de la cancelación",
+      ]);
+      expect(anulada?.slice(HOY.length)).toEqual([
+        "10",
+        "",
+        "Ana Pérez",
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        "prueba",
+      ]);
+      const norte = rows.find((r) => r[0]?.startsWith("VTA-N"));
+      expect(norte?.slice(HOY.length, HOY.length + 2)).toEqual(["20", "Cliente frecuente"]);
+    });
+
+    it("el export respeta «Solo con descuento»", async () => {
+      const response = await descargar("/reports/sales/export?discounted=true").expect(200);
+      const { rows } = await celdas(response.body as Buffer);
+
+      // Encabezado + la cobrada del Norte y la cancelada.
+      expect(rows).toHaveLength(3);
+      expect(rows.some((r) => r[0] === folioCentral)).toBe(false);
     });
 
     it("un Seller no puede exportar lo que no puede ver", async () => {

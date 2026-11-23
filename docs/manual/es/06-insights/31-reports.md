@@ -59,13 +59,26 @@ moverte.
 ![El reporte de ventas](screen:reports-sales)
 
 Una venta por renglón: su **Folio**, la **Fecha**, quién la cobró (**Vendió**),
-la **Sucursal**, el **Estado** y la forma de **Pago**. Con **Estado** puedes ver
-**Todas**, solo las **Cobrada** o solo las **Cancelada**.
+la **Sucursal**, el **Estado**, la forma de **Pago**, el **Descuento**, el
+**Total** y el **Motivo**. Con **Estado** puedes ver **Todas**, solo las
+**Cobrada** o solo las **Cancelada**.
 
-Al pie aparece cuánto entró por cada forma de pago. Esos totales son de **todo
-el periodo filtrado**, no solo de la página que estás viendo, y solo suman las
-ventas cobradas: si filtras solo las **Cancelada**, el pie no aparece, porque de
-una venta cancelada no entró dinero.
+El **Descuento** es todo lo que se descontó en esa venta: lo de cada producto y
+lo del ticket completo. Si la venta no tuvo descuento, la celda queda vacía. El
+**Motivo** dice el porqué: en una venta cobrada, el motivo del descuento que
+escribió el cajero; en una cancelada, el motivo de la cancelación. Para ver solo
+las ventas que llevaron descuento, marca **Solo con descuento**.
+
+Al pie aparece cuánto entró por cada forma de pago y, al lado, los
+**Descuentos**: cuánto se descontó. Esos totales son de **todo el periodo
+filtrado**, no solo de la página que estás viendo, y solo suman las ventas
+cobradas: si filtras solo las **Cancelada**, el pie no aparece, porque de una
+venta cancelada no entró dinero.
+
+El Excel trae, después de las columnas de siempre, cinco más: **Descuento**,
+**Motivo del descuento**, **Canceló** (quién canceló la venta), **Fecha de
+cancelación** y **Motivo de la cancelación**. Las columnas de siempre no
+cambian de lugar, así que lo que ya armaste sobre el archivo sigue funcionando.
 
 ## Ventas por producto y por servicio
 
@@ -115,6 +128,14 @@ días anteriores, elige un **Empleado** para ver solo los suyos o elige
 **Abiertos** en **Turnos** para ver los que siguen en curso. Si tienes el folio
 de un turno, escríbelo en **Buscar folio**: lo busca en todas las fechas,
 abiertos y cerrados. El cierre de turno se explica en el capítulo 5.
+
+Para encontrar los turnos que no cuadraron, usa **Diferencia**: **Con
+faltante** deja los que cerraron con menos dinero del calculado, **Con
+sobrante** los que cerraron con más y **Cuadró** los que coincidieron. Con
+**Abiertos** no aplica, porque un turno abierto todavía no tiene arqueo. Al pie
+verás cuánto faltó y cuánto sobró en todo el periodo filtrado, cada cosa por su
+lado (por ejemplo, «Faltó $150.00 · Sobró $20.00»): un sobrante no compensa un
+faltante. El Excel trae solo los turnos que deja el filtro.
 
 ## Impuestos cobrados
 

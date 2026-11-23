@@ -24,6 +24,14 @@ const HEADER = [
   "Neto",
   "Impuesto",
   "Total",
+  // F10-KPI-11: el descuento y los motivos, AL FINAL. Este archivo ya lo usa
+  // gente —tablas dinámicas, fórmulas sobre una columna—: las diez de antes
+  // no se mueven de lugar.
+  "Descuento",
+  "Motivo del descuento",
+  "Canceló",
+  "Fecha de cancelación",
+  "Motivo de la cancelación",
 ];
 
 const METODOS: Record<string, string> = {
@@ -53,7 +61,7 @@ export class SalesExportService {
       count: () => this.sales.count(user, scope, { ...query, ...SIN_PAGINAR }),
       rows: () => this.filas(user, scope, query),
       header: HEADER,
-      numericColumns: columnIndexes(HEADER, ["Neto", "Impuesto", "Total"]),
+      numericColumns: columnIndexes(HEADER, ["Neto", "Impuesto", "Total", "Descuento"]),
       format: query.format,
       sheetName: "Ventas",
       filenameBase: spreadsheetFilenameBase("ventas", locale),
@@ -84,6 +92,12 @@ export class SalesExportService {
           new Prisma.Decimal(venta.total).minus(venta.taxTotal).toString(),
           venta.taxTotal,
           venta.total,
+          venta.discount,
+          venta.discountReason ?? "",
+          venta.canceledBy?.name ?? "",
+          // El mismo corte que «Fecha»: el día, sin la hora.
+          venta.canceledAt?.slice(0, 10) ?? "",
+          venta.cancelReason ?? "",
         ]),
       );
       if (acumulado.length >= total || rows.length === 0) {
