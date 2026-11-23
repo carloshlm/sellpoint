@@ -222,9 +222,10 @@ export class CashboxService {
    * contó, lo calculado por el sistema, y su diferencia. Guardar solo la resta
    * perdería quién dijo qué, que es justo lo que se audita cuando no cuadra.
    *
-   * El lock es LÓGICO y va primero (`updateMany … WHERE status='open'` con
-   * `count = 1`): dos cierres simultáneos del mismo turno escribirían dos
-   * arqueos distintos sobre la misma fila.
+   * El lock va primero: la fila del turno con `FOR UPDATE` y después el
+   * lógico (`updateMany … WHERE status='open'` con `count = 1`): dos cierres
+   * simultáneos del mismo turno escribirían dos arqueos distintos sobre la
+   * misma fila.
    */
   async close(user: AuthUser, dto: CloseSessionDto) {
     const sesion = await this.current(user);
@@ -242,8 +243,18 @@ export class CashboxService {
       // otra cosa que el papel. Con la fila tomada, un gasto en efectivo que
       // quiera ligarse (`FOR UPDATE` sobre la sesión) espera y encuentra el
       // turno cerrado. Lo mismo una entrada o un retiro de efectivo
-      // (F10-CASHMOV-02); y si el movimiento tomó la fila primero, este
-      // `updateMany` lo espera y el arqueo de abajo ya lo cuenta.
+      // (F10-CASHMOV-02); y si el movimiento tomó la fila primero, el cierre
+      // lo espera y el arqueo de abajo ya lo cuenta.
+      //
+      // F10-PEND-01: la fila se toma ANTES de leer la hora. Antes, `closedAt`
+      // se calculaba al armar el `updateMany`, que después esperaba la fila:
+      // el movimiento que la tenía se guardaba con una hora POSTERIOR a la del
+      // cierre que lo contaba. Prisma le pone su `createdAt` con el reloj del
+      // API, así que la hora del cierre sale del mismo reloj, ya con la fila.
+      await tx.$queryRaw`
+        SELECT 1 FROM cashbox_sessions
+         WHERE id = ${sesion.id}::uuid AND tenant_id = ${user.tenantId}::uuid
+         FOR UPDATE`;
       const tomadas = await tx.cashboxSession.updateMany({
         where: { id: sesion.id, tenantId: user.tenantId, status: "open" },
         data: { status: "closed", closedBy: user.userId, closedAt: new Date() },

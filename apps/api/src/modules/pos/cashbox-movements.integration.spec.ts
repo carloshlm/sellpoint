@@ -205,6 +205,52 @@ describe("el arqueo cuenta las entradas y los retiros de efectivo (F10-CASHMOV-0
   });
 
   /**
+   * F10-PEND-01 — el aviso del verificador de F10-CASHMOV: un movimiento que
+   * gana la fila del turno se guardaba con una hora POSTERIOR a la del cierre
+   * que lo contó, porque el cierre tomaba la hora antes de esperar la fila.
+   * Aquí el movimiento toma la fila (como `CashMovementsService`), el cierre
+   * llega y espera, y el movimiento se guarda mientras tanto.
+   */
+  it("un movimiento que ganó la fila del turno queda ANTES de la hora del cierre que lo cuenta", async () => {
+    const { cajero, turno } = await turnoAbierto({ fondo: 100 });
+    let soltar = () => {};
+    const suelta = new Promise<void>((resolve) => {
+      soltar = resolve;
+    });
+    let avisarTomada = () => {};
+    const tomada = new Promise<void>((resolve) => {
+      avisarTomada = resolve;
+    });
+    const movimiento = prisma.withTenantContext(cajero.tenantId, async (tx) => {
+      await tx.$queryRaw`
+        SELECT 1 FROM cashbox_sessions WHERE id = ${turno.id}::uuid FOR UPDATE`;
+      avisarTomada();
+      await suelta;
+      return tx.cashMovement.create({
+        data: {
+          tenantId: cajero.tenantId,
+          cashboxSessionId: turno.id,
+          createdBy: cajero.userId,
+          type: "out",
+          reason: "safe",
+          amount: "40.00",
+        },
+      });
+    });
+    await tomada;
+
+    const cierre = service.close(cajero, { declaredCash: 60 });
+    // El cierre ya está formado detrás de la fila del turno.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    soltar();
+    const creado = await movimiento;
+    const cerrado = await cierre;
+
+    expect(cerrado).toMatchObject({ expectedCash: "60", cashOut: "40" });
+    expect(cerrado.session.closedAt?.getTime()).toBeGreaterThanOrEqual(creado.createdAt.getTime());
+  });
+
+  /**
    * F10-CASHMOV, decisión de arquitectura 7: lo nuevo va AL FINAL. Un web que
    * lee la respuesta por posición no existe, pero un web viejo durante el
    * deploy sí, y la regla es la misma en todas las respuestas.
