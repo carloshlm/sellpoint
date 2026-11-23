@@ -17,6 +17,7 @@ import {
   registerTenant,
   type TenantFixture,
 } from "./support/billing-scenario";
+import { textoDelPdf } from "./support/pdf-text";
 import { startTestApp } from "./support/start-test-app";
 
 const TZ = "America/Mexico_City";
@@ -212,7 +213,8 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       .split("\n");
 
     expect(lineas[0]).toBe(
-      "Folio,Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
+      // F10-CASHMOV-06: las dos columnas nuevas, al final; las de siempre no se mueven.
+      "Folio,Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota,Entradas de efectivo,Retiros de efectivo",
     );
     // Encabezado + el cierre cuadrado de Norte.
     expect(lineas).toHaveLength(2);
@@ -304,7 +306,8 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       // los resta). F10-MANFIX-10: «Fondo inicial» antes de los gastos (el
       // calculado ya lo suma).
       // Carlos (2026-11-16): el folio del turno va primero, como en la pantalla.
-      "Folio,Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
+      // F10-CASHMOV-06: las dos columnas nuevas, al final; las de siempre no se mueven.
+      "Folio,Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Fondo inicial,Gastos en efectivo,Calculado,Contado,Diferencia,Nota,Entradas de efectivo,Retiros de efectivo",
     );
     expect(lineas.some((l) => l.startsWith("TUR-000001,"))).toBe(true);
     // Central tiene DOS cierres: el del arqueo y el que abrió y cerró el caso de `status=open`.
@@ -349,7 +352,7 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
         .replace(/^\uFEFF/, "")
         .split("\n")[0],
     ).toBe(
-      "Folio,Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Opening cash,Cash expenses,Expected,Counted,Difference,Note",
+      "Folio,Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Opening cash,Cash expenses,Expected,Counted,Difference,Note,Cash paid in,Cash paid out",
     );
     await request(app.getHttpServer())
       .patch("/me")
@@ -502,6 +505,115 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
     await prisma.withTenantContext(negocio.tenantId, (tx) =>
       tx.cashboxSession.delete({ where: { id: turno.id } }),
     );
+  });
+
+  /**
+   * F10-CASHMOV-06 — las entradas y los retiros de efectivo, registrados por
+   * la caja de verdad, en la fila, el detalle, el Excel y el PDF. Un negocio
+   * aparte: los conteos de los casos de arriba no cambian.
+   */
+  it("la fila, el detalle, el Excel y el PDF dicen las entradas y los retiros del turno", async () => {
+    const otro = await registerTenant(app, "shifts-cashmov");
+    await prisma.tenant.update({ where: { id: otro.tenantId }, data: { timezone: TZ } });
+    const almacen = await almacenInicial(prisma, otro.tenantId);
+    const abierto = await post(otro.token, "/pos/session", {
+      warehouseId: almacen,
+      openingCash: 500,
+    }).expect(201);
+    const turno = abierto.body as { id: string; folio: string };
+    await post(otro.token, "/pos/session/movements", {
+      type: "in",
+      reason: "change_fund",
+      amount: 100,
+    }).expect(201);
+    await post(otro.token, "/pos/session/movements", {
+      type: "out",
+      reason: "safe",
+      amount: 400,
+      note: "Bolsa 17",
+    }).expect(201);
+    const equivocado = await post(otro.token, "/pos/session/movements", {
+      type: "out",
+      reason: "owner",
+      amount: 50,
+    }).expect(201);
+    await post(
+      otro.token,
+      `/pos/session/movements/${(equivocado.body as { id: string }).id}/cancel`,
+      {
+        reason: "Se equivocó de cajón",
+      },
+    ).expect(200);
+    // 500 de fondo + 100 que entraron − 400 a la caja fuerte = 200: cuadra.
+    await post(otro.token, "/pos/session/close", { declaredCash: 200 }).expect(200);
+
+    const lista = await get(otro.token, "/reports/shifts").expect(200);
+    const fila = (lista.body as { rows: Record<string, unknown>[] }).rows.find(
+      (r) => r.id === turno.id,
+    ) as Record<string, unknown>;
+    expect(fila).toMatchObject({
+      calculatedCash: "200",
+      cashDifference: "0",
+      cashIn: "100",
+      cashOut: "400",
+    });
+    expect(Object.keys(fila).slice(-2)).toEqual(["cashIn", "cashOut"]);
+
+    const detalle = (await get(otro.token, `/reports/shifts/${turno.id}`).expect(200)).body as {
+      cashIn: string;
+      cashOut: string;
+      movements: Record<string, unknown>[];
+    };
+    expect(Object.keys(detalle).slice(-4)).toEqual(["cashIn", "cashOut", "sales", "movements"]);
+    expect(detalle).toMatchObject({ cashIn: "100", cashOut: "400" });
+    // Del más viejo al más nuevo, con el anulado.
+    expect(detalle.movements.map((m) => [m.type, m.reason, m.amount, m.status])).toEqual([
+      ["in", "change_fund", "100", "active"],
+      ["out", "safe", "400", "active"],
+      ["out", "owner", "50", "canceled"],
+    ]);
+    expect(detalle.movements[1]).toMatchObject({
+      note: "Bolsa 17",
+      authorized: false,
+      createdBy: { name: "Ana Pérez" },
+    });
+    expect(detalle.movements[2]).toMatchObject({ cancelReason: "Se equivocó de cajón" });
+
+    const bajar = (url: string) =>
+      request(app.getHttpServer())
+        .get(url)
+        .set("Authorization", bearer(otro.token))
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        });
+    const csv = await bajar("/reports/shifts/export?format=csv").expect(200);
+    const [encabezado, renglon] = (csv.body as Buffer)
+      .toString("utf8")
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .split("\n");
+    expect(encabezado).toMatch(/,Diferencia,Nota,Entradas de efectivo,Retiros de efectivo$/);
+    // …,Fondo inicial,Gastos,Calculado,Contado,Diferencia,Nota,Entradas,Retiros
+    expect(renglon).toMatch(/,500,0,200,200,0,,100,400$/);
+
+    const pdf = textoDelPdf(
+      (await bajar(`/reports/shifts/${turno.id}/pdf`).expect(200)).body as Buffer,
+    );
+    for (const pedazo of [
+      "Entradas de efectivo",
+      "Retiros de efectivo",
+      "Entradas y retiros de efectivo",
+      "Fondo para cambio",
+      "A la caja fuerte",
+      "Bolsa 17",
+      "Anulado",
+      "Sin código",
+    ]) {
+      expect(pdf).toContain(pedazo);
+    }
   });
 
   it("sin reports:read → 403", async () => {

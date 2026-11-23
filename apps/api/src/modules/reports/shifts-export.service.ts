@@ -27,6 +27,9 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Contado",
     "Diferencia",
     "Nota",
+    // F10-CASHMOV-06: al FINAL, para no mover las columnas de siempre.
+    "Entradas de efectivo",
+    "Retiros de efectivo",
   ],
   en: [
     "Folio",
@@ -45,6 +48,8 @@ const ENCABEZADOS: Record<Locale, string[]> = {
     "Counted",
     "Difference",
     "Note",
+    "Cash paid in",
+    "Cash paid out",
   ],
 };
 /**
@@ -62,6 +67,8 @@ const NUMERICAS: Record<Locale, string[]> = {
     "Calculado",
     "Contado",
     "Diferencia",
+    "Entradas de efectivo",
+    "Retiros de efectivo",
   ],
   en: [
     "Cash",
@@ -73,6 +80,8 @@ const NUMERICAS: Record<Locale, string[]> = {
     "Expected",
     "Counted",
     "Difference",
+    "Cash paid in",
+    "Cash paid out",
   ],
 };
 const HOJA: Record<Locale, string> = { es: "Cierres de turno", en: "Shift closes" };
@@ -85,6 +94,10 @@ const HOJA: Record<Locale, string> = { es: "Cierres de turno", en: "Shift closes
  * F10-MANFIX-10: «Fondo inicial» va justo antes de «Gastos en efectivo» y de
  * «Calculado», como en la pantalla: el calculado suma el fondo y resta los
  * gastos, y las tres columnas juntas se leen como la cuenta que son.
+ *
+ * F10-CASHMOV-06: «Entradas de efectivo» y «Retiros de efectivo» van al FINAL,
+ * después de la nota, y no junto al calculado: una hoja que alguien ya arma
+ * con fórmulas sobre una columna sigue apuntando a la misma.
  */
 @Injectable()
 export class ShiftsExportService {
@@ -147,5 +160,7 @@ function fila(turno: ShiftRow, timeZone: string): string[] {
     turno.declaredCash ?? "",
     turno.cashDifference ?? "",
     turno.closingNote ?? "",
+    turno.cashIn,
+    turno.cashOut,
   ];
 }

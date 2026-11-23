@@ -7,6 +7,19 @@ import {
 } from "@sellpoint/shared";
 import { fecha, GRIS, type PdfTenant, type Translate } from "../medical-clinic/medical-pdf-blocks";
 
+/** F10-CASHMOV-06 — una entrada o un retiro de efectivo, como lo pinta el papel. */
+export interface PdfShiftCashMovement {
+  createdAt: Date;
+  type: "in" | "out";
+  reason: string;
+  amount: string;
+  createdBy: string;
+  note: string | null;
+  status: string;
+  /** Si el alta pasó por el código de autorización del negocio. */
+  authorized: boolean;
+}
+
 export interface PdfShiftCloseInput {
   tenant: PdfTenant & { currency: Currency };
   shift: {
@@ -25,6 +38,12 @@ export interface PdfShiftCloseInput {
     declaredCash: string | null;
     cashDifference: string | null;
     closingNote: string | null;
+    /**
+     * F10-CASHMOV-06: Σ de las entradas y de los retiros activos. Sin ellos
+     * (o en «0»), el arqueo no pinta esos renglones: es el papel de siempre.
+     */
+    cashIn?: string;
+    cashOut?: string;
   };
   sales: {
     folio: string;
@@ -35,6 +54,8 @@ export interface PdfShiftCloseInput {
     total: string;
   }[];
   expenses: { folio: string; description: string; createdBy: string; total: string }[];
+  /** F10-CASHMOV-06: del más viejo al más nuevo, con los anulados. Sin movimientos, no hay lista. */
+  movements?: PdfShiftCashMovement[];
   locale: Locale;
 }
 
@@ -50,10 +71,16 @@ export interface PdfShiftCloseInput {
  * gastos que salieron del cajón. Un turno todavía abierto lleva marca de agua
  * y no inventa el arqueo que aún no existe.
  *
+ * F10-CASHMOV-06: las entradas y los retiros de efectivo. En el arqueo, dos
+ * renglones entre lo cobrado y los gastos, solo si hubo; abajo, su lista, con
+ * el anulado tachado y el retiro que pasó sin el código marcado: es lo primero
+ * que el dueño busca cuando el cajón no le cuadra.
+ *
  * Importes sin símbolo y «Moneda: …» al pie, como los demás papeles.
  */
 export function buildShiftCloseDefinition(input: PdfShiftCloseInput, t: Translate) {
   const { tenant, shift, sales, expenses, locale } = input;
+  const movements = input.movements ?? [];
   const k = (sufijo: string) => t(`pdf.shiftClose.${sufijo}`);
   const dinero = (valor: string) => formatAmount(Number(valor), locale);
   const cuando = (valor: Date) => fecha(valor, locale, tenant.timezone);
@@ -90,6 +117,13 @@ export function buildShiftCloseDefinition(input: PdfShiftCloseInput, t: Translat
           string,
         ],
     ),
+    // F10-CASHMOV-06: la entrada suma y el retiro resta; en cero, no hay renglón.
+    ...(Number(shift.cashIn ?? 0) > 0
+      ? ([[k("cashIn"), dinero(shift.cashIn ?? "0")]] as [string, string][])
+      : []),
+    ...(Number(shift.cashOut ?? 0) > 0
+      ? ([[k("cashOut"), `-${dinero(shift.cashOut ?? "0")}`]] as [string, string][])
+      : []),
     [
       `${k("cashExpenses")} (${shift.cashExpenses.count})`,
       Number(shift.cashExpenses.total) > 0 ? `-${dinero(shift.cashExpenses.total)}` : dinero("0"),
@@ -204,6 +238,55 @@ export function buildShiftCloseDefinition(input: PdfShiftCloseInput, t: Translat
                     gasto.createdBy,
                     { text: dinero(gasto.total), alignment: "right" },
                   ]),
+                ],
+              },
+              layout: "lightHorizontalLines",
+              fontSize: 8,
+            },
+          ]),
+      ...(movements.length === 0
+        ? []
+        : [
+            { text: k("movementsTitle"), style: "seccion" },
+            {
+              table: {
+                headerRows: 1,
+                widths: ["auto", "auto", "auto", "*", "auto", "auto", "auto"],
+                body: [
+                  [
+                    k("dateTime"),
+                    k("kind"),
+                    k("reason"),
+                    k("note"),
+                    k("createdBy"),
+                    k("status"),
+                    k("amount"),
+                  ].map((texto) => ({ text: texto, bold: true })),
+                  ...movements.map((movimiento) => {
+                    const anulado = movimiento.status === "canceled";
+                    const marca = anulado ? { decoration: "lineThrough", color: GRIS } : {};
+                    // La entrada nunca pide código: «Sin código» es solo del retiro.
+                    const marcas = [
+                      ...(anulado ? [k("movementCanceled")] : []),
+                      ...(movimiento.type === "out" && !movimiento.authorized ? [k("noCode")] : []),
+                    ];
+                    return [
+                      { text: cuando(movimiento.createdAt), ...marca },
+                      { text: k(`movementType.${movimiento.type}`), ...marca },
+                      { text: k(`movementReason.${movimiento.reason}`), ...marca },
+                      { text: movimiento.note ?? "", ...marca },
+                      { text: movimiento.createdBy, ...marca },
+                      { text: marcas.join(" · "), color: GRIS },
+                      {
+                        text:
+                          movimiento.type === "out"
+                            ? `-${dinero(movimiento.amount)}`
+                            : dinero(movimiento.amount),
+                        alignment: "right",
+                        ...marca,
+                      },
+                    ];
+                  }),
                 ],
               },
               layout: "lightHorizontalLines",

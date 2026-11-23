@@ -133,8 +133,11 @@ no tiene código (capítulo 14), todos los retiros la llevan. Las entradas nunca
 piden código.
 
 Presiona **PDF** para descargar el cierre del turno en tamaño carta: arriba
-el arqueo y abajo las ventas y los gastos del cajón. El Excel trae las mismas
-columnas y, además, quién abrió el turno y lo vendido con cada forma de pago.
+el arqueo y abajo las ventas, los gastos del cajón y las entradas y retiros de
+efectivo, con los anulados tachados y los retiros **Sin código** marcados. El
+Excel trae las mismas columnas y, además, quién abrió el turno y lo vendido con
+cada forma de pago; las **Entradas de efectivo** y los **Retiros de efectivo**
+van al final.
 
 El reporte abre con los turnos **Cerrados** de hoy. Cambia las fechas para ver
 días anteriores, elige un **Empleado** para ver solo los suyos o elige

@@ -129,6 +129,24 @@
     "concept": "Concepto",
     "createdBy": "Registró",
     "amount": "Monto",
+    "cashIn": "Entradas de efectivo",
+    "cashOut": "Retiros de efectivo",
+    "movementsTitle": "Entradas y retiros de efectivo",
+    "kind": "Tipo",
+    "reason": "Motivo",
+    "movementType": {
+      "in": "Entrada",
+      "out": "Retiro"
+    },
+    "movementReason": {
+      "change_fund": "Fondo para cambio",
+      "safe": "A la caja fuerte",
+      "bank_deposit": "Depósito al banco",
+      "owner": "Retiro del dueño",
+      "other": "Otro"
+    },
+    "movementCanceled": "Anulado",
+    "noCode": "Sin código",
     "openWatermark": "TURNO ABIERTO"
   }
 }

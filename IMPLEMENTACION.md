@@ -6308,7 +6308,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-CASHMOV-REP — El dueño lo ve
 
-- [ ] **F10-CASHMOV-06** — API: «Cierres de turno», su detalle, su PDF y su Excel con los movimientos
+- [x] **F10-CASHMOV-06** *(cerrada el 2026-11-23)* — API: «Cierres de turno», su detalle, su PDF y su Excel con los movimientos
   - **Por qué:** el dueño tiene que poder ver quién sacó qué, cuándo y por qué, sobre todo si el retiro pasó sin código.
   - **Salida:**
     - **«Cierres de turno»:** cada fila gana `cashIn` y `cashOut` al final.
@@ -6318,6 +6318,20 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **Lo que no cambia:** el espejo del backoffice hereda los servicios. Los textos del PDF van en `pdf.json` es/en.
   - **Verificar:** `shifts-report.service.integration.spec.ts` (los campos y el detalle, con el anulado marcado), la spec del export (las columnas de hoy, en su orden) y la del PDF. e2e en `reports-shifts` y `admin-tenants`.
   - **Depende de:** F10-CASHMOV-03 · **Estimación:** 3.5 h
+  - **Cerrado (2026-11-23):**
+    - **Una sola fila:** la fila del movimiento y su lectura viven en UN lugar, `pos/cash-movements.ts` (`CashMovementRow`, `toCashMovementRow`, `movimientosDeSesion`). Las usan los endpoints del punto de venta y el reporte, así que no pueden tener formas distintas. Reportes importa solo esas funciones, no un módulo de Nest.
+    - **La lista:** cada fila gana `cashIn` y `cashOut` al final, con `movimientosPorSesion` en el mismo `Promise.all` que los gastos. Es una consulta por página, nunca una por fila, y lo prueba un `Proxy` que cuenta las llamadas.
+    - **El detalle:** gana `cashIn`, `cashOut` y `movements`, del más viejo al más nuevo, con los anulados. Las sumas salen de la misma función que el arqueo, no de sumar la lista.
+    - **El PDF:**
+      - en el desglose del esperado, «Entradas de efectivo» con «+» y «Retiros de efectivo» con «−», solo si son mayores que cero;
+      - después de los gastos del cajón, la lista de movimientos;
+      - un anulado va tachado y dice «Anulado»; un retiro sin código dice «Sin código», aunque el negocio nunca haya tenido código, porque es literal.
+    - **El Excel:** gana «Entradas de efectivo» y «Retiros de efectivo» al final, como números.
+    - **Textos:** los motivos son los del punto de venta en los dos idiomas (`pdf.json`, 9 claves).
+    - **Pruebas:** `shifts-export.service.spec.ts` nueva (4), más casos en `shifts-report.service.integration.spec.ts` (+5), `shift-pdf.renderer.spec.ts` (+5), `cash-movements.spec.ts` (+3), y en los e2e de `reports-shifts` y `admin-tenants`.
+    - **Mutantes cazados (13):** entre ellos una consulta por fila, el detalle sin anulados, en otro orden o de otro turno, la columna como texto, las columnas antes de «Nota», el retiro que suma en el papel, «Sin código» en una entrada y el PDF sin movimientos. Se restauró cada uno y se comprobó con `cmp`.
+    - **Diferencial contra 21ed4588:** cero diferencias en las specs, y en los e2e solo el encabezado exacto del Excel, que ganó las dos columnas al final.
+    - **Suite del API:** 2,205 pruebas, con los e2e `reports-shifts admin-tenants pos-cash-movements pos-cashbox` (106), `typecheck:full` y la emisión con `tsc -p tsconfig.build.json`.
 - [x] **F10-CASHMOV-07** *(cerrada el 2026-11-23, contra el contrato de la 06 fijado de antemano en `odd/tasks/f10-cashmov.md`, L6)* — Web: «Cierres de turno» enseña entradas, retiros y la lista de movimientos
   - **Por qué:** es la pantalla a la que lleva el contador de faltantes de «Control».
   - **Salida:**

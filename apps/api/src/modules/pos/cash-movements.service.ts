@@ -6,56 +6,34 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { type Currency, formatMoney, shortName } from "@sellpoint/shared";
+import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { AuthorizationCodeService } from "./authorization-code.service";
+import {
+  CASH_MOVEMENT_ROW_INCLUDE,
+  type CashMovementRow,
+  movimientosDeSesion,
+  toCashMovementRow,
+} from "./cash-movements";
 import { CashboxService, type TurnoDelArqueo } from "./cashbox.service";
 import type {
   CancelCashMovementDto,
-  CashMovementReasonCode,
   CashMovementTypeCode,
   CreateCashMovementDto,
 } from "./dto/cash-movement.dto";
 
-/** Quién: el id y el nombre corto, como en los gastos del cajón. */
-export interface CashMovementPerson {
-  id: string;
-  name: string;
-}
-
-/**
- * F10-CASHMOV-02 — un movimiento de efectivo como lo ve el web. Es el contrato
- * de L5 (`odd/tasks/f10-cashmov.md`), en ese orden: el web de F10-CASHMOV-04
- * se construye contra esta forma. El dinero viaja como texto.
- */
-export interface CashMovementRow {
-  id: string;
-  type: CashMovementTypeCode;
-  reason: CashMovementReasonCode;
-  amount: string;
-  note: string | null;
-  /** Si el alta pasó por el código de autorización del negocio. */
-  authorized: boolean;
-  status: "active" | "canceled";
-  createdAt: string;
-  createdBy: CashMovementPerson;
-  canceledAt: string | null;
-  canceledBy: CashMovementPerson | null;
-  cancelReason: string | null;
-}
+// La fila vive en `cash-movements.ts` (F10-CASHMOV-06): la comparte el detalle
+// de «Cierres de turno». Se reexporta para quien ya la importaba de aquí.
+export type { CashMovementPerson, CashMovementRow } from "./cash-movements";
 
 /** `GET /pos/session/movements`: los del turno abierto propio, del más nuevo al más viejo. */
 export interface CashMovementList {
   movements: CashMovementRow[];
 }
-
-const PERSONA = { select: { id: true, firstName: true, lastName: true } } as const;
-const CON_PERSONAS = { creator: PERSONA, canceler: PERSONA } as const;
-type MovimientoConPersonas = Prisma.CashMovementGetPayload<{ include: typeof CON_PERSONAS }>;
 
 /** Lo que hace falta saber de un movimiento para decidir si se puede anular. */
 type MovimientoAAnular = {
@@ -110,14 +88,9 @@ export class CashMovementsService {
     if (sesion === null) {
       return { movements: [] };
     }
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const filas = await tx.cashMovement.findMany({
-        where: { tenantId: user.tenantId, cashboxSessionId: sesion.id },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        include: CON_PERSONAS,
-      });
-      return { movements: filas.map(aFila) };
-    });
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => ({
+      movements: await movimientosDeSesion(tx, user.tenantId, sesion.id, "desc"),
+    }));
   }
 
   async create(
@@ -150,7 +123,7 @@ export class CashMovementsService {
           authorized,
           createdBy: user.userId,
         },
-        include: CON_PERSONAS,
+        include: CASH_MOVEMENT_ROW_INCLUDE,
       });
       await this.audit.record(tx, {
         tenantId: user.tenantId,
@@ -169,7 +142,7 @@ export class CashMovementsService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return aFila(creado);
+      return toCashMovementRow(creado);
     });
   }
 
@@ -207,7 +180,7 @@ export class CashMovementsService {
           canceledAt: new Date(),
           cancelReason: dto.reason,
         },
-        include: CON_PERSONAS,
+        include: CASH_MOVEMENT_ROW_INCLUDE,
       });
       await this.audit.record(tx, {
         tenantId: user.tenantId,
@@ -220,7 +193,7 @@ export class CashMovementsService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return aFila(anulado);
+      return toCashMovementRow(anulado);
     });
   }
 
@@ -333,25 +306,4 @@ function assertAnulable(
   if (movimiento.status === "canceled") {
     throw new ConflictException({ message: "pos.cash_movement_already_canceled" });
   }
-}
-
-function persona(p: { id: string; firstName: string; lastName: string }): CashMovementPerson {
-  return { id: p.id, name: shortName(p) };
-}
-
-function aFila(m: MovimientoConPersonas): CashMovementRow {
-  return {
-    id: m.id,
-    type: m.type,
-    reason: m.reason,
-    amount: m.amount.toString(),
-    note: m.note,
-    authorized: m.authorized,
-    status: m.status,
-    createdAt: m.createdAt.toISOString(),
-    createdBy: persona(m.creator),
-    canceledAt: m.canceledAt?.toISOString() ?? null,
-    canceledBy: m.canceler === null ? null : persona(m.canceler),
-    cancelReason: m.cancelReason,
-  };
 }

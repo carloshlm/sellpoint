@@ -386,4 +386,54 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     const stock = await comoAdmin("reports/stock/export?format=csv").expect(200);
     expect(stock.headers["content-disposition"]).toContain("attachment");
   });
+
+  /**
+   * F10-CASHMOV-06 — el expediente hereda «Cierres de turno» con las entradas
+   * y los retiros: la fila, el detalle con su lista y las dos columnas nuevas
+   * del Excel, sin una línea propia del backoffice. Va al final porque abre y
+   * cierra otro turno de B.
+   */
+  it("los cierres de B traen sus entradas y retiros, también en el detalle y el Excel", async () => {
+    const comoB = (metodo: "post", url: string, body: object) =>
+      request(app.getHttpServer())
+        [metodo](url)
+        .set("Authorization", bearer(negocioB.token))
+        .send(body);
+    const turno = await comoB("post", "/pos/session", { openingCash: 100 }).expect(201);
+    const turnoId = (turno.body as { id: string }).id;
+    await comoB("post", "/pos/session/movements", {
+      type: "out",
+      reason: "safe",
+      amount: 60,
+    }).expect(201);
+    await comoB("post", "/pos/session/close", { declaredCash: 40 }).expect(200);
+
+    const cierres = await comoAdmin("reports/shifts?status=closed").expect(200);
+    const fila = (cierres.body as { rows: Record<string, unknown>[] }).rows.find(
+      (r) => r.id === turnoId,
+    );
+    expect(fila).toMatchObject({ cashIn: "0", cashOut: "60", cashDifference: "0" });
+
+    const detalle = await comoAdmin(`reports/shifts/${turnoId}`).expect(200);
+    expect((detalle.body as { movements: unknown[] }).movements).toEqual([
+      expect.objectContaining({ type: "out", reason: "safe", amount: "60", authorized: false }),
+    ]);
+
+    const folio = (turno.body as { folio: string }).folio;
+    const archivo = await comoAdmin(`reports/shifts/export?format=csv&search=${folio}`)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    const [encabezado, renglon] = (archivo.body as Buffer)
+      .toString("utf8")
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .split("\n");
+    expect(encabezado).toMatch(/,Nota,Entradas de efectivo,Retiros de efectivo$/);
+    expect(renglon).toMatch(/,0,60$/);
+  });
 });

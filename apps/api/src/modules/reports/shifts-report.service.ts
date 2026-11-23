@@ -6,6 +6,13 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import type { AuthUser } from "../auth/types/auth-user";
 import { assertWarehouseInScope } from "../inventory/warehouse-scope.helpers";
 import {
+  type CashMovementRow,
+  movimientosDeSesion,
+  movimientosPorSesion,
+  type SessionCashMovements,
+  sinMovimientos,
+} from "../pos/cash-movements";
+import {
   gastosEnEfectivoPorSesion,
   type SessionCashExpenses,
   sinGastos,
@@ -38,6 +45,13 @@ export interface ShiftRow {
   declaredCash: string | null;
   cashDifference: string | null;
   closingNote: string | null;
+  /**
+   * F10-CASHMOV-06: Σ de las entradas de efectivo ACTIVAS del turno («0» sin
+   * entradas); el calculado ya las suma. Al final: un web anterior la ignora.
+   */
+  cashIn: string;
+  /** F10-CASHMOV-06: Σ de los retiros de efectivo ACTIVOS del turno («0» sin retiros); el calculado ya los resta. */
+  cashOut: string;
 }
 
 export interface ShiftSaleRow {
@@ -53,6 +67,11 @@ export interface ShiftSaleRow {
 /** El turno con sus ventas: lo que devuelve `GET /reports/shifts/:id`. */
 export interface ShiftDetail extends ShiftRow {
   sales: ShiftSaleRow[];
+  /**
+   * F10-CASHMOV-06: las entradas y los retiros del turno, del más viejo al más
+   * nuevo, con los anulados. La MISMA fila que la caja (`CashMovementRow`).
+   */
+  movements: CashMovementRow[];
 }
 
 /** Una página del listado. */
@@ -138,13 +157,20 @@ export class ShiftsReportService {
         sumaDe(POR_DIFERENCIA.overage),
       ]);
       const ids = filas.map((f) => f.id);
-      const [totales, gastos] = await Promise.all([
+      // F10-CASHMOV-06: los movimientos de la página, en UNA consulta como los gastos.
+      const [totales, gastos, movimientos] = await Promise.all([
         totalesPorSesion(tx, user.tenantId, ids),
         gastosEnEfectivoPorSesion(tx, user.tenantId, ids),
+        movimientosPorSesion(tx, user.tenantId, ids),
       ]);
       return {
         rows: filas.map((f) =>
-          this.fila(f, totales.get(f.id) ?? totalesEnCero(), gastos.get(f.id) ?? sinGastos()),
+          this.fila(
+            f,
+            totales.get(f.id) ?? totalesEnCero(),
+            gastos.get(f.id) ?? sinGastos(),
+            movimientos.get(f.id) ?? sinMovimientos(),
+          ),
         ),
         total,
         page: query.page,
@@ -175,12 +201,19 @@ export class ShiftsReportService {
         },
       });
       const ids = filas.map((f) => f.id);
-      const [totales, gastos] = await Promise.all([
+      // F10-CASHMOV-06: los movimientos de la página, en UNA consulta como los gastos.
+      const [totales, gastos, movimientos] = await Promise.all([
         totalesPorSesion(tx, user.tenantId, ids),
         gastosEnEfectivoPorSesion(tx, user.tenantId, ids),
+        movimientosPorSesion(tx, user.tenantId, ids),
       ]);
       return filas.map((f) =>
-        this.fila(f, totales.get(f.id) ?? totalesEnCero(), gastos.get(f.id) ?? sinGastos()),
+        this.fila(
+          f,
+          totales.get(f.id) ?? totalesEnCero(),
+          gastos.get(f.id) ?? sinGastos(),
+          movimientos.get(f.id) ?? sinMovimientos(),
+        ),
       );
     });
   }
@@ -216,6 +249,10 @@ export class ShiftsReportService {
       const totales = (await totalesPorSesion(tx, user.tenantId, [id])).get(id) ?? totalesEnCero();
       const gastos =
         (await gastosEnEfectivoPorSesion(tx, user.tenantId, [id])).get(id) ?? sinGastos();
+      const sumas =
+        (await movimientosPorSesion(tx, user.tenantId, [id])).get(id) ?? sinMovimientos();
+      // Del más viejo al más nuevo: el detalle se lee como pasó el turno.
+      const movements = await movimientosDeSesion(tx, user.tenantId, id, "asc");
       const sales: ShiftSaleRow[] = fila.sales.map((v) => ({
         id: v.id,
         folio: v.folio,
@@ -225,7 +262,7 @@ export class ShiftsReportService {
         status: v.status,
         total: v.total.toString(),
       }));
-      return { ...this.fila(fila, totales, gastos), sales };
+      return { ...this.fila(fila, totales, gastos, sumas), sales, movements };
     });
   }
 
@@ -248,6 +285,7 @@ export class ShiftsReportService {
     },
     totals: SessionTotal[],
     cashExpenses: SessionCashExpenses,
+    movimientos: SessionCashMovements,
   ): ShiftRow {
     return {
       id: f.id,
@@ -266,6 +304,8 @@ export class ShiftsReportService {
       declaredCash: f.declaredCash?.toString() ?? null,
       cashDifference: f.cashDifference?.toString() ?? null,
       closingNote: f.closingNote,
+      cashIn: movimientos.cashIn,
+      cashOut: movimientos.cashOut,
     };
   }
 

@@ -183,4 +183,127 @@ describe("el PDF del cierre de turno", () => {
     expect(abierto.watermark).toMatchObject({ text: "TURNO ABIERTO" });
     expect(JSON.stringify(abierto)).not.toContain("Efectivo contado");
   });
+  /**
+   * F10-CASHMOV-06 — las entradas y los retiros de efectivo. En el arqueo, dos
+   * renglones entre lo cobrado y los gastos, solo si hubo; abajo, la lista,
+   * como la de los gastos del cajón, con el anulado y el retiro sin código
+   * marcados: es lo primero que el dueño busca cuando no le cuadra.
+   */
+  describe("las entradas y los retiros de efectivo (F10-CASHMOV-06)", () => {
+    const conMovimientos: PdfShiftCloseInput = {
+      ...base,
+      shift: { ...base.shift, cashIn: "400", cashOut: "2000" },
+      movements: [
+        {
+          createdAt: new Date("2026-10-30T20:30:00.000Z"),
+          type: "in",
+          reason: "change_fund",
+          amount: "400",
+          createdBy: "Carlos Cinco",
+          note: null,
+          status: "active",
+          authorized: false,
+        },
+        {
+          createdAt: new Date("2026-10-30T23:00:00.000Z"),
+          type: "out",
+          reason: "safe",
+          amount: "2000",
+          createdBy: "Luis Caja",
+          note: "Bolsa 17",
+          status: "active",
+          authorized: true,
+        },
+        {
+          createdAt: new Date("2026-10-30T23:10:00.000Z"),
+          type: "out",
+          reason: "owner",
+          amount: "300",
+          createdBy: "Luis Caja",
+          note: null,
+          status: "canceled",
+          authorized: false,
+        },
+        {
+          createdAt: new Date("2026-10-30T23:20:00.000Z"),
+          type: "out",
+          reason: "bank_deposit",
+          amount: "150",
+          createdBy: "Luis Caja",
+          note: null,
+          status: "active",
+          authorized: false,
+        },
+      ],
+    };
+
+    it("sin movimientos no aparecen ni los renglones ni la lista", () => {
+      for (const input of [
+        base,
+        { ...base, shift: { ...base.shift, cashIn: "0", cashOut: "0" }, movements: [] },
+      ]) {
+        const todo = texto(input);
+        expect(todo).not.toContain("Entradas de efectivo");
+        expect(todo).not.toContain("Retiros de efectivo");
+        expect(todo).not.toContain("Entradas y retiros");
+      }
+    });
+
+    it("en el arqueo, la entrada suma y el retiro resta, antes de los gastos", () => {
+      const definicion = buildShiftCloseDefinition(conMovimientos, t);
+      const arqueo = JSON.stringify(
+        (definicion.content[2] as { columns: { table?: unknown }[] }).columns[1]?.table,
+      );
+      expect(arqueo).toContain('"Entradas de efectivo"},{"text":"400.00"');
+      expect(arqueo).toContain('"Retiros de efectivo"},{"text":"-2,000.00"');
+      expect(arqueo.indexOf("Transferencia")).toBeLessThan(arqueo.indexOf("Entradas de efectivo"));
+      expect(arqueo.indexOf("Retiros de efectivo")).toBeLessThan(
+        arqueo.indexOf("Gastos en efectivo"),
+      );
+    });
+
+    it("un renglón en cero no sale: solo entradas, solo su renglón", () => {
+      const todo = texto({
+        ...conMovimientos,
+        shift: { ...base.shift, cashIn: "400", cashOut: "0" },
+      });
+      expect(todo).toContain("Entradas de efectivo");
+      expect(todo).not.toContain("Retiros de efectivo");
+    });
+
+    it("la lista dice tipo, motivo, nota, quién e importe; marca el anulado y el retiro sin código", () => {
+      const todo = texto(conMovimientos);
+      for (const pedazo of [
+        "Entradas y retiros de efectivo",
+        "Entrada",
+        "Retiro",
+        "Fondo para cambio",
+        "A la caja fuerte",
+        "Retiro del dueño",
+        "Depósito al banco",
+        "Bolsa 17",
+        "Luis Caja",
+        "2,000.00",
+        "Anulado",
+        "Sin código",
+      ]) {
+        expect(todo).toContain(pedazo);
+      }
+      // Ninguna llave sin traducir.
+      expect(todo).not.toMatch(/"[a-z_]+\.[a-zA-Z_.]+:?/);
+    });
+
+    it("el anulado va tachado; la entrada nunca dice «Sin código» (no lo pide)", () => {
+      const definicion = buildShiftCloseDefinition(conMovimientos, t);
+      const lista = JSON.stringify(definicion.content).split("Entradas y retiros de efectivo")[1];
+      const renglones = (lista ?? "").split("],[");
+      const entrada = renglones.find((r) => r.includes("Fondo para cambio")) ?? "";
+      const anulado = renglones.find((r) => r.includes("Retiro del dueño")) ?? "";
+      const conCodigo = renglones.find((r) => r.includes("A la caja fuerte")) ?? "";
+      expect(entrada).not.toContain("Sin código");
+      expect(conCodigo).not.toContain("Sin código");
+      expect(anulado).toContain("lineThrough");
+      expect(anulado).toContain("Anulado");
+    });
+  });
 });

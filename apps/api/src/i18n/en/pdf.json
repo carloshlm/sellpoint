@@ -129,6 +129,24 @@
     "concept": "Description",
     "createdBy": "Recorded by",
     "amount": "Amount",
+    "cashIn": "Cash paid in",
+    "cashOut": "Cash paid out",
+    "movementsTitle": "Cash paid in and out",
+    "kind": "Type",
+    "reason": "Reason",
+    "movementType": {
+      "in": "Paid in",
+      "out": "Paid out"
+    },
+    "movementReason": {
+      "change_fund": "Change for the drawer",
+      "safe": "To the safe",
+      "bank_deposit": "Bank deposit",
+      "owner": "Owner withdrawal",
+      "other": "Other"
+    },
+    "movementCanceled": "Canceled",
+    "noCode": "No code",
     "openWatermark": "OPEN SHIFT"
   }
 }

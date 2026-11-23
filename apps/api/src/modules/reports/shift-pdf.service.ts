@@ -115,6 +115,8 @@ export class ShiftPdfService {
           declaredCash: turno.declaredCash,
           cashDifference: turno.cashDifference,
           closingNote: turno.closingNote,
+          cashIn: turno.cashIn,
+          cashOut: turno.cashOut,
         },
         sales: turno.sales.map((venta) => ({
           folio: venta.folio,
@@ -129,6 +131,17 @@ export class ShiftPdfService {
           description: gasto.description,
           createdBy: gasto.createdBy.name,
           total: gasto.total,
+        })),
+        // F10-CASHMOV-06: del mismo detalle que la pantalla, del más viejo al más nuevo.
+        movements: turno.movements.map((movimiento) => ({
+          createdAt: new Date(movimiento.createdAt),
+          type: movimiento.type,
+          reason: movimiento.reason,
+          amount: movimiento.amount,
+          createdBy: movimiento.createdBy.name,
+          note: movimiento.note,
+          status: movimiento.status,
+          authorized: movimiento.authorized,
         })),
         locale,
       },
