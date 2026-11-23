@@ -77,10 +77,16 @@ describe("createCashMovementSchema (F10-CASHMOV-02)", () => {
     );
   });
 
-  it("un código que no son 4 a 8 dígitos rebota como el del descuento", () => {
-    expect(issues({ type: "out", reason: "safe", amount: 1, code: "12ab" })).toContain(
-      "pos.discount_code_invalid",
-    );
+  // F10-PEND-02: la forma la revisa el service, solo cuando el movimiento lo pide.
+  it("el código pasa tal cual: un mal escrito no tumba lo que no lo pide", () => {
+    expect(registrar({ type: "in", reason: "change_fund", amount: 1, code: "12ab" }).data).toEqual({
+      type: "in",
+      reason: "change_fund",
+      amount: 1,
+      code: "12ab",
+    });
+    expect(cancelCashMovementSchema.safeParse({ reason: "x", code: "12ab" }).success).toBe(true);
+    expect(registrar({ type: "out", reason: "safe", amount: 1, code: 1234 }).success).toBe(false);
   });
 
   it("un campo de más rebota: el cuerpo es estricto", () => {

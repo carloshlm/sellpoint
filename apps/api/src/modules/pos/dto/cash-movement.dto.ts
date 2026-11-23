@@ -1,4 +1,4 @@
-import { hasValidMoneyScale, isDiscountCode, MONEY_MAX } from "@sellpoint/shared";
+import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
 import { z } from "zod";
 
 /** F10-CASHMOV-02 — los dos sentidos del efectivo: entra al cajón o sale de él. */
@@ -37,8 +37,9 @@ const IMPORTE_INVALIDO = { message: "pos.cash_movement_amount_invalid" } as cons
 /**
  * F10-CASHMOV-02 — registrar una entrada o un retiro. El importe es un número
  * con hasta 2 decimales, mayor que cero y con el tope del fondo inicial. El
- * código es el de autorización del negocio, con la forma del descuento; si
- * hace falta o no lo decide el service, que sabe si el negocio lo tiene.
+ * código es el de autorización del negocio; si hace falta, y su forma (la
+ * del descuento), los revisa el service, que sabe si el negocio lo tiene y
+ * si este movimiento lo pide (F10-PEND-02).
  */
 export const createCashMovementSchema = z
   .object({
@@ -54,7 +55,7 @@ export const createCashMovementSchema = z
       .trim()
       .max(CASH_MOVEMENT_TEXT_MAX, { message: "pos.cash_movement_note_too_long" })
       .nullish(),
-    code: z.string().refine(isDiscountCode, { message: "pos.discount_code_invalid" }).nullish(),
+    code: z.string().nullish(),
   })
   .strict()
   .refine((m) => CASH_MOVEMENT_REASONS_BY_TYPE[m.type].includes(m.reason), {
@@ -76,7 +77,7 @@ export const cancelCashMovementSchema = z
       .trim()
       .min(1, { message: "pos.cash_movement_cancel_reason_required" })
       .max(CASH_MOVEMENT_TEXT_MAX, { message: "pos.cash_movement_cancel_reason_too_long" }),
-    code: z.string().refine(isDiscountCode, { message: "pos.discount_code_invalid" }).nullish(),
+    code: z.string().nullish(),
   })
   .strict();
 

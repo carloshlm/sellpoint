@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -6,7 +7,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { type Currency, formatMoney } from "@sellpoint/shared";
+import { type Currency, formatMoney, isDiscountCode } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -202,6 +203,11 @@ export class CashMovementsService {
    * no hay nada que pedir: pasa sin autorización (`false`). Con código, sin
    * mandarlo es 422; mandado, lo verifica `AuthorizationCodeService` con la
    * cuenta de intentos del descuento.
+   *
+   * F10-PEND-02: la FORMA del código (4 a 8 dígitos) se revisa aquí y no en el
+   * DTO, porque solo aquí se sabe si hace falta. En el DTO, un código mal
+   * escrito tumbaba una entrada o la anulación de un retiro, que no lo piden.
+   * Sigue siendo 400 y no gasta un intento, como en el descuento.
    */
   private async autorizar(user: AuthUser, code: string | null | undefined): Promise<boolean> {
     const tenant = await this.prisma.tenant.findUnique({
@@ -213,6 +219,9 @@ export class CashMovementsService {
     }
     if (code == null) {
       throw new UnprocessableEntityException({ message: "pos.cash_movement_code_required" });
+    }
+    if (!isDiscountCode(code)) {
+      throw new BadRequestException({ message: "pos.discount_code_invalid" });
     }
     await this.authorizationCode.verify(user, tenant.discountCodeHash, code, this.logger);
     return true;

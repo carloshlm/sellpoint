@@ -292,5 +292,45 @@ describe("Entradas y retiros de efectivo (F10-CASHMOV-02)", () => {
         200,
       );
     });
+
+    /**
+     * F10-PEND-02 — un código mal escrito rebotaba aunque el movimiento no lo
+     * pidiera. Ahora su forma se revisa solo donde se pide, y sin gastar un
+     * intento, como antes.
+     */
+    it("un código mal escrito solo rebota donde se pide, y no gasta intentos", async () => {
+      const cajero = await cajeroNuevo("cashmov-codigo-malformado");
+      await abrir(cajero).expect(201);
+
+      const entrada = await registrar(cajero, {
+        type: "in",
+        reason: "change_fund",
+        amount: 50,
+        code: "12ab",
+      }).expect(201);
+      expect(entrada.body).toMatchObject({ authorized: false });
+
+      for (let i = 0; i < 5; i += 1) {
+        const malo = await registrar(cajero, {
+          type: "out",
+          reason: "safe",
+          amount: 10,
+          code: "12ab",
+        }).expect(400);
+        expect(mensaje(malo)).toBe("El código de autorización no es correcto.");
+      }
+      // Cinco mal escritos no cierran el candado: el bueno pasa.
+      const retiro = await registrar(cajero, {
+        type: "out",
+        reason: "safe",
+        amount: 10,
+        code: "1234",
+      }).expect(201);
+
+      await anular(cajero, (retiro.body as { id: string }).id, {
+        reason: "No se hizo",
+        code: "12ab",
+      }).expect(200);
+    });
   });
 });
