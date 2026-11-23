@@ -40,5 +40,18 @@
   "discount_code_locked": "Demasiados intentos con el código de autorización. Espera 15 minutos.",
   "discount_not_configured": "Este negocio no tiene código de autorización de descuentos. El administrador lo define en Mi perfil.",
   "discount_exceeds_subtotal": "El descuento no puede ser mayor que el subtotal.",
-  "discount_exceeds_limit": "El descuento supera el tope del negocio ({max} % del subtotal)."
+  "discount_exceeds_limit": "El descuento supera el tope del negocio ({max} % del subtotal).",
+  "cash_movement_type_invalid": "El movimiento es una entrada o un retiro de efectivo.",
+  "cash_movement_reason_invalid": "Ese motivo no corresponde al tipo de movimiento.",
+  "cash_movement_amount_invalid": "El importe debe ser mayor que cero, con hasta 2 decimales.",
+  "cash_movement_note_required": "Con el motivo «Otro», escribe una nota.",
+  "cash_movement_note_too_long": "La nota admite hasta 300 caracteres.",
+  "cash_movement_code_required": "Este movimiento pide el código de autorización del negocio.",
+  "cash_out_exceeds_drawer": "El efectivo del cajón no puede quedar debajo de cero: hay {available}.",
+  "cash_movement_not_found": "No encontramos ese movimiento de efectivo.",
+  "cash_movement_not_own": "Ese movimiento es del turno de otra persona.",
+  "cash_movement_session_closed": "Ese movimiento es de un turno cerrado: ya no se puede anular.",
+  "cash_movement_already_canceled": "Ese movimiento ya está anulado.",
+  "cash_movement_cancel_reason_required": "Explica por qué se anula el movimiento.",
+  "cash_movement_cancel_reason_too_long": "El motivo admite hasta 300 caracteres."
 }

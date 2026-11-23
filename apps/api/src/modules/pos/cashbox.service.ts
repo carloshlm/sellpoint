@@ -170,8 +170,13 @@ export class CashboxService {
    * turno, que también viajan en la respuesta (`cashIn`, `cashOut`) por la
    * misma razón. El cierre llama a este método dentro de su transacción, así
    * que lo que guarda es lo que la pantalla mostró.
+   *
+   * Público por F10-CASHMOV-02: un retiro, o la anulación de una entrada, no
+   * puede dejar el esperado debajo de cero, y lo comprueba con ESTE cálculo,
+   * dentro de su transacción y con la fila del turno ya tomada. Una segunda
+   * cuenta del esperado sería la que un día diría otra cosa.
    */
-  private async arqueo(
+  async arqueo(
     tx: Prisma.TransactionClient,
     tenantId: string,
     session: TurnoDelArqueo,
@@ -236,7 +241,9 @@ export class CashboxService {
       // `calculatedCash` persistido mientras el reporte (que recalcula) decía
       // otra cosa que el papel. Con la fila tomada, un gasto en efectivo que
       // quiera ligarse (`FOR UPDATE` sobre la sesión) espera y encuentra el
-      // turno cerrado.
+      // turno cerrado. Lo mismo una entrada o un retiro de efectivo
+      // (F10-CASHMOV-02); y si el movimiento tomó la fila primero, este
+      // `updateMany` lo espera y el arqueo de abajo ya lo cuenta.
       const tomadas = await tx.cashboxSession.updateMany({
         where: { id: sesion.id, tenantId: user.tenantId, status: "open" },
         data: { status: "closed", closedBy: user.userId, closedAt: new Date() },

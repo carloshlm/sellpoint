@@ -1,9 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
-  HttpException,
-  HttpStatus,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -16,11 +12,8 @@ import {
   prorateDiscountCents,
   shortName,
 } from "@sellpoint/shared";
-import type { Redis } from "ioredis";
 import { Prisma } from "../../generated/prisma/client";
-import { HASHER, type HashPort } from "../../infrastructure/crypto/hash.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
-import { REDIS_CLIENT } from "../../infrastructure/redis/redis.tokens";
 import type { AuthUser } from "../auth/types/auth-user";
 import { EntitlementsService } from "../billing/entitlements.service";
 import { SalesPlanGate } from "../billing/sales-plan.gate";
@@ -31,6 +24,7 @@ import { nextFolio, nextSequenceValue } from "../inventory/folio";
 import type { ResolvedLine } from "../inventory/line-resolver";
 import { resolveLotsFefo } from "../inventory/lot-fefo";
 import { StockLedgerService } from "../inventory/stock-ledger.service";
+import { AuthorizationCodeService } from "./authorization-code.service";
 import { CashboxService } from "./cashbox.service";
 import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
@@ -98,10 +92,6 @@ interface PrecioResuelto {
  * acabó entre que se armó el carrito y se cobró— no queda ni un folio gastado
  * ni media venta.
  */
-/** F4-DISC: intentos fallidos de PIN antes del candado, y cuánto dura. */
-const DISCOUNT_MAX_ATTEMPTS = 5;
-const DISCOUNT_LOCK_SECONDS = 15 * 60;
-
 @Injectable()
 export class SalesService {
   constructor(
@@ -111,8 +101,7 @@ export class SalesService {
     private readonly entitlements: EntitlementsService,
     private readonly salesPlanGate: SalesPlanGate,
     private readonly weightedCost: WeightedCostService,
-    @Inject(HASHER) private readonly hasher: HashPort,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly authorizationCode: AuthorizationCodeService,
     private readonly saleHooks: SaleHooksRegistry,
   ) {}
 
@@ -125,6 +114,11 @@ export class SalesService {
    * autorizar (422); cinco intentos fallidos seguidos bloquean al usuario
    * quince minutos (429) — es una credencial y se defiende como tal; un PIN
    * equivocado es 403 y se cuenta. El acierto borra la cuenta.
+   *
+   * F10-CASHMOV-02: la verificación vive en `AuthorizationCodeService`, que
+   * también usan los retiros de efectivo con la MISMA cuenta de intentos. El
+   * descuento se comporta igual que antes: mismos mensajes, mismos estados y
+   * el aviso en el log con el contexto de este service.
    */
   private async autorizarDescuento(
     user: AuthUser,
@@ -137,25 +131,7 @@ export class SalesService {
     if (tenant?.discountCodeHash == null) {
       throw new UnprocessableEntityException({ message: "pos.discount_not_configured" });
     }
-    const llave = `pos:discount-attempts:${user.tenantId}:${user.userId}`;
-    const intentos = Number((await this.redis.get(llave)) ?? 0);
-    if (intentos >= DISCOUNT_MAX_ATTEMPTS) {
-      throw new HttpException(
-        { message: "pos.discount_code_locked" },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    const valido = await this.hasher.verify(tenant.discountCodeHash, descuento.code);
-    if (!valido) {
-      await this.redis.incr(llave);
-      await this.redis.expire(llave, DISCOUNT_LOCK_SECONDS);
-      this.logger.warn(
-        { tenantId: user.tenantId, userId: user.userId },
-        "pos.discount_code_invalid",
-      );
-      throw new ForbiddenException({ message: "pos.discount_code_invalid" });
-    }
-    await this.redis.del(llave);
+    await this.authorizationCode.verify(user, tenant.discountCodeHash, descuento.code, this.logger);
     return {
       amountCents: Math.round(descuento.amount * 100),
       maxPercent: tenant.discountMaxPercent === null ? null : Number(tenant.discountMaxPercent),

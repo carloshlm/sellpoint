@@ -6208,7 +6208,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **Rojo observado:** 38 de 38, primero sin el cliente y luego sin la tabla.
     - **Mutantes cazados (6), sobre la migración real reaplicada:** sin el CHECK del importe; `change_fund` permitido con `out`; «Otro» con una nota en blanco; un activo con sellos de anulación; sin RLS; la llave del turno en CASCADE. Se restauró cada uno y se comprobó con `cmp`.
     - **Suite del API:** 222 archivos y 2,140 pruebas en verde, con `typecheck:full`.
-- [ ] **F10-CASHMOV-02** — API: registrar y anular un movimiento
+- [x] **F10-CASHMOV-02** *(cerrada el 2026-11-23, después de la 03)* — API: registrar y anular un movimiento
   - **Por qué:** es el botón que le falta al cajero.
   - **Salida:**
     - **Endpoints**, con `pos:sell` y `@AllowedInFreeTier`: `POST /pos/session/movements` (`{ type, reason, amount, note?, code? }`), `GET /pos/session/movements` (los del turno abierto propio, del más nuevo al más viejo, con quién los registró) y `POST /pos/session/movements/:id/cancel` (`{ reason, code? }`).
@@ -6222,6 +6222,26 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **e2e** en `pos-cashbox.e2e-spec.ts`: 403 sin `pos:sell` y la forma de la respuesta. El e2e del descuento sigue en verde sin tocarlo.
     - **Diferencial:** las specs del descuento corridas contra la base y contra el cambio.
   - **Depende de:** F10-CASHMOV-01 · **Estimación:** 4.5 h · **Riesgo:** puntos 2 y 4
+  - **Cerrado (2026-11-23):**
+    - **Dónde vive:** `CashMovementsService` (`list`, `create`, `cancel`) en `pos/cash-movements.service.ts`, con la fila exportada `CashMovementRow` en el orden del contrato. Los tres endpoints van en `pos.controller.ts`, con `pos:sell` y `@AllowedInFreeTier`.
+    - **El código:** su verificación salió a `AuthorizationCodeService` (`pos/authorization-code.service.ts`), con la MISMA llave de Redis `pos:discount-attempts:<negocio>:<usuario>`, cinco intentos y quince minutos de bloqueo. Un código equivocado en un retiro cuenta para el bloqueo del descuento, y al revés. Los mensajes del código son los del descuento, que ya dicen «código de autorización».
+    - **Mensajes nuevos:**
+      - el código que falta: 422 `pos.cash_movement_code_required`;
+      - el retiro que deja el esperado debajo de cero: 422 `pos.cash_out_exceeds_drawer`, con lo que hay en el cajón en la moneda del negocio; si el esperado ya es negativo, dice $0;
+      - el movimiento que no existe: 404;
+      - el de otro: 403;
+      - el turno cerrado y el ya anulado: 409.
+    - **El orden de las revisiones:** el turno se toma con `SELECT … FOR UPDATE` y su estado se revisa otra vez con la fila tomada. Si el cierre ganó, el movimiento rebota; si ganó el movimiento, el `updateMany` del cierre espera y lo cuenta. El esperado se calcula con el mismo `arqueo()` del cierre, que pasó a público.
+    - **Anular:** las revisiones baratas (que exista, de quién es, el turno, si ya se anuló) van antes del código, para que una petición que va a rebotar no gaste un intento.
+    - **El código que no aplica:** uno que llega con una entrada, o en un negocio sin código, se ignora: no se verifica ni gasta intento, y `authorized` queda en `false`.
+    - **Límites:** la nota y el motivo de la anulación aceptan hasta 300 caracteres; el web pide al menos 3 en el motivo, como al cancelar una venta. El importe es mayor que cero, con dos decimales y el tope `MONEY_MAX` del fondo inicial.
+    - **Rastro:** `audit_logs` con `pos.cash_movement.create` y `pos.cash_movement.cancel`.
+    - **Pruebas:** `cash-movement-dtos.spec.ts` (9), `authorization-code.service.spec.ts` (5), `cash-movements.service.integration.spec.ts` (20, con Postgres y Redis reales) y `test/e2e/pos-cash-movements.e2e-spec.ts` (9).
+    - **La concurrencia:** Gastos no tenía una prueba que copiar. Una tercera transacción sostiene el `FOR UPDATE` y la prueba espera con `pg_blocking_pids` a que los dos contendientes estén formados; así los dos órdenes salen deterministas.
+    - **Rojo observado:** los módulos que no existían y los 9 e2e en 404.
+    - **Mutantes cazados (14):** entre ellos sin `FOR UPDATE`, sin revisar otra vez tras tomar la fila, el retiro sin tope, el retiro sin código, `authorized` en `true` sin código, otra llave de intentos, anular lo ajeno, anular dos veces y el descuento que se salta la verificación. Se restauró cada uno y se comprobó con `cmp`.
+    - **Diferencial contra 490471f3:** las specs del descuento (94) y los e2e de `pos-discount`, `pos-cashbox` y `expenses` (89), con cero diferencias prueba por prueba.
+    - **Suite del API:** 227 archivos y 2,188 pruebas con `--maxWorkers=2`. En la corrida a máquina cargada, tres specs ajenas excedieron los 5 s de su `beforeAll` y pasaron solas. Los e2e `pos-*` y `expenses` (204), `typecheck:full` y la emisión con `tsc -p tsconfig.build.json`, en verde.
 - [x] **F10-CASHMOV-03** *(cerrada el 2026-11-23, antes que la 02: la regla «no por debajo de cero» necesita el esperado con los movimientos)* — API: el arqueo cuenta las entradas y los retiros
   - **Por qué:** registrar el retiro no sirve si el cierre lo sigue llamando faltante.
   - **Salida:**

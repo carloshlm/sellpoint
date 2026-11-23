@@ -40,5 +40,18 @@
   "discount_code_locked": "Too many attempts with the authorization code. Wait 15 minutes.",
   "discount_not_configured": "This business has no discount authorization code. The administrator sets it in My profile.",
   "discount_exceeds_subtotal": "The discount cannot exceed the subtotal.",
-  "discount_exceeds_limit": "The discount exceeds the business limit ({max}% of the subtotal)."
+  "discount_exceeds_limit": "The discount exceeds the business limit ({max}% of the subtotal).",
+  "cash_movement_type_invalid": "A cash movement is either cash in or cash out.",
+  "cash_movement_reason_invalid": "That reason does not match the type of movement.",
+  "cash_movement_amount_invalid": "The amount must be greater than zero, with up to 2 decimals.",
+  "cash_movement_note_required": "With the reason \"Other\", write a note.",
+  "cash_movement_note_too_long": "The note allows up to 300 characters.",
+  "cash_movement_code_required": "This movement requires the business authorization code.",
+  "cash_out_exceeds_drawer": "The cash in the drawer cannot go below zero: there is {available}.",
+  "cash_movement_not_found": "We could not find that cash movement.",
+  "cash_movement_not_own": "That movement belongs to someone else's shift.",
+  "cash_movement_session_closed": "That movement belongs to a closed shift: it can no longer be canceled.",
+  "cash_movement_already_canceled": "That movement is already canceled.",
+  "cash_movement_cancel_reason_required": "Explain why the movement is being canceled.",
+  "cash_movement_cancel_reason_too_long": "The reason allows up to 300 characters."
 }

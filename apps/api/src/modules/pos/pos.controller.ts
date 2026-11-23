@@ -11,7 +11,7 @@ import {
   Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
 import { UuidParam } from "../../common/http/uuid-param.decorator";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -25,7 +25,18 @@ import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.de
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { ShiftPdfService } from "../reports/shift-pdf.service";
 import { type WarehouseSummary, WarehousesService } from "../warehouses/warehouses.service";
+import {
+  type CashMovementList,
+  type CashMovementRow,
+  CashMovementsService,
+} from "./cash-movements.service";
 import { CashboxService, type SessionArqueo } from "./cashbox.service";
+import {
+  type CancelCashMovementDto,
+  type CreateCashMovementDto,
+  cancelCashMovementSchema,
+  createCashMovementSchema,
+} from "./dto/cash-movement.dto";
 import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
 import {
   type CancelSaleDto,
@@ -54,6 +65,11 @@ import { SalesService } from "./sales.service";
 import type { TicketWidth } from "./ticket.renderer";
 import { TicketService } from "./ticket.service";
 
+/** La IP y el navegador de la petición, para la bitácora (como en Gastos). */
+function metaFrom(request: Request) {
+  return { ip: request.ip, userAgent: request.headers["user-agent"] };
+}
+
 /**
  * F4-CASHBOX-01 — el turno de caja.
  *
@@ -73,6 +89,7 @@ export class PosController {
     private readonly i18n: I18nService,
     private readonly warehouses: WarehousesService,
     private readonly shiftPdf: ShiftPdfService,
+    private readonly cashMovements: CashMovementsService,
   ) {}
 
   /**
@@ -160,6 +177,51 @@ export class PosController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.cashbox.close(user, dto);
+  }
+
+  /**
+   * F10-CASHMOV-02 — las entradas y los retiros de efectivo del turno abierto
+   * propio, del más nuevo al más viejo. Sin turno, `{ movements: [] }`: como
+   * `GET /pos/session`, «todavía no abriste» no es un error.
+   */
+  @Get("session/movements")
+  @AllowedInFreeTier()
+  @RequirePermissions("pos:sell")
+  listCashMovements(@CurrentUser() user: AuthUser): Promise<CashMovementList> {
+    return this.cashMovements.list(user);
+  }
+
+  /**
+   * F10-CASHMOV-02 — registra una entrada o un retiro en el turno abierto
+   * propio. Con `pos:sell` y sin candado de plan, como abrir y cerrar: el turno
+   * existe en todos los planes. Un retiro pide el código del negocio si lo
+   * tiene; las reglas viven en `CashMovementsService`.
+   */
+  @AllowedInFreeTier()
+  @Post("session/movements")
+  @RequirePermissions("pos:sell")
+  createCashMovement(
+    @Body(new ZodValidationPipe(createCashMovementSchema, "pos.invalid_body"))
+    dto: CreateCashMovementDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ): Promise<CashMovementRow> {
+    return this.cashMovements.create(user, dto, metaFrom(request));
+  }
+
+  /** F10-CASHMOV-02 — anula un movimiento del turno abierto propio. Nunca se borra. */
+  @AllowedInFreeTier()
+  @Post("session/movements/:id/cancel")
+  @HttpCode(200)
+  @RequirePermissions("pos:sell")
+  cancelCashMovement(
+    @UuidParam("id") id: string,
+    @Body(new ZodValidationPipe(cancelCashMovementSchema, "pos.invalid_body"))
+    dto: CancelCashMovementDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ): Promise<CashMovementRow> {
+    return this.cashMovements.cancel(user, id, dto, metaFrom(request));
   }
 
   /**
