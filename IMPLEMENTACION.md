@@ -6385,7 +6385,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
       - un `code` mal formado en una entrada da 400 en lugar de ignorarse, y el web nunca lo manda;
       - el campo del motivo de anulación no tiene `maxLength`, aunque el API responde con su mensaje;
       - una venta en efectivo cancelada después de un retiro puede dejar el esperado negativo, porque la regla se revisa solo al retirar.
-    - **Carlos da el visto a la pantalla** cuando vuelva.
+    - **Carlos dio el visto bueno** el 2026-11-23, después de verlo en producción: «si te doy el visto bueno». Quedó en producción con el deploy 45204217286 (62e4222c), al primer intento.
 
 **Orden de ejecución:** 01 → 02 y 03 (pueden ir en paralelo, sobre la misma tabla) → 04 → 05 → 06 → 07 → 08. Tres commits de riesgo van solos: 01, 02 y 03. Lo del cajero (02 a 05) se sube junto: un retiro registrado que el cierre no cuenta, o un cierre que lo cuenta sin un botón para registrarlo, confunde más que hoy.
 
