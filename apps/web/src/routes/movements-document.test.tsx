@@ -9,7 +9,7 @@ import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import * as kardexApi from "../lib/inventory/kardex-api";
-import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
+import type { DocumentDetail, DocumentProduct, DocumentRow } from "../lib/inventory/types";
 import * as productsApi from "../lib/products/api";
 import { createQueryClient } from "../lib/query-client";
 import * as rbacApi from "../lib/rbac/api";
@@ -631,6 +631,62 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
  * compra". Quien intentara corregir lo que veía solo podía elegir otro motivo,
  * y ese PATCH suelta el `linkedWarehouseId`: la recepción quedaba sin traspaso.
  */
+/**
+ * F10-QTYFMT-01 — Carlos (2026-11-23): «Podrías quitar los decimales y dejarlo
+ * entero cuando los decimales sean cero. Si mantenlo en tres decimales como lo
+ * tenemos cuando por lo menos tenga un decimal». Las ayudas de la línea
+ * pintaban el número crudo («0.5 Kilogramo = 0.5 kilogramos»).
+ */
+describe("las ayudas de la cantidad siguen la regla de los decimales", () => {
+  const KILO = {
+    id: "pr-kg",
+    name: "Kilogramo",
+    factor: "1.0000",
+    allowFractionalInput: true,
+    isPurchasable: true,
+    isSellable: true,
+  };
+  const BOLSA = { ...KILO, id: "pr-bolsa", name: "Bolsa 10Kg", factor: "10.0000" };
+  const linea = (id: string, presentationId: string, input: string, base: string): DocumentRow => ({
+    ...(detalle().rows[0] as DocumentRow),
+    id,
+    presentationId,
+    quantityInput: input,
+    quantityBase: base,
+    available: "92.0000",
+    stockBefore: "92.0000",
+    stockAfter: "91.5000",
+  });
+
+  it("medio kilo dice 0.500; diez bolsas, 100 kilogramos; lo disponible redondo va entero", async () => {
+    mocked.getDocument.mockResolvedValue(
+      detalle({
+        type: "exit",
+        folio: "SAL-000007",
+        reasonCode: "adjustment",
+        rows: [
+          linea("l-kg", "pr-kg", "0.5000", "0.5000"),
+          linea("l-bolsa", "pr-bolsa", "10.0000", "100.0000"),
+        ],
+        products: [
+          {
+            ...(detalle().products[0] as DocumentProduct),
+            baseUnit: "kg",
+            name: "Queso Oaxaca",
+            presentations: [KILO, BOLSA],
+          },
+        ],
+      }),
+    );
+    await renderDoc();
+
+    expect(await screen.findByText("0.500 Kilogramo = 0.500 kilogramos")).toBeInTheDocument();
+    expect(screen.getByText("10 Bolsa 10Kg = 100 kilogramos")).toBeInTheDocument();
+    expect(screen.getByText("Disponible: 92 kilogramos = 92 Kilogramo")).toBeInTheDocument();
+    expect(screen.getByText("Disponible: 92 kilogramos = 9.200 Bolsa 10Kg")).toBeInTheDocument();
+  });
+});
+
 describe("Cabecera de una recepción de traspaso", () => {
   const recepcion = () =>
     detalle({

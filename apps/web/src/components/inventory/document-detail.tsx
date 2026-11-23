@@ -4,6 +4,7 @@ import {
   effectiveDocumentDate,
   formatMoney,
   formatQuantity,
+  formatQuantityWithDecimals,
   LOT_EXPIRY_MAX_DATE,
   LOT_EXPIRY_MIN_DATE,
   localeToBcp47,
@@ -1181,9 +1182,11 @@ function Disponible({
 
   const factor = Number(presentacion.factor);
   const enPresentacion = Number(row.available) / factor;
+  // F10-QTYFMT-01: con la regla de siempre de los decimales (entero si es
+  // redondo; tres si la presentación se parte y trae fracción).
   const mostrado = presentacion.allowFractionalInput
-    ? Number(enPresentacion.toFixed(4))
-    : Math.floor(enPresentacion);
+    ? formatQuantityWithDecimals(enPresentacion.toFixed(4), 3)
+    : String(Math.floor(enPresentacion));
 
   return (
     <span className="block text-muted-foreground text-xs">
@@ -1287,9 +1290,13 @@ function Equivalencia({
   return (
     <span className="ml-2 block text-muted-foreground text-xs">
       {t("inventory.document.equivalence", {
-        quantity: row.quantityInput,
+        // F10-QTYFMT-01: «0.500 Kilogramo = 0.500 kilogramos», no el número crudo.
+        quantity: formatQuantityWithDecimals(
+          row.quantityInput,
+          presentacion.allowFractionalInput ? 3 : 0,
+        ),
         presentation: presentacion.name,
-        base: row.quantityBase,
+        base: formatQuantity(row.quantityBase, product.baseUnit),
         unit: unitName(product.baseUnit, locale, { plural: true }).toLowerCase(),
       })}
     </span>
