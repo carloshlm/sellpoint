@@ -5997,7 +5997,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 >
 > **Decisión de Carlos (2026-11-22):** entra la tanda 1 completa, con los tres ajustes.
 >
-> **Decisiones de producto propuestas** (Claude, 2026-11-22; Carlos las confirma o las cambia antes de la primera tarea):
+> **Decisiones de producto** (propuestas por Claude el 2026-11-22; confirmadas por Carlos el 2026-11-23: «las confirmo todas»):
 > 1. El panel sigue con cinco mosaicos. Lo nuevo va dentro de los que ya hay, a la línea de avisos y a UNA tarjeta nueva, «Control».
 > 2. El punto de equilibrio se dice como avance, no como pérdida: «70% de tus gastos cubiertos» y, al pasarlo, «Gastos cubiertos desde el día 19». La utilidad neta sigue mostrando su número, también cuando es negativo.
 > 3. El cierre estimado del mes usa solo días cerrados (no se mueve durante el día) y calla hasta tener tres.
@@ -6387,6 +6387,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-11-23** — Carlos confirma las seis decisiones de producto de F10-KPI: cinco mosaicos, punto de equilibrio como avance, cierre estimado con días cerrados, ocho avisos con tope de cuatro, «Control» por periodo y sin compensar, y sin candado de plan — `topic_key: sellpoint/f10-kpi` — afecta: F10-KPI-01..18
 - **2026-11-22** — El panel gana margen, cierre estimado, punto de equilibrio, caducidad en dinero, cuatro avisos y la tarjeta «Control»: la tanda 1 de la revisión de indicadores para los videos de ventas — `topic_key: sellpoint/f10-kpi` — afecta: F10-KPI-01..18 (nuevas)
 - **2026-11-17** — 2FA con app, opcional para Administradores y obligatorio en el backoffice; cerrar una sesión puntual — `topic_key: sellpoint/f10-mfa` — afecta: F10-MFA-01..12, F10-SESS-01..03 (nuevas)
 - **2026-10-30 (✅ DECIDIDO, en F10-THEME-05 — QUINCE TEMAS: SELLPOINTY CLARO Y EL ORDEN DEL SELECTOR)** — Carlos pidió un tema con el menú de SellPointy y todo lo demás de Claro: «SellPointy Claro» / «SellPointy Light» (id `sellpointy-light`, cabe justo en `VARCHAR(16)`); el bloque es Claro con las fichas del menú de la marca, y `themes.test.ts` compara cada mitad con su original. SellPointy pasa a llamarse «SellPointy Clásico» / «SellPointy Classic» con el mismo id, y el selector queda en el orden de Carlos: Claro, Oscuro, los dos SellPointy, Arena… y Cabina al final — `topic_key: sellpoint/temas-piel-por-componente` — afecta: F10-THEME-05 (mod)
