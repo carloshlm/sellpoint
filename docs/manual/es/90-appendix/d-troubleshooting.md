@@ -31,8 +31,10 @@ aquí el mensaje que ves, o el problema, y lo que hay que hacer.
 | De … hay … en existencia, pero está vencido: no se puede vender. | Lo que queda de ese producto ya caducó. Sácalo del inventario con una salida por **Caducado** (capítulos 23 y 26). |
 | No encontramos nada que se pueda vender desde esta sucursal. | El producto o servicio no existe con ese nombre o código, está desactivado o no se vende en esta sucursal. Revisa su ficha (capítulos 16 y 18). |
 | El lector no agrega el producto | Haz clic en el campo de búsqueda antes de escanear; revisa que el código esté capturado en el **Código de barras** del producto y que el lector funcione como teclado (apéndice C). |
-| El código de autorización no es correcto. | Escribe de nuevo el código de descuentos; lo define el administrador en **Mi perfil** (capítulo 14). |
-| Demasiados intentos con el código de autorización. Espera 15 minutos. | Después de varios códigos equivocados, los descuentos se bloquean 15 minutos. |
+| El código de autorización no es correcto. | Escribe de nuevo el código de autorización; lo define el administrador en **Mi perfil** (capítulo 14). |
+| Demasiados intentos con el código de autorización. Espera 15 minutos. | Después de cinco códigos equivocados, los descuentos y los retiros de efectivo se bloquean 15 minutos. |
+| Este movimiento pide el código de autorización del negocio. | El negocio tiene código: un retiro de efectivo, o anular una entrada, lo pide. Que lo escriba quien lo conoce (capítulos 5 y 14). |
+| El efectivo del cajón no puede quedar debajo de cero: hay … | El retiro es mayor que el efectivo que debería haber en el cajón. Revisa el importe; si falta registrar una venta o una entrada, regístrala primero (capítulo 5). |
 | Este negocio no tiene código de autorización de descuentos. | El administrador tiene que crear el código en **Mi perfil** antes de que se puedan dar descuentos (capítulo 14). |
 | El descuento supera el tope del negocio (… % del subtotal). | El descuento es mayor que el máximo que definió el administrador. Da uno menor o pide que cambien el tope (capítulo 14). |
 | El descuento no puede ser mayor que el subtotal. | Un descuento no puede dejar la venta en negativo. |

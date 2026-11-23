@@ -139,7 +139,7 @@
     },
     "discounts": {
       "title": "Register discounts",
-      "subtitle": "The code that authorizes a discount at checkout and the per-ticket limit. Without a code, the discount button does not show at the register.",
+      "subtitle": "The code that authorizes a discount at checkout or a cash paid-out, and the per-ticket limit. Without a code, the discount button does not show at the register and a paid-out goes through without it.",
       "statusNone": "No code: discounts are off.",
       "statusSet": "Code set on {{date}}. It is not shown: if it was forgotten, set a new one.",
       "code": "Authorization code (4 to 8 digits)",

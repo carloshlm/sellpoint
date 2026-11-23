@@ -139,7 +139,7 @@
     },
     "discounts": {
       "title": "Descuentos en caja",
-      "subtitle": "El código que autoriza un descuento al cobrar y el tope por ticket. Sin código, el botón de descuento no aparece en la caja.",
+      "subtitle": "El código que autoriza un descuento al cobrar o un retiro de efectivo, y el tope por ticket. Sin código, el botón de descuento no aparece en la caja y un retiro no lo pide.",
       "statusNone": "Sin código: los descuentos están apagados.",
       "statusSet": "Código configurado el {{date}}. No se muestra: si se olvidó, define uno nuevo.",
       "code": "Código de autorización (4 a 8 dígitos)",

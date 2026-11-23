@@ -5,8 +5,9 @@ who: dueño
 
 En la caja, un descuento solo se aplica con un **código de autorización**. Así el
 cajero puede hacer una rebaja cuando tú lo permites, y nadie regala mercancía por
-su cuenta. El código se define en **Mi perfil**, en la tarjeta **Descuentos en
-caja**.
+su cuenta. El mismo código autoriza los **retiros de efectivo** del turno y la
+anulación de una entrada (capítulo 5). El código se define en **Mi perfil**, en la
+tarjeta **Descuentos en caja**.
 
 ![Descuentos en caja, en Mi perfil](screen:discounts)
 
@@ -25,7 +26,7 @@ desde qué fecha está configurado. Si lo olvidas, define uno nuevo.
 ## Apagar los descuentos
 
 Presiona **Quitar código**. Sin código, el botón de descuento **no aparece** en la
-caja.
+caja, y los retiros de efectivo pasan sin pedirlo: queda registrado quién los hizo.
 
 ## En la caja
 
@@ -33,3 +34,6 @@ Cuando el cliente pide una rebaja, el cajero aplica el descuento al ticket y
 teclea el código. Si el código no es el correcto, o si el descuento pasa del tope,
 la caja no lo acepta. Cómo se hace paso a paso está en el capítulo 6, «Hacer una
 venta».
+
+Después de cinco códigos equivocados, la caja deja de aceptar el código durante
+15 minutos, para los descuentos y para los retiros: los intentos se cuentan juntos.
