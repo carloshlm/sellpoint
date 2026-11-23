@@ -1336,6 +1336,7 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 - Aplicar descuento global (botón emerge antes del COBRAR si tiene permiso)
 - Vaciar carrito (con confirmación)
 - Click COBRAR → abre modal
+- **Efectivo** (a la derecha de la barra del turno, F10-CASHMOV-04) → abre «Entradas y retiros de efectivo»; ver § 9.4
 
 **Selector de presentación al agregar producto:**
 - Si el producto tiene varias presentaciones **vendibles**, aparece un selector inline (radio buttons o botones segmentados) tras escanear/elegir. La presentación marcada como `is_default_sale=true` viene pre-seleccionada.
@@ -1487,40 +1488,67 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 
 ### 9.4 Cierre de caja
 
-**Ruta:** `/pos/close-cashbox` · **Permiso:** `pos:sell`
+**Ruta:** `/pos/close` · **Permiso:** `pos:sell`
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Cierre de caja — Turno desde 09:00                            │
+│ 🛒 Punto de venta · Sucursal Centro · Turno abierto desde 8:45  [Efectivo] │
 ├────────────────────────────────────────────────────────────────┤
+│  Cierre de turno                                               │
 │                                                                │
-│  Vendedor: María López                                         │
-│  Duración del turno: 7h 30min                                  │
+│   Fondo inicial                              $500.00           │
+│   Efectivo (3 ventas)                        $430.50           │
+│   Tarjeta (1 venta)                           $80.00           │
+│   Entradas de efectivo                      +$200.00           │
+│   Retiros de efectivo                       −$500.00           │
+│   Gastos en efectivo (1 gasto)               −$90.00           │
+│     GAS-000012 · Rollos de papel · Registró Ana Pérez  −$90.00 │
+│   ─────────────────────────────────────────────────            │
+│   Efectivo esperado                          $540.50           │
 │                                                                │
-│  ─── Resumen ─────────────────────────                         │
+│   Efectivo contado en caja  [$ ________ MXN]                   │
+│   Diferencia: $0.00                                            │
+│   Nota (opcional)  [________________________________]          │
 │                                                                │
-│   Efectivo (sistema):       $2,340.00     18 ventas            │
-│   Tarjeta:                  $1,650.00     12 ventas            │
-│   Transferencia:              $530.00      4 ventas            │
-│                              ─────────                         │
-│   Total del turno:          $4,520.00     34 ventas            │
-│                                                                │
-│  ─── Conteo físico ───────────────────                         │
-│                                                                │
-│   Efectivo contado en caja                                     │
-│   ($____________)                                              │
-│                                                                │
-│   Diferencia: --                                               │
-│                                                                │
-│   Notas (opcional)                                             │
-│   (_________________________________________________)          │
-│                                                                │
-│                  [Cancelar]  [Cerrar turno e imprimir]         │
+│   [Cerrar turno]                                               │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 > El cierre guarda **declarado, calculado y diferencia** — la diferencia se registra,
 > no se bloquea (F4-CASHBOX-02). Un turno cerrado no vende.
+>
+> **F10-CASHMOV-05:** el esperado que manda el API es fondo + ventas en efectivo +
+> entradas − retiros − gastos del cajón. «Entradas de efectivo» y «Retiros de
+> efectivo» van entre las ventas y los gastos, con el signo a la vista, y **solo
+> aparecen si valen algo**: en cero, o con un API anterior que no manda `cashIn` ni
+> `cashOut`, la pantalla queda como antes.
+
+**Entradas y retiros de efectivo** (F10-CASHMOV-04, `cash-movement-dialog.tsx`). El
+botón **Efectivo** de la barra del turno —en la venta y en el cierre— abre un diálogo:
+
+```
+┌─ Entradas y retiros de efectivo ───────────────────────── ✕ ─┐
+│ Tipo     [ Entrada ] [■ Retiro ■]                            │
+│ Importe [$ 500.00 MXN]        Motivo [A la caja fuerte ▾]    │
+│ Nota (opcional) [Bolsa 14_____________________________]      │
+│ Código de autorización [••••]                                │
+│ [Registrar retiro]  [Cerrar]                                 │
+│ ── Movimientos del turno ─────────────────────────────────── │
+│ [Entrada] Fondo para cambio        +$200.00  Anular          │
+│   12:05 · Registró Luis Ramírez                              │
+│ [Retiro] A la caja fuerte [Anulado]  ~~−$500.00~~            │
+│   11:30 · Registró Luis Ramírez · Anuló Ana Pérez: duplicado │
+└──────────────────────────────────────────────────────────────┘
+```
+
+| Pieza | Regla |
+|---|---|
+| **Tipo y motivo** | Entrada: «Fondo para cambio», «Otro». Retiro: «A la caja fuerte», «Depósito al banco», «Retiro del dueño», «Otro». La lista cambia con el tipo; con «Otro» la nota (máx. 300) es obligatoria. |
+| **Código de autorización** | Solo en un retiro y solo si `user.tenant.discountCodeSetAt` existe. Misma etiqueta, ayuda y validación que el descuento del cobro; solo viaja si se pidió. |
+| **Registrar** | `POST /pos/session/movements` con el importe como número. El diálogo no se cierra: el movimiento aparece en la lista. Refresca el arqueo y la lista. El error del API (p. ej. el retiro que deja el esperado debajo de cero) se dice con sus palabras, arriba del formulario. |
+| **Lista y «Anular»** | Del más nuevo al más viejo, con tipo, motivo, importe con signo, nota, hora y quién. Anular pide motivo (mín. 3) y, si el negocio tiene código, el código **solo para una entrada** (bajar el esperado). Uno anulado se ve tachado, con quién lo anuló y por qué, y ya no ofrece «Anular». |
+
+Los movimientos se piden **al abrir el diálogo**, no al cargar la venta.
 
 **Casos de uso relacionados:** [CU-POS-01](CASOS_DE_USO.md#cu-pos-01--realizar-una-venta) · [CU-POS-02](CASOS_DE_USO.md#cu-pos-02--anular-venta) · [CU-POS-03](CASOS_DE_USO.md#cu-pos-03--cierre-de-caja)
 
@@ -2026,7 +2054,7 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Ficha** (`expense-detail.tsx`) | Todos los datos; «Marcar como pagado» (método, cuenta y —con efectivo— la caja de origen con el turno propio preseleccionado) y «Anular» con motivo. | Pagar es entero y una vez; sin `expenses:cancel` no hay «Anular»; un gasto ligado a un turno cerrado no se anula (409, libro cerrado). «Editar» abre el formulario en su lugar. |
 | **Formulario** (`expense-form.tsx`, skill `sellpoint-forms`) | Fecha (`DateField`), categoría, proveedor (`SupplierPicker`) o beneficiario (excluyentes), monto y descuento (`MoneyField`), impuesto (`TaxGroupSelect`), pago («Pendiente» ⇒ vencimiento; método ⇒ cuenta con `<datalist>`; «Efectivo» ⇒ caja de origen), referencia, descripción y notas. | Al editar el pago no se toca (se paga desde la ficha); pagado ⇒ monto, descuento e impuesto deshabilitados. |
 | **Categorías** (`/expenses/categories`) | Las 18 de fábrica más las propias, con formulario inline. | Desactivar la esconde del selector; borrar una en uso rebota (409). |
-| **Cierre de turno** (`close-session.tsx`) | Renglón «Gastos en efectivo −X (n)» y «Efectivo esperado»; la diferencia se calcula contra el esperado. | La columna «Efectivo» sigue siendo ventas: la resta es un renglón aparte. El reporte de cierres y su XLSX ganan la columna. |
+| **Cierre de turno** (`close-session.tsx`) | Renglón «Gastos en efectivo −X (n)» y «Efectivo esperado»; la diferencia se calcula contra el esperado. Desde F10-CASHMOV-05, antes de los gastos van «Entradas de efectivo +X» y «Retiros de efectivo −X», solo si valen algo (§ 9.4). | La columna «Efectivo» sigue siendo ventas: la resta es un renglón aparte. El reporte de cierres y su XLSX ganan la columna. Un retiro (caja fuerte, banco, dueño) NO es un gasto: se registra con «Efectivo» en la barra del turno y no toca la utilidad. |
 | **Dashboard** (`kpi-row.tsx`) | Tarjeta «Utilidad neta del mes» = bruta − gastos activos del mes en el alcance. Desde F10-KPI-08 lleva el punto de equilibrio: la barra «N% de tus gastos cubiertos» y el renglón «Te falta vender $X» o, ya cubiertos, «Gastos cubiertos desde el día N». | Solo con el módulo; `null` (sin datos de costo) nunca es cero. Sin gastos registrados, la tarjeta queda sin barra. |
 
 ## 15. Compras

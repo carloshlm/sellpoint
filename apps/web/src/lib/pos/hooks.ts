@@ -3,11 +3,15 @@ import type { ApiError } from "@/lib/api";
 import { useCartStore } from "@/stores/cart.store";
 import {
   type CashboxSession,
+  type CashMovement,
+  type CreateCashMovementInput,
   type CreateQuoteInput,
   type CreateSaleInput,
+  cancelCashMovement,
   cancelQuote,
   cancelSale,
   closeSession,
+  createCashMovement,
   createQuote,
   createSale,
   getQuoteForSale,
@@ -16,6 +20,7 @@ import {
   type ListQuotesQuery,
   type ListSalesQuery,
   type LookupResult,
+  listCashMovements,
   listPosWarehouses,
   listQuotes,
   listQuoteWarehouses,
@@ -49,6 +54,9 @@ export function useSession(enabled = true) {
   });
 }
 
+/** El arqueo del turno: lo leen el cierre y el panel del vendedor. */
+const POS_SESSION_TOTALS_KEY = [...POS_SESSION_KEY, "totals"] as const;
+
 /**
  * Los totales solo tienen sentido con un turno abierto: sin él, el API
  * devuelve una lista vacía y consultarlo sería una llamada de más en cada
@@ -56,9 +64,51 @@ export function useSession(enabled = true) {
  */
 export function useSessionTotals(enabled: boolean) {
   return useQuery<SessionArqueo, ApiError>({
-    queryKey: [...POS_SESSION_KEY, "totals"],
+    queryKey: POS_SESSION_TOTALS_KEY,
     queryFn: getSessionTotals,
     enabled,
+  });
+}
+
+/**
+ * F10-CASHMOV-04 — las entradas y los retiros del turno. Dentro de
+ * `POS_SESSION_KEY`: abrir o cerrar el turno también los invalida.
+ */
+const POS_CASH_MOVEMENTS_KEY = [...POS_SESSION_KEY, "movements"] as const;
+
+/** Solo la pide el diálogo de «Efectivo» al abrirse: vender no paga esta consulta. */
+export function useCashMovements() {
+  return useQuery<{ movements: CashMovement[] }, ApiError>({
+    queryKey: POS_CASH_MOVEMENTS_KEY,
+    queryFn: listCashMovements,
+  });
+}
+
+/**
+ * Registrar o anular un movimiento cambia el esperado: se vuelven a pedir el
+ * arqueo (la barra y el cierre) y la lista. Nada más: el turno y la búsqueda
+ * del carrito no cambiaron.
+ */
+function refrescarCaja(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: POS_SESSION_TOTALS_KEY }),
+    queryClient.invalidateQueries({ queryKey: POS_CASH_MOVEMENTS_KEY }),
+  ]);
+}
+
+export function useCreateCashMovement() {
+  const queryClient = useQueryClient();
+  return useMutation<CashMovement, ApiError, CreateCashMovementInput>({
+    mutationFn: (input) => createCashMovement(input),
+    onSuccess: () => refrescarCaja(queryClient),
+  });
+}
+
+export function useCancelCashMovement() {
+  const queryClient = useQueryClient();
+  return useMutation<CashMovement, ApiError, { id: string; reason: string; code?: string }>({
+    mutationFn: ({ id, ...input }) => cancelCashMovement(id, input),
+    onSuccess: () => refrescarCaja(queryClient),
   });
 }
 

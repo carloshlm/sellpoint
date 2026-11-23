@@ -30,6 +30,8 @@
     "expenseCount": "{{count}} gastos",
     "expenseCount_one": "1 gasto",
     "expenseBy": "Registró {{name}}",
+    "cashIn": "Entradas de efectivo",
+    "cashOut": "Retiros de efectivo",
     "expectedCash": "Efectivo esperado",
     "openingCash": "Fondo inicial",
     "openingCashLabel": "Fondo inicial (opcional)",
@@ -171,5 +173,47 @@
     "exceedsLimit": "El descuento supera el tope del negocio ({{max}} % del subtotal)",
     "limitHint": "Tope del negocio: {{max}} % del subtotal",
     "line": "Descuento"
+  },
+  "cashMovement": {
+    "open": "Efectivo",
+    "title": "Entradas y retiros de efectivo",
+    "intro": "Registra el efectivo que metes o sacas de tu cajón sin una venta. Al cerrar, la entrada se suma y el retiro se resta del efectivo esperado.",
+    "typeLabel": "Tipo",
+    "type": {
+      "in": "Entrada",
+      "out": "Retiro"
+    },
+    "amount": "Importe",
+    "amountPositive": "El importe debe ser mayor que cero.",
+    "reason": "Motivo",
+    "reasons": {
+      "change_fund": "Fondo para cambio",
+      "safe": "A la caja fuerte",
+      "bank_deposit": "Depósito al banco",
+      "owner": "Retiro del dueño",
+      "other": "Otro"
+    },
+    "note": "Nota",
+    "noteOptional": "Nota (opcional)",
+    "noteRequired": "Con «Otro», escribe de qué se trata.",
+    "submitIn": "Registrar entrada",
+    "submitOut": "Registrar retiro",
+    "failed": "No pudimos registrar el movimiento.",
+    "createdIn": "Entrada registrada.",
+    "createdOut": "Retiro registrado.",
+    "listTitle": "Movimientos del turno",
+    "empty": "Todavía no hay entradas ni retiros en este turno.",
+    "loadFailed": "No pudimos cargar los movimientos del turno.",
+    "by": "Registró {{name}}",
+    "canceled": "Anulado",
+    "canceledBy": "Anuló {{name}}: {{reason}}",
+    "cancel": "Anular",
+    "cancelTitleIn": "Anular la entrada de {{amount}}",
+    "cancelTitleOut": "Anular el retiro de {{amount}}",
+    "cancelBody": "No se borra: queda en la lista, tachado y con tu motivo, y deja de contar en el efectivo esperado.",
+    "cancelReason": "Por qué se anula",
+    "cancelReasonPlaceholder": "Por ejemplo: se registró dos veces",
+    "cancelConfirm": "Anular el movimiento",
+    "cancelFailed": "No pudimos anular el movimiento."
   }
 }

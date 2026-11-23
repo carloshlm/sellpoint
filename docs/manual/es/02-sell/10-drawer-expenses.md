@@ -10,6 +10,21 @@ cerrar tu turno tiene que restarse de lo que debes tener. SellPointy lo resta
 cuando el gasto se registra como pagado **desde tu turno**; así, ese dinero no
 aparece como un faltante tuyo.
 
+## ¿Gasto o retiro?
+
+Los dos sacan dinero de tu cajón, pero no son lo mismo:
+
+- **Es un gasto** cuando con ese dinero **se le paga algo a alguien**: los rollos
+  de papel, el garrafón, la mensajería. Se registra como dice este capítulo, y
+  aparece en los gastos y en la utilidad del negocio.
+- **Es un retiro** cuando el dinero **solo cambia de lugar** y sigue siendo del
+  negocio: lo llevas a la caja fuerte o al banco, o se lo lleva el dueño. Lo
+  registras tú, con **Efectivo** en la barra del punto de venta (capítulo 5). No
+  es un gasto: no baja la utilidad.
+
+Al cerrar tu turno, los dos se restan del efectivo esperado, cada uno en su
+renglón: **Gastos en efectivo** y **Retiros de efectivo**.
+
 ## Quién lo registra
 
 **Tú no registras gastos**: el rol de fábrica **Cajero** no tiene ese permiso.

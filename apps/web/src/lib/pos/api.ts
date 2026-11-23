@@ -99,6 +99,14 @@ export interface SessionArqueo {
   cashExpenses: { total: string; count: number; items: SessionCashExpenseItem[] };
   openingCash: string;
   expectedCash: string;
+  /**
+   * F10-CASHMOV-03 — el efectivo que entró y el que salió del cajón sin una
+   * venta, sumando solo los movimientos activos. El esperado ya los trae
+   * contados. Opcionales a propósito: durante un deploy, este web puede
+   * hablar con un API anterior que todavía no los manda.
+   */
+  cashIn?: string;
+  cashOut?: string;
 }
 
 export async function getSessionTotals(): Promise<SessionArqueo> {
@@ -114,6 +122,71 @@ export async function closeSession(input: {
     "/pos/session/close",
     input,
   );
+  return data;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// F10-CASHMOV-04 — entradas y retiros de efectivo en el turno
+// ─────────────────────────────────────────────────────────────────────────
+
+/** `in` mete efectivo al cajón; `out` lo saca. Ninguno de los dos es una venta ni un gasto. */
+export type CashMovementType = "in" | "out";
+
+export type CashMovementReason = "change_fund" | "safe" | "bank_deposit" | "owner" | "other";
+
+/** Un movimiento del turno, como lo devuelve el API (contrato L5 de F10-CASHMOV). */
+export interface CashMovement {
+  id: string;
+  type: CashMovementType;
+  reason: CashMovementReason;
+  amount: string;
+  note: string | null;
+  /** Si pasó por el código de autorización del negocio. */
+  authorized: boolean;
+  status: "active" | "canceled";
+  createdAt: string;
+  createdBy: { id: string; name: string };
+  canceledAt: string | null;
+  canceledBy: { id: string; name: string } | null;
+  cancelReason: string | null;
+}
+
+/**
+ * Registrar un movimiento. El importe viaja como número; la nota y el código,
+ * solo si se escribieron (el código, además, solo si la pantalla lo pidió).
+ */
+export interface CreateCashMovementInput {
+  type: CashMovementType;
+  reason: CashMovementReason;
+  amount: number;
+  note?: string;
+  code?: string;
+}
+
+/**
+ * Los movimientos del turno abierto propio, del más nuevo al más viejo. Sin
+ * turno, el API responde una lista vacía.
+ */
+export async function listCashMovements(): Promise<{ movements: CashMovement[] }> {
+  const { data } = await api.get<{ movements: CashMovement[] }>("/pos/session/movements");
+  return data;
+}
+
+export async function createCashMovement(input: CreateCashMovementInput): Promise<CashMovement> {
+  const { data } = await api.post<CashMovement>("/pos/session/movements", input);
+  return data;
+}
+
+/**
+ * Anular. No borra: el movimiento queda en la lista, tachado y con su motivo,
+ * y deja de contar en el esperado. Anular una entrada pide el código si el
+ * negocio lo tiene, porque baja el esperado igual que un retiro.
+ */
+export async function cancelCashMovement(
+  id: string,
+  input: { reason: string; code?: string },
+): Promise<CashMovement> {
+  const { data } = await api.post<CashMovement>(`/pos/session/movements/${id}/cancel`, input);
   return data;
 }
 

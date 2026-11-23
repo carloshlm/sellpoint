@@ -147,6 +147,33 @@ describe("el Panel de quien vende (2026-09-12)", () => {
     expect(within(panel).getByTestId("seller-shift")).not.toHaveTextContent(/a\.\s?m\.|p\.\s?m\./);
   });
 
+  /**
+   * F10-CASHMOV-05 — el arqueo trae ahora `cashIn` y `cashOut`. El panel dice
+   * lo COBRADO, no el efectivo del cajón: un retiro a la caja fuerte no es
+   * una venta menos, y una entrada de cambio no es una venta más.
+   */
+  it("con entradas y retiros en el turno, lo cobrado sigue siendo solo lo vendido", async () => {
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [
+        { method: "cash", total: "1200.50", count: 4 },
+        { method: "card", total: "800.00", count: 2 },
+      ],
+      cashExpenses: { total: "0", count: 0, items: [] },
+      openingCash: "0",
+      expectedCash: "900.50",
+      cashIn: "200",
+      cashOut: "500",
+    });
+    await renderDashboard(SELLER);
+
+    const panel = await screen.findByTestId("seller-panel");
+    await waitFor(() =>
+      expect(within(panel).getByTestId("seller-charged")).toHaveTextContent("$2,000.50"),
+    );
+    expect(within(panel).getByTestId("seller-tickets")).toHaveTextContent("6");
+    expect(panel).not.toHaveTextContent("Retiros de efectivo");
+  });
+
   it("sin turno abierto invita a abrirlo y no pide los totales", async () => {
     mocked.getSession.mockResolvedValue({ session: null });
     await renderDashboard(SELLER);

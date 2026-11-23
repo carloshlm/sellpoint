@@ -6249,7 +6249,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-CASHMOV-POS — El cajero lo registra
 
-- [ ] **F10-CASHMOV-04** — Web: «Entrada o retiro» en el punto de venta
+- [x] **F10-CASHMOV-04** *(cerrada el 2026-11-23)* — Web: «Entrada o retiro» en el punto de venta
   - **Por qué:** el cajero tiene que poder registrar el retiro en el momento, sin salir de la venta.
   - **Salida:**
     - **Dónde:** en `session-bar.tsx`, un botón «Efectivo» que abre un diálogo (skill sellpoint-forms).
@@ -6259,7 +6259,25 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
     - **Documentos:** el capítulo 5 gana la sección «Entradas y retiros de efectivo», con la captura nueva `cash-movement`. El capítulo 10 dice cuándo es Gasto y cuándo es retiro. `VISTAS.md` §9.4.
   - **Verificar:** prueba del diálogo: el motivo cambia con el tipo; la nota con «Otro»; el código solo en el retiro y solo con código configurado; el alta refresca los totales del turno; anular. Además, `pnpm --filter manual test`.
   - **Depende de:** F10-CASHMOV-02 · **Estimación:** 4 h
-- [ ] **F10-CASHMOV-05** — Web: el cierre y el panel del vendedor dicen entradas y retiros
+  - **Cerrado (2026-11-23), hecha contra el contrato del API fijado de antemano** (`odd/tasks/f10-cashmov.md`, L5) y en paralelo con la 02:
+    - **El diálogo:** `cash-movement-dialog.tsx`, abierto desde el botón «Efectivo» de `session-bar.tsx`. Como la barra también está en el cierre, quien descubre al contar que olvidó un retiro lo registra ahí mismo.
+    - **Cuándo se monta:** solo al abrirlo, y es entonces cuando pide los movimientos. Vender no paga una consulta de más.
+    - **Lo que viene marcado:** «Retiro» y «A la caja fuerte». Al cambiar de tipo, el motivo pasa al primero de la nueva lista, salvo «Otro».
+    - **El botón principal:** nombra la acción («Registrar retiro»). Se deshabilita hasta que todo es válido. Registrar no cierra el diálogo, porque el movimiento aparece en la lista; por eso el otro botón dice «Cerrar».
+    - **Anular:** usa un `ConfirmDialog` en el renglón, como el historial de ventas, que pide un motivo de 3 caracteres como mínimo, igual que al cancelar una venta. El código solo se pide para anular una entrada, y solo con código configurado.
+    - **Refresco:** registrar o anular refresca el arqueo y los movimientos, y nada más.
+    - **En inglés:** «Cash», «Paid in» y «Paid out».
+    - **Los motivos por tipo:** viven en el componente, porque las pruebas de las rutas reemplazan `lib/pos/api.ts` entero con su mock.
+    - **Documentos:** el capítulo 5 gana la sección y su fórmula nueva, con la captura `cash-movement`. El capítulo 10 dice cuándo es Gasto y cuándo es retiro. `VISTAS.md` §9.1 tiene el botón, y §9.4 tiene los renglones y la ruta real, `/pos/close`.
+    - **Pruebas:** `cash-movement-dialog.test.tsx` (16), más casos en `close-session.test.tsx`, `pos-session.test.tsx` y `dashboard-seller.test.tsx`.
+    - **Rojo observado:** 19 casos. Otros 4 pasaron desde el inicio a propósito: protegen lo que no cambia.
+    - **Mutantes cazados (13):** entre ellos el código en la entrada, el código sin un negocio que lo tenga, el importe como texto, sin refrescar el arqueo, el error del API tragado, anular un retiro con código, un anulado con «Anular» y el literal de la captura. Se restauró cada uno y se comprobó con `cmp`.
+    - **Verificado:** suite del web (2,536), `tsc -b`, `pnpm --filter manual test` (78) y `typecheck:full` del manual.
+    - **Pendiente para la 08:** las capturas `cash-movement` y `close-shift`, y las de las pantallas de venta, cuya barra cambió.
+- [x] **F10-CASHMOV-05** *(cerrada el 2026-11-23, en el mismo trabajo que la 04)* — Web: el cierre y el panel del vendedor dicen entradas y retiros
+  - **Cerrado:**
+    - **El cierre:** pinta «Entradas de efectivo» con «+» y «Retiros de efectivo» con «−» solo si el valor es finito y distinto de cero. Un valor ausente o NaN cuenta como cero, porque `formatMoney(NaN)` lanza; así, un API anterior deja la pantalla como estaba.
+    - **El panel del vendedor:** no cambió, porque solo pinta lo cobrado y los tickets. Una prueba lo demuestra con `cashIn` y `cashOut` presentes.
   - **Por qué:** el cajero cuenta el cajón contra un esperado que tiene que poder explicar.
   - **Salida:**
     - **El cierre:** en `close-session.tsx`, el desglose del esperado gana «Entradas de efectivo» y «Retiros de efectivo» entre las ventas y los gastos. Solo aparecen si hay movimientos.

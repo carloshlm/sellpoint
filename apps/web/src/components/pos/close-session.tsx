@@ -13,6 +13,16 @@ import { useAuthStore } from "@/stores/auth.store";
 import { SessionBar } from "./session-bar";
 
 /**
+ * Un importe del arqueo que un API anterior puede no mandar. Lo que falta, o
+ * lo que no es un número, vale cero: `formatMoney(NaN)` lanza y se llevaría la
+ * pantalla entera.
+ */
+function importeOpcional(valor: string | undefined): number {
+  const numero = Number(valor ?? 0);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+/**
  * El cierre con arqueo.
  *
  * Muestra lo CALCULADO por método y pide lo CONTADO. La diferencia se ve en
@@ -27,6 +37,9 @@ import { SessionBar } from "./session-bar";
  *
  * Los importes van en la moneda del negocio, como el campo de lo contado: un
  * negocio en euros no lee «$» en su propio arqueo.
+ *
+ * F10-CASHMOV-05: el esperado que manda el API es fondo + ventas en efectivo
+ * + entradas − retiros − gastos del cajón, y cada parte tiene su renglón.
  */
 export function CloseSession({
   session,
@@ -48,9 +61,14 @@ export function CloseSession({
   const dinero = (importe: number) => formatMoney(importe, currency, locale);
   const totales = data?.totals ?? [];
   // F9-EXP-10: se cuenta contra el efectivo ESPERADO (fondo + ventas − gastos
-  // del cajón), no contra las ventas en efectivo: un gasto pagado del cajón no
-  // es un faltante del cajero, y el fondo no es un sobrante.
+  // del cajón, y desde F10-CASHMOV + entradas − retiros), no contra las ventas
+  // en efectivo: un gasto pagado del cajón no es un faltante del cajero, y el
+  // fondo no es un sobrante.
   const gastos = data?.cashExpenses ?? { total: "0", count: 0, items: [] };
+  // F10-CASHMOV-05: el efectivo que entró y salió sin una venta. Un API
+  // anterior no los manda, y en cero no se pintan: la pantalla queda como hoy.
+  const entradas = importeOpcional(data?.cashIn);
+  const retiros = importeOpcional(data?.cashOut);
   const fondo = Number(data?.openingCash ?? session.openingCash);
   const esperado = Number(data?.expectedCash ?? 0);
   // Lo contado se valida como cualquier importe (Carlos, 2026-11-19): con
@@ -88,6 +106,25 @@ export function CloseSession({
             </span>
           </div>
         ))}
+        {/* F10-CASHMOV-05: las entradas y los retiros, entre las ventas y los
+            gastos, con el signo a la vista. Solo el que tiene algo: un
+            renglón en cero confunde igual que el de los gastos. */}
+        {entradas !== 0 && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>{t("pos.session.cashIn")}</span>
+            <span data-testid="total-cash-in" className="font-medium">
+              +{dinero(entradas)}
+            </span>
+          </div>
+        )}
+        {retiros !== 0 && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>{t("pos.session.cashOut")}</span>
+            <span data-testid="total-cash-out" className="font-medium">
+              −{dinero(retiros)}
+            </span>
+          </div>
+        )}
         {/* Los gastos que salieron del cajón, con el signo a la vista, y el
             esperado contra el que se cuenta. Solo si hubo alguno: un turno sin
             gastos no necesita un renglón en cero que confunda. */}

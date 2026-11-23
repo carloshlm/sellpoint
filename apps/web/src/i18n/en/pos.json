@@ -30,6 +30,8 @@
     "expenseCount": "{{count}} expenses",
     "expenseCount_one": "1 expense",
     "expenseBy": "Recorded by {{name}}",
+    "cashIn": "Cash paid in",
+    "cashOut": "Cash paid out",
     "expectedCash": "Expected cash",
     "openingCash": "Opening cash",
     "openingCashLabel": "Opening cash (optional)",
@@ -171,5 +173,47 @@
     "exceedsLimit": "The discount exceeds the business limit ({{max}}% of the subtotal)",
     "limitHint": "Business limit: {{max}}% of the subtotal",
     "line": "Discount"
+  },
+  "cashMovement": {
+    "open": "Cash",
+    "title": "Cash paid in and out",
+    "intro": "Record cash you put into or take out of your drawer without a sale. When you close, cash paid in is added to the expected cash and cash paid out is subtracted.",
+    "typeLabel": "Type",
+    "type": {
+      "in": "Paid in",
+      "out": "Paid out"
+    },
+    "amount": "Amount",
+    "amountPositive": "The amount must be greater than zero.",
+    "reason": "Reason",
+    "reasons": {
+      "change_fund": "Change for the drawer",
+      "safe": "To the safe",
+      "bank_deposit": "Bank deposit",
+      "owner": "Owner withdrawal",
+      "other": "Other"
+    },
+    "note": "Note",
+    "noteOptional": "Note (optional)",
+    "noteRequired": "With “Other,” say what it's for.",
+    "submitIn": "Record paid in",
+    "submitOut": "Record paid out",
+    "failed": "We couldn't record the movement.",
+    "createdIn": "Paid in recorded.",
+    "createdOut": "Paid out recorded.",
+    "listTitle": "This shift's movements",
+    "empty": "No cash has been paid in or out this shift yet.",
+    "loadFailed": "We couldn't load this shift's movements.",
+    "by": "Recorded by {{name}}",
+    "canceled": "Canceled",
+    "canceledBy": "Canceled by {{name}}: {{reason}}",
+    "cancel": "Cancel",
+    "cancelTitleIn": "Cancel {{amount}} paid in",
+    "cancelTitleOut": "Cancel {{amount}} paid out",
+    "cancelBody": "Nothing is deleted: it stays in the list, crossed out with your reason, and no longer counts toward the expected cash.",
+    "cancelReason": "Why it's being canceled",
+    "cancelReasonPlaceholder": "For example: it was recorded twice",
+    "cancelConfirm": "Cancel the movement",
+    "cancelFailed": "We couldn't cancel the movement."
   }
 }

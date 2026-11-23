@@ -28,6 +28,7 @@ vi.mock("../lib/pos/api", () => ({
   closeSession: vi.fn(),
   listPosWarehouses: vi.fn(),
   downloadSessionPdf: vi.fn(),
+  listCashMovements: vi.fn(),
 }));
 // `listScopedWarehouses` NO existe: el alcance se pide con
 // `listWarehouses({ scoped: true })`. El mock la declaraba y nadie lo notaba
@@ -137,6 +138,28 @@ describe("/pos — la puerta del punto de venta", () => {
     const barra = await screen.findByTestId("session-bar");
     expect(barra).toHaveTextContent("Turno abierto desde 9:00");
     expect(barra).not.toHaveTextContent(/a\.\s?m\.|p\.\s?m\./);
+  });
+
+  /**
+   * F10-CASHMOV-04 — la barra gana «Efectivo» para registrar entradas y
+   * retiros. La barra de siempre no cambia, y los movimientos no se piden
+   * hasta que el cajero abre el diálogo: vender no paga una consulta de más.
+   */
+  it("la barra ofrece «Efectivo» y no pide los movimientos hasta abrirlo", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.listCashMovements.mockResolvedValue({ movements: [] });
+
+    const user = await renderRuta("/pos");
+
+    const barra = await screen.findByTestId("session-bar");
+    expect(within(barra).getByTestId("session-warehouse")).toHaveTextContent("Almacén Centro");
+    expect(mocked.listCashMovements).not.toHaveBeenCalled();
+
+    await user.click(within(barra).getByRole("button", { name: "Efectivo" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Entradas y retiros de efectivo" }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(mocked.listCashMovements).toHaveBeenCalledTimes(1));
   });
 
   it("abrir el turno llama al API y deja de ofrecer la apertura", async () => {
@@ -428,6 +451,30 @@ describe("/pos/close — el arqueo", () => {
     expect(screen.getByTestId("expected-cash")).toHaveTextContent("$650.00");
 
     await user.type(screen.getByLabelText(/efectivo contado/i), "650");
+    expect(screen.getByTestId("cash-difference")).toHaveTextContent("$0.00");
+  });
+
+  /**
+   * F10-CASHMOV-05 — los $500 que el cajero llevó a la caja fuerte ya no son
+   * un faltante: el retiro tiene su renglón y el esperado del API lo resta.
+   */
+  it("con un retiro a la caja fuerte, se ve su renglón y contar lo que quedó cuadra", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion({ openingCash: "500" }) });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [{ method: "cash", total: "150.00", count: 3 }],
+      cashExpenses: { total: "0", count: 0, items: [] },
+      openingCash: "500",
+      expectedCash: "150",
+      cashIn: "0",
+      cashOut: "500",
+    });
+
+    const user = await renderRuta("/pos/close");
+    expect(await screen.findByTestId("total-cash-out")).toHaveTextContent("−$500.00");
+    expect(screen.queryByTestId("total-cash-in")).not.toBeInTheDocument();
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$150.00");
+
+    await user.type(screen.getByLabelText(/efectivo contado/i), "150");
     expect(screen.getByTestId("cash-difference")).toHaveTextContent("$0.00");
   });
 

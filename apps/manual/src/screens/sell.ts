@@ -103,6 +103,29 @@ export const SELL: Screen[] = [
     target: (page) => [page.getByTestId("open-session")],
   },
   {
+    id: "cash-movement",
+    chapter: SHIFT,
+    as: "cashier",
+    path: "/pos",
+    // Luis lleva $500 a la caja fuerte y la encargada escribe el código del
+    // negocio. «Registrar retiro» NO se presiona. Abajo, los movimientos que
+    // el turno ya tenga, sin inventar ninguno.
+    prepare: async (page) => {
+      await page.getByTestId("session-bar").getByRole("button", { name: "Efectivo" }).click();
+      const dialog = page.getByRole("dialog", { name: "Entradas y retiros de efectivo" });
+      await dialog.getByRole("button", { name: "Retiro", exact: true }).click();
+      await dialog.getByLabel("Importe", { exact: true }).fill("500");
+      await dialog
+        .getByLabel("Motivo", { exact: true })
+        .selectOption({ label: "A la caja fuerte" });
+      await dialog.getByLabel("Nota (opcional)").fill("Bolsa 14");
+      await dialog.getByLabel("Código de autorización").fill(DEMO.discountCode);
+      await dialog.getByText("Cargando…", { exact: true }).waitFor({ state: "detached" });
+      await blur(page);
+    },
+    target: (page) => [page.getByRole("dialog", { name: "Entradas y retiros de efectivo" })],
+  },
+  {
     id: "close-shift",
     chapter: SHIFT,
     as: "cashier",

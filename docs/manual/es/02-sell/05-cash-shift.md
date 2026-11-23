@@ -4,7 +4,8 @@ who: cajero
 ---
 
 Para cobrar necesitas un **turno de caja** abierto. El turno dice desde qué
-sucursal vendes y junta todo lo que cobras hasta que lo cierras. Al cerrarlo,
+sucursal vendes y junta todo lo que cobras, y el efectivo que metes o sacas del
+cajón, hasta que lo cierras. Al cerrarlo,
 cuentas el efectivo de tu cajón y SellPointy lo compara con lo que debería
 haber: eso es el **arqueo**.
 
@@ -32,7 +33,9 @@ te equivocaste, cuéntalo igual al cerrar y explica la diferencia en la **Nota**
 Aparece la pantalla de venta (capítulo 6). Arriba, una barra te recuerda desde
 qué sucursal cobras y desde qué hora, por ejemplo **Punto de venta · Sucursal
 Centro · Turno abierto desde 8:45**. Revísala: lo que vendes sale del
-inventario de esa sucursal.
+inventario de esa sucursal. A la derecha de la barra está **Efectivo**, para
+registrar el dinero que metes o sacas del cajón sin una venta (lo explica la
+sección siguiente).
 
 - Solo puedes tener **un turno abierto a la vez**. Si ya tienes uno, **Venta** te
   lleva directo a cobrar.
@@ -41,6 +44,61 @@ inventario de esa sucursal.
   día siguiente sigues en el mismo turno y las ventas nuevas se juntan con las
   de ayer. Ciérralo siempre al terminar.
 - Para cotizar no necesitas turno (capítulo 9).
+
+## Entradas y retiros de efectivo
+
+A veces el efectivo entra o sale de tu cajón sin una venta: llevas billetes a la
+caja fuerte para no tener tanto en el mostrador, o te traen monedas para dar
+cambio. Si no lo registras, al cerrar ese dinero aparece como un faltante o un
+sobrante tuyo. Regístralo en el momento:
+
+1. En la barra de arriba de la pantalla de venta, presiona **Efectivo**. Se abre
+   **Entradas y retiros de efectivo**.
+2. Elige el tipo:
+   - **Entrada**, si metes efectivo al cajón. Sus motivos son **Fondo para
+     cambio** y **Otro**.
+   - **Retiro**, si sacas efectivo del cajón. Sus motivos son **A la caja
+     fuerte**, **Depósito al banco**, **Retiro del dueño** y **Otro**.
+3. Escribe el **Importe** y elige el **Motivo**.
+4. Si quieres, escribe una **Nota (opcional)**, por ejemplo el número de la bolsa
+   que va a la caja fuerte. Con **Otro**, la nota es obligatoria: escribe de qué
+   se trata.
+5. En un retiro, si tu negocio tiene código de autorización (capítulo 14),
+   aparece **Código de autorización**. Lo escribe quien supervisa la caja, por
+   ejemplo la encargada que se lleva el dinero.
+6. Presiona **Registrar retiro** o **Registrar entrada**.
+
+![Luis registra un retiro de $500 a la caja fuerte, con el código de la encargada](screen:cash-movement)
+
+Abajo, en **Movimientos del turno**, ves lo que se registró en tu turno, del más
+nuevo al más viejo: el tipo, el motivo, el importe con su signo, la nota, la
+hora y quién lo registró. Cuando terminas, presiona **Cerrar**.
+
+- **El código.** Es el mismo de los descuentos y comparte su límite: después de
+  cinco códigos equivocados, los descuentos y los retiros se te bloquean 15
+  minutos. Si tu negocio no tiene código, el retiro no lo pide y queda
+  registrado quién lo hizo. Una entrada nunca pide código.
+- **No por debajo de cero.** Un retiro no puede sacar más efectivo del que debe
+  haber en tu cajón. Si tecleas 10,000 en lugar de 1,000, SellPointy no lo
+  registra y te dice cuánto efectivo hay.
+- **Un retiro no es un gasto.** El dinero que llevas a la caja fuerte o al banco
+  sigue siendo del negocio: no aparece en los gastos ni baja la utilidad. Si con
+  dinero del cajón se le paga algo a alguien, eso sí es un gasto (capítulo 10).
+
+### Anular una entrada o un retiro
+
+Si te equivocaste, presiona **Anular** junto al movimiento, escribe **Por qué se
+anula** y presiona **Anular el movimiento**.
+
+- Anular una **entrada** baja el efectivo esperado, igual que un retiro: pide el
+  **Código de autorización**, si tu negocio lo tiene, y tampoco puede dejar el
+  esperado por debajo de cero.
+- Anular un **retiro** nunca pide el código.
+
+Un movimiento anulado no se borra: queda en la lista tachado, marcado
+**Anulado**, con quién lo anuló y por qué, y deja de contar en el efectivo
+esperado. Solo se anula mientras tu turno está abierto; con el turno cerrado, ya
+no se puede tocar.
 
 ## Cerrar tu turno y hacer el arqueo
 
@@ -60,12 +118,22 @@ inventario de esa sucursal.
 |---|---|
 | **Fondo inicial** | El dinero con que abriste tu turno para dar cambio. Si no escribiste ninguno, dice $0.00. |
 | **Efectivo**, **Tarjeta**, **Transferencia** | Lo que cobraste con cada forma de pago, y en cuántas ventas. |
+| **Entradas de efectivo** | El efectivo que metiste al cajón sin una venta. Solo aparece si hubo alguna. |
+| **Retiros de efectivo** | El efectivo que sacaste del cajón sin una venta, por ejemplo a la caja fuerte. Solo aparece si hubo alguno. |
 | **Gastos en efectivo** | Lo que se pagó con dinero de tu cajón. Solo aparece si hubo alguno (capítulo 10). |
-| **Efectivo esperado** | Lo que debe haber en tu cajón: el fondo inicial, más el efectivo de tus ventas, menos esos gastos. |
+| **Efectivo esperado** | Lo que debe haber en tu cajón: el fondo inicial, más el efectivo de tus ventas, más las entradas, menos los retiros y los gastos. |
+
+Las entradas y los retiros anulados no cuentan.
 
 En la tienda de ejemplo, Luis abrió con $500.00 de fondo, cobró $430.50 en
 efectivo y del cajón salieron $90.00: el efectivo esperado es $840.50. Contó
-$820.50, así que la diferencia es -$20.00.
+$820.50, así que la diferencia es -$20.00. Si a media mañana hubiera llevado
+$500.00 a la caja fuerte y lo hubiera registrado como retiro, el esperado sería
+$340.50.
+
+¿Al contar te falta dinero porque olvidaste registrar un retiro? La barra del
+cierre también tiene **Efectivo**: regístralo ahí y el efectivo esperado se
+corrige antes de que cierres.
 
 Solo se cuenta el efectivo: lo que se cobra con tarjeta o transferencia no pasa
 por tu cajón. Las ventas que se cancelaron mientras tu turno estaba abierto no

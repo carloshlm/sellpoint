@@ -99,6 +99,77 @@ describe("el cierre detalla los gastos del cajón", () => {
 });
 
 /**
+ * F10-CASHMOV-05 — el cajero cuenta el cajón contra un esperado que tiene que
+ * poder explicar: el efectivo que metió o sacó sin una venta tiene su renglón,
+ * entre las ventas y los gastos. Sin movimientos, o con un API anterior que
+ * todavía no manda `cashIn` ni `cashOut`, la pantalla queda como hoy.
+ */
+describe("el cierre dice las entradas y los retiros de efectivo", () => {
+  const BASE: SessionArqueo = {
+    totals: [{ method: "cash", total: "430.50", count: 3 }],
+    cashExpenses: { total: "90", count: 1, items: [] },
+    openingCash: "500",
+    expectedCash: "840.50",
+  };
+
+  it("con movimientos, los dos renglones van entre las ventas y los gastos", () => {
+    arqueo = { ...BASE, expectedCash: "540.50", cashIn: "200", cashOut: "500" };
+    renderCierre();
+
+    const ventas = screen.getByTestId("total-cash");
+    const entradas = screen.getByTestId("total-cash-in");
+    const retiros = screen.getByTestId("total-cash-out");
+    const gastos = screen.getByTestId("total-cash-expenses");
+    expect(entradas).toHaveTextContent("+$200.00");
+    expect(entradas.parentElement).toHaveTextContent("Entradas de efectivo");
+    expect(retiros).toHaveTextContent("−$500.00");
+    expect(retiros.parentElement).toHaveTextContent("Retiros de efectivo");
+    // El orden de la cuenta: ventas, entradas, retiros, gastos.
+    expect(
+      ventas.compareDocumentPosition(entradas) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      entradas.compareDocumentPosition(retiros) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(retiros.compareDocumentPosition(gastos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$540.50");
+  });
+
+  it("contar lo que dice el esperado con un retiro cuadra en cero", () => {
+    arqueo = { ...BASE, expectedCash: "340.50", cashIn: "0", cashOut: "500" };
+    renderCierre();
+
+    fireEvent.change(screen.getByLabelText("Efectivo contado en caja"), {
+      target: { value: "340.50" },
+    });
+    expect(screen.getByTestId("cash-difference")).toHaveTextContent("$0.00");
+    // Solo el renglón que tiene algo: una entrada en cero no se pinta.
+    expect(screen.queryByTestId("total-cash-in")).not.toBeInTheDocument();
+  });
+
+  it("en cero no hay renglones: la pantalla queda como hoy", () => {
+    arqueo = { ...BASE, cashIn: "0", cashOut: "0.00" };
+    renderCierre();
+
+    expect(screen.queryByTestId("total-cash-in")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("total-cash-out")).not.toBeInTheDocument();
+    expect(screen.queryByText("Entradas de efectivo")).not.toBeInTheDocument();
+    expect(screen.queryByText("Retiros de efectivo")).not.toBeInTheDocument();
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$840.50");
+  });
+
+  it("un API anterior, sin los dos campos, deja la pantalla como hoy", () => {
+    arqueo = { ...BASE };
+    renderCierre();
+
+    expect(screen.queryByTestId("total-cash-in")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("total-cash-out")).not.toBeInTheDocument();
+    expect(screen.getByTestId("total-cash-expenses")).toHaveTextContent("−$90.00");
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$840.50");
+  });
+});
+
+/**
  * Carlos (2026-11-19): «Al cerrar el turno cuando coloco una "coma" en el
  * campo de "Efectivo contado en caja" me manda un error». `Number("1,")` es
  * NaN y `formatMoney(NaN)` lanza: la pantalla entera se caía en «Something
