@@ -461,6 +461,133 @@ describe("Código interno de las presentaciones (F10-PRESCODE)", () => {
   });
 
   /**
+   * Carlos (2026-11-24): «debemos evitar que el Codigo Interno sea igual al
+   * código de barras o código interno de otro producto». Lo que sigue
+   * permitido es usar el PROPIO código de barras como código interno, que es
+   * lo que hacen Carga rápida y el alta.
+   */
+  describe("el código interno de un producto no es el código de barras de otro", () => {
+    it("ni al darlo de alta ni al cambiarlo", async () => {
+      const { token } = await registerAndLogin();
+      await crearProducto(token, { sku: "AGUA-1L", name: "Agua 1 L", barcode: "036000291452" });
+      const arrachera = await crearProducto(token, { sku: "ARRACHERA", name: "Arrachera" });
+
+      const alta = await request(app.getHttpServer())
+        .post("/products")
+        .set("Authorization", bearer(token))
+        // La otra escritura del mismo código (EAN-13 con un cero delante).
+        .send({ sku: "0036000291452", name: "Otra cosa", baseUnit: "unit", price: 10 })
+        .expect(409);
+      expect((alta.body as Conflicto).message).toBe(
+        "Ese código ya es el código de barras de «Kilogramo» de Agua 1 L.",
+      );
+      expect((alta.body as Conflicto).errors?.[0]?.key).toBe("sku");
+
+      await request(app.getHttpServer())
+        .patch(`/products/${arrachera.id}`)
+        .set("Authorization", bearer(token))
+        .send({ sku: "036000291452" })
+        .expect(409);
+    });
+
+    it("y al revés: un código de barras no puede ser el código interno de otro producto", async () => {
+      const { token } = await registerAndLogin();
+      await crearProducto(token, { sku: "7501055300013", name: "Coca 600" });
+      const arrachera = await crearProducto(token, { sku: "ARRACHERA", name: "Arrachera" });
+
+      const enProducto = await request(app.getHttpServer())
+        .patch(`/products/${arrachera.id}`)
+        .set("Authorization", bearer(token))
+        .send({ barcode: "7501055300013" })
+        .expect(409);
+      expect((enProducto.body as Conflicto).message).toBe(
+        "Ese código ya es el código interno del producto Coca 600.",
+      );
+      expect((enProducto.body as Conflicto).errors?.[0]?.key).toBe("barcode");
+
+      await crearPresentacion(token, arrachera.id, {
+        name: "Bolsa 10 Kilos",
+        factor: 10,
+        barcode: "7501055300013",
+      }).expect(409);
+
+      await request(app.getHttpServer())
+        .post("/products")
+        .set("Authorization", bearer(token))
+        .send({ sku: "OTRA", name: "Otra", baseUnit: "unit", price: 1, barcode: "7501055300013" })
+        .expect(409);
+    });
+
+    it("su PROPIO código de barras sí puede ser su código interno, al crear y al editar", async () => {
+      const { token } = await registerAndLogin();
+      const coca = await crearProducto(token, {
+        sku: "7501055300013",
+        name: "Coca 600",
+        baseUnit: "unit",
+        barcode: "7501055300013",
+      });
+
+      await request(app.getHttpServer())
+        .patch(`/products/${coca.id}`)
+        .set("Authorization", bearer(token))
+        .send({ sku: "7501055300013", barcode: "7501055300013", name: "Coca-Cola 600 ml" })
+        .expect(200);
+
+      // Y un producto de Carga rápida (sku = código de barras) se sigue dando de alta.
+      await request(app.getHttpServer())
+        .post("/products/quick")
+        .set("Authorization", bearer(token))
+        .send({ lines: [{ code: "7501055300020", name: "Coca 2 L", price: 38 }] })
+        .expect(200);
+    });
+
+    it("Carga rápida rechaza en su renglón el código que es el código interno de otro producto", async () => {
+      const { token } = await registerAndLogin();
+      await crearProducto(token, { sku: "036000291452", name: "Agua 1 L", baseUnit: "unit" });
+
+      const res = await request(app.getHttpServer())
+        .post("/products/quick")
+        .set("Authorization", bearer(token))
+        .send({ lines: [{ code: "0036000291452", name: "Otra cosa", price: 10 }] })
+        .expect(422);
+
+      expect((res.body as { errors: unknown[] }).errors).toEqual([
+        {
+          line: 1,
+          itemCode: "0036000291452",
+          field: "code",
+          code: "products.code_taken_product_sku",
+          message: "Ese código ya es el código interno del producto Agua 1 L.",
+        },
+      ]);
+    });
+
+    it("la importación rechaza en su fila el sku nuevo que es el código de barras de otro", async () => {
+      const { token } = await registerAndLogin();
+      await crearProducto(token, { sku: "AGUA-1L", name: "Agua 1 L", barcode: "036000291452" });
+
+      const res = await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre\n036000291452,Otra cosa\nPAN-1,Pan", dryRun: true })
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        valid: 1,
+        failed: 1,
+        errors: [
+          {
+            row: 2,
+            field: "sku",
+            code: "products.code_taken_barcode",
+            message: "Ese código ya es el código de barras de «Kilogramo» de Agua 1 L.",
+          },
+        ],
+      });
+    });
+  });
+
+  /**
    * F10-PRESCODE: la búsqueda de productos que usan Entradas, Salidas, Compras
    * y Órdenes de compra dice qué presentación se encontró por su código.
    */

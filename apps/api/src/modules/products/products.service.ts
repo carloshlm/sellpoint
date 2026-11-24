@@ -25,11 +25,7 @@ import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
 import { BarcodeContributionService } from "./barcode-contribution.service";
 import { assertBarcodeChange, contributionOf } from "./barcode-rules";
-import {
-  assertBarcodeFreeOfPresentationCodes,
-  assertSkuFreeOfPresentationCodes,
-  lockCatalogCodes,
-} from "./catalog-codes";
+import { assertCodeFree, lockCatalogCodes } from "./catalog-codes";
 import type {
   CreateProductDto,
   ListProductsQuery,
@@ -215,9 +211,10 @@ export class ProductsService {
       // F10-PRESCODE: el sku y el código de barras no pueden ser el código
       // interno de una presentación (`catalog-codes.ts`).
       await lockCatalogCodes(tx, user.tenantId);
-      await assertSkuFreeOfPresentationCodes(tx, user.tenantId, input.sku);
+      const nuevo = { productId: null, presentationId: null };
+      await assertCodeFree(tx, user.tenantId, input.sku, { como: "sku", ...nuevo });
       if (input.barcode !== undefined) {
-        await assertBarcodeFreeOfPresentationCodes(tx, user.tenantId, input.barcode, null);
+        await assertCodeFree(tx, user.tenantId, input.barcode, { como: "barcode", ...nuevo });
       }
 
       try {
@@ -317,15 +314,18 @@ export class ProductsService {
         await lockCatalogCodes(tx, user.tenantId);
       }
       if (cambiaSku && input.sku !== undefined) {
-        await assertSkuFreeOfPresentationCodes(tx, user.tenantId, input.sku);
+        await assertCodeFree(tx, user.tenantId, input.sku, {
+          como: "sku",
+          productId: id,
+          presentationId: null,
+        });
       }
       if (cambiaBarras && input.barcode) {
-        await assertBarcodeFreeOfPresentationCodes(
-          tx,
-          user.tenantId,
-          input.barcode,
-          base?.id ?? null,
-        );
+        await assertCodeFree(tx, user.tenantId, input.barcode, {
+          como: "barcode",
+          productId: id,
+          presentationId: base?.id ?? null,
+        });
       }
 
       if (plan !== null && !current.tracksLots) {

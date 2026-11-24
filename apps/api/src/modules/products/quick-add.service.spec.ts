@@ -15,6 +15,8 @@ describe("QuickAddService", () => {
   const tx = {
     // F10-PRESCODE: el candado de los códigos del negocio (`catalog-codes.ts`).
     $executeRaw: jest.fn().mockResolvedValue(0),
+    // …y las consultas de quién ya tiene un código: nadie.
+    $queryRaw: jest.fn().mockResolvedValue([]),
     productPresentation: {
       findMany: findManyPresentaciones,
       update: updatePresentacion,
@@ -147,11 +149,9 @@ describe("QuickAddService", () => {
     );
   });
   it("solo se aporta lo que se CREA, y nunca una etiqueta de bascula", async () => {
-    // La primera consulta busca los códigos de barras que el negocio ya tiene;
-    // la segunda, los códigos internos de presentación (F10-PRESCODE): ninguno.
-    findManyPresentaciones
-      .mockResolvedValueOnce([{ id: "pres-1", barcode: "7509999000006", productId: "prod-1" }])
-      .mockResolvedValue([]);
+    findManyPresentaciones.mockResolvedValue([
+      { id: "pres-1", barcode: "7509999000006", productId: "prod-1" },
+    ]);
     aportar.mockResolvedValue(1);
 
     const reporte = await correr([

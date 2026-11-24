@@ -4,7 +4,7 @@ import {
   Injectable,
   PayloadTooLargeException,
 } from "@nestjs/common";
-import { barcodeSearchForms, getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
+import { getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
 import {
@@ -38,7 +38,14 @@ import {
   BarcodeContributionService,
 } from "./barcode-contribution.service";
 import { barcodeProblem, contributionOf } from "./barcode-rules";
-import { codeTakenMessage, lockCatalogCodes, presentationCodesIn } from "./catalog-codes";
+import {
+  codeOwnersIn,
+  codeTakenArgs,
+  codeTakenMessage,
+  type Duenos,
+  firstCodeClash,
+  lockCatalogCodes,
+} from "./catalog-codes";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
 import { basePresentationName, derivesFractionalInput } from "./products.service";
 
@@ -505,7 +512,7 @@ export class ImportService {
           tracksLots: true,
           presentations: {
             where: { isDefaultSale: true },
-            select: { barcode: true, factor: true },
+            select: { id: true, barcode: true, factor: true },
             take: 1,
           },
         },
@@ -561,8 +568,8 @@ export class ImportService {
     // F10-PRESCODE: ni el sku de un producto nuevo ni un código de barras que
     // cambia pueden ser el código interno de una presentación
     // (`catalog-codes.ts`). Una sola consulta para todo el archivo.
-    const codigosDePresentacion = await this.prisma.withTenantContext(user.tenantId, (tx) =>
-      presentationCodesIn(tx, user.tenantId, conId.flatMap(codigosQueSeEscriben)),
+    const duenosDeCodigos = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      codeOwnersIn(tx, user.tenantId, conId.flatMap(codigosQueSeEscriben)),
     );
 
     const importable: ParsedRow[] = [];
@@ -602,13 +609,13 @@ export class ImportService {
         });
         continue;
       }
-      const choque = choqueConCodigoDePresentacion(item, codigoDeAntes, codigosDePresentacion);
+      const choque = choqueDeCodigo(item, baseBySku.get(item.sku), duenosDeCodigos);
       if (choque !== null) {
         errors.push({
           row: item.row,
           field: choque.field,
-          message: codeTakenMessage("presentation_code"),
-          args: choque.dueno,
+          message: codeTakenMessage(choque.dueno.kind),
+          args: codeTakenArgs(choque.dueno),
           itemCode: item.sku,
         });
         continue;
@@ -655,19 +662,17 @@ export class ImportService {
       // sku ni como código de barras (lo encontró el verificador). Si pasa,
       // la importación entera rebota, como cualquier choque del formulario.
       await lockCatalogCodes(tx, user.tenantId);
-      const codigosAhora = await presentationCodesIn(
+      const duenosAhora = await codeOwnersIn(
         tx,
         user.tenantId,
         importable.flatMap(codigosQueSeEscriben),
       );
       for (const item of importable) {
-        const codigoDeAntes =
-          item.existingId === null ? null : (baseBySku.get(item.sku)?.barcode ?? null);
-        const choque = choqueConCodigoDePresentacion(item, codigoDeAntes, codigosAhora);
+        const choque = choqueDeCodigo(item, baseBySku.get(item.sku), duenosAhora);
         if (choque !== null) {
           throw new ConflictException({
-            message: codeTakenMessage("presentation_code"),
-            args: choque.dueno,
+            message: codeTakenMessage(choque.dueno.kind),
+            args: codeTakenArgs(choque.dueno),
           });
         }
       }
@@ -883,42 +888,43 @@ function resolveLookupCode(index: LookupIndex, raw: string): string | null {
 }
 
 /**
- * F10-PRESCODE — los códigos que una fila va a escribir y que podrían ser el
- * código interno de una presentación: el sku si el producto es nuevo, y el
- * código de barras en todas sus escrituras.
+ * F10-PRESCODE — los códigos que una fila va a escribir y que podrían chocar
+ * con otro código del negocio: el sku si el producto es nuevo (el de uno
+ * existente no se toca) y el código de barras.
  */
 function codigosQueSeEscriben(item: {
   existingId: string | null;
   sku: string;
   barcode: string | null;
 }): string[] {
-  return [
-    ...(item.existingId === null ? [item.sku] : []),
-    ...(item.barcode === null ? [] : [item.barcode, ...barcodeSearchForms(item.barcode)]),
-  ];
+  return [...(item.existingId === null ? [item.sku] : []), ...(item.barcode ? [item.barcode] : [])];
 }
 
 /**
- * F10-PRESCODE — el código de la fila que ya es el código interno de una
- * presentación: el sku si el producto es nuevo (el de uno existente no se
- * toca), o el código de barras si cambia.
+ * F10-PRESCODE — el primer choque de la fila con otro código del negocio
+ * (`catalog-codes.ts`): el sku si el producto es nuevo, o el código de barras
+ * si cambia. Lo propio de la fila (su producto y su presentación base) nunca
+ * choca consigo.
  */
-function choqueConCodigoDePresentacion(
+function choqueDeCodigo(
   item: { existingId: string | null; sku: string; barcode: string | null },
-  codigoDeAntes: string | null,
-  codigos: Map<string, { product: string; presentation: string }>,
-): { field: string; dueno: { product: string; presentation: string } } | null {
+  base: { id: string; barcode: string | null } | undefined,
+  duenos: Duenos,
+): { field: string; dueno: NonNullable<ReturnType<typeof firstCodeClash>> } | null {
+  const propio = {
+    productId: item.existingId,
+    presentationId: item.existingId === null ? null : (base?.id ?? null),
+  };
   if (item.existingId === null) {
-    const dueno = codigos.get(normalizeCode(item.sku));
-    if (dueno !== undefined) {
+    const dueno = firstCodeClash(duenos, item.sku, { como: "sku", ...propio });
+    if (dueno !== null) {
       return { field: "sku", dueno };
     }
   }
+  const codigoDeAntes = item.existingId === null ? null : (base?.barcode ?? null);
   if (item.barcode !== null && item.barcode !== codigoDeAntes) {
-    const dueno = [item.barcode, ...barcodeSearchForms(item.barcode)]
-      .map((forma) => codigos.get(normalizeCode(forma)))
-      .find((x) => x !== undefined);
-    if (dueno !== undefined) {
+    const dueno = firstCodeClash(duenos, item.barcode, { como: "barcode", ...propio });
+    if (dueno !== null) {
       return { field: "codigo_de_barras", dueno };
     }
   }

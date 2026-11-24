@@ -7,11 +7,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { BarcodeContributionService } from "./barcode-contribution.service";
 import { assertBarcodeChange, contributionOf } from "./barcode-rules";
-import {
-  assertBarcodeFreeOfPresentationCodes,
-  assertPresentationCodeFree,
-  lockCatalogCodes,
-} from "./catalog-codes";
+import { assertCodeFree, lockCatalogCodes } from "./catalog-codes";
 import type { CreatePresentationDto, UpdatePresentationDto } from "./dto/upsert-presentation.dto";
 import { derivesFractionalInput } from "./products.service";
 
@@ -66,10 +62,18 @@ export class PresentationsService {
         await lockCatalogCodes(tx, user.tenantId);
       }
       if (input.code !== undefined) {
-        await assertPresentationCodeFree(tx, user.tenantId, input.code, null);
+        await assertCodeFree(tx, user.tenantId, input.code, {
+          como: "code",
+          productId,
+          presentationId: null,
+        });
       }
       if (input.barcode !== undefined) {
-        await assertBarcodeFreeOfPresentationCodes(tx, user.tenantId, input.barcode, null);
+        await assertCodeFree(tx, user.tenantId, input.barcode, {
+          como: "barcode",
+          productId,
+          presentationId: null,
+        });
       }
 
       try {
@@ -149,15 +153,18 @@ export class PresentationsService {
         await lockCatalogCodes(tx, user.tenantId);
       }
       if (cambiaCodigo && input.code) {
-        await assertPresentationCodeFree(tx, user.tenantId, input.code, presentationId);
+        await assertCodeFree(tx, user.tenantId, input.code, {
+          como: "code",
+          productId,
+          presentationId,
+        });
       }
       if (cambiaBarras && input.barcode) {
-        await assertBarcodeFreeOfPresentationCodes(
-          tx,
-          user.tenantId,
-          input.barcode,
+        await assertCodeFree(tx, user.tenantId, input.barcode, {
+          como: "barcode",
+          productId,
           presentationId,
-        );
+        });
       }
 
       // Quitarle el default al ÚNICO default dejaría al producto sin

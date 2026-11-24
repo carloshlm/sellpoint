@@ -31,6 +31,8 @@ describe("ProductsService — el candado de lotes (F10-MANFIX-06)", () => {
   const tx = {
     // F10-PRESCODE: el candado de los códigos del negocio (`catalog-codes.ts`).
     $executeRaw: jest.fn(),
+    // …y las consultas de quién ya tiene un código: nadie.
+    $queryRaw: jest.fn(),
     catalog: { findFirst: jest.fn() },
     catalogField: { findMany: jest.fn() },
     product: { create: jest.fn(), update: jest.fn(), findFirst: jest.fn() },
@@ -90,6 +92,7 @@ describe("ProductsService — el candado de lotes (F10-MANFIX-06)", () => {
     // Ningún código de presentación choca con el sku del alta.
     tx.productPresentation.findFirst.mockResolvedValue(null);
     tx.$executeRaw.mockResolvedValue(0);
+    tx.$queryRaw.mockResolvedValue([]);
     tx.stockLot.findMany.mockResolvedValue([]);
     auditar.mockResolvedValue(undefined);
     resolverPlan.mockResolvedValue(PLAN_PLUS);

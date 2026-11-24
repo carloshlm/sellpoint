@@ -103,7 +103,8 @@ presentación: la bolsa de 10 kg, no el kilo.
 
 Ningún código se repite en tu negocio. El código interno de una presentación no
 puede ser el código interno de un producto, el de otra presentación ni un
-código de barras, y al revés. Si lo intentas, el aviso te dice quién ya lo
+código de barras, y al revés. El código interno de un producto tampoco puede
+ser el código de barras de otro producto; su propio código de barras, sí. Si lo intentas, el aviso te dice quién ya lo
 tiene, por ejemplo: «Ese código ya es el código interno de «Bolsa 10 Kilos» de
 Bistec.»
 

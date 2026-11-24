@@ -9,7 +9,13 @@ import {
   type BarcodeContribution,
   BarcodeContributionService,
 } from "./barcode-contribution.service";
-import { codeTakenMessage, lockCatalogCodes, presentationCodesIn } from "./catalog-codes";
+import {
+  codeOwnersIn,
+  codeTakenArgs,
+  codeTakenMessage,
+  firstCodeClash,
+  lockCatalogCodes,
+} from "./catalog-codes";
 import type { QuickAddDto } from "./dto/quick-add.dto";
 import { basePresentationName, claveDeConflicto, derivesFractionalInput } from "./products.service";
 
@@ -245,11 +251,15 @@ export class QuickAddService {
       ),
     );
 
-    const deUnaPresentacion = await presentationCodesIn(
+    // F10-PRESCODE: el código se vuelve sku Y código de barras del producto
+    // nuevo, así que no puede ser el código de una presentación ni el sku de
+    // otro producto escrito de otra forma (`catalog-codes.ts`).
+    const duenos = await codeOwnersIn(
       tx,
       tenantId,
-      nuevas.flatMap((linea) => [linea.code, ...linea.formas]),
+      nuevas.map((linea) => linea.code),
     );
+    const nuevo = { productId: null, presentationId: null };
 
     return nuevas.flatMap((linea): QuickAddLineError[] => {
       if (tomados.has(normalizeCode(linea.code))) {
@@ -262,18 +272,18 @@ export class QuickAddService {
           },
         ];
       }
-      const dueno = [linea.code, ...linea.formas]
-        .map((codigo) => deUnaPresentacion.get(normalizeCode(codigo)))
-        .find((x) => x !== undefined);
-      return dueno === undefined
+      const dueno =
+        firstCodeClash(duenos, linea.code, { como: "sku", ...nuevo }) ??
+        firstCodeClash(duenos, linea.code, { como: "barcode", ...nuevo });
+      return dueno === null
         ? []
         : [
             {
               line: linea.numero,
               itemCode: linea.code,
               field: "code",
-              message: codeTakenMessage("presentation_code"),
-              args: dueno,
+              message: codeTakenMessage(dueno.kind),
+              args: codeTakenArgs(dueno),
             },
           ];
     });
