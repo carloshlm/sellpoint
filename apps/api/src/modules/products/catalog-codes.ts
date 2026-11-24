@@ -1,5 +1,5 @@
 import { ConflictException } from "@nestjs/common";
-import { barcodeSearchForms } from "@sellpoint/shared";
+import { barcodeSearchForms, normalizeGtin14 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 
 /**
@@ -32,9 +32,12 @@ import type { Prisma } from "../../generated/prisma/client";
  * de la misma columna (sku contra sku, código de barras contra código de
  * barras) las rechaza su índice, con su mensaje de siempre.
  *
- * Todo se compara sin mayúsculas y con las escrituras equivalentes de un
- * código de barras (un UPC-A y su EAN-13 con un cero delante son el mismo
- * código para el lector).
+ * Todo se compara sin mayúsculas. Lo que se busca como código de barras se
+ * compara también en sus escrituras equivalentes (un UPC-A y su EAN-13 con
+ * un cero delante son el mismo código para el lector), porque así lo busca
+ * la caja. Un sku o un código de presentación se compara EXACTO, porque así
+ * los busca la caja: «AB-12» y «AB12» son dos códigos distintos (lo encontró
+ * el verificador el 2026-11-24).
  */
 
 type Tx = Prisma.TransactionClient;
@@ -80,12 +83,37 @@ export async function lockCatalogCodes(tx: Tx, tenantId: string): Promise<void> 
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`catalog-codes:${tenantId}`}::text, 0))`;
 }
 
+/** El código tal cual, en mayúsculas: como se compara un sku o un código. */
+function exacta(codigo: string): string {
+  return codigo.trim().toUpperCase();
+}
+
 /**
- * Las claves con las que un código puede estar guardado: en mayúsculas, tal
- * cual y en sus escrituras equivalentes de código de barras.
+ * Las claves con las que un código puede estar guardado COMO CÓDIGO DE
+ * BARRAS: tal cual y en las escrituras con que lo busca la caja
+ * (`barcodeSearchForms`). Es la comparación que ya hacía F10-PRESCODE contra
+ * los códigos de barras.
  */
+function comoCodigoDeBarras(codigo: string): Set<string> {
+  return new Set([codigo, ...barcodeSearchForms(codigo)].map(exacta));
+}
+
+/**
+ * Solo las escrituras equivalentes de un GTIN válido. Es lo que se agrega al
+ * comparar un sku contra un código de barras (2026-11-24): la caja busca un
+ * número de 6 a 14 dígitos primero entre los códigos de barras y en todas sus
+ * escrituras, así que el sku «036000291452» y el código de barras
+ * «0036000291452» de otro producto sí se pisan. Un código que no es GTIN no
+ * tiene escrituras equivalentes: no se le quitan guiones ni espacios.
+ */
+function gtinEquivalente(codigo: string): Set<string> {
+  const variantes = normalizeGtin14(codigo) === null ? [] : barcodeSearchForms(codigo);
+  return new Set([codigo, ...variantes].map(exacta));
+}
+
+/** Todas las claves que alguna comparación podría necesitar. */
 function clavesDe(codigo: string): string[] {
-  return [...new Set([codigo, ...barcodeSearchForms(codigo)].map((c) => c.trim().toUpperCase()))];
+  return [...comoCodigoDeBarras(codigo)];
 }
 
 /**
@@ -149,46 +177,77 @@ function ocupante(fila: OcupanteCrudo): Ocupante {
 /**
  * El primer choque de `codigo` con lo que ya tiene el negocio, según la tabla
  * del encabezado, o `null` si está libre.
+ *
+ * ── La misma columna deja hablar a su índice ────────────────────────────
+ *
+ * Si el código ya está, EXACTO, en la misma columna de otro (un sku de otro
+ * producto, un código de barras de otra presentación), esta revisión se hace
+ * a un lado y deja que el índice único lo rechace con su mensaje de siempre
+ * («Ya tienes un producto con ese código.», «Ese código de barras ya está en
+ * uso por otro producto.»). Sin esto, el producto de Carga rápida —sku igual a
+ * su código de barras— hacía que repetir ese número dijera otra cosa (lo
+ * encontró el verificador el 2026-11-24). Las revisiones contra los códigos
+ * de presentación, que existían antes de esa regla, se hacen primero.
  */
 export function firstCodeClash(
   duenos: Duenos,
   codigo: string,
   guardado: CodigoQueSeGuarda,
 ): Dueno | null {
-  const claves = new Set(clavesDe(codigo));
+  const tal = exacta(codigo);
+  const barras = comoCodigoDeBarras(codigo);
+  const gtin = gtinEquivalente(codigo);
   const deOtroProducto = (productId: string) => productId !== guardado.productId;
   const deOtraPresentacion = (o: Ocupante) => o.presentationId !== guardado.presentationId;
 
-  const sku = duenos.skus.find(
-    (s) =>
-      claves.has(s.clave) &&
-      // El código de una presentación tampoco puede ser el sku de SU producto:
-      // la caja no sabría si traer el producto o esa presentación.
-      (guardado.como === "code" || (guardado.como === "barcode" && deOtroProducto(s.productId))),
-  );
-  if (sku !== undefined) {
-    return { kind: "product_sku", product: sku.product };
+  const comoSku = (claves: Set<string>, soloDeOtros: boolean): Dueno | null => {
+    const s = duenos.skus.find(
+      (x) => claves.has(x.clave) && (!soloDeOtros || deOtroProducto(x.productId)),
+    );
+    return s === undefined ? null : { kind: "product_sku", product: s.product };
+  };
+  const comoCodigo = (claves: Set<string>): Dueno | null => {
+    const o = duenos.codigos.find((x) => claves.has(x.clave) && deOtraPresentacion(x));
+    return o === undefined
+      ? null
+      : { kind: "presentation_code", product: o.product, presentation: o.presentation };
+  };
+  const comoBarras = (claves: Set<string>, de: (o: Ocupante) => boolean): Dueno | null => {
+    const o = duenos.barras.find((x) => claves.has(x.clave) && de(x));
+    return o === undefined
+      ? null
+      : { kind: "barcode", product: o.product, presentation: o.presentation };
+  };
+
+  if (guardado.como === "code") {
+    // El código de una presentación tampoco puede ser el sku de SU producto:
+    // la caja no sabría si traer el producto o esa presentación.
+    return (
+      comoSku(new Set([tal]), false) ??
+      comoCodigo(new Set([tal])) ??
+      comoBarras(barras, deOtraPresentacion)
+    );
   }
 
-  const conCodigo = duenos.codigos.find((o) => claves.has(o.clave) && deOtraPresentacion(o));
-  if (conCodigo !== undefined) {
-    return {
-      kind: "presentation_code",
-      product: conCodigo.product,
-      presentation: conCodigo.presentation,
-    };
+  if (guardado.como === "sku") {
+    const contraCodigos = comoCodigo(new Set([tal]));
+    if (contraCodigos !== null) {
+      return contraCodigos;
+    }
+    if (comoSku(new Set([tal]), true) !== null) {
+      return null; // el índice de `products.sku` lo rechaza con su mensaje
+    }
+    return comoBarras(gtin, (o) => deOtroProducto(o.productId));
   }
 
-  const conBarras = duenos.barras.find(
-    (o) =>
-      claves.has(o.clave) &&
-      ((guardado.como === "code" && deOtraPresentacion(o)) ||
-        (guardado.como === "sku" && deOtroProducto(o.productId))),
-  );
-  if (conBarras !== undefined) {
-    return { kind: "barcode", product: conBarras.product, presentation: conBarras.presentation };
+  const contraCodigos = comoCodigo(barras);
+  if (contraCodigos !== null) {
+    return contraCodigos;
   }
-  return null;
+  if (comoBarras(new Set([tal]), deOtraPresentacion) !== null) {
+    return null; // el índice de `barcode` lo rechaza con su mensaje
+  }
+  return comoSku(gtin, true);
 }
 
 /**

@@ -541,6 +541,63 @@ describe("Código interno de las presentaciones (F10-PRESCODE)", () => {
         .expect(200);
     });
 
+    /**
+     * Lo que encontró el verificador (B1): un producto de Carga rápida tiene
+     * su código de barras como sku, así que repetir ese número chocaba con la
+     * regla nueva antes que con el índice, y cambiaba el mensaje de siempre.
+     */
+    it("una repetición en la misma columna conserva su mensaje de siempre", async () => {
+      const { token } = await registerAndLogin();
+      await crearProducto(token, {
+        sku: "7501055300013",
+        name: "Coca 600",
+        baseUnit: "unit",
+        barcode: "7501055300013",
+      });
+
+      const mismoSku = await request(app.getHttpServer())
+        .post("/products")
+        .set("Authorization", bearer(token))
+        .send({ sku: "7501055300013", name: "Otra", baseUnit: "unit", price: 1 })
+        .expect(409);
+      expect((mismoSku.body as Conflicto).message).toBe("Ya tienes un producto con ese código.");
+
+      const mismoCodigoDeBarras = await request(app.getHttpServer())
+        .post("/products")
+        .set("Authorization", bearer(token))
+        .send({ sku: "OTRO-1", name: "Otra", baseUnit: "unit", price: 1, barcode: "7501055300013" })
+        .expect(409);
+      expect((mismoCodigoDeBarras.body as Conflicto).message).toBe(
+        "Ese código de barras ya está en uso por otro producto.",
+      );
+    });
+
+    /**
+     * Lo que encontró el verificador (B2): «AB-12» y «AB12» son dos códigos
+     * distintos para la caja (busca el código exacto). Solo un código de
+     * barras tiene escrituras equivalentes.
+     */
+    it("un guion o un espacio hacen otro código: no chocan", async () => {
+      const { token } = await registerAndLogin();
+      const bolsa = await crearProducto(token, { sku: "BOLSA10", name: "Bolsa" });
+      await crearPresentacion(token, bolsa.id, {
+        name: "Bolsa con guion",
+        factor: 2,
+        code: "BOLSA-10",
+      }).expect(201);
+
+      await crearPresentacion(token, bolsa.id, { name: "Caja", factor: 3, code: "AB12" }).expect(
+        201,
+      );
+      for (const sku of ["AB-12", "AB 12"]) {
+        await request(app.getHttpServer())
+          .post("/products")
+          .set("Authorization", bearer(token))
+          .send({ sku, name: `Otro ${sku}`, baseUnit: "unit", price: 1 })
+          .expect(201);
+      }
+    });
+
     it("Carga rápida rechaza en su renglón el código que es el código interno de otro producto", async () => {
       const { token } = await registerAndLogin();
       await crearProducto(token, { sku: "036000291452", name: "Agua 1 L", baseUnit: "unit" });
