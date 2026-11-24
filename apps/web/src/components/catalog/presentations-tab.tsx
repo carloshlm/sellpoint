@@ -106,7 +106,12 @@ function PresentationsTab({
                 key={presentation.id}
                 productId={productId}
                 presentation={presentation}
-                onDone={() => setEditingId(null)}
+                // Un guardado que sale bien (o cancelar) quita el aviso del
+                // intento anterior: ya no describe nada (Carlos, 2026-11-24).
+                onDone={() => {
+                  setError(null);
+                  setEditingId(null);
+                }}
                 onError={onError}
               />
             ) : (
@@ -287,7 +292,10 @@ function PresentationsTab({
         (adding ? (
           <NewPresentationRow
             productId={productId}
-            onDone={() => setAdding(false)}
+            onDone={() => {
+              setError(null);
+              setAdding(false);
+            }}
             onError={onError}
           />
         ) : (

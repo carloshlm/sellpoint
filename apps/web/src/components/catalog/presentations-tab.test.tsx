@@ -234,6 +234,66 @@ describe("PresentationsTab — la fila se puede operar", () => {
       expect(update.mock.calls[1]?.[0].input.code).toBeNull();
     });
 
+    /**
+     * Carlos (2026-11-24): «cuando pones el código correcto el mensaje de
+     * error permanece y debería quitarse pues la presentación se agregó
+     * correctamente».
+     */
+    it("el aviso de un alta rechazada se quita cuando la siguiente sale bien", async () => {
+      const user = userEvent.setup();
+      const rechazo =
+        "El código de barras no es válido: su último dígito no coincide con los demás.";
+      create
+        .mockImplementationOnce((_input, opciones: { onError: (e: unknown) => void }) =>
+          opciones.onError({ message: rechazo }),
+        )
+        .mockImplementationOnce((_input, opciones: { onSuccess: () => void }) =>
+          opciones.onSuccess(),
+        );
+      renderCon(basePresentation);
+
+      await user.click(screen.getByRole("button", { name: "Agregar presentación" }));
+      await user.type(screen.getByLabelText("Nombre"), "Bolsa 10Kg");
+      await user.type(screen.getByLabelText("Equivalencia"), "10000");
+      await user.type(screen.getByLabelText("Código de barras"), "21000000001238");
+      await user.click(screen.getByRole("button", { name: "Agregar" }));
+      expect(screen.getByTestId("presentations-error")).toHaveTextContent(rechazo);
+
+      const barras = screen.getByLabelText("Código de barras");
+      await user.clear(barras);
+      await user.type(barras, "21000000001239");
+      await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+      expect(screen.queryByTestId("presentations-error")).not.toBeInTheDocument();
+    });
+
+    it("el aviso de una edición rechazada se quita cuando la siguiente sale bien", async () => {
+      const user = userEvent.setup();
+      update
+        .mockImplementationOnce((_input, opciones: { onError: (e: unknown) => void }) =>
+          opciones.onError({
+            message: "Ese código ya es el código interno del producto Arrachera.",
+          }),
+        )
+        .mockImplementationOnce((_input, opciones: { onSuccess: () => void }) =>
+          opciones.onSuccess(),
+        );
+      renderCon({ ...basePresentation, code: "BOLSA1K" });
+
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+      const codigo = screen.getByLabelText("Código interno");
+      await user.clear(codigo);
+      await user.type(codigo, "ARRACHERA");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      expect(screen.getByTestId("presentations-error")).toBeInTheDocument();
+
+      await user.clear(codigo);
+      await user.type(codigo, "BOLSA1KG");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+      expect(screen.queryByTestId("presentations-error")).not.toBeInTheDocument();
+    });
+
     it("una presentación nueva lo manda con el alta, y sin él no lo manda", async () => {
       const user = userEvent.setup();
       renderCon(basePresentation);
