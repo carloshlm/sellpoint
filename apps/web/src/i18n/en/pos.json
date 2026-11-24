@@ -66,6 +66,7 @@
     "presentation": "Presentation",
     "quantity": "Quantity",
     "rejectedLine": "The server rejected this line",
+    "noPrice": "No price",
     "remove": "Remove",
     "scan": "Scan with the camera",
     "scanHint": "Line the barcode up horizontally, over the line",

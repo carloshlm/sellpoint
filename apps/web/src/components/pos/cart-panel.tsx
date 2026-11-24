@@ -197,6 +197,10 @@ function CartLineRow({
   const codigoDeLinea =
     line.type === "product" ? line.sku : line.type === "service" ? line.code : null;
   const rechazada = errorSku !== null && errorSku === codigoDeLinea;
+  // F10-NOPRICE-02: un producto sin precio no se cobra (el API lo rechaza);
+  // pintar «$0.00» lo haría pasar por un precio. Solo productos: un servicio
+  // sin precio se sigue cobrando en cero.
+  const sinPrecio = line.type === "product" && precioDeLinea(line) === null;
 
   return (
     <li
@@ -217,7 +221,11 @@ function CartLineRow({
           </span>
           <span className="block text-muted-foreground text-xs">
             {codigoDeLinea !== null && `${codigoDeLinea} · `}
-            {formatMoney(Number(precioDeLinea(line) ?? 0), currency, locale)}
+            {sinPrecio ? (
+              <span className="text-destructive">{t("pos.cart.noPrice")}</span>
+            ) : (
+              formatMoney(Number(precioDeLinea(line) ?? 0), currency, locale)
+            )}
           </span>
         </button>
 
@@ -247,11 +255,11 @@ function CartLineRow({
 
         <button
           type="button"
-          className="w-24 text-right tabular-nums"
+          className={`w-24 text-right tabular-nums ${sinPrecio ? "text-destructive" : ""}`}
           data-testid={`cart-total-${line.key}`}
           onClick={onSelect}
         >
-          {formatMoney(totalDeLinea(line), currency, locale)}
+          {sinPrecio ? t("pos.cart.noPrice") : formatMoney(totalDeLinea(line), currency, locale)}
         </button>
 
         <Button variant="ghost" aria-label={t("pos.cart.remove")} onClick={() => remove(line.key)}>

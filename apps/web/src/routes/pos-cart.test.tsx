@@ -1128,3 +1128,91 @@ describe("el impuesto en el carrito y en el cobro (F4-TAX-17)", () => {
     expect(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
   });
 });
+
+/**
+ * F10-NOPRICE-02. La caja ya rechaza al cobrar lo que no tiene precio, pero
+ * hasta ese momento el renglón decía «$0.00» como si fuera un precio. Carlos
+ * (2026-11-24): «si hazlo» — que diga «Sin precio» desde que se escanea.
+ */
+describe("lo que no tiene precio lo dice antes de cobrar (F10-NOPRICE-02)", () => {
+  const BISTEC: posApi.LookupProductItem = {
+    ...AGUA,
+    id: "prod-bistec",
+    sku: "BISTEC-X",
+    name: "Bistec",
+    presentations: [{ ...PIEZA, id: "pres-bolsa", name: "Bistec 10Kg", price: null }],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCartStore.getState().clear();
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [],
+      cashExpenses: { total: "0", count: 0, items: [] },
+      openingCash: "0",
+      expectedCash: "0",
+    });
+  });
+
+  const lineaUnica = () => {
+    const key = useCartStore.getState().lines[0]?.key;
+    return screen.getByTestId(`cart-line-${key}`);
+  };
+
+  it("un producto sin precio dice «Sin precio» en su renglón y en su importe, no $0.00", async () => {
+    mocked.lookup.mockResolvedValue({
+      warehouseId: "w1",
+      exact: true,
+      items: [{ ...BISTEC, matchedBy: "barcode" }],
+    });
+    await renderPos();
+
+    await userEvent.type(screen.getByLabelText("Buscar"), "21000000001239");
+    await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(1));
+
+    const key = useCartStore.getState().lines[0]?.key;
+    expect(screen.getByTestId(`cart-total-${key}`)).toHaveTextContent("Sin precio");
+    expect(lineaUnica()).toHaveTextContent("BISTEC-X · Sin precio");
+    expect(lineaUnica()).not.toHaveTextContent("$0.00");
+  });
+
+  it("con precio, el renglón sigue diciendo su importe", async () => {
+    mocked.lookup.mockResolvedValue({
+      warehouseId: "w1",
+      exact: true,
+      items: [{ ...AGUA, matchedBy: "barcode" }],
+    });
+    await renderPos();
+
+    await userEvent.type(screen.getByLabelText("Buscar"), "7501234567001");
+    await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(1));
+
+    const key = useCartStore.getState().lines[0]?.key;
+    expect(screen.getByTestId(`cart-total-${key}`)).toHaveTextContent("$12.50");
+    expect(lineaUnica()).not.toHaveTextContent("Sin precio");
+  });
+
+  it("en la lista de resultados, el producto sin precio dice «Sin precio»", async () => {
+    mocked.lookup.mockResolvedValue({ warehouseId: "w1", exact: false, items: [BISTEC, AGUA] });
+    await renderPos();
+
+    await userEvent.type(screen.getByLabelText("Buscar"), "bi");
+
+    expect(await screen.findByRole("button", { name: /Bistec.*Sin precio/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Agua mineral.*\$12\.50/ })).toBeInTheDocument();
+  });
+
+  it("un servicio sin precio sigue como antes: la regla es de los productos", async () => {
+    mocked.lookup.mockResolvedValue({
+      warehouseId: "w1",
+      exact: false,
+      items: [{ ...IMPRESION, price: null }],
+    });
+    await renderPos();
+
+    await userEvent.type(screen.getByLabelText("Buscar"), "imp");
+
+    expect(await screen.findByRole("button", { name: /Impresión.*\$0\.00/ })).toBeInTheDocument();
+  });
+});

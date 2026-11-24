@@ -66,6 +66,7 @@
     "presentation": "Presentación",
     "quantity": "Cantidad",
     "rejectedLine": "El servidor rechazó esta línea",
+    "noPrice": "Sin precio",
     "remove": "Quitar",
     "scan": "Escanear con la cámara",
     "scanHint": "Coloca el código de barras horizontal, sobre la línea",

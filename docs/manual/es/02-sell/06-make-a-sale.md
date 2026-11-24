@@ -90,11 +90,12 @@ venta**: la regla para cobrar es la misma.
 ## Si un producto no tiene precio
 
 Lo que no tiene precio de venta no se cobra: cobrarlo en $0.00 sería regalarlo.
-Al cobrar aparece, por ejemplo, **«Bistec» (Bolsa 10 kg) no tiene precio de
-venta. Ponle precio en Productos para venderlo.**, y su renglón dice **El
-servidor rechazó esta línea**. Quita el renglón o pide a quien administra el
-catálogo que le ponga precio (capítulo 16), y cobra de nuevo. Una cotización
-tampoco lo acepta.
+Lo ves desde que lo buscas: en la lista y en su renglón del carrito dice **Sin
+precio** en lugar del importe. Si aun así presionas **Cobrar**, aparece, por
+ejemplo, **«Bistec» (Bolsa 10 kg) no tiene precio de venta. Ponle precio en
+Productos para venderlo.**, y su renglón dice **El servidor rechazó esta
+línea**. Quita el renglón o pide a quien administra el catálogo que le ponga
+precio (capítulo 16), y cobra de nuevo. Una cotización tampoco lo acepta.
 
 ## Cobrar
 

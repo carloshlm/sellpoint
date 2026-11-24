@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { BarcodeScanner } from "@/components/pos/barcode-scanner";
 import { QuoteLoadPanel } from "@/components/pos/quote-load-panel";
 import { Button } from "@/components/ui/button";
-import { type LookupItem, lookup } from "@/lib/pos/api";
+import { type LookupItem, type LookupProductItem, lookup } from "@/lib/pos/api";
 import { useLookup } from "@/lib/pos/hooks";
 import { useFolioPrefix } from "@/lib/tenant/folio-prefix";
 import { useFittingText } from "@/lib/ui/use-fitting-text";
@@ -380,12 +380,7 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
                 </span>
               </span>
               <span className="shrink-0 tabular-nums">
-                {item.type === "product" &&
-                  formatMoney(
-                    Number(item.presentations.find((p) => p.isDefaultSale)?.price ?? 0),
-                    currency,
-                    locale,
-                  )}
+                {item.type === "product" && precioDeResultado(item, currency, locale, t)}
                 {item.type === "service" && formatMoney(Number(item.price ?? 0), currency, locale)}
                 {item.type === "quote" && formatMoney(Number(item.total), currency, locale)}
               </span>
@@ -395,4 +390,22 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
       </ul>
     </section>
   );
+}
+
+/**
+ * El precio que muestra un resultado: el de su presentación predeterminada.
+ * F10-NOPRICE-02: si no tiene precio lo dice, en vez de «$0.00»; la caja no
+ * lo cobra.
+ */
+function precioDeResultado(
+  item: LookupProductItem,
+  currency: Currency,
+  locale: Parameters<typeof formatMoney>[2],
+  t: (key: string) => string,
+) {
+  const predeterminada = item.presentations.find((p) => p.isDefaultSale);
+  if (predeterminada !== undefined && predeterminada.price === null) {
+    return <span className="text-destructive">{t("pos.cart.noPrice")}</span>;
+  }
+  return formatMoney(Number(predeterminada?.price ?? 0), currency, locale);
 }
