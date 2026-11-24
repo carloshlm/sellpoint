@@ -620,6 +620,11 @@ model ProductPresentation {
   isDefaultSale        Boolean  @default(false) @map("is_default_sale")
   allowFractionalInput Boolean  @map("allow_fractional_input")
   barcode              String?
+  /// F10-PRESCODE — el código interno de la presentación (la bolsa de 10 kg
+  /// que el negocio etiqueta él mismo). Opcional, normalizado como el sku y
+  /// único en el negocio: no repite ningún sku, código ni código de barras
+  /// (`catalog-codes.ts`). El índice único parcial vive en la migración.
+  code                 String?  @db.VarChar(64)
   price                Decimal? @db.Decimal(14, 2)
   cost                 Decimal? @db.Decimal(14, 2)
   isActive             Boolean  @default(true) @map("is_active")
