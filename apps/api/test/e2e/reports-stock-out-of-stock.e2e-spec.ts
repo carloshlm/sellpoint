@@ -98,6 +98,17 @@ describe("Reporte de stock: el filtro de agotados (F10-OUTSTK)", () => {
       ]);
       // Sin mínimo: «no llevo control», aunque esté en cero.
       await producto("SinMinimo", { stockMin: "0" }, [[central.id, "0"]]);
+      // Con lote y existencia, sin mínimo: el detalle por lote lo muestra,
+      // pero NO es agotado ni está bajo mínimo.
+      await producto("ConLote", { stockMin: "0" }, [[central.id, "20"]]);
+      const conLote = ids.ConLote as string;
+      await tx.product.update({ where: { id: conLote }, data: { tracksLots: true } });
+      const lote = await tx.productLot.create({
+        data: { tenantId, productId: conLote, lotCode: `L-${randomUUID().slice(0, 6)}` },
+      });
+      await tx.stockLot.create({
+        data: { tenantId, lotId: lote.id, warehouseId: central.id, location: "", quantity: "20" },
+      });
       // Desactivado o compuesto: el panel no los cuenta, el filtro tampoco.
       await producto("Inactivo", { stockMin: "10", isActive: false }, [[central.id, "0"]]);
       await producto("Compuesto", { stockMin: "10", isComposite: true }, [[central.id, "0"]]);
@@ -145,6 +156,26 @@ describe("Reporte de stock: el filtro de agotados (F10-OUTSTK)", () => {
     expect(productos(rows)).toEqual(
       expect.arrayContaining([ids.Poquito, ids.Repartido, ids.Agotado]),
     );
+  });
+
+  /**
+   * Lo que encontró el verificador (B3): con «Detalle por lote y ubicación»
+   * los filtros por producto se aceptaban y no filtraban nada.
+   */
+  it("con el detalle por lote, «Agotados» y «Solo bajo mínimo» también filtran", async () => {
+    const lotes = async (query: string) =>
+      (
+        (
+          await request(app.getHttpServer())
+            .get(`/reports/stock?detail=lots&${query}`)
+            .set(auth())
+            .expect(200)
+        ).body as { rows: { productId: string }[] }
+      ).rows;
+
+    expect((await lotes("")).some((r) => r.productId === ids.ConLote)).toBe(true);
+    expect((await lotes("outOfStock=true")).some((r) => r.productId === ids.ConLote)).toBe(false);
+    expect((await lotes("belowMin=true")).some((r) => r.productId === ids.ConLote)).toBe(false);
   });
 
   it("el Excel trae lo mismo que la pantalla", async () => {

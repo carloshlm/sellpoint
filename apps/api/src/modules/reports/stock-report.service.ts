@@ -192,7 +192,12 @@ export class StockReportService {
     scope: UserScope,
     query: StockReportQueryDto,
   ): Promise<{ rows: StockLotReportRow[]; total: number; page: number; pageSize: number }> {
-    const desde = this.detalleDesde(user.tenantId, scope, query);
+    const desde = this.detalleDesde(
+      user.tenantId,
+      scope,
+      query,
+      await this.productosFiltrados(user.tenantId, scope, query),
+    );
 
     const [total, filas] = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const [conteo] = await tx.$queryRaw<{ total: number }[]>`
@@ -284,7 +289,12 @@ export class StockReportService {
   /** Cuántas filas dejarían los filtros. Lo consume el tope del export. */
   async count(user: AuthUser, scope: UserScope, query: StockReportQueryDto): Promise<number> {
     if (query.detail === "lots") {
-      const desde = this.detalleDesde(user.tenantId, scope, query);
+      const desde = this.detalleDesde(
+        user.tenantId,
+        scope,
+        query,
+        await this.productosFiltrados(user.tenantId, scope, query),
+      );
       const [conteo] = await this.prisma.withTenantContext(
         user.tenantId,
         (tx) => tx.$queryRaw<{ total: number }[]>`SELECT COUNT(*)::int AS total ${desde}`,
@@ -298,15 +308,6 @@ export class StockReportService {
     );
   }
 
-  /**
-   * Los productos cuyo total —sobre los almacenes del alcance— quedó por
-   * debajo de su `stock_min`.
-   *
-   * Se resuelve en una consulta agregada aparte y no dentro del `where`
-   * porque la condición es sobre una SUMA de varias filas, no sobre una fila.
-   * `stock_min = 0` significa «no llevo control», no «todo es poco»: esos
-   * productos no pueden estar bajo mínimo.
-   */
   /**
    * Los productos que dejan pasar los filtros por producto («Solo bajo
    * mínimo», «Agotados»), o `undefined` si no hay ninguno encendido. Con los
@@ -363,6 +364,15 @@ export class StockReportService {
     });
   }
 
+  /**
+   * Los productos cuyo total —sobre los almacenes del alcance— quedó por
+   * debajo de su `stock_min`.
+   *
+   * Se resuelve en una consulta agregada aparte y no dentro del `where`
+   * porque la condición es sobre una SUMA de varias filas, no sobre una fila.
+   * `stock_min = 0` significa «no llevo control», no «todo es poco»: esos
+   * productos no pueden estar bajo mínimo.
+   */
   private async productosBajoMinimo(tenantId: string, scope: UserScope): Promise<string[]> {
     return this.prisma.withTenantContext(tenantId, async (tx) => {
       const conMinimo = await tx.product.findMany({
@@ -446,7 +456,12 @@ export class StockReportService {
    * Solo los productos que manejan lote dan fila sin lote: en los demás TODO
    * es «sin lote» y el detalle por lote no es su lugar.
    */
-  private detalleDesde(tenantId: string, scope: UserScope, query: StockReportQueryDto) {
+  private detalleDesde(
+    tenantId: string,
+    scope: UserScope,
+    query: StockReportQueryDto,
+    productos?: readonly string[],
+  ) {
     if (query.warehouseId !== undefined) {
       assertWarehouseInScope(scope, query.warehouseId);
     }
@@ -464,6 +479,12 @@ export class StockReportService {
         ? Prisma.empty
         : Prisma.sql`AND (p.sku ILIKE ${likePattern(query.search)}
                           OR p.name ILIKE ${likePattern(query.search)})`;
+    // «Solo bajo mínimo» y «Agotados» filtran también el detalle por lote: antes
+    // se aceptaban y no filtraban nada (lo encontró el verificador, 2026-11-24).
+    const porProducto =
+      productos === undefined
+        ? Prisma.empty
+        : Prisma.sql`AND d.product_id = ANY(${[...productos]}::uuid[])`;
 
     return Prisma.sql`
       FROM (
@@ -494,7 +515,7 @@ export class StockReportService {
       ) d
       JOIN products p ON p.id = d.product_id
       JOIN warehouses w ON w.id = d.warehouse_id
-     WHERE TRUE ${busqueda}`;
+     WHERE TRUE ${busqueda} ${porProducto}`;
   }
 
   /**

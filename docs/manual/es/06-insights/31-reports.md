@@ -180,8 +180,10 @@ Tres casillas cambian el reporte:
 - **Solo bajo mínimo** deja los productos que hay que resurtir. El mínimo se
   compara contra lo que hay **sumando todas las sucursales**.
 - **Agotados** deja los productos que tienen un stock mínimo y ya no tienen
-  nada: la suma de todas las sucursales está en cero. Son los mismos que cuenta
-  **Agotados** en el panel.
+  nada en tus sucursales: la suma está en cero. Es la misma regla de
+  **Agotados** en el panel. Un producto que nunca ha tenido existencias en tus
+  sucursales no tiene renglón en este reporte, así que el panel lo cuenta pero
+  aquí no aparece.
 - **Detalle por lote y ubicación** separa cada producto por lote, caducidad y
   ubicación. Lo que un producto con lote tiene sin lote en una sucursal sale en
   su propio renglón, con **Sin lote** en la columna del lote y la caducidad
