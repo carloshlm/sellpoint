@@ -24,7 +24,8 @@ la factura (capítulo 28, «Compras con la factura del proveedor»).
 2. Elige el **Proveedor**, la **Sucursal** donde se va a recibir, la **Fecha del
    pedido** y, si la sabes, la **Entrega esperada**. Presiona **Crear borrador**.
 3. En **Productos del pedido**, agrega cada producto con su **Presentación**, la
-   **Cantidad** y el **Costo acordado**. Si quieres, anota la **Referencia del
+   **Cantidad** y el **Costo acordado**. Si lo buscas por el código de una
+   presentación, la línea ya trae esa. Si quieres, anota la **Referencia del
    proveedor**, las **Condiciones de pago** y **Notas**.
 4. Presiona **Emitir orden** y confirma.
 

@@ -13,6 +13,13 @@ export interface ProductListItem {
   attributes: Record<string, unknown>;
   /** Precio de la presentación predeterminada, ya como string decimal. */
   price: string | null;
+  /**
+   * F10-PRESCODE: la presentación cuyo código de barras o código interno es
+   * EXACTAMENTE lo que se buscó (la bolsa de 10 kg escaneada). `null` si se
+   * encontró por nombre, sku o un pedazo de código. Opcional porque solo lo
+   * trae la búsqueda, no el detalle.
+   */
+  matchedPresentation?: { id: string; name: string } | null;
 }
 
 export interface Presentation {
@@ -25,12 +32,14 @@ export interface Presentation {
   isDefaultSale: boolean;
   allowFractionalInput: boolean;
   barcode: string | null;
+  /** F10-PRESCODE: el código interno de la presentación («BOLSA10K»). */
+  code?: string | null;
   price: string | null;
   cost: string | null;
   isActive: boolean;
 }
 
-export interface ProductDetail extends Omit<ProductListItem, "price"> {
+export interface ProductDetail extends Omit<ProductListItem, "price" | "matchedPresentation"> {
   stockMin: string;
   location: string | null;
   presentations: Presentation[];
@@ -133,6 +142,8 @@ export interface UpsertPresentationInput {
   isDefaultSale?: boolean;
   allowFractionalInput?: boolean;
   barcode?: string | null;
+  /** F10-PRESCODE: `null` lo borra. */
+  code?: string | null;
   price?: number | null;
   cost?: number | null;
   isActive?: boolean;

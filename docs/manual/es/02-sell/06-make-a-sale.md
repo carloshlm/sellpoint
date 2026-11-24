@@ -47,8 +47,8 @@ Cada renglón del carrito muestra el producto, la cantidad, el importe y una
 
 - **Presentación.** Si un producto se vende de varias formas, como el agua por
   pieza o en **Caja con 12**, su renglón trae una lista para elegirla, y el
-  precio cambia con ella. Si la caja tiene su propio código de barras, al
-  escanearla entra ya como caja.
+  precio cambia con ella. Si la caja tiene su propio código de barras o código
+  interno, al escanearla o teclearlo entra ya como caja.
 - **Cambiar la cantidad.** Toca el renglón y se abre un teclado en la pantalla.
   Los números se agregan a la derecha: para cambiar 1 por 3, primero borra el 1
   con **⌫** (en los productos por pieza, **C** borra todo). También puedes

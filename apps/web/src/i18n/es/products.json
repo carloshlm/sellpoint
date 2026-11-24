@@ -76,6 +76,7 @@
     "purchasableFor": "Se compra en «{{name}}»",
     "sellableFor": "Se vende en «{{name}}»",
     "barcode": "Código de barras",
+    "code": "Código interno",
     "price": "Precio",
     "deactivate": "Desactivar",
     "reactivate": "Reactivar",

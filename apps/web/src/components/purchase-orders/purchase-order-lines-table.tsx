@@ -4,7 +4,11 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoneyInput } from "@/components/form/money-input";
 import { QuantityInput } from "@/components/form/quantity-input";
-import { ProductSearch } from "@/components/purchases/product-search";
+import {
+  type ProductoElegido,
+  ProductSearch,
+  presentacionInicialDe,
+} from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
@@ -201,12 +205,11 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
       );
     };
 
-    async function agregar(producto: { id: string; sku: string; name: string }) {
+    async function agregar(producto: ProductoElegido) {
       const yaEstaba = productoDe(producto.id);
       const ficha = yaEstaba ?? (await fichaDe(producto));
       if (yaEstaba === undefined) setCatalogo((previo) => [...previo, ficha]);
-      const presentacionInicial =
-        (ficha.presentations.find((p) => p.isPurchasable) ?? ficha.presentations[0])?.id ?? "";
+      const presentacionInicial = presentacionInicialDe(ficha.presentations, producto);
       // El último costo con ESTE proveedor gana al del catálogo como punto de
       // partida — si es de la misma presentación y de la misma base; si no,
       // solo se muestra (Carlos, 2026-09-12). Sin red, se sigue sin él.

@@ -11,11 +11,12 @@ import { PresentationsTab } from "./presentations-tab";
  * usuario y no el de la base: la tabla decía "Equivale en gr" porque pasaba el
  * CÓDIGO de la unidad a la etiqueta.
  */
+const create = vi.fn();
 const update = vi.fn();
 const remove = vi.fn();
 
 vi.mock("@/lib/products/hooks", () => ({
-  useCreatePresentation: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreatePresentation: () => ({ mutate: create, isPending: false }),
   useUpdatePresentation: () => ({ mutate: update, isPending: false }),
   useDeletePresentation: () => ({ mutate: remove, isPending: false }),
 }));
@@ -121,7 +122,7 @@ describe("PresentationsTab — la fila se puede operar", () => {
     );
   });
 
-  it("editar manda los cuatro datos juntos y solo al confirmar", async () => {
+  it("editar manda los cinco datos juntos y solo al confirmar", async () => {
     const user = userEvent.setup();
     renderTab("gr");
 
@@ -137,7 +138,7 @@ describe("PresentationsTab — la fila se puede operar", () => {
     expect(update).toHaveBeenCalledWith(
       {
         presentationId: "p1",
-        input: { name: "Unidad", factor: 2000, barcode: null, price: 0.02 },
+        input: { name: "Unidad", factor: 2000, barcode: null, code: null, price: 0.02 },
       },
       expect.anything(),
     );
@@ -178,6 +179,76 @@ describe("PresentationsTab — la fila se puede operar", () => {
 
     // `null` explícito: sin esto no habría forma de quitar un código mal puesto.
     expect(update.mock.calls[0]?.[0].input.barcode).toBeNull();
+  });
+
+  /**
+   * F10-PRESCODE (Carlos, 2026-11-23): «dar la entrada a por ejemplo la bolsa
+   * de 1 Kilo o la Bolsa de 10 Kilos, ya sea por código de barra o código
+   * interno». La presentación necesita dónde escribir su código interno.
+   */
+  describe("el código interno", () => {
+    function renderCon(presentation: Presentation) {
+      render(
+        <I18nextProvider i18n={createI18n()}>
+          <PresentationsTab
+            productId="prod-1"
+            baseUnit="kg"
+            presentations={[presentation]}
+            canManage
+          />
+        </I18nextProvider>,
+      );
+    }
+
+    it("la tabla lo muestra en su propia columna", () => {
+      renderCon({ ...basePresentation, name: "Bolsa 10 Kilos", factor: "10", code: "BOLSA10K" });
+
+      expect(screen.getByRole("columnheader", { name: "Código interno" })).toBeInTheDocument();
+      expect(screen.getByRole("cell", { name: "BOLSA10K" })).toBeInTheDocument();
+    });
+
+    it("una presentación sin código muestra la raya", () => {
+      renderCon({ ...basePresentation, code: null });
+
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      const celdas = screen.getAllByRole("cell").map((td) => td.textContent);
+      expect(celdas[encabezados.indexOf("Código interno")]).toBe("—");
+    });
+
+    it("al editar se escribe en mayúsculas, viaja al guardar y vaciarlo lo borra", async () => {
+      const user = userEvent.setup();
+      renderCon({ ...basePresentation, code: "BOLSA1K" });
+
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+      const codigo = screen.getByLabelText("Código interno");
+      expect(codigo).toHaveValue("BOLSA1K");
+      await user.clear(codigo);
+      await user.type(codigo, "bistek1kilo");
+      expect(codigo).toHaveValue("BISTEK1KILO");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      expect(update.mock.calls[0]?.[0].input.code).toBe("BISTEK1KILO");
+
+      // El guardado del mock no confirma, así que la fila sigue en edición.
+      await user.clear(screen.getByLabelText("Código interno"));
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      expect(update.mock.calls[1]?.[0].input.code).toBeNull();
+    });
+
+    it("una presentación nueva lo manda con el alta, y sin él no lo manda", async () => {
+      const user = userEvent.setup();
+      renderCon(basePresentation);
+
+      await user.click(screen.getByRole("button", { name: "Agregar presentación" }));
+      await user.type(screen.getByLabelText("Nombre"), "Bolsa 10 Kilos");
+      await user.type(screen.getByLabelText("Equivalencia"), "10");
+      await user.type(screen.getByLabelText("Código interno"), "bolsa10k");
+      await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+      expect(create).toHaveBeenCalledWith(
+        { name: "Bolsa 10 Kilos", factor: 10, code: "BOLSA10K" },
+        expect.anything(),
+      );
+    });
   });
 
   /**

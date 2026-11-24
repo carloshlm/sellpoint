@@ -488,6 +488,106 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     expect(within(fila).getByLabelText("Costo acordado")).toHaveValue("79");
   });
 
+  /**
+   * F10-PRESCODE (Carlos, 2026-11-23): «dar la entrada a por ejemplo la bolsa
+   * de 1 Kilo o la Bolsa de 10 Kilos, ya sea por código de barra o código
+   * interno». La línea nace con la presentación cuyo código se buscó.
+   */
+  describe("la presentación encontrada por su código", () => {
+    const conDosPresentaciones = (matchedPresentation: { id: string; name: string } | null) => {
+      mocked.getPurchaseOrder.mockResolvedValue(
+        buildPurchaseOrder({ status: "draft", issuedAt: null }),
+      );
+      mockedProductos.getProduct.mockResolvedValue({
+        id: "prod-2",
+        sku: "BISTEC-X",
+        name: "Bistec",
+        baseUnit: "kg",
+        isComposite: false,
+        isActive: true,
+        taxGroupId: null,
+        attributes: {},
+        stockMin: "0",
+        location: null,
+        presentations: [
+          {
+            id: "pres-1k",
+            productId: "prod-2",
+            name: "Bolsa 1 Kilo",
+            factor: "1",
+            isPurchasable: true,
+            isSellable: true,
+            isDefaultSale: true,
+            allowFractionalInput: true,
+            barcode: null,
+            code: "BOLSA1K",
+            price: null,
+            cost: "150",
+            isActive: true,
+          },
+          {
+            id: "pres-10k",
+            productId: "prod-2",
+            name: "Bolsa 10 Kilos",
+            factor: "10",
+            isPurchasable: true,
+            isSellable: true,
+            isDefaultSale: false,
+            allowFractionalInput: false,
+            barcode: null,
+            code: "BOLSA10K",
+            price: null,
+            cost: "1400",
+            isActive: true,
+          },
+        ],
+      });
+      mockedProductos.listProducts.mockResolvedValue({
+        items: [
+          {
+            id: "prod-2",
+            sku: "BISTEC-X",
+            name: "Bistec",
+            baseUnit: "kg",
+            isComposite: false,
+            isActive: true,
+            taxGroupId: null,
+            attributes: {},
+            price: null,
+            matchedPresentation,
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 10,
+      });
+    };
+
+    it("buscar «BOLSA10K» agrega la línea con la bolsa de 10 kg y la nombra en el resultado", async () => {
+      conDosPresentaciones({ id: "pres-10k", name: "Bolsa 10 Kilos" });
+      await renderFicha(GESTOR);
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText("Buscar producto"), "BOLSA10K");
+      const resultado = await screen.findByTestId("add-product-prod-2");
+      expect(resultado).toHaveTextContent("BISTEC-X · Bolsa 10 Kilos");
+      await user.click(resultado);
+
+      const fila = await screen.findByTestId("purchase-order-line-1");
+      expect(within(fila).getByLabelText("Presentación")).toHaveValue("pres-10k");
+    });
+
+    it("buscar por nombre deja la primera comprable, como antes", async () => {
+      conDosPresentaciones(null);
+      await renderFicha(GESTOR);
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText("Buscar producto"), "bistec");
+      await user.click(await screen.findByTestId("add-product-prod-2"));
+
+      const fila = await screen.findByTestId("purchase-order-line-1");
+      expect(within(fila).getByLabelText("Presentación")).toHaveValue("pres-1k");
+    });
+  });
+
   /** Carlos, 2026-09-12: «el último costo al cual se le compró a ese proveedor». */
   it("al agregar un producto, el último costo con ESTE proveedor gana al del catálogo y se dice de dónde viene", async () => {
     mocked.getPurchaseOrder.mockResolvedValue(

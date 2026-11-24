@@ -9,7 +9,11 @@ import {
   costoInicial,
   type LineasHandle,
 } from "@/components/purchase-orders/purchase-order-lines-table";
-import { ProductSearch } from "@/components/purchases/product-search";
+import {
+  type ProductoElegido,
+  ProductSearch,
+  presentacionInicialDe,
+} from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { ROW_ACTIONS_CELL, RowActionsTh } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
@@ -160,7 +164,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
       );
     };
 
-    async function agregar(producto: { id: string; sku: string; name: string }) {
+    async function agregar(producto: ProductoElegido) {
       // La ficha se resuelve ANTES de armar la línea, en una variable local:
       // leerla de `catalogo` después del `setCatalogo` devolvía el estado VIEJO
       // (React no lo actualiza a mitad de la función) y la presentación nacía
@@ -174,8 +178,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
       if (yaEstaba === undefined) {
         setCatalogo((previo) => [...previo, ficha]);
       }
-      const presentacionInicial =
-        (presentaciones.find((p) => p.isPurchasable) ?? presentaciones[0])?.id ?? "";
+      const presentacionInicial = presentacionInicialDe(presentaciones, producto);
       // El último costo con ESTE proveedor gana al del catálogo (misma
       // presentación y misma base); si no, solo se muestra (Carlos, 2026-09-12).
       const ultimo = await getLastCost({ supplierId: purchase.supplierId, productId: producto.id })

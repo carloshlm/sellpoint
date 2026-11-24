@@ -10,6 +10,28 @@ export interface ProductoElegido {
   id: string;
   sku: string;
   name: string;
+  /**
+   * F10-PRESCODE: la presentación cuyo código de barras o código interno es
+   * lo que se tecleó o escaneó (la bolsa de 10 kg).
+   */
+  matchedPresentation?: { id: string; name: string } | null;
+}
+
+/**
+ * La presentación con que nace la línea: la que se encontró por su código si
+ * se puede comprar (Carlos, 2026-11-23: «dar la entrada a por ejemplo la
+ * bolsa de 1 Kilo o la Bolsa de 10 Kilos, ya sea por código de barra o
+ * código interno»); si no, la comprable; si no hay ninguna marcada, la
+ * primera. Vacío deja que el API caiga a la unidad base.
+ */
+export function presentacionInicialDe(
+  presentaciones: readonly { id: string; isPurchasable: boolean }[],
+  elegido: Pick<ProductoElegido, "matchedPresentation">,
+): string {
+  const encontrada = presentaciones.find(
+    (p) => p.id === elegido.matchedPresentation?.id && p.isPurchasable,
+  );
+  return (encontrada ?? presentaciones.find((p) => p.isPurchasable) ?? presentaciones[0])?.id ?? "";
 }
 
 /**
@@ -64,7 +86,10 @@ export function ProductSearch({
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{producto.name}</span>
-                  <span className="font-mono text-muted-foreground text-xs">{producto.sku}</span>
+                  <span className="font-mono text-muted-foreground text-xs">
+                    {producto.sku}
+                    {producto.matchedPresentation && ` · ${producto.matchedPresentation.name}`}
+                  </span>
                 </span>
               </Button>
             </li>

@@ -1,4 +1,4 @@
-import { unitName } from "@sellpoint/shared";
+import { normalizeCode, unitName } from "@sellpoint/shared";
 import { Lock } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -94,6 +94,7 @@ function PresentationsTab({
             <TableHead>{t("products.presentations.default")}</TableHead>
             <TableHead>{t("products.presentations.wholeOnly")}</TableHead>
             <TableHead>{t("products.presentations.barcode")}</TableHead>
+            <TableHead>{t("products.presentations.code")}</TableHead>
             <TableHead>{t("products.presentations.price")}</TableHead>
             {canManage && <RowActionsHead />}
           </TableRow>
@@ -196,6 +197,7 @@ function PresentationsTab({
                   />
                 </TableCell>
                 <TableCell>{presentation.barcode ?? "—"}</TableCell>
+                <TableCell>{presentation.code ?? "—"}</TableCell>
                 <TableCell>
                   <Money value={presentation.price} />
                 </TableCell>
@@ -301,7 +303,7 @@ function PresentationsTab({
 
 /**
  * La fila en modo edición. Se cambian los datos que describen la presentación
- * —nombre, equivalencia, código de barras, precio—; los interruptores (compra,
+ * —nombre, equivalencia, código de barras, código interno, precio—; los interruptores (compra,
  * venta, predeterminada, solo enteros) NO están acá porque se operan de un
  * clic en la fila normal y meterlos duplicaría el mismo control en dos lugares.
  */
@@ -323,6 +325,7 @@ function EditPresentationRow({
   // El mismo candado que en la ficha: editar una presentación no es motivo
   // para dejar su código de barras expuesto a la pistola (Carlos, 2026-09-17).
   const [codigoDesbloqueado, setCodigoDesbloqueado] = useState(false);
+  const [code, setCode] = useState(presentation.code ?? "");
   const [price, setPrice] = useState(moneyInitialValue(presentation.price));
   const updatePresentation = useUpdatePresentation(productId);
 
@@ -340,6 +343,8 @@ function EditPresentationRow({
           // Vaciar el campo BORRA el código de barras (`null`), no lo deja como
           // estaba: si no, no habría forma de quitarlo.
           barcode: barcode.trim() || null,
+          // F10-PRESCODE: igual que el código de barras, vacío lo borra.
+          code: code.trim() || null,
           price: price === "" ? null : Number(price),
         },
       },
@@ -394,6 +399,16 @@ function EditPresentationRow({
         </div>
       </TableCell>
       <TableCell>
+        <Input
+          name="code"
+          aria-label={t("products.presentations.code")}
+          value={code}
+          // Lo que se escribe es lo que se guarda: el API lo normaliza igual
+          // que el sku del producto (mayúsculas, sin espacios de más).
+          onChange={(event) => setCode(normalizeCode(event.target.value))}
+        />
+      </TableCell>
+      <TableCell>
         <MoneyInput
           aria-label={t("products.presentations.price")}
           aria-invalid={priceError ? true : undefined}
@@ -426,6 +441,7 @@ function NewPresentationRow({
   const [name, setName] = useState("");
   const [factor, setFactor] = useState("");
   const [barcode, setBarcode] = useState("");
+  const [code, setCode] = useState("");
   const [price, setPrice] = useState("");
   const createPresentation = useCreatePresentation(productId);
 
@@ -445,6 +461,7 @@ function NewPresentationRow({
             name,
             factor: factorValue,
             ...(barcode ? { barcode } : {}),
+            ...(code.trim() ? { code: code.trim() } : {}),
             ...(price ? { price: Number(price) } : {}),
           },
           { onSuccess: onDone, onError },
@@ -475,6 +492,14 @@ function NewPresentationRow({
           id="new-presentation-barcode"
           value={barcode}
           onChange={(event) => setBarcode(event.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1 text-xs">
+        <Label htmlFor="new-presentation-code">{t("products.presentations.code")}</Label>
+        <Input
+          id="new-presentation-code"
+          value={code}
+          onChange={(event) => setCode(normalizeCode(event.target.value))}
         />
       </div>
       <div className="flex flex-col gap-1 text-xs">

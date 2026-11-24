@@ -76,6 +76,7 @@
     "purchasableFor": "Purchased as \"{{name}}\"",
     "sellableFor": "Sold as \"{{name}}\"",
     "barcode": "Barcode",
+    "code": "Internal code",
     "price": "Price",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",

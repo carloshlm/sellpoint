@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { addDocumentLine } from "@/lib/inventory/api";
 import { DOCUMENTS_QUERY_KEY } from "@/lib/inventory/hooks";
-import { listProducts } from "@/lib/products/api";
+import { listProducts, type ProductListItem } from "@/lib/products/api";
 import { useProducts } from "@/lib/products/hooks";
 import { useScannerBurst } from "@/lib/scanner/use-scanner-burst";
 
@@ -75,7 +75,14 @@ export function AddLineForm({
   const { data, isFetching } = useProducts({ query: debounced, pageSize: 10 }, { enabled: buscar });
 
   const agregar = useMutation({
-    mutationFn: (productId: string) => addDocumentLine(documentId, { productId }),
+    // F10-PRESCODE: si lo que se escaneó o tecleó es el código de UNA
+    // presentación (la bolsa de 10 kg), la línea entra con ella. Sin
+    // presentación, el API pone la de factor 1.
+    mutationFn: (product: Pick<ProductListItem, "id" | "matchedPresentation">) =>
+      addDocumentLine(documentId, {
+        productId: product.id,
+        ...(product.matchedPresentation ? { presentationId: product.matchedPresentation.id } : {}),
+      }),
     onSuccess: (creada) => {
       setTerm("");
       setDebounced("");
@@ -106,7 +113,7 @@ export function AddLineForm({
     const pagina = await listProducts({ query: codigo, pageSize: 2 });
     const unico = pagina.items.length === 1 ? pagina.items[0] : undefined;
     if (unico !== undefined) {
-      agregar.mutate(unico.id);
+      agregar.mutate(unico);
       return;
     }
     if (pagina.items.length === 0 && isScannableBarcode(codigo)) {
@@ -192,10 +199,16 @@ export function AddLineForm({
               <button
                 type="button"
                 disabled={agregar.isPending}
-                onClick={() => agregar.mutate(product.id)}
+                onClick={() => agregar.mutate(product)}
                 className="w-full rounded-md border border-input px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50"
               >
                 <span className="font-mono">{product.sku}</span> — {product.name}
+                {product.matchedPresentation && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {product.matchedPresentation.name}
+                  </span>
+                )}
               </button>
             </li>
           ))}

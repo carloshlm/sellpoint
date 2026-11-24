@@ -34,7 +34,8 @@ compras hay y el total del rango. Los estados son:
    incluyen impuesto** o **NO incluyen impuesto**, como vengan en el papel. De
    entrada queda el ajuste de tu negocio.
 5. En **Productos de la factura**, busca cada producto y escribe la
-   **Presentación**, la **Cantidad**, el **Costo unitario** y, si hubo, el
+   **Presentación** (si lo buscaste por el código de una presentación, la línea
+   ya trae esa), la **Cantidad**, el **Costo unitario** y, si hubo, el
    **Descuento**. Si el producto se controla por lote, escribe también el
    **Lote** y la **Caducidad**; la caducidad lleva el año completo, entre 2000
    y 2099, y no puede ser de antes de hoy, porque no se compra mercancía

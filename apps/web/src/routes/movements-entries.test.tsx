@@ -792,6 +792,89 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
     });
 
     /**
+     * F10-PRESCODE (Carlos, 2026-11-23): «dar la entrada a por ejemplo la bolsa
+     * de 1 Kilo o la Bolsa de 10 Kilos, ya sea por código de barra o código
+     * interno». Antes la línea entraba siempre en la presentación de factor 1:
+     * escanear la bolsa y escribir «1» registraba un kilo, no diez.
+     */
+    describe("el código de una presentación la elige", () => {
+      const bolsaDeDiez = () => {
+        mockedProducts.mockResolvedValue({
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          items: [
+            {
+              id: "p-bistec",
+              sku: "BISTEC-X",
+              name: "Bistec",
+              baseUnit: "kg",
+              isComposite: false,
+              isActive: true,
+              attributes: {},
+              price: null,
+              taxGroupId: null,
+              matchedPresentation: { id: "pres-10k", name: "Bolsa 10 Kilos" },
+            },
+          ],
+        });
+      };
+
+      it("el Enter con el código de la bolsa agrega la línea con ESA presentación", async () => {
+        const user = userEvent.setup();
+        bolsaDeDiez();
+        mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+        await renderDoc();
+        await screen.findByText("PAR-500");
+
+        const campo = screen.getByLabelText(/buscar producto/i) as HTMLInputElement;
+        await user.click(campo);
+        fireEvent.input(campo, { target: { value: "BOLSA10K" } });
+        fireEvent.submit(campo.form as HTMLFormElement);
+
+        await waitFor(() => {
+          expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", {
+            productId: "p-bistec",
+            presentationId: "pres-10k",
+          });
+        });
+      });
+
+      it("el resultado de la lista nombra la presentación y al elegirlo la manda", async () => {
+        const user = userEvent.setup();
+        bolsaDeDiez();
+        mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+        await renderDoc();
+        await screen.findByText("PAR-500");
+
+        await user.type(screen.getByLabelText(/buscar producto/i), "bolsa10k");
+        await user.click(await screen.findByRole("button", { name: /BISTEC-X.*Bolsa 10 Kilos/ }));
+
+        await waitFor(() => {
+          expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", {
+            productId: "p-bistec",
+            presentationId: "pres-10k",
+          });
+        });
+      });
+
+      it("sin presentación encontrada no manda ninguna: el API pone la de factor 1", async () => {
+        const user = userEvent.setup();
+        soloIbuprofeno();
+        mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+        await renderDoc();
+        await screen.findByText("PAR-500");
+
+        await user.type(screen.getByLabelText(/buscar producto/i), "ibu");
+        await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+        await waitFor(() => {
+          expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", { productId: "p2" });
+        });
+      });
+    });
+
+    /**
      * El caso que Carlos pidió por nombre: tras agregar una línea el foco
      * aterriza en la CANTIDAD, así que la siguiente pasada de pistola dispara
      * desde ahí. Esos dígitos entran en el campo antes de que nadie pueda saber

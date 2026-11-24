@@ -75,7 +75,8 @@ tres (**1.200 kilogramos**).
 
 Un producto puede venderse de varias formas. El agua se vende suelta y también
 en caja con 12; el queso, por kilo y también en porción de 250 g. Cada forma es
-una **presentación**, con su propio código de barras y su propio precio.
+una **presentación**, con su propio código de barras, su código interno y su
+propio precio.
 
 Todo producto nace con una presentación, la de su unidad base (en el agua, la
 **Pieza**). Para agregar otra:
@@ -84,7 +85,7 @@ Todo producto nace con una presentación, la de su unidad base (en el agua, la
 2. Presiona **Agregar presentación**.
 3. Escribe el **Nombre** («Caja con 12»), la **Equivalencia** en la unidad base
    (12 piezas; para una porción de queso, 0.25 kg), y si quieres su **Código de
-   barras** y su **Precio**.
+   barras**, su **Código interno** y su **Precio**.
 4. Presiona **Agregar**.
 
 ![Las presentaciones del agua](screen:product-presentations)
@@ -92,6 +93,19 @@ Todo producto nace con una presentación, la de su unidad base (en el agua, la
 En la tabla decides, para cada presentación, si **Se compra**, si **Se vende**,
 cuál es la **Predeterminada** para vender y si va en **Solo enteros** (sin
 decimales en la caja). Estas casillas se guardan al marcarlas.
+
+El **Código interno** es para la presentación que no trae código del
+fabricante, como la bolsa de 10 kg que tú armas y etiquetas. Puede llevar
+letras o números («BOLSA10K»). Cuando escaneas o tecleas el código de barras o
+el código interno de una presentación —en la caja, en una entrada o salida, en
+una compra o en una orden de compra—, el producto entra ya con esa
+presentación: la bolsa de 10 kg, no el kilo.
+
+Ningún código se repite en tu negocio. El código interno de una presentación no
+puede ser el código interno de un producto, el de otra presentación ni un
+código de barras, y al revés. Si lo intentas, el aviso te dice quién ya lo
+tiene, por ejemplo: «Ese código ya es el código interno de «Bolsa 10 Kilos» de
+Bistec.»
 
 ## Carga rápida: escanear y dar de alta
 

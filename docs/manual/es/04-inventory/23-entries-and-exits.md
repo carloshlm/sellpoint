@@ -29,9 +29,11 @@ mueve en el inventario hasta que lo confirmas.
 3. Elige el **Motivo** (los ves en la tabla de abajo). Según el motivo, la
    pantalla te pide una **Referencia**, una **Nota** o la **Sucursal destino**.
 4. En **Buscar producto**, escanea el código de barras o teclea el SKU o el
-   nombre, y presiona **Agregar**. Repite con cada producto.
-5. En cada línea elige la **Presentación** (por ejemplo, «Caja con 12») y escribe
-   la **Cantidad**. Debajo ves a cuántas piezas equivale. Si el motivo lo pide,
+   nombre, y presiona **Agregar**. Repite con cada producto. Si el código es el
+   de una presentación (su código de barras o su código interno), la línea
+   entra ya con ella: escanear la bolsa de 10 kg agrega la bolsa, no el kilo.
+5. En cada línea revisa la **Presentación** (por ejemplo, «Caja con 12») y
+   escribe la **Cantidad**. Debajo ves a cuántas piezas equivale. Si el motivo lo pide,
    escribe el **Costo unitario**.
 6. Presiona **Confirmar** y, en el aviso, confirma de nuevo.
 
