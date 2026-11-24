@@ -313,6 +313,38 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     });
 
     /**
+     * F10-OUTSTK (Carlos, 2026-11-24): «que haya otro filtro de checkbox que
+     * diga agotados».
+     */
+    it("«Agotados» viaja al API", async () => {
+      await renderRuta("/reports/stock");
+      await screen.findByText("Café");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByLabelText("Agotados"));
+
+      await waitFor(() =>
+        expect(mocked.getStockReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ outOfStock: true }),
+        ),
+      );
+      expect(mocked.getStockReport).toHaveBeenLastCalledWith(
+        expect.not.objectContaining({ belowMin: true }),
+      );
+    });
+
+    it("llegar desde el mosaico con «outOfStock» deja la casilla puesta y la manda", async () => {
+      await renderRuta("/reports/stock?outOfStock=true");
+      await screen.findByText("Café");
+
+      expect(screen.getByLabelText("Agotados")).toBeChecked();
+      expect(screen.getByLabelText(/bajo.*mínimo/i)).not.toBeChecked();
+      expect(mocked.getStockReport).toHaveBeenCalledWith(
+        expect.objectContaining({ outOfStock: true }),
+      );
+    });
+
+    /**
      * Carlos (2026-10-30): un buscador por producto. Viaja al API, que busca
      * por nombre o SKU: el reporte pagina en el servidor y filtrar solo la
      * página visible escondería lo que está en las demás.

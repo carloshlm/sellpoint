@@ -86,6 +86,7 @@
     "min": "Mínimo",
     "noLot": "Sin lote",
     "onlyBelowMin": "Solo bajo mínimo",
+    "onlyOutOfStock": "Agotados",
     "product": "Producto",
     "quantity": "Cantidad",
     "search": "Buscar producto",

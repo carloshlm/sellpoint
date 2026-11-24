@@ -181,7 +181,8 @@ mínimo** (capítulo 16):
   compras. Un producto que nunca compraste con costo no suma.
 
 Presiona cualquiera de los tres para abrir el reporte **Stock por sucursal**
-(capítulo 31). Abajo, **Productos a atender** lista hasta cinco productos
+(capítulo 31): **Agotados** lo abre con la casilla **Agotados** puesta, y
+**Stock bajo**, con **Solo bajo mínimo**. Abajo, **Productos a atender** lista hasta cinco productos
 agotados o bajos, primero los más urgentes: calcula para cuántos días te
 alcanzan al ritmo de venta de las últimas dos semanas. Si uno no se vendió en
 ese tiempo dice **Sin ritmo de venta**.

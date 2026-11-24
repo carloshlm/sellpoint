@@ -48,6 +48,8 @@ export interface StockReportRow {
 export interface StockReportQuery {
   warehouseId?: string;
   belowMin?: boolean;
+  /** F10-OUTSTK: con mínimo y en cero (la regla del mosaico «Agotados»). */
+  outOfStock?: boolean;
   search?: string;
   detail?: "lots";
   page?: number;

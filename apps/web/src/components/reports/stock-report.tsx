@@ -25,7 +25,13 @@ import { useAuthStore } from "@/stores/auth.store";
  * dos formas con las mismas columnas obligaría a dejar celdas vacías que se
  * leen como datos faltantes.
  */
-export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boolean } = {}) {
+export function StockReport({
+  initialBelowMin = false,
+  initialOutOfStock = false,
+}: {
+  initialBelowMin?: boolean;
+  initialOutOfStock?: boolean;
+} = {}) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = useScopedCurrency();
@@ -35,6 +41,9 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
 
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [belowMin, setBelowMin] = useState(initialBelowMin);
+  // F10-OUTSTK (Carlos, 2026-11-24): «Productos agotados son los que tienen un
+  // valor en mínimo y la cantidad es cero».
+  const [outOfStock, setOutOfStock] = useState(initialOutOfStock);
   const [detalle, setDetalle] = useState(false);
   const [page, setPage] = useState(1);
   // Carlos (2026-10-30): el buscador va al API —que busca por nombre o SKU—
@@ -53,6 +62,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
     ...(buscado !== "" && { search: buscado }),
     ...(warehouseId !== null && { warehouseId }),
     ...(belowMin && { belowMin: true }),
+    ...(outOfStock && { outOfStock: true }),
     ...(detalle && { detail: "lots" as const }),
   };
 
@@ -164,6 +174,16 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
             onChange={(e) => alFiltrar(() => setBelowMin(e.target.checked))}
           />
           {t("reports.stock.onlyBelowMin")}
+        </label>
+
+        <label className="flex items-center gap-2 pb-2 text-sm">
+          <input
+            type="checkbox"
+            name="outOfStock"
+            checked={outOfStock}
+            onChange={(e) => alFiltrar(() => setOutOfStock(e.target.checked))}
+          />
+          {t("reports.stock.onlyOutOfStock")}
         </label>
 
         <label className="flex items-center gap-2 pb-2 text-sm">

@@ -315,12 +315,27 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     expect(screen.queryByText(/creció/)).not.toBeInTheDocument();
   });
 
-  it("el contador de agotados navega al stock YA filtrado", async () => {
+  /**
+   * Carlos (2026-11-24): «Cuando se le da clic a producto agotado desde el
+   * panel debería enviar al reporte de Stock por Sucursal y que haya otro
+   * filtro de checkbox que diga agotados».
+   */
+  it("el contador de agotados navega al stock filtrado por «Agotados»", async () => {
     await renderDashboard();
 
     const enlace = (await screen.findByText(/Agotados/)).closest("a");
     expect(enlace?.getAttribute("href")).toContain("/reports/stock");
+    expect(enlace?.getAttribute("href")).toContain("outOfStock=true");
+    expect(enlace?.getAttribute("href")).not.toContain("belowMin");
+  });
+
+  it("el contador de stock bajo sigue navegando con «Solo bajo mínimo»", async () => {
+    await renderDashboard();
+
+    const enlace = (await screen.findByText(/Stock bajo/)).closest("a");
+    expect(enlace?.getAttribute("href")).toContain("/reports/stock");
     expect(enlace?.getAttribute("href")).toContain("belowMin=true");
+    expect(enlace?.getAttribute("href")).not.toContain("outOfStock");
   });
 
   /**

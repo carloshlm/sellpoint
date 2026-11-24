@@ -17,6 +17,16 @@ export const stockReportQuerySchema = z
       .enum(["true", "false"])
       .optional()
       .transform((valor) => valor === "true"),
+    /**
+     * Solo los AGOTADOS (Carlos, 2026-11-24: «Productos agotados son los que
+     * tienen un valor en mínimo y la cantidad es cero»): mínimo mayor que cero
+     * y total en cero o menos. Es la misma regla del mosaico «Agotados» del
+     * panel, para que el número del mosaico y la lista coincidan.
+     */
+    outOfStock: z
+      .enum(["true", "false"])
+      .optional()
+      .transform((valor) => valor === "true"),
     /** Parcial e insensible, sobre SKU y nombre. */
     search: z.string().trim().min(1).optional(),
     /**

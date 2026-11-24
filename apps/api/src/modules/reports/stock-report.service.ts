@@ -102,10 +102,11 @@ export class StockReportService {
     scope: UserScope,
     query: StockReportQueryDto,
   ): Promise<{ rows: StockReportRow[]; total: number; page: number; pageSize: number }> {
-    const bajoMinimo = query.belowMin
-      ? await this.productosBajoMinimo(user.tenantId, scope)
-      : undefined;
-    const where = this.where(scope, query, bajoMinimo);
+    const where = this.where(
+      scope,
+      query,
+      await this.productosFiltrados(user.tenantId, scope, query),
+    );
 
     const [total, filas] = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const conteo = await tx.stockByWarehouse.count({ where });
@@ -291,11 +292,9 @@ export class StockReportService {
       return conteo?.total ?? 0;
     }
 
-    const bajoMinimo = query.belowMin
-      ? await this.productosBajoMinimo(user.tenantId, scope)
-      : undefined;
+    const productos = await this.productosFiltrados(user.tenantId, scope, query);
     return this.prisma.withTenantContext(user.tenantId, (tx) =>
-      tx.stockByWarehouse.count({ where: this.where(scope, query, bajoMinimo) }),
+      tx.stockByWarehouse.count({ where: this.where(scope, query, productos) }),
     );
   }
 
@@ -308,6 +307,62 @@ export class StockReportService {
    * `stock_min = 0` significa «no llevo control», no «todo es poco»: esos
    * productos no pueden estar bajo mínimo.
    */
+  /**
+   * Los productos que dejan pasar los filtros por producto («Solo bajo
+   * mínimo», «Agotados»), o `undefined` si no hay ninguno encendido. Con los
+   * dos, los que cumplen ambos (un agotado siempre está bajo su mínimo).
+   */
+  private async productosFiltrados(
+    tenantId: string,
+    scope: UserScope,
+    query: StockReportQueryDto,
+  ): Promise<string[] | undefined> {
+    const [bajoMinimo, agotados] = await Promise.all([
+      query.belowMin ? this.productosBajoMinimo(tenantId, scope) : undefined,
+      query.outOfStock ? this.productosAgotados(tenantId, scope) : undefined,
+    ]);
+    if (bajoMinimo !== undefined && agotados !== undefined) {
+      const enAmbos = new Set(bajoMinimo);
+      return agotados.filter((id) => enAmbos.has(id));
+    }
+    return bajoMinimo ?? agotados;
+  }
+
+  /**
+   * F10-OUTSTK — los AGOTADOS, con la regla del mosaico del panel
+   * (`dashboard-inventory.service.ts`): activos, no compuestos, con mínimo
+   * mayor que cero y un total en el alcance de cero o menos (un saldo en
+   * negativo, con «Vender sin existencias», también está agotado). Si la regla
+   * fuera otra, el mosaico diría «1» y la lista mostraría otra cosa.
+   */
+  private async productosAgotados(tenantId: string, scope: UserScope): Promise<string[]> {
+    return this.prisma.withTenantContext(tenantId, async (tx) => {
+      const conMinimo = await tx.product.findMany({
+        where: { tenantId, stockMin: { gt: 0 }, isActive: true, isComposite: false },
+        select: { id: true },
+      });
+      if (conMinimo.length === 0) {
+        return [];
+      }
+
+      const sumas = await tx.stockByWarehouse.groupBy({
+        by: ["productId"],
+        where: {
+          productId: { in: conMinimo.map((p) => p.id) },
+          ...(scope.warehouseIds === "all" ? {} : { warehouseId: { in: scope.warehouseIds } }),
+        },
+        _sum: { quantity: true },
+      });
+      const totalPorProducto = new Map(
+        sumas.map((s) => [s.productId, new Prisma.Decimal((s._sum.quantity ?? 0).toString())]),
+      );
+
+      return conMinimo
+        .filter((producto) => !(totalPorProducto.get(producto.id) ?? new Prisma.Decimal(0)).gt(0))
+        .map((producto) => producto.id);
+    });
+  }
+
   private async productosBajoMinimo(tenantId: string, scope: UserScope): Promise<string[]> {
     return this.prisma.withTenantContext(tenantId, async (tx) => {
       const conMinimo = await tx.product.findMany({
@@ -348,7 +403,7 @@ export class StockReportService {
    * de paginar dejaría un `count` que promete más filas de las que el filtro
    * deja. Un paginador que miente es peor que un filtro lento.
    */
-  private where(scope: UserScope, query: StockReportQueryDto, bajoMinimo?: readonly string[]) {
+  private where(scope: UserScope, query: StockReportQueryDto, productos?: readonly string[]) {
     if (query.warehouseId !== undefined) {
       assertWarehouseInScope(scope, query.warehouseId);
     }
@@ -374,7 +429,7 @@ export class StockReportService {
       // `product:` en el mismo objeto se pisan en silencio y el filtro que
       // quedó atrás simplemente deja de existir.
       ...(Object.keys(filtroProducto).length > 0 && { product: filtroProducto }),
-      ...(bajoMinimo !== undefined && { productId: { in: [...bajoMinimo] } }),
+      ...(productos !== undefined && { productId: { in: [...productos] } }),
     };
   }
 

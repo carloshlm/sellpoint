@@ -9,18 +9,22 @@ import { StockReport } from "@/components/reports/stock-report";
 /**
  * F5-STK-04 — el stock por almacén, valorizado.
  *
- * `belowMin` entra por URL (F5-DASH-13): los contadores del dashboard
- * navegan acá YA filtrado — llegar a la pantalla y tener que re-aplicar el
- * filtro a mano sería un enlace que promete y no cumple.
+ * `belowMin` y `outOfStock` entran por URL (F5-DASH-13, F10-OUTSTK): los
+ * contadores del dashboard navegan acá YA filtrado — llegar a la pantalla y
+ * tener que re-aplicar el filtro a mano sería un enlace que promete y no
+ * cumple.
  */
 function StockReportRoute() {
-  const { belowMin } = Route.useSearch();
+  const { belowMin, outOfStock } = Route.useSearch();
   return (
     <ProtectedRoute>
       <OnboardingGate>
         <AppLayout>
           <PermissionGate need="reports:read">
-            <StockReport initialBelowMin={belowMin === true} />
+            <StockReport
+              initialBelowMin={belowMin === true}
+              initialOutOfStock={outOfStock === true}
+            />
           </PermissionGate>
         </AppLayout>
       </OnboardingGate>
@@ -30,5 +34,8 @@ function StockReportRoute() {
 
 export const Route = createFileRoute("/reports/stock")({
   component: StockReportRoute,
-  validateSearch: z.object({ belowMin: z.boolean().optional() }),
+  validateSearch: z.object({
+    belowMin: z.boolean().optional(),
+    outOfStock: z.boolean().optional(),
+  }),
 });

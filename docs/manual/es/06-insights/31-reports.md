@@ -175,10 +175,13 @@ importes:
   sucursal.
 
 Para encontrar un producto, escribe su nombre o su SKU en **Buscar producto**.
-Dos casillas cambian el reporte:
+Tres casillas cambian el reporte:
 
 - **Solo bajo mínimo** deja los productos que hay que resurtir. El mínimo se
   compara contra lo que hay **sumando todas las sucursales**.
+- **Agotados** deja los productos que tienen un stock mínimo y ya no tienen
+  nada: la suma de todas las sucursales está en cero. Son los mismos que cuenta
+  **Agotados** en el panel.
 - **Detalle por lote y ubicación** separa cada producto por lote, caducidad y
   ubicación. Lo que un producto con lote tiene sin lote en una sucursal sale en
   su propio renglón, con **Sin lote** en la columna del lote y la caducidad

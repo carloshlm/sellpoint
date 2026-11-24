@@ -86,6 +86,7 @@
     "min": "Minimum",
     "noLot": "No lot",
     "onlyBelowMin": "Only below minimum",
+    "onlyOutOfStock": "Out of stock",
     "product": "Product",
     "quantity": "Quantity",
     "search": "Search product",

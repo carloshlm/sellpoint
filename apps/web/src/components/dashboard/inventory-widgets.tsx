@@ -43,7 +43,8 @@ function InventoryWidgets() {
     <section className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 className="font-medium text-sm">{t("dashboard.inventory.title")}</h2>
       <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
-        <Mosaico enlaza={enlaza} soloBajoMinimo>
+        {/* Carlos (2026-11-24): el de agotados abre el reporte con «Agotados». */}
+        <Mosaico enlaza={enlaza} filtro="outOfStock">
           <span className="font-semibold text-2xl text-destructive tabular-nums">
             {data.outOfStock}
           </span>
@@ -51,7 +52,7 @@ function InventoryWidgets() {
             🔴 {t("dashboard.inventory.outOfStock")}
           </span>
         </Mosaico>
-        <Mosaico enlaza={enlaza} soloBajoMinimo>
+        <Mosaico enlaza={enlaza} filtro="belowMin">
           <span className="font-semibold text-2xl text-warning tabular-nums">{data.belowMin}</span>
           <span className="text-muted-foreground text-xs">
             🟠 {t("dashboard.inventory.belowMin")}
@@ -107,13 +108,13 @@ function InventoryWidgets() {
 type MosaicoProps = {
   /** Sin enlace (el expediente del backoffice), el mosaico se lee sin navegar. */
   enlaza: boolean;
-  /** Llega al reporte con «Solo bajo mínimo» puesto. */
-  soloBajoMinimo?: boolean;
+  /** Llega al reporte con ese filtro puesto: «Solo bajo mínimo» o «Agotados». */
+  filtro?: "belowMin" | "outOfStock";
   className?: string;
   children: ReactNode;
 };
 
-function Mosaico({ enlaza, soloBajoMinimo = false, className = "", children }: MosaicoProps) {
+function Mosaico({ enlaza, filtro, className = "", children }: MosaicoProps) {
   const clase = `flex min-w-0 flex-col rounded-md border p-3 ${className}`.trim();
   if (!enlaza) {
     return <div className={clase}>{children}</div>;
@@ -121,7 +122,7 @@ function Mosaico({ enlaza, soloBajoMinimo = false, className = "", children }: M
   return (
     <Link
       to="/reports/stock"
-      {...(soloBajoMinimo && { search: { belowMin: true } })}
+      {...(filtro !== undefined && { search: { [filtro]: true } })}
       className={`${clase} transition-colors hover:bg-muted`}
     >
       {children}
