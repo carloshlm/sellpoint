@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  PayloadTooLargeException,
+} from "@nestjs/common";
 import { barcodeSearchForms, getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
@@ -33,7 +38,7 @@ import {
   BarcodeContributionService,
 } from "./barcode-contribution.service";
 import { barcodeProblem, contributionOf } from "./barcode-rules";
-import { codeTakenMessage, presentationCodesIn } from "./catalog-codes";
+import { codeTakenMessage, lockCatalogCodes, presentationCodesIn } from "./catalog-codes";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
 import { basePresentationName, derivesFractionalInput } from "./products.service";
 
@@ -557,14 +562,7 @@ export class ImportService {
     // cambia pueden ser el código interno de una presentación
     // (`catalog-codes.ts`). Una sola consulta para todo el archivo.
     const codigosDePresentacion = await this.prisma.withTenantContext(user.tenantId, (tx) =>
-      presentationCodesIn(
-        tx,
-        user.tenantId,
-        conId.flatMap((item) => [
-          ...(item.existingId === null ? [item.sku] : []),
-          ...(item.barcode === null ? [] : [item.barcode, ...barcodeSearchForms(item.barcode)]),
-        ]),
-      ),
+      presentationCodesIn(tx, user.tenantId, conId.flatMap(codigosQueSeEscriben)),
     );
 
     const importable: ParsedRow[] = [];
@@ -651,6 +649,29 @@ export class ImportService {
     }
 
     await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      // F10-PRESCODE: la revisión de arriba corrió en OTRA transacción. Con el
+      // candado de los códigos tomado se repite: un código de presentación
+      // guardado entre la revisión y esta escritura no puede colarse como
+      // sku ni como código de barras (lo encontró el verificador). Si pasa,
+      // la importación entera rebota, como cualquier choque del formulario.
+      await lockCatalogCodes(tx, user.tenantId);
+      const codigosAhora = await presentationCodesIn(
+        tx,
+        user.tenantId,
+        importable.flatMap(codigosQueSeEscriben),
+      );
+      for (const item of importable) {
+        const codigoDeAntes =
+          item.existingId === null ? null : (baseBySku.get(item.sku)?.barcode ?? null);
+        const choque = choqueConCodigoDePresentacion(item, codigoDeAntes, codigosAhora);
+        if (choque !== null) {
+          throw new ConflictException({
+            message: codeTakenMessage("presentation_code"),
+            args: choque.dueno,
+          });
+        }
+      }
+
       for (const item of importable) {
         if (item.existingId) {
           // El SKU no se toca: es la LLAVE por la que se reconoció la fila.
@@ -859,6 +880,22 @@ export class ImportService {
  */
 function resolveLookupCode(index: LookupIndex, raw: string): string | null {
   return index.idByCode.get(raw) ?? index.idByLowerCode.get(raw.toLowerCase()) ?? null;
+}
+
+/**
+ * F10-PRESCODE — los códigos que una fila va a escribir y que podrían ser el
+ * código interno de una presentación: el sku si el producto es nuevo, y el
+ * código de barras en todas sus escrituras.
+ */
+function codigosQueSeEscriben(item: {
+  existingId: string | null;
+  sku: string;
+  barcode: string | null;
+}): string[] {
+  return [
+    ...(item.existingId === null ? [item.sku] : []),
+    ...(item.barcode === null ? [] : [item.barcode, ...barcodeSearchForms(item.barcode)]),
+  ];
 }
 
 /**

@@ -405,6 +405,62 @@ describe("Código interno de las presentaciones (F10-PRESCODE)", () => {
     });
   });
   /**
+   * Lo que encontró el verificador (B1): la importación revisaba en una
+   * transacción y escribía en otra, sin el candado. Un código de presentación
+   * guardado entre las dos se colaba como sku. Aquí se sostiene el candado,
+   * se deja que la importación pase su revisión y quede esperando para
+   * escribir, y se guarda el código justo en medio: tiene que rebotar.
+   */
+  it("la importación revisa otra vez con el candado: un código guardado en medio no se cuela", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const bistec = await crearProducto(token, { sku: "BISTEC-X", name: "Bistec" });
+    const caja = (
+      await crearPresentacion(token, bistec.id, { name: "Caja 11", factor: 11 }).expect(201)
+    ).body as { id: string };
+
+    let soltar: () => void = () => {};
+    const candadoSuelto = new Promise<void>((resolve) => {
+      soltar = resolve;
+    });
+    let avisarTomado: () => void = () => {};
+    const tomado = new Promise<void>((resolve) => {
+      avisarTomado = resolve;
+    });
+    const sostenedor = prisma.withTenantContext(tenantId, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`catalog-codes:${tenantId}`}::text, 0))`;
+      avisarTomado();
+      await candadoSuelto;
+      await tx.productPresentation.update({ where: { id: caja.id }, data: { code: "IMPRACE" } });
+    });
+    await tomado;
+
+    const importacion = request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre\nIMPRACE,Otra cosa", dryRun: false })
+      .then((res) => res);
+
+    // La importación ya revisó (sin choque) y espera el candado para escribir.
+    for (let intento = 0; intento < 100; intento += 1) {
+      const [fila] = await prisma.$queryRaw<{ esperando: bigint }[]>`
+        SELECT count(*) AS esperando FROM pg_locks WHERE locktype = 'advisory' AND NOT granted`;
+      if (Number(fila?.esperando ?? 0) > 0) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    soltar();
+    await sostenedor;
+
+    const res = await importacion;
+    expect(res.status).toBe(409);
+    expect((res.body as { message: string }).message).toBe(
+      "Ese código ya es el código interno de «Caja 11» de Bistec.",
+    );
+    expect(await prisma.product.count({ where: { tenantId, sku: "IMPRACE" } })).toBe(0);
+  });
+
+  /**
    * F10-PRESCODE: la búsqueda de productos que usan Entradas, Salidas, Compras
    * y Órdenes de compra dice qué presentación se encontró por su código.
    */
