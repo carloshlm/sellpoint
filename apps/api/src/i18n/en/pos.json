@@ -20,6 +20,7 @@
   "cash_received_only_cash": "The amount received is only recorded on cash sales.",
   "cash_received_below_total": "The amount received doesn't cover the sale total.",
   "presentation_not_sellable": "“{sku}” has no sellable presentation.",
+  "presentation_without_price": "“{productName}” ({presentationName}) has no sale price. Set its price in Products to sell it.",
   "presentation_only_for_products": "Presentations belong to products, not services.",
   "product_not_available": "«{sku}» has no sellable stock in this store.",
   "product_not_sellable": "That product is not available for sale.",

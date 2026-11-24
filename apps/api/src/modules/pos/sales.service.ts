@@ -32,6 +32,7 @@ import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
 import { runSaleHooks, SaleHooksRegistry } from "./sale-hooks";
+import { assertHasSalePrice } from "./sale-price";
 import { buildSalesWhere } from "./sales-where";
 import { allowNegativeStock } from "./stock-policy";
 import { contextoFiscal, grupoCongelado, grupoDe, snapshotDeTasas } from "./tax-resolver";
@@ -993,6 +994,7 @@ export class SalesService {
         where: { id: line.productId, tenantId: user.tenantId, isActive: true },
         select: {
           sku: true,
+          name: true,
           isComposite: true,
           taxGroupId: true,
           presentations: {
@@ -1028,6 +1030,7 @@ export class SalesService {
           args: { sku: producto.sku, lineIndex: i },
         });
       }
+      assertHasSalePrice(producto, presentacion, i);
 
       // ── Media pieza no existe (criterio 11 de F4) ────────────────────
       //
@@ -1048,7 +1051,7 @@ export class SalesService {
         kind: "product",
         ...sinConcepto,
         ...origenDe(line, i),
-        unitPrice: presentacion.price ?? new Prisma.Decimal(0),
+        unitPrice: presentacion.price,
         catalogCost: presentacion.cost,
         quantityBase: new Prisma.Decimal(line.quantity).times(presentacion.factor),
         presentationId: presentacion.id,

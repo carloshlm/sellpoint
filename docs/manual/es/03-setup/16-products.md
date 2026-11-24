@@ -37,7 +37,9 @@ Para abrir un producto, presiona **Ver** en su renglón.
 5. En **Impuesto, costo y precio**, captura el **Costo** y el **Precio de
    venta**. Las etiquetas te dicen si van con el impuesto incluido o sin él,
    según lo que elegiste en el capítulo 13, «Impuestos». Debajo del precio ves
-   cómo quedará en el ticket.
+   cómo quedará en el ticket. Puedes guardarlo sin precio, pero la caja no lo
+   cobra hasta que se lo pongas: cobrarlo en $0.00 sería regalarlo. Si de
+   verdad lo regalas, escribe 0.
 6. Si quieres un aviso cuando se esté acabando, pon un **Stock mínimo**: cuando
    las existencias bajen de ahí, el producto aparece como «bajo mínimo».
 7. Presiona **Guardar**. Si algún dato no sirve, el producto no se guarda: el
@@ -85,7 +87,9 @@ Todo producto nace con una presentación, la de su unidad base (en el agua, la
 2. Presiona **Agregar presentación**.
 3. Escribe el **Nombre** («Caja con 12»), la **Equivalencia** en la unidad base
    (12 piezas; para una porción de queso, 0.25 kg), y si quieres su **Código de
-   barras**, su **Código interno** y su **Precio**.
+   barras**, su **Código interno** y su **Precio**. Si la dejas sin precio, se
+   guarda solo para compras: **Se vende** queda sin marcar. Es lo que quieres
+   para el bulto que compras y vendes por kilo.
 4. Presiona **Agregar**.
 
 ![Las presentaciones del agua](screen:product-presentations)
@@ -93,6 +97,11 @@ Todo producto nace con una presentación, la de su unidad base (en el agua, la
 En la tabla decides, para cada presentación, si **Se compra**, si **Se vende**,
 cuál es la **Predeterminada** para vender y si va en **Solo enteros** (sin
 decimales en la caja). Estas casillas se guardan al marcarlas.
+
+Lo que se vende necesita precio. Si marcas **Se vende** en una presentación sin
+precio, o le borras el precio a una que se vende, no se guarda y el aviso te
+pide ponérselo: «Ponle precio a «Bolsa 10 kg» para venderla.». Un precio en
+cero escrito a propósito sí cuenta.
 
 El **Código interno** es para la presentación que no trae código del
 fabricante, como la bolsa de 10 kg que tú armas y etiquetas. Puede llevar

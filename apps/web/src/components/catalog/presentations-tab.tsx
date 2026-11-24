@@ -530,6 +530,14 @@ function NewPresentationRow({
       <Button type="button" size="sm" variant="outline" onClick={onDone}>
         {t("common.form.cancel")}
       </Button>
+      {/* F10-NOPRICE: sin precio, el API la guarda solo para compras —la caja
+          la cobraría en $0.00—, y se dice ANTES de guardar. En su propio
+          renglón: dentro de la columna del precio, desalineaba los botones. */}
+      {price === "" && (
+        <p className="basis-full text-xs text-muted-foreground">
+          {t("products.presentations.noPriceHint")}
+        </p>
+      )}
     </form>
   );
 }

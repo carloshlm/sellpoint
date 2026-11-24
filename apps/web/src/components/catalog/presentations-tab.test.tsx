@@ -422,3 +422,64 @@ describe("PresentationsTab — la fila se puede operar", () => {
     expect(screen.getByLabelText("Se vende en «Unidad»")).toBeDisabled();
   });
 });
+
+/**
+ * F10-NOPRICE. Carlos (2026-11-24) encontró «Bistec 10Kg» marcada como
+ * vendible y sin precio: la caja la cobraba en $0.00. Al agregar no se
+ * pregunta si se compra o se vende, así que el precio lo decide —sin precio,
+ * solo para compras— y la pantalla lo dice antes de guardar.
+ */
+describe("PresentationsTab — sin precio, solo para compras", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("al agregar sin precio avisa que queda solo para compras, y con precio el aviso se va", async () => {
+    const user = userEvent.setup();
+    renderTab("kg");
+
+    await user.click(screen.getByRole("button", { name: "Agregar presentación" }));
+    expect(screen.getByText("Sin precio, se usa solo para compras.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Precio"), "1500");
+
+    expect(screen.queryByText("Sin precio, se usa solo para compras.")).not.toBeInTheDocument();
+  });
+
+  it("agregar sin precio no manda «Se vende»: el API la guarda solo para compras", async () => {
+    const user = userEvent.setup();
+    renderTab("kg");
+
+    await user.click(screen.getByRole("button", { name: "Agregar presentación" }));
+    await user.type(screen.getByLabelText("Nombre"), "Bistec 10Kg");
+    await user.type(screen.getByLabelText("Equivalencia"), "10");
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+    expect(create.mock.calls[0]?.[0]).toEqual({ name: "Bistec 10Kg", factor: 10 });
+  });
+
+  it("marcar «Se vende» sin precio muestra el aviso del API", async () => {
+    update.mockImplementation((_vars, { onError }) =>
+      onError({ status: 422, message: "Ponle precio a «Bistec 10Kg» para venderla." }),
+    );
+    const user = userEvent.setup();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <PresentationsTab
+          productId="prod-1"
+          baseUnit="kg"
+          presentations={[
+            { ...basePresentation, name: "Bistec 10Kg", isSellable: false, price: null },
+          ]}
+          canManage
+        />
+      </I18nextProvider>,
+    );
+
+    await user.click(screen.getByLabelText("Se vende en «Bistec 10Kg»"));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Ponle precio a «Bistec 10Kg» para venderla.",
+    );
+  });
+});

@@ -87,6 +87,15 @@ ni en el plan Basic, que no lleva control de inventario (capítulo 12). Y si no
 ves cuántos hay, es que el negocio apagó **Mostrar existencias en el punto de
 venta**: la regla para cobrar es la misma.
 
+## Si un producto no tiene precio
+
+Lo que no tiene precio de venta no se cobra: cobrarlo en $0.00 sería regalarlo.
+Al cobrar aparece, por ejemplo, **«Bistec» (Bolsa 10 kg) no tiene precio de
+venta. Ponle precio en Productos para venderlo.**, y su renglón dice **El
+servidor rechazó esta línea**. Quita el renglón o pide a quien administra el
+catálogo que le ponga precio (capítulo 16), y cobra de nuevo. Una cotización
+tampoco lo acepta.
+
 ## Cobrar
 
 1. Presiona **Cobrar**. El cobro ocupa el lado izquierdo y el carrito sigue a la

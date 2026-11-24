@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { restriccionViolada } from "../../common/prisma/unique-violation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -57,6 +62,15 @@ export class PresentationsService {
     const hecha = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const product = await this.findProductOrFail(tx, user, productId);
 
+      // F10-NOPRICE (Carlos, 2026-11-24): sin precio, la presentación se
+      // guarda solo para compras — la caja la cobraría en $0.00. Pedir que se
+      // venda, o que sea la predeterminada de venta, sin precio se rechaza.
+      // Un cero ESCRITO sí cuenta como precio: es una decisión, no un olvido.
+      const sellable = input.isSellable ?? input.price !== undefined;
+      if (input.price === undefined && (sellable || input.isDefaultSale)) {
+        throw priceRequired(input.name);
+      }
+
       // F10-PRESCODE: ningún código del negocio se repite (`catalog-codes.ts`).
       if (input.code !== undefined || input.barcode !== undefined) {
         await lockCatalogCodes(tx, user.tenantId);
@@ -88,7 +102,7 @@ export class PresentationsService {
             name: input.name,
             factor: input.factor,
             isPurchasable: input.isPurchasable,
-            isSellable: input.isSellable,
+            isSellable: sellable,
             isDefaultSale: input.isDefaultSale,
             // Override explícito o derivado de la unidad base del producto.
             allowFractionalInput:
@@ -144,6 +158,18 @@ export class PresentationsService {
       // Carlos (2026-10-30): se valida solo si el código CAMBIA — ver
       // `assertBarcodeChange`.
       assertBarcodeChange(input.barcode, current.barcode);
+
+      // F10-NOPRICE: lo que se vende tiene precio. Se revisa lo que este
+      // guardado CAMBIA —marcar «Se vende» o borrar el precio—, no lo que ya
+      // estaba: una vendible sin precio de antes se puede editar en otra cosa,
+      // y la caja la rechaza al cobrar con su propio aviso.
+      const staysSellable = input.isSellable ?? current.isSellable;
+      const resultingPrice = input.price !== undefined ? input.price : current.price;
+      const turnsSellable = input.isSellable === true && !current.isSellable;
+      const clearsPrice = input.price === null && current.price !== null;
+      if (staysSellable && resultingPrice === null && (turnsSellable || clearsPrice)) {
+        throw priceRequired(input.name ?? current.name);
+      }
 
       // F10-PRESCODE: solo lo que CAMBIA se revisa contra los demás códigos —
       // reenviar el mismo código en cada guardado no puede chocar consigo.
@@ -367,4 +393,12 @@ function translateUniqueViolation(error: unknown): unknown {
     return new ConflictException({ message: "products.code_taken" });
   }
   return new ConflictException({ message: "products.presentation_name_taken" });
+}
+
+/** F10-NOPRICE — el aviso de «Ponle precio a «Bistec 10Kg» para venderla.». */
+function priceRequired(name: string): UnprocessableEntityException {
+  return new UnprocessableEntityException({
+    message: "products.presentation_price_required",
+    args: { name },
+  });
 }

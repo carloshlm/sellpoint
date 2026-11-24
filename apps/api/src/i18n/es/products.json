@@ -30,6 +30,7 @@
   "presentation_in_use": "Esta presentación ya tiene movimientos registrados: no se puede borrar. Desactívala para que deje de ofrecerse sin perder el historial.",
   "presentation_name_taken": "Ya existe una presentación con ese nombre en este producto.",
   "presentation_not_found": "La presentación no existe.",
+  "presentation_price_required": "Ponle precio a «{name}» para venderla.",
   "quick_duplicate_line": "Este código ya está en la línea {line}.",
   "quick_has_errors": "Revisa las líneas marcadas. No se dio de alta ningún producto.",
   "sku_taken": "Ya tienes un producto con ese código.",

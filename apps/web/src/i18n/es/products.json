@@ -78,6 +78,7 @@
     "barcode": "Código de barras",
     "code": "Código interno",
     "price": "Precio",
+    "noPriceHint": "Sin precio, se usa solo para compras.",
     "deactivate": "Desactivar",
     "reactivate": "Reactivar",
     "baseUnitHint": "Las equivalencias se expresan en la unidad base del producto: {{unit}}.",

@@ -28,6 +28,7 @@ import {
   type LookupItem,
   SELECT_PRODUCTO,
 } from "./lookup.strategies";
+import { assertHasSalePrice } from "./sale-price";
 import { allowNegativeStock } from "./stock-policy";
 import { hideStockFromItem } from "./stock-visibility";
 import { contextoFiscal, grupoDe, snapshotDeTasas, taxRatesJson } from "./tax-resolver";
@@ -717,6 +718,7 @@ export class QuotesService {
           args: { sku: producto.sku, lineIndex: i },
         });
       }
+      assertHasSalePrice(producto, presentacion, i);
 
       // ⚠ LA REGLA DE CARLOS. Lo vencido no se vende NI se cotiza. Se compara
       // contra `available`, que ya descuenta los lotes caducados: un producto
@@ -733,7 +735,7 @@ export class QuotesService {
 
       resueltas.push({
         kind: "product",
-        unitPrice: presentacion.price ?? new Prisma.Decimal(0),
+        unitPrice: presentacion.price,
         presentationId: presentacion.id,
         // El texto sobrevive a que el producto cambie de nombre: el papel que
         // el cliente se llevó decía ESTO.

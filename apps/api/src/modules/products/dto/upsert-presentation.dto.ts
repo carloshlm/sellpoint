@@ -12,7 +12,9 @@ export const createPresentationSchema = z.object({
   name: z.string().trim().min(1).max(64),
   factor: z.number().positive(),
   isPurchasable: z.boolean().default(true),
-  isSellable: z.boolean().default(true),
+  // F10-NOPRICE: si no viene, lo decide el precio — sin precio, la
+  // presentación es solo de compra (ver `presentations.service`).
+  isSellable: z.boolean().optional(),
   isDefaultSale: z.boolean().default(false),
   allowFractionalInput: z.boolean().optional(),
   barcode: z.string().trim().min(1).max(64).superRefine(refineBarcode).optional(),

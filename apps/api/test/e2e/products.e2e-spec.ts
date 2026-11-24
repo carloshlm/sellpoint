@@ -706,7 +706,8 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       await request(app.getHttpServer())
         .post(`/products/${id}/presentations`)
         .set("Authorization", bearer(token))
-        .send({ name: "Caja", factor: 10, isDefaultSale: true })
+        // F10-NOPRICE: la predeterminada de venta necesita precio.
+        .send({ name: "Caja", factor: 10, isDefaultSale: true, price: 100 })
         .expect(201);
 
       const list = await request(app.getHttpServer())
