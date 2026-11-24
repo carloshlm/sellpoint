@@ -234,7 +234,7 @@ export function firstCodeClash(
     if (contraCodigos !== null) {
       return contraCodigos;
     }
-    if (comoSku(new Set([tal]), true) !== null) {
+    if (takenInSameColumn(duenos, codigo, guardado)) {
       return null; // el índice de `products.sku` lo rechaza con su mensaje
     }
     return comoBarras(gtin, (o) => deOtroProducto(o.productId));
@@ -244,10 +244,34 @@ export function firstCodeClash(
   if (contraCodigos !== null) {
     return contraCodigos;
   }
-  if (comoBarras(new Set([tal]), deOtraPresentacion) !== null) {
+  if (takenInSameColumn(duenos, codigo, guardado)) {
     return null; // el índice de `barcode` lo rechaza con su mensaje
   }
   return comoSku(gtin, true);
+}
+
+/**
+ * ¿El código ya está, EXACTO, en la misma columna de otro (el sku de otro
+ * producto, el código de barras de otra presentación)? Entonces lo rechaza su
+ * índice único con su mensaje de siempre. Lo usan también quienes escriben el
+ * mismo código en las dos columnas (Carga rápida) o revisan antes de escribir
+ * (la importación), para decir ese mismo mensaje.
+ */
+export function takenInSameColumn(
+  duenos: Duenos,
+  codigo: string,
+  guardado: CodigoQueSeGuarda,
+): boolean {
+  const tal = exacta(codigo);
+  if (guardado.como === "sku") {
+    return duenos.skus.some((x) => x.clave === tal && x.productId !== guardado.productId);
+  }
+  if (guardado.como === "barcode") {
+    return duenos.barras.some(
+      (x) => x.clave === tal && x.presentationId !== guardado.presentationId,
+    );
+  }
+  return false;
 }
 
 /**

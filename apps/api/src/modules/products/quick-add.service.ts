@@ -15,6 +15,7 @@ import {
   codeTakenMessage,
   firstCodeClash,
   lockCatalogCodes,
+  takenInSameColumn,
 } from "./catalog-codes";
 import type { QuickAddDto } from "./dto/quick-add.dto";
 import { basePresentationName, claveDeConflicto, derivesFractionalInput } from "./products.service";
@@ -272,9 +273,15 @@ export class QuickAddService {
           },
         ];
       }
-      const dueno =
-        firstCodeClash(duenos, linea.code, { como: "sku", ...nuevo }) ??
-        firstCodeClash(duenos, linea.code, { como: "barcode", ...nuevo });
+      // El código también se escribe como código de barras: si ya es el código
+      // de barras de otra presentación (la de un producto desactivado, que no
+      // se ofrece para actualizar), lo rechaza su índice en SU renglón con el
+      // mensaje de siempre, «Ese código de barras ya está en uso…».
+      const comoBarras = { como: "barcode" as const, ...nuevo };
+      const dueno = takenInSameColumn(duenos, linea.code, comoBarras)
+        ? null
+        : (firstCodeClash(duenos, linea.code, { como: "sku", ...nuevo }) ??
+          firstCodeClash(duenos, linea.code, comoBarras));
       return dueno === null
         ? []
         : [

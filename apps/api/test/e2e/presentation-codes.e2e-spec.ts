@@ -572,6 +572,59 @@ describe("Código interno de las presentaciones (F10-PRESCODE)", () => {
       );
     });
 
+    it("Carga rápida y la importación también conservan «código de barras en uso»", async () => {
+      const { token } = await registerAndLogin();
+      // Un producto desactivado con su código de barras: Carga rápida no lo
+      // ofrece para actualizar, así que el código cae como nuevo.
+      const viejo = await crearProducto(token, {
+        sku: "VIEJO-1",
+        name: "Viejo",
+        baseUnit: "unit",
+        barcode: "7501055300037",
+      });
+      await request(app.getHttpServer())
+        .patch(`/products/${viejo.id}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false })
+        .expect(200);
+
+      const rapida = await request(app.getHttpServer())
+        .post("/products/quick")
+        .set("Authorization", bearer(token))
+        .send({ lines: [{ code: "7501055300037", name: "Otra", price: 1 }] })
+        .expect(422);
+      expect((rapida.body as { errors: { code: string }[] }).errors[0]?.code).toBe(
+        "products.barcode_taken",
+      );
+
+      // En la planilla, la fila se marca en la revisión, no con un 500 al escribir.
+      const prueba = await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({
+          content: "sku,nombre,codigo_de_barras\nNUEVO-1,Nuevo,7501055300037",
+          dryRun: true,
+        })
+        .expect(200);
+      expect(prueba.body).toMatchObject({
+        valid: 0,
+        failed: 1,
+        errors: [
+          {
+            row: 2,
+            field: "codigo_de_barras",
+            code: "products.barcode_taken",
+            message: "Ese código de barras ya está en uso por otro producto.",
+          },
+        ],
+      });
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,codigo_de_barras\nNUEVO-1,Nuevo,7501055300037" })
+        .expect(400);
+    });
+
     /**
      * Lo que encontró el verificador (B2): «AB-12» y «AB12» son dos códigos
      * distintos para la caja (busca el código exacto). Solo un código de

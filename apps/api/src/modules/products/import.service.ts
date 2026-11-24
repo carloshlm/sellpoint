@@ -45,6 +45,7 @@ import {
   type Duenos,
   firstCodeClash,
   lockCatalogCodes,
+  takenInSameColumn,
 } from "./catalog-codes";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
 import { basePresentationName, derivesFractionalInput } from "./products.service";
@@ -614,8 +615,8 @@ export class ImportService {
         errors.push({
           row: item.row,
           field: choque.field,
-          message: codeTakenMessage(choque.dueno.kind),
-          args: codeTakenArgs(choque.dueno),
+          message: choque.message,
+          ...(choque.args && { args: choque.args }),
           itemCode: item.sku,
         });
         continue;
@@ -671,8 +672,8 @@ export class ImportService {
         const choque = choqueDeCodigo(item, baseBySku.get(item.sku), duenosAhora);
         if (choque !== null) {
           throw new ConflictException({
-            message: codeTakenMessage(choque.dueno.kind),
-            args: codeTakenArgs(choque.dueno),
+            message: choque.message,
+            ...(choque.args && { args: choque.args }),
           });
         }
       }
@@ -905,12 +906,17 @@ function codigosQueSeEscriben(item: {
  * (`catalog-codes.ts`): el sku si el producto es nuevo, o el código de barras
  * si cambia. Lo propio de la fila (su producto y su presentación base) nunca
  * choca consigo.
+ *
+ * Un código de barras que ya tiene OTRA presentación se marca aquí, en su
+ * fila, con el mensaje de siempre: el índice único lo rechazaría al escribir,
+ * pero la importación no traduce esa violación y respondía 500 (pasaba desde
+ * antes; lo encontró el verificador el 2026-11-24).
  */
 function choqueDeCodigo(
   item: { existingId: string | null; sku: string; barcode: string | null },
   base: { id: string; barcode: string | null } | undefined,
   duenos: Duenos,
-): { field: string; dueno: NonNullable<ReturnType<typeof firstCodeClash>> } | null {
+): { field: string; message: string; args?: Record<string, string> } | null {
   const propio = {
     productId: item.existingId,
     presentationId: item.existingId === null ? null : (base?.id ?? null),
@@ -918,14 +924,22 @@ function choqueDeCodigo(
   if (item.existingId === null) {
     const dueno = firstCodeClash(duenos, item.sku, { como: "sku", ...propio });
     if (dueno !== null) {
-      return { field: "sku", dueno };
+      return { field: "sku", message: codeTakenMessage(dueno.kind), args: codeTakenArgs(dueno) };
     }
   }
   const codigoDeAntes = item.existingId === null ? null : (base?.barcode ?? null);
   if (item.barcode !== null && item.barcode !== codigoDeAntes) {
-    const dueno = firstCodeClash(duenos, item.barcode, { como: "barcode", ...propio });
+    const comoBarras = { como: "barcode" as const, ...propio };
+    if (takenInSameColumn(duenos, item.barcode, comoBarras)) {
+      return { field: "codigo_de_barras", message: "products.barcode_taken" };
+    }
+    const dueno = firstCodeClash(duenos, item.barcode, comoBarras);
     if (dueno !== null) {
-      return { field: "codigo_de_barras", dueno };
+      return {
+        field: "codigo_de_barras",
+        message: codeTakenMessage(dueno.kind),
+        args: codeTakenArgs(dueno),
+      };
     }
   }
   return null;
