@@ -383,23 +383,51 @@ const barcodeLookup: LookupStrategy = {
   },
 };
 
-/** `SkuLookup` — el código que el negocio le puso al producto. Exacto. */
+/**
+ * `SkuLookup` — el código que el negocio le puso al producto, o a una de sus
+ * presentaciones (F10-PRESCODE). Exacto.
+ *
+ * El código de una presentación se comporta como su código de barras: trae el
+ * producto con ESA presentación ya elegida («BOLSA10K» → la bolsa de 10 kg,
+ * no el kilo). Un mismo código no puede ser a la vez sku de uno y código de
+ * otra (`catalog-codes.ts`), así que a lo sumo uno de los dos caminos acierta.
+ */
 const skuLookup: LookupStrategy = {
   kind: "sku",
   matches: pareceSku,
   exclusive: true,
   run: async (ctx) => {
-    const productos = await ctx.tx.product.findMany({
-      where: {
-        tenantId: ctx.tenantId,
-        isActive: true,
-        // `equals` con `insensitive`: el cajero no teclea mayúsculas.
-        sku: { equals: ctx.q.trim(), mode: "insensitive" },
-      },
-      select: SELECT_PRODUCTO,
-      take: ctx.limit,
-    });
-    return conDisponibilidad(ctx, productos, "sku");
+    const codigo = ctx.q.trim();
+    const [productos, presentaciones] = await Promise.all([
+      ctx.tx.product.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          isActive: true,
+          // `equals` con `insensitive`: el cajero no teclea mayúsculas.
+          sku: { equals: codigo, mode: "insensitive" },
+        },
+        select: SELECT_PRODUCTO,
+        take: ctx.limit,
+      }),
+      ctx.tx.productPresentation.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          code: { equals: codigo, mode: "insensitive" },
+          isActive: true,
+          isSellable: true,
+          product: { isActive: true },
+        },
+        select: { id: true, productId: true, product: { select: SELECT_PRODUCTO } },
+        take: ctx.limit,
+      }),
+    ]);
+
+    const porProducto = new Map(presentaciones.map((p) => [p.productId, p.id]));
+    const sinRepetir = [
+      ...productos.filter((p) => !porProducto.has(p.id)),
+      ...presentaciones.map((p) => p.product),
+    ];
+    return conDisponibilidad(ctx, sinRepetir, "sku", porProducto);
   },
 };
 
@@ -424,6 +452,8 @@ const textSearchLookup: LookupStrategy = {
           { sku: { contains: aguja, mode: "insensitive" } },
           { name: { contains: aguja, mode: "insensitive" } },
           { presentations: { some: { barcode: { contains: aguja, mode: "insensitive" } } } },
+          // F10-PRESCODE: el código interno de la presentación, a medias.
+          { presentations: { some: { code: { contains: aguja, mode: "insensitive" } } } },
         ],
       },
       select: SELECT_PRODUCTO,

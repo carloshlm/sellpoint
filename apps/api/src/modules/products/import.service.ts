@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
-import { getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
+import { barcodeSearchForms, getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
 import {
@@ -33,6 +33,7 @@ import {
   BarcodeContributionService,
 } from "./barcode-contribution.service";
 import { barcodeProblem, contributionOf } from "./barcode-rules";
+import { codeTakenMessage, presentationCodesIn } from "./catalog-codes";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
 import { basePresentationName, derivesFractionalInput } from "./products.service";
 
@@ -337,7 +338,8 @@ export class ImportService {
     const lookups = await this.loadLookupIndexes(user, active);
     const impuestos = await this.taxIndex(user);
 
-    const errors: ImportRowError[] = [];
+    // `args` es insumo de la traducción de algunos mensajes; no sale en el reporte.
+    const errors: (ImportRowError & { args?: Record<string, unknown> })[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
     const seenSkus = new Set<string>();
 
@@ -551,6 +553,20 @@ export class ImportService {
       }
     }
 
+    // F10-PRESCODE: ni el sku de un producto nuevo ni un código de barras que
+    // cambia pueden ser el código interno de una presentación
+    // (`catalog-codes.ts`). Una sola consulta para todo el archivo.
+    const codigosDePresentacion = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      presentationCodesIn(
+        tx,
+        user.tenantId,
+        conId.flatMap((item) => [
+          ...(item.existingId === null ? [item.sku] : []),
+          ...(item.barcode === null ? [] : [item.barcode, ...barcodeSearchForms(item.barcode)]),
+        ]),
+      ),
+    );
+
     const importable: ParsedRow[] = [];
     for (const item of conId) {
       if (item.existingId !== null && bloqueados.has(item.existingId)) {
@@ -588,6 +604,17 @@ export class ImportService {
         });
         continue;
       }
+      const choque = choqueConCodigoDePresentacion(item, codigoDeAntes, codigosDePresentacion);
+      if (choque !== null) {
+        errors.push({
+          row: item.row,
+          field: choque.field,
+          message: codeTakenMessage("presentation_code"),
+          args: choque.dueno,
+          itemCode: item.sku,
+        });
+        continue;
+      }
       importable.push(item);
     }
 
@@ -601,9 +628,9 @@ export class ImportService {
       // reporte no pasa por el filtro de excepciones, y la ley del proyecto es
       // que el backend traduce (la infra i18n sirve a cualquier cliente del
       // API, no solo a la SPA — ver `all-exceptions.filter.ts`).
-      errors: errors.map((rowError) => ({
+      errors: errors.map(({ args, ...rowError }) => ({
         ...rowError,
-        message: this.translate(rowError.message, options.locale),
+        message: this.translate(rowError.message, options.locale, args),
         // `code` mantiene la clave cruda: el front discrimina por ella sin
         // parsear texto, mismo contrato que el filtro de excepciones.
         code: rowError.message,
@@ -724,8 +751,8 @@ export class ImportService {
   }
 
   /** La clave cruda si no hay entrada: mejor eso que una celda vacía. */
-  private translate(key: string, locale: Locale): string {
-    const translated = this.i18n.translate(key, { lang: locale });
+  private translate(key: string, locale: Locale, args?: Record<string, unknown>): string {
+    const translated = this.i18n.translate(key, { lang: locale, ...(args ? { args } : {}) });
     return typeof translated === "string" ? translated : key;
   }
 
@@ -832,4 +859,31 @@ export class ImportService {
  */
 function resolveLookupCode(index: LookupIndex, raw: string): string | null {
   return index.idByCode.get(raw) ?? index.idByLowerCode.get(raw.toLowerCase()) ?? null;
+}
+
+/**
+ * F10-PRESCODE — el código de la fila que ya es el código interno de una
+ * presentación: el sku si el producto es nuevo (el de uno existente no se
+ * toca), o el código de barras si cambia.
+ */
+function choqueConCodigoDePresentacion(
+  item: { existingId: string | null; sku: string; barcode: string | null },
+  codigoDeAntes: string | null,
+  codigos: Map<string, { product: string; presentation: string }>,
+): { field: string; dueno: { product: string; presentation: string } } | null {
+  if (item.existingId === null) {
+    const dueno = codigos.get(normalizeCode(item.sku));
+    if (dueno !== undefined) {
+      return { field: "sku", dueno };
+    }
+  }
+  if (item.barcode !== null && item.barcode !== codigoDeAntes) {
+    const dueno = [item.barcode, ...barcodeSearchForms(item.barcode)]
+      .map((forma) => codigos.get(normalizeCode(forma)))
+      .find((x) => x !== undefined);
+    if (dueno !== undefined) {
+      return { field: "codigo_de_barras", dueno };
+    }
+  }
+  return null;
 }

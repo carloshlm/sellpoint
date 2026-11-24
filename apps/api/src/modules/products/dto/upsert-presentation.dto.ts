@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
 import { refineBarcode } from "../barcode-rules";
 import { moneyAmount } from "../money";
@@ -15,6 +16,9 @@ export const createPresentationSchema = z.object({
   isDefaultSale: z.boolean().default(false),
   allowFractionalInput: z.boolean().optional(),
   barcode: z.string().trim().min(1).max(64).superRefine(refineBarcode).optional(),
+  // F10-PRESCODE: el código interno, con letras o números, normalizado como el
+  // sku del producto. Que no se repita lo revisa `catalog-codes.ts`.
+  code: z.string().trim().min(1).max(64).transform(normalizeCode).optional(),
   price: moneyAmount().optional(),
   cost: moneyAmount().optional(),
 });
@@ -28,6 +32,7 @@ export const updatePresentationSchema = z
     isDefaultSale: z.boolean().optional(),
     allowFractionalInput: z.boolean().optional(),
     barcode: z.string().trim().min(1).max(64).nullable().optional(),
+    code: z.string().trim().min(1).max(64).transform(normalizeCode).nullable().optional(),
     price: moneyAmount().nullable().optional(),
     cost: moneyAmount().nullable().optional(),
     isActive: z.boolean().optional(),

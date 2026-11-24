@@ -590,6 +590,72 @@ describe("Buscador del POS (F4-CART-01)", () => {
     });
   });
 
+  /**
+   * F10-PRESCODE (Carlos, 2026-11-23): «teclear "BOLSA10K" trae el producto
+   * con la bolsa ya elegida». El código interno de una presentación se
+   * comporta como su código de barras.
+   */
+  describe("el código interno de una presentación", () => {
+    async function conCodigoEnLaCaja(e: Awaited<ReturnType<typeof escenario>>) {
+      const codigo = `CAJA12-${e.stamp}`.toUpperCase();
+      await prisma.withTenantContext(e.tenantId, (tx) =>
+        tx.productPresentation.updateMany({
+          where: { productId: e.conCodigo, name: "Caja ×12" },
+          data: { code: codigo },
+        }),
+      );
+      return codigo;
+    }
+
+    it("teclearlo (en minúsculas) trae el producto con ESA presentación elegida", async () => {
+      const e = await escenario();
+      await abrirTurno(e.token, e.central).expect(201);
+      const codigo = await conCodigoEnLaCaja(e);
+
+      const res = await buscar(e.token, codigo.toLowerCase()).expect(200);
+
+      expect((res.body as { exact: boolean }).exact).toBe(true);
+      const encontrados = items(res);
+      expect(encontrados).toHaveLength(1);
+      const item = encontrados[0];
+      if (item?.type !== "product") {
+        throw new Error("se esperaba un producto");
+      }
+      expect(item.id).toBe(e.conCodigo);
+      expect(item.matchedBy).toBe("sku");
+      const preseleccionada = item.presentations.find((p) => p.id === item.matchedPresentationId);
+      expect(preseleccionada?.name).toBe("Caja ×12");
+    });
+
+    it("el sku del producto sigue trayéndolo sin presentación elegida", async () => {
+      const e = await escenario();
+      await abrirTurno(e.token, e.central).expect(201);
+      await conCodigoEnLaCaja(e);
+
+      const res = await buscar(e.token, `BARRA-${e.stamp}`).expect(200);
+
+      const item = items(res)[0];
+      if (item?.type !== "product") {
+        throw new Error("se esperaba un producto");
+      }
+      expect(item.id).toBe(e.conCodigo);
+      expect(item.matchedPresentationId).toBeNull();
+    });
+
+    it("un pedazo del código lo encuentra en la búsqueda por texto, sin elegir presentación", async () => {
+      const e = await escenario();
+      await abrirTurno(e.token, e.central).expect(201);
+      await conCodigoEnLaCaja(e);
+
+      const res = await buscar(e.token, "caja12").expect(200);
+
+      expect((res.body as { exact: boolean }).exact).toBe(false);
+      const item = items(res).find((i) => i.type === "product" && i.id === e.conCodigo);
+      expect(item).toBeDefined();
+      expect(item?.type === "product" && item.matchedPresentationId).toBeNull();
+    });
+  });
+
   describe("aislamiento entre tenants", () => {
     it("el catálogo de otro tenant no se busca desde acá", async () => {
       const e = await escenario();

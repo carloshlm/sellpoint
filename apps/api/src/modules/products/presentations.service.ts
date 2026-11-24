@@ -7,6 +7,11 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { BarcodeContributionService } from "./barcode-contribution.service";
 import { assertBarcodeChange, contributionOf } from "./barcode-rules";
+import {
+  assertBarcodeFreeOfPresentationCodes,
+  assertPresentationCodeFree,
+  lockCatalogCodes,
+} from "./catalog-codes";
 import type { CreatePresentationDto, UpdatePresentationDto } from "./dto/upsert-presentation.dto";
 import { derivesFractionalInput } from "./products.service";
 
@@ -56,6 +61,17 @@ export class PresentationsService {
     const hecha = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const product = await this.findProductOrFail(tx, user, productId);
 
+      // F10-PRESCODE: ningún código del negocio se repite (`catalog-codes.ts`).
+      if (input.code !== undefined || input.barcode !== undefined) {
+        await lockCatalogCodes(tx, user.tenantId);
+      }
+      if (input.code !== undefined) {
+        await assertPresentationCodeFree(tx, user.tenantId, input.code, null);
+      }
+      if (input.barcode !== undefined) {
+        await assertBarcodeFreeOfPresentationCodes(tx, user.tenantId, input.barcode, null);
+      }
+
       try {
         if (input.isDefaultSale) {
           await this.clearDefault(tx, productId);
@@ -74,6 +90,7 @@ export class PresentationsService {
             allowFractionalInput:
               input.allowFractionalInput ?? derivesFractionalInput(product.baseUnit),
             barcode: input.barcode ?? null,
+            code: input.code ?? null,
             price: input.price ?? null,
             cost: input.cost ?? null,
           },
@@ -124,6 +141,25 @@ export class PresentationsService {
       // `assertBarcodeChange`.
       assertBarcodeChange(input.barcode, current.barcode);
 
+      // F10-PRESCODE: solo lo que CAMBIA se revisa contra los demás códigos —
+      // reenviar el mismo código en cada guardado no puede chocar consigo.
+      const cambiaCodigo = input.code !== undefined && input.code !== current.code;
+      const cambiaBarras = input.barcode !== undefined && input.barcode !== current.barcode;
+      if (cambiaCodigo || cambiaBarras) {
+        await lockCatalogCodes(tx, user.tenantId);
+      }
+      if (cambiaCodigo && input.code) {
+        await assertPresentationCodeFree(tx, user.tenantId, input.code, presentationId);
+      }
+      if (cambiaBarras && input.barcode) {
+        await assertBarcodeFreeOfPresentationCodes(
+          tx,
+          user.tenantId,
+          input.barcode,
+          presentationId,
+        );
+      }
+
       // Quitarle el default al ÚNICO default dejaría al producto sin
       // presentación preseleccionada y el POS no sabría qué ofrecer.
       if (input.isDefaultSale === false && current.isDefaultSale) {
@@ -153,6 +189,7 @@ export class PresentationsService {
               ? { allowFractionalInput: input.allowFractionalInput }
               : {}),
             ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
+            ...(input.code !== undefined ? { code: input.code } : {}),
             ...(input.price !== undefined ? { price: input.price } : {}),
             ...(input.cost !== undefined ? { cost: input.cost } : {}),
             ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
@@ -302,9 +339,14 @@ export class PresentationsService {
 }
 
 /**
- * Dos unique distintos con mensajes distintos: repetir el NOMBRE dentro de un
- * producto no es lo mismo que repetir un CÓDIGO DE BARRAS en todo el negocio,
- * y el usuario necesita saber cuál de los dos le pasó.
+ * Tres unique distintos con mensajes distintos: repetir el NOMBRE dentro de un
+ * producto no es lo mismo que repetir un CÓDIGO DE BARRAS o un CÓDIGO INTERNO
+ * en todo el negocio, y el usuario necesita saber cuál de los tres le pasó.
+ *
+ * El código de barras se pregunta PRIMERO: el nombre de su índice
+ * (`…_barcode_key`) también contiene «code». El del código interno solo se
+ * alcanza si dos guardados empatan después de `catalog-codes.ts`, que ya dio
+ * el mensaje con nombre y apellido.
  */
 function translateUniqueViolation(error: unknown): unknown {
   const restriccion = restriccionViolada(error);
@@ -313,6 +355,9 @@ function translateUniqueViolation(error: unknown): unknown {
   }
   if (restriccion.includes("barcode")) {
     return new ConflictException({ message: "products.barcode_taken" });
+  }
+  if (restriccion.includes("code")) {
+    return new ConflictException({ message: "products.code_taken" });
   }
   return new ConflictException({ message: "products.presentation_name_taken" });
 }

@@ -35,5 +35,9 @@
   "sku_taken": "You already have a product with that code.",
   "stock_in_warehouses": "Cannot deactivate: the product still has stock in {count} store(s). Remove or adjust it to zero first.",
   "too_many_decimals": "Amounts allow at most 2 decimal places.",
-  "unknown_unit": "That unit of measure doesn't exist."
+  "unknown_unit": "That unit of measure doesn't exist.",
+  "code_taken": "That internal code is already used by another presentation.",
+  "code_taken_barcode": "That code is already the barcode of “{presentation}” of {product}.",
+  "code_taken_presentation_code": "That code is already the internal code of “{presentation}” of {product}.",
+  "code_taken_product_sku": "That code is already the internal code of the product {product}."
 }

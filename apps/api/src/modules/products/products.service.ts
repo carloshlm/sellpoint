@@ -4,7 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { getUnit, type Locale, unitName } from "@sellpoint/shared";
+import {
+  barcodeSearchForms,
+  getUnit,
+  type Locale,
+  normalizeCode,
+  unitName,
+} from "@sellpoint/shared";
 import { restriccionViolada } from "../../common/prisma/unique-violation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -19,6 +25,11 @@ import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
 import { BarcodeContributionService } from "./barcode-contribution.service";
 import { assertBarcodeChange, contributionOf } from "./barcode-rules";
+import {
+  assertBarcodeFreeOfPresentationCodes,
+  assertSkuFreeOfPresentationCodes,
+  lockCatalogCodes,
+} from "./catalog-codes";
 import type {
   CreateProductDto,
   ListProductsQuery,
@@ -89,6 +100,16 @@ export class ProductsService {
                     some: { barcode: { contains: needle, mode: "insensitive" } },
                   },
                 },
+                // F10-PRESCODE: el código interno de la presentación también.
+                {
+                  presentations: {
+                    some: { code: { contains: needle, mode: "insensitive" } },
+                  },
+                },
+                // Y el código de barras escrito de otra forma: un UPC-A y su
+                // EAN-13 con un cero delante son el mismo código para el lector
+                // (`contains` no lo ve: le sobra el cero).
+                { presentations: { some: { barcode: { in: barcodeSearchForms(needle) } } } },
               ],
             }
           : {}),
@@ -114,6 +135,14 @@ export class ProductsService {
         }),
       ]);
 
+      const coincidencias = needle
+        ? await presentacionesQueCoinciden(
+            tx,
+            products.map((product) => product.id),
+            needle,
+          )
+        : new Map<string, { id: string; name: string }>();
+
       return {
         total,
         page: query.page,
@@ -130,6 +159,10 @@ export class ProductsService {
           // El precio que se lista es el de la presentación PREDETERMINADA:
           // es la que el POS preselecciona al vender.
           price: product.presentations[0]?.price?.toString() ?? null,
+          // F10-PRESCODE: la presentación cuyo código de barras o código
+          // interno es EXACTAMENTE lo que se buscó. Escanear la bolsa de 10 kg
+          // tiene que agregar la bolsa, no el kilo (Carlos, 2026-11-23).
+          matchedPresentation: coincidencias.get(product.id) ?? null,
         })),
       };
     });
@@ -178,6 +211,14 @@ export class ProductsService {
       await this.assertAttributesValid(tx, user, input.attributes);
       assertKnownUnit(input.baseUnit);
       await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
+
+      // F10-PRESCODE: el sku y el código de barras no pueden ser el código
+      // interno de una presentación (`catalog-codes.ts`).
+      await lockCatalogCodes(tx, user.tenantId);
+      await assertSkuFreeOfPresentationCodes(tx, user.tenantId, input.sku);
+      if (input.barcode !== undefined) {
+        await assertBarcodeFreeOfPresentationCodes(tx, user.tenantId, input.barcode, null);
+      }
 
       try {
         const product = await tx.product.create({
@@ -267,6 +308,25 @@ export class ProductsService {
             })
           : null;
       assertBarcodeChange(input.barcode, base?.barcode);
+
+      // F10-PRESCODE: lo que CAMBIA se revisa contra los códigos internos de
+      // las presentaciones (`catalog-codes.ts`).
+      const cambiaSku = input.sku !== undefined && input.sku !== current.sku;
+      const cambiaBarras = input.barcode !== undefined && input.barcode !== (base?.barcode ?? null);
+      if (cambiaSku || cambiaBarras) {
+        await lockCatalogCodes(tx, user.tenantId);
+      }
+      if (cambiaSku && input.sku !== undefined) {
+        await assertSkuFreeOfPresentationCodes(tx, user.tenantId, input.sku);
+      }
+      if (cambiaBarras && input.barcode) {
+        await assertBarcodeFreeOfPresentationCodes(
+          tx,
+          user.tenantId,
+          input.barcode,
+          base?.id ?? null,
+        );
+      }
 
       if (plan !== null && !current.tracksLots) {
         assertPlanFeature(plan, "lots");
@@ -588,4 +648,32 @@ export function claveDeConflicto(error: unknown): string | null {
     return null;
   }
   return restriccion.includes("barcode") ? "products.barcode_taken" : "products.sku_taken";
+}
+
+/**
+ * F10-PRESCODE — producto → la presentación activa cuyo código coincide
+ * EXACTO con lo buscado: el código de barras (en cualquiera de sus escrituras
+ * equivalentes) o el código interno. Una búsqueda parcial («bols») no elige
+ * presentación: solo el código completo dice cuál es.
+ */
+async function presentacionesQueCoinciden(
+  tx: Prisma.TransactionClient,
+  productIds: string[],
+  needle: string,
+): Promise<Map<string, { id: string; name: string }>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+  const encontradas = await tx.productPresentation.findMany({
+    where: {
+      productId: { in: productIds },
+      isActive: true,
+      OR: [
+        { barcode: { in: [...new Set([needle, ...barcodeSearchForms(needle)])] } },
+        { code: normalizeCode(needle) },
+      ],
+    },
+    select: { id: true, name: true, productId: true },
+  });
+  return new Map(encontradas.map((p) => [p.productId, { id: p.id, name: p.name }]));
 }

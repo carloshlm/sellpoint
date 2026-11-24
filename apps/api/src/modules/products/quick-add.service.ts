@@ -9,6 +9,7 @@ import {
   type BarcodeContribution,
   BarcodeContributionService,
 } from "./barcode-contribution.service";
+import { codeTakenMessage, lockCatalogCodes, presentationCodesIn } from "./catalog-codes";
 import type { QuickAddDto } from "./dto/quick-add.dto";
 import { basePresentationName, claveDeConflicto, derivesFractionalInput } from "./products.service";
 
@@ -95,8 +96,11 @@ export class QuickAddService {
     const { reporte, aportables } = await this.prisma.withTenantContext(
       user.tenantId,
       async (tx) => {
+        // F10-PRESCODE: el código nuevo se vuelve sku y código de barras, y
+        // ninguno de los dos puede ser el código interno de una presentación.
+        await lockCatalogCodes(tx, user.tenantId);
         const existentes = await this.presentacionesPorCodigo(tx, lineas);
-        const conflictos = await this.skusOcupados(tx, lineas, existentes);
+        const conflictos = await this.skusOcupados(tx, user.tenantId, lineas, existentes);
         if (conflictos.length > 0) {
           throw this.rechazo(conflictos);
         }
@@ -215,7 +219,8 @@ export class QuickAddService {
   }
 
   /**
-   * El sku que ya ocupa OTRO producto.
+   * El sku que ya ocupa OTRO producto, o el código interno de una
+   * presentación (F10-PRESCODE).
    *
    * Pasa cuando alguien dio de alta el producto tecleando el código como sku y
    * sin código de barras: el alta chocaría con un 409 sin número de línea.
@@ -224,6 +229,7 @@ export class QuickAddService {
    */
   private async skusOcupados(
     tx: Prisma.TransactionClient,
+    tenantId: string,
     lineas: { numero: number; code: string; formas: string[] }[],
     existentes: Map<string, { presentationId: string; productId: string }>,
   ): Promise<QuickAddLineError[]> {
@@ -239,14 +245,38 @@ export class QuickAddService {
       ),
     );
 
-    return nuevas
-      .filter((linea) => tomados.has(normalizeCode(linea.code)))
-      .map((linea) => ({
-        line: linea.numero,
-        itemCode: linea.code,
-        field: "code" as const,
-        message: "products.sku_taken",
-      }));
+    const deUnaPresentacion = await presentationCodesIn(
+      tx,
+      tenantId,
+      nuevas.flatMap((linea) => [linea.code, ...linea.formas]),
+    );
+
+    return nuevas.flatMap((linea): QuickAddLineError[] => {
+      if (tomados.has(normalizeCode(linea.code))) {
+        return [
+          {
+            line: linea.numero,
+            itemCode: linea.code,
+            field: "code",
+            message: "products.sku_taken",
+          },
+        ];
+      }
+      const dueno = [linea.code, ...linea.formas]
+        .map((codigo) => deUnaPresentacion.get(normalizeCode(codigo)))
+        .find((x) => x !== undefined);
+      return dueno === undefined
+        ? []
+        : [
+            {
+              line: linea.numero,
+              itemCode: linea.code,
+              field: "code",
+              message: codeTakenMessage("presentation_code"),
+              args: dueno,
+            },
+          ];
+    });
   }
 
   /** El mismo código dos veces en el envío: la segunda nombra a la primera. */
