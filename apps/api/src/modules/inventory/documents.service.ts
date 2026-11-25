@@ -618,6 +618,24 @@ export class DocumentsService {
       const inicioPorProducto = new Map<string, Prisma.Decimal>();
       // Fila repetida (mismo lote y ubicación que otra): línea → primera.
       const repetidaDe = new Map<number, number>();
+      // F10-BULK-09: el MISMO producto en dos filas sin lote. Cada una se
+      // cuadra contra el teórico completo, así que la segunda no se puede
+      // confirmar: se marca ella, no la primera, igual que con los lotes.
+      const productoRepetidoDe = new Map<number, number>();
+      if (esConteo) {
+        const primeraSinLote = new Map<string, number>();
+        for (const line of document.lines) {
+          if (line.lotCode !== null || line.counted === null) {
+            continue;
+          }
+          const primera = primeraSinLote.get(line.productId);
+          if (primera === undefined) {
+            primeraSinLote.set(line.productId, line.lineNo);
+          } else {
+            productoRepetidoDe.set(line.lineNo, primera);
+          }
+        }
+      }
       if (esConteo && document.lines.length > 0) {
         const conLote = document.lines.filter((l) => l.lotCode !== null);
         // La fila SIN lote de un producto que SÍ se controla por lote vale lo
@@ -805,6 +823,17 @@ export class DocumentsService {
             field: "lotCode",
             code: "inventory.count_duplicate_row",
             args: { lineNo: repite },
+          });
+        }
+        const repiteProducto = productoRepetidoDe.get(line.lineNo);
+        if (esBorrador && repiteProducto !== undefined) {
+          errors.push({
+            field: "counted",
+            code: "inventory.count_duplicate_product",
+            args: {
+              lineNo: repiteProducto,
+              product: catalogo.find((p) => p.id === line.productId)?.name ?? res?.sku ?? "",
+            },
           });
         }
         // La previa de una SALIDA avisa antes de confirmar; el rechazo duro lo

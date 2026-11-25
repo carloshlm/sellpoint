@@ -63,6 +63,12 @@ el kardex de cada producto.
 Para confirmar, cada línea necesita su contado: una vacía, negativa o con texto
 no deja confirmar, y la pantalla te dice cuál es.
 
+Cada producto sin lote se cuenta en una sola fila y en su unidad base (piezas,
+kilogramos): si la hoja lo trae dos veces, la segunda fila no deja confirmar
+hasta que corrijas la hoja y la vuelvas a subir, y si trae una presentación como
+«Caja con 12», SellPointy no lee esa fila al subirla y la deja sin contado para
+que escribas cuánto hay en la unidad base.
+
 Tres cosas conviene saber:
 
 - **Las ventas no se detienen.** El ajuste se hace sobre lo que hay en el momento

@@ -171,6 +171,8 @@
   "expiry_in_past": "La caducidad {{expiresAt}} ya pasó: no se puede dar entrada a mercancía caducada.",
   "lot_not_tracked": "Este producto no se controla por lote.",
   "count_duplicate_row": "Esta fila repite el lote y la ubicación de la fila {{lineNo}}: deja una sola.",
+  "count_duplicate_product": "Cuenta «{{product}}» en un solo renglón. Usa «Contar por presentaciones» para sumar empaques y sueltos.",
+  "count_presentation_not_base": "En un inventario físico, la cantidad va en {{unit}}: deja vacía la presentación.",
   "count_required": "Falta el contado: escribe cuántas piezas hay (0 si no hay ninguna).",
   "count_negative": "El contado es negativo: no puede haber menos de cero piezas.",
   "count_invalid": "El contado no es un número.",

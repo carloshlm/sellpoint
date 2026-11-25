@@ -487,13 +487,36 @@ export class ConfirmService {
     // la segunda "sacaría" un teórico que la primera ya sacó (INV-000009:
     // 60+60+61+61+62+63+63 = 430 pedidos sobre 254). La previa las marca; acá
     // se rechaza por si alguien confirma sin mirar.
+    //
+    // Lo mismo, y con más razón, dos filas SIN lote del mismo producto
+    // (F10-BULK-09): cada una se cuadra contra el teórico COMPLETO, así que
+    // el saldo quedaba en `c1 + c2 − teórico` (−3 contado 5 y 3 daba 11) o
+    // el ledger rebotaba por existencias sin decir qué corregir.
     const vistas = new Map<string, number>();
     for (const [index, line] of resolved.entries()) {
-      if (lines[index]?.counted === null || line.lotId === undefined) {
+      if (lines[index]?.counted === null) {
         continue;
       }
-      const clave = `${line.productId}|${bucketKeyById(line.lotId, line.location ?? "")}`;
+      const clave =
+        line.lotId === undefined
+          ? `${line.productId}|sin-lote`
+          : `${line.productId}|${bucketKeyById(line.lotId, line.location ?? "")}`;
       const primera = vistas.get(clave);
+      if (primera !== undefined && line.lotId === undefined) {
+        const producto = await tx.product.findFirst({
+          where: { id: line.productId, tenantId: user.tenantId },
+          select: { name: true },
+        });
+        throw new UnprocessableEntityException({
+          message: "inventory.count_duplicate_product",
+          args: {
+            product: producto?.name ?? line.sku,
+            lineNo: primera,
+            lineIndex: index,
+            field: "counted",
+          },
+        });
+      }
       if (primera !== undefined) {
         throw new UnprocessableEntityException({
           message: "inventory.count_duplicate_row",

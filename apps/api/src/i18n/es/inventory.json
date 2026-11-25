@@ -4,6 +4,8 @@
   "composite_without_composition": "Este producto compuesto no tiene componentes definidos.",
   "count_already_open": "Ya hay un inventario físico abierto para esta sucursal ({folio}). Cancélalo o confírmalo antes de empezar otro.",
   "count_duplicate_row": "Esta fila repite el lote y la ubicación de la fila {lineNo}: deja una sola.",
+  "count_duplicate_product": "Cuenta «{product}» en un solo renglón. Usa «Contar por presentaciones» para sumar empaques y sueltos.",
+  "count_presentation_not_base": "En un inventario físico, la cantidad va en {unit}: deja vacía la presentación.",
   "pdf_draft": "Un borrador no tiene PDF: confírmalo primero.",
   "spreadsheet_draft": "Un borrador no tiene Excel: confírmalo primero.",
   "count_required": "Falta el contado en la fila {lineNo}: escribe cuántas piezas hay (0 si no hay ninguna).",

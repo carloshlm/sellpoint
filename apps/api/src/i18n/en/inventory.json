@@ -4,6 +4,8 @@
   "composite_without_composition": "This composite product has no components defined.",
   "count_already_open": "There is already an open stock count for this store ({folio}). Cancel or confirm it before starting another.",
   "count_duplicate_row": "This row repeats the lot and location of row {lineNo}: keep only one.",
+  "count_duplicate_product": "Count “{product}” in a single line. Use “Count by presentation” to add packages and loose units.",
+  "count_presentation_not_base": "In a physical count, the quantity goes in {unit}: leave the presentation empty.",
   "pdf_draft": "A draft has no PDF: confirm it first.",
   "spreadsheet_draft": "A draft has no Excel file: confirm it first.",
   "count_required": "Row {lineNo} has no count: enter how many units there are (0 if none).",

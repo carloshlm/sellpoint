@@ -171,6 +171,8 @@
   "expiry_in_past": "The expiry date {{expiresAt}} has already passed: expired merchandise can't be received.",
   "lot_not_tracked": "This product isn't tracked by lot.",
   "count_duplicate_row": "This row repeats the lot and location of row {{lineNo}}: keep only one.",
+  "count_duplicate_product": "Count “{{product}}” in a single line. Use “Count by presentation” to add packages and loose units.",
+  "count_presentation_not_base": "In a physical count, the quantity goes in {{unit}}: leave the presentation empty.",
   "count_required": "Count missing: enter how many units there are (0 if none).",
   "count_negative": "The count is negative: there can't be fewer than zero units.",
   "count_invalid": "The count is not a number.",

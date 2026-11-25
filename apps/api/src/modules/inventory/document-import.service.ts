@@ -6,6 +6,7 @@ import {
   lotExpiryProblem,
   normalizeCode,
   normalizeLotCode,
+  unitName,
 } from "@sellpoint/shared";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
@@ -70,6 +71,8 @@ export interface ImportedRow {
   location: string | null;
   counted: number | null;
   error: string | null;
+  /** Lo que el mensaje de `error` interpola, cuando lo necesita (F10-BULK-09). */
+  errorArgs?: Record<string, string>;
 }
 
 /**
@@ -157,15 +160,17 @@ export class DocumentImportService {
       ];
       const productos = await tx.product.findMany({
         where: { tenantId: user.tenantId, sku: { in: skus } },
-        select: { id: true, sku: true, tracksLots: true },
+        select: { id: true, sku: true, tracksLots: true, baseUnit: true },
       });
       const porSku = new Map(productos.map((p) => [p.sku.toLowerCase(), p.id]));
       const conControlDeLote = new Set(productos.filter((p) => p.tracksLots).map((p) => p.id));
+      const unidadBase = new Map(productos.map((p) => [p.id, p.baseUnit]));
 
       const presentaciones = await tx.productPresentation.findMany({
         where: { tenantId: user.tenantId, productId: { in: [...porSku.values()] } },
-        select: { id: true, productId: true, name: true },
+        select: { id: true, productId: true, name: true, factor: true },
       });
+      const esConteo = document.type === "physical_count";
 
       const num = (raw: string | undefined): number | null => {
         const value = (raw ?? "").trim().replace(",", ".");
@@ -202,14 +207,21 @@ export class DocumentImportService {
         const productId = porSku.get(sku.toLowerCase()) ?? null;
         const nombrePresentacion = texto(raw[idx("presentacion")]);
         const lote = texto(raw[idx("lote")]);
-        const presentationId =
+        const presentacion =
           productId === null || nombrePresentacion === null
-            ? null
-            : (presentaciones.find(
+            ? undefined
+            : presentaciones.find(
                 (p) =>
                   p.productId === productId &&
                   p.name.toLowerCase() === nombrePresentacion.toLowerCase(),
-              )?.id ?? null);
+              );
+        // F10-BULK-09: un conteo va en unidad base y su factor nunca se aplica
+        // («3» con «Bolsa 10 Kg» se contaba como 3 kilogramos). La fila se
+        // marca y entra SIN presentación ni contado: la previa pide el contado
+        // en la unidad base, en vez de confirmar un número equivocado.
+        const empaqueEnConteo =
+          esConteo && presentacion !== undefined && !presentacion.factor.equals(1);
+        const presentationId = empaqueEnConteo ? null : (presentacion?.id ?? null);
 
         // Una fecha que no se entiende se marca en la fila y la línea se guarda
         // sin caducidad: la previa pide corregirla antes de confirmar. Lo
@@ -235,19 +247,30 @@ export class DocumentImportService {
           lotCode: lote === null ? null : normalizeLotCode(lote) || null,
           expiresAt: problemaCaducidad === null ? caducidad.date : null,
           location: texto(raw[idx("ubicacion")]),
-          counted: num(raw[idx("contado")]),
+          counted: empaqueEnConteo ? null : num(raw[idx("contado")]),
           error:
             productId === null
               ? "inventory.product_not_found"
-              : nombrePresentacion !== null && presentationId === null
+              : nombrePresentacion !== null && presentacion === undefined
                 ? "inventory.presentation_invalid"
-                : caducidad.invalid
-                  ? "inventory.expiry_invalid"
-                  : problemaCaducidad === "year_out_of_range"
-                    ? "inventory.expiry_year_out_of_range"
-                    : problemaCaducidad === "in_past"
-                      ? "inventory.expiry_in_past"
-                      : contadoInvalido(raw[idx("contado")]),
+                : empaqueEnConteo
+                  ? "inventory.count_presentation_not_base"
+                  : caducidad.invalid
+                    ? "inventory.expiry_invalid"
+                    : problemaCaducidad === "year_out_of_range"
+                      ? "inventory.expiry_year_out_of_range"
+                      : problemaCaducidad === "in_past"
+                        ? "inventory.expiry_in_past"
+                        : contadoInvalido(raw[idx("contado")]),
+          ...(empaqueEnConteo && productId !== null
+            ? {
+                errorArgs: {
+                  unit: unitName(unidadBase.get(productId) ?? "unit", user.locale, {
+                    plural: true,
+                  }).toLowerCase(),
+                },
+              }
+            : {}),
         };
       });
 
