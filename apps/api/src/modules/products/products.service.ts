@@ -4,13 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import {
-  barcodeSearchForms,
-  getUnit,
-  type Locale,
-  normalizeCode,
-  unitName,
-} from "@sellpoint/shared";
+import { barcodeSearchForms, getUnit, normalizeCode } from "@sellpoint/shared";
 import { restriccionViolada } from "../../common/prisma/unique-violation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -25,6 +19,12 @@ import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
 import { BarcodeContributionService } from "./barcode-contribution.service";
 import { assertBarcodeChange, contributionOf } from "./barcode-rules";
+import {
+  assertBaseUnitChangeable,
+  basePresentationName,
+  derivesFractionalInput,
+  followBaseUnitChange,
+} from "./base-unit";
 import { assertCodeFree, lockCatalogCodes } from "./catalog-codes";
 import type {
   CreateProductDto,
@@ -32,22 +32,9 @@ import type {
   UpdateProductDto,
 } from "./dto/upsert-product.dto";
 
-/**
- * Nombre de la presentación base que se crea con cada producto. Es la que
- * lleva el precio y el costo que el usuario carga en el form del catálogo
- * (decisión de Carlos, 2026-08-16): el precio vive en `product_presentations`,
- * una sola fuente de verdad, pero se edita desde la misma pantalla.
- *
- * Se llama como la UNIDAD BASE, no "Unidad" a secas (corrección de Carlos,
- * 2026-08-17): un producto en gramos mostraba una presentación llamada
- * "Unidad" que en realidad valía 1 gramo, y eso confunde justo donde no
- * conviene. Va en el idioma de quien crea el producto porque es un dato del
- * tenant —editable, como cualquier otro nombre de presentación—, no una
- * etiqueta que se traduzca al vuelo.
- */
-export function basePresentationName(baseUnit: string, locale: Locale): string {
-  return unitName(baseUnit, locale);
-}
+// Viven en `base-unit.ts` desde F10-BULK-14; se siguen exportando desde aquí
+// porque compras, órdenes de compra y presentaciones los importan de este archivo.
+export { basePresentationName, derivesFractionalInput } from "./base-unit";
 
 export interface ProductListItem {
   id: string;
@@ -339,9 +326,10 @@ export class ProductsService {
         await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
       }
 
-      if (input.baseUnit !== undefined && input.baseUnit !== current.baseUnit) {
+      const cambiaUnidad = input.baseUnit !== undefined && input.baseUnit !== current.baseUnit;
+      if (cambiaUnidad && input.baseUnit !== undefined) {
         assertKnownUnit(input.baseUnit);
-        await this.assertBaseUnitChangeable(tx, id);
+        await assertBaseUnitChangeable(tx, id);
       }
 
       // Solo al APAGARLO. Encenderlo no depende del saldo —el previo queda
@@ -374,6 +362,15 @@ export class ProductsService {
               : {}),
           },
         });
+
+        // F10-BULK-14: la presentación base sigue a la unidad (`base-unit.ts`).
+        if (cambiaUnidad && input.baseUnit !== undefined) {
+          await followBaseUnitChange(tx, id, {
+            from: current.baseUnit,
+            to: input.baseUnit,
+            locale: user.locale,
+          });
+        }
 
         if (base) {
           await tx.productPresentation.update({
@@ -482,11 +479,6 @@ export class ProductsService {
   }
 
   /**
-   * Cambiar la unidad base es ambiguo si ya hay existencias (¿los 500 que hay
-   * eran gramos o kilos?) o si el producto es componente de otro (su composición
-   * está expresada en la unidad vieja) — ARQUITECTURA § 3.5, validación #2.
-   */
-  /**
    * Apagar el control de lote con saldo dejaría las filas de `stock_lots`
    * huérfanas y rompería la invariante `Σ stock_lots == stock_by_warehouse`
    * que el ledger sostiene. El saldo no desaparece: simplemente ya nadie
@@ -565,30 +557,6 @@ export class ProductsService {
     });
   }
 
-  private async assertBaseUnitChangeable(
-    tx: Prisma.TransactionClient,
-    productId: string,
-  ): Promise<void> {
-    const [withStock, usedAsComponent, movimientos] = await Promise.all([
-      tx.stockByWarehouse.count({ where: { productId, quantity: { gt: 0 } } }),
-      tx.productComposition.count({ where: { componentProductId: productId } }),
-      tx.stockMovement.count({ where: { productId } }),
-    ]);
-
-    // Con historia la unidad queda fija AUNQUE el saldo esté en cero: los
-    // movimientos se escribieron EN esa unidad, y reinterpretarlos cambiaría
-    // números ya asentados sin tocar una fila.
-    if (movimientos > 0) {
-      throw new ConflictException({ message: "products.base_unit_locked_by_movements" });
-    }
-    if (withStock > 0) {
-      throw new ConflictException({ message: "products.base_unit_locked_by_stock" });
-    }
-    if (usedAsComponent > 0) {
-      throw new ConflictException({ message: "products.base_unit_locked_by_composition" });
-    }
-  }
-
   private async assertAttributesValid(
     tx: Prisma.TransactionClient,
     user: AuthUser,
@@ -602,14 +570,6 @@ export class ProductsService {
       catalogMissing: "products.catalog_missing",
     });
   }
-}
-
-/**
- * `count` (cosas que se cuentan de a una) no admite decimales; el resto sí.
- * El Admin puede sobrescribirlo por presentación (F2-PRESENT).
- */
-export function derivesFractionalInput(baseUnit: string): boolean {
-  return getUnit(baseUnit)?.category !== "count";
 }
 
 function assertKnownUnit(code: string): void {
