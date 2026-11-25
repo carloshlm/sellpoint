@@ -402,7 +402,8 @@ describe("los reportes en Excel: números como número, lo demás como texto", (
       // El valor a costo se quitó (Carlos, 2026-11-14): no queda su columna.
       expect(sheet.getRow(1).values).not.toContain("Valor");
       esTexto(sheet, "SKU", "001000000018");
-      esTexto(sheet, "Unidad", "unit");
+      // F10-BULK-16: la unidad con su nombre, no con su código interno.
+      esTexto(sheet, "Unidad", "Pieza");
     });
 
     it("por lote: la cantidad es número; el lote y la caducidad, texto", async () => {

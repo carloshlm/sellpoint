@@ -1,9 +1,10 @@
-import { formatMoney } from "@sellpoint/shared";
+import { formatMoney, formatQuantityWithUnit } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
+import { resolveUiLocale } from "@/lib/accept-language";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { downloadStockReport, type StockReportQuery } from "@/lib/reports/api";
 import { useStockReport } from "@/lib/reports/hooks";
@@ -104,8 +105,22 @@ export function StockReport({
   const dinero = (valor: string | null | undefined) =>
     valor === null || valor === undefined ? "" : formatMoney(Number(valor), currency, locale);
 
+  /**
+   * F10-BULK-16 — la cantidad con su unidad: «2.5» no dice si son kilos o
+   * piezas. La regla (redondo en piezas, tres decimales en lo que se pesa) y
+   * el plural son de `formatQuantityWithUnit`, la misma que usa la pestaña de
+   * stock del producto, en el idioma que la persona lee. El detalle por lote
+   * no trae mínimo: su `undefined` queda como celda vacía, igual que el
+   * dinero.
+   */
+  const uiLocale = resolveUiLocale(i18n);
+  const cantidad = (valor: string | undefined, baseUnit: string) =>
+    valor === undefined ? "" : formatQuantityWithUnit(valor, baseUnit, uiLocale);
+
   const filas = (data?.rows ?? []).map((fila) => ({
     ...fila,
+    quantity: cantidad(fila.quantity, fila.baseUnit),
+    stockMin: cantidad(fila.stockMin, fila.baseUnit),
     // Lo que no tiene lote llega con el código vacío, y una celda de lote
     // vacía junto a una cantidad se lee como un dato perdido (Carlos,
     // 2026-10-31).

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { Locale } from "@sellpoint/shared";
+import { type Locale, unitName } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { columnIndexes } from "../../common/spreadsheet/spreadsheet";
@@ -66,7 +66,9 @@ export class StockExportService {
     return exportWithLimit({
       count: () => this.stock.count(user, scope, { ...query, ...SIN_PAGINAR }),
       rows: () =>
-        esDetalle ? this.filasDeLotes(user, scope, query) : this.filas(user, scope, query),
+        esDetalle
+          ? this.filasDeLotes(user, scope, query, locale)
+          : this.filas(user, scope, query, locale),
       header: esDetalle ? LOTS_HEADER : HEADER,
       numericColumns: columnIndexes(esDetalle ? LOTS_HEADER : HEADER, NUMERICAS),
       format: query.format,
@@ -98,7 +100,12 @@ export class StockExportService {
     }
   }
 
-  private async filas(user: AuthUser, scope: UserScope, query: StockExportQueryDto) {
+  private async filas(
+    user: AuthUser,
+    scope: UserScope,
+    query: StockExportQueryDto,
+    locale: Locale,
+  ) {
     const rows = await this.paginar((page) =>
       this.stock.list(user, scope, { ...query, ...SIN_PAGINAR, page }),
     );
@@ -108,7 +115,8 @@ export class StockExportService {
       fila.sku,
       fila.warehouseName,
       fila.quantity,
-      fila.baseUnit,
+      // F10-BULK-16: el nombre de la unidad («Kilogramo»), no su código («kg»).
+      unitName(fila.baseUnit, locale),
       fila.stockMin,
       fila.belowMin ? "Sí" : "",
       // La celda VACÍA y no un cero: sin historial no sabemos cuánto costó, y
@@ -120,7 +128,12 @@ export class StockExportService {
     ]);
   }
 
-  private async filasDeLotes(user: AuthUser, scope: UserScope, query: StockExportQueryDto) {
+  private async filasDeLotes(
+    user: AuthUser,
+    scope: UserScope,
+    query: StockExportQueryDto,
+    locale: Locale,
+  ) {
     const rows = await this.paginar((page) =>
       this.stock.listLots(user, scope, { ...query, ...SIN_PAGINAR, page }),
     );
@@ -135,7 +148,7 @@ export class StockExportService {
       fila.expiresAt ?? "",
       fila.location,
       fila.quantity,
-      fila.baseUnit,
+      unitName(fila.baseUnit, locale),
     ]);
   }
 }

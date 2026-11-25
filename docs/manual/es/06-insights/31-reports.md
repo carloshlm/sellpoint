@@ -174,6 +174,10 @@ importes:
 - **Valor a precio de venta**: el precio de venta por la cantidad que hay en esa
   sucursal.
 
+La **Cantidad** y el **Mínimo** dicen su unidad, como «2.500 kilogramos» o
+«12 piezas». En el Excel, la cantidad va como número, para que puedas sumarla, y
+la unidad va en su propia columna, **Unidad**.
+
 Para encontrar un producto, escribe su nombre o su SKU en **Buscar producto**.
 Tres casillas cambian el reporte:
 

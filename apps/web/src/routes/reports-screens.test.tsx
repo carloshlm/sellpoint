@@ -36,15 +36,21 @@ async function renderRuta(
   // F10-MANFIX-02: para simular a la dueña con una sucursal ASIGNADA sin
   // tener que rearmar todo `renderRuta` en cada test.
   userOverrides: Partial<AuthUser> = {},
+  // F10-BULK-16: el idioma que la persona LEE, para probar la unidad en inglés.
+  language: "es" | "en" = "es",
 ) {
-  useAuthStore.getState().setAuth("jwt", { ...demoUser(permissions), ...userOverrides });
+  useAuthStore
+    .getState()
+    .setAuth("jwt", { ...demoUser(permissions), locale: language, ...userOverrides });
+  const i18n = createI18n();
+  await i18n.changeLanguage(language);
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();
   render(
-    <I18nextProvider i18n={createI18n()}>
+    <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={createQueryClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>
@@ -272,6 +278,58 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     });
 
     /**
+     * F10-BULK-16: «2.5» no decía si eran kilos o piezas. La cantidad y el
+     * mínimo van con su unidad, con la regla de `formatQuantityWithUnit`:
+     * redondo en piezas, tres decimales en lo que se pesa. Siguen alineadas a
+     * la derecha, como toda celda numérica.
+     */
+    it("la cantidad y el mínimo dicen su unidad: «2.500 kilogramos», «12 piezas»", async () => {
+      mocked.getStockReport.mockResolvedValue({
+        rows: [
+          filaStock({ name: "Queso Oaxaca", baseUnit: "kg", quantity: "2.5", stockMin: "1" }),
+          filaStock({
+            productId: "p2",
+            name: "Refresco",
+            baseUnit: "unit",
+            quantity: "12",
+            stockMin: "0",
+          }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/stock");
+
+      const queso = (await screen.findByText("Queso Oaxaca")).closest("tr") as HTMLElement;
+      const celdasQueso = within(queso).getAllByRole("cell");
+      // Producto, Sucursal, Cantidad, Mínimo, …
+      expect(celdasQueso[2]).toHaveTextContent(/^2\.500 kilogramos$/);
+      expect(celdasQueso[3]).toHaveTextContent(/^1 kilogramo$/);
+      expect(celdasQueso[2]).toHaveClass("text-right");
+
+      const refresco = screen.getByText("Refresco").closest("tr") as HTMLElement;
+      const celdasRefresco = within(refresco).getAllByRole("cell");
+      expect(celdasRefresco[2]).toHaveTextContent(/^12 piezas$/);
+      expect(celdasRefresco[3]).toHaveTextContent(/^0 piezas$/);
+    });
+
+    it("en inglés la unidad va en inglés: «2.500 kilograms»", async () => {
+      mocked.getStockReport.mockResolvedValue({
+        rows: [filaStock({ name: "Cheese", baseUnit: "kg", quantity: "2.5", stockMin: "1" })],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/stock", ["reports:read"], {}, "en");
+
+      const fila = (await screen.findByText("Cheese")).closest("tr") as HTMLElement;
+      const celdas = within(fila).getAllByRole("cell");
+      expect(celdas[2]).toHaveTextContent(/^2\.500 kilograms$/);
+      expect(celdas[3]).toHaveTextContent(/^1 kilogram$/);
+    });
+
+    /**
      * Carlos (2026-09-01): la flecha de «Producto» no hacía nada — el API
      * siempre ordena por nombre y el toggle asc/desc no viajaba a ningún
      * lado. Un control que no controla es peor que ninguno: se quita.
@@ -478,9 +536,42 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
         "Sin lote",
         "",
         "",
-        "9",
+        "9 piezas",
       ]);
       expect(screen.getByText("L-4")).toBeInTheDocument();
+    });
+
+    /** F10-BULK-16: el detalle por lote también dice la unidad de la cantidad. */
+    it("en el detalle por lote la cantidad dice su unidad: «2.500 kilogramos»", async () => {
+      mocked.getStockReport.mockResolvedValue({
+        rows: [
+          {
+            productId: "p3",
+            sku: "SKU-3",
+            name: "Queso Oaxaca",
+            baseUnit: "kg",
+            warehouseId: "w1",
+            warehouseName: "Central",
+            lotCode: "Q-1",
+            expiresAt: "2027-03-01",
+            location: "A-1",
+            quantity: "2.5",
+            unlotted: false,
+          } as unknown as reportsApi.StockReportRow,
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/stock");
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByLabelText(/detalle por lote/i));
+
+      const fila = (await screen.findByText("Q-1")).closest("tr") as HTMLElement;
+      const cantidad = within(fila).getAllByRole("cell").at(-1);
+      expect(cantidad).toHaveTextContent(/^2\.500 kilogramos$/);
+      expect(cantidad).toHaveClass("text-right");
     });
 
     /**
