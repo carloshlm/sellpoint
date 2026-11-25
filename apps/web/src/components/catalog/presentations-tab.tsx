@@ -70,8 +70,14 @@ function PresentationsTab({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* F10-BULK-13 (Carlos, 2026-11-25): una presentación es un EMPAQUE
+          («Bolsa 10 Kg»), nunca una porción de venta: lo a granel se vende
+          escribiendo la cantidad. Es UN solo párrafo con la unidad de la
+          equivalencia —antes era otra ayuda aparte que decía lo mismo—. La
+          frase dice «cuánto trae en {{unit}}» y no «cuántos {{unit}} trae»:
+          así se lee bien con piezas, onzas y libras, que son femeninas. */}
       <p className="text-xs text-muted-foreground">
-        {t("products.presentations.baseUnitHint", { unit: baseUnitLabel })}
+        {t("products.presentations.packageHint", { unit: baseUnitLabel })}
       </p>
 
       {error && (

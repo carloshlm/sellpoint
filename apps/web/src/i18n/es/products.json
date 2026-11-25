@@ -32,6 +32,8 @@
     "barcodeLocked": "Bloqueado para que un escaneo no lo cambie sin querer. Toca «Cambiar» si necesitas corregirlo.",
     "barcodeUnlock": "Cambiar",
     "baseUnit": "Unidad base",
+    "baseUnitHint": "Elige la unidad en la que pones el precio. El queso va en kilogramos: los gramos los escribes al vender o al dar entrada.",
+    "smallUnitWarning": "Si lo vendes por {{larger}}, elige {{largerName}}: un precio por {{unit}} solo admite centavos.",
     "codesRequired": "Captura al menos uno de los dos códigos: el de barras (si el empaque lo trae) o el interno.",
     "cost": "Costo",
     "cost_excluded": "Costo (sin impuesto)",
@@ -81,7 +83,7 @@
     "noPriceHint": "Sin precio, se usa solo para compras.",
     "deactivate": "Desactivar",
     "reactivate": "Reactivar",
-    "baseUnitHint": "Las equivalencias se expresan en la unidad base del producto: {{unit}}.",
+    "packageHint": "Una presentación es un empaque: cuánto trae en {{unit}}, como «Caja con 12» o «Bolsa 10 Kg». No crees una por cada cantidad que vendes: la cantidad se escribe al vender.",
     "removeDialog": {
       "title": "Eliminar presentación",
       "body": "Vas a eliminar «{{name}}» con su código de barras y su precio. Esta acción no se puede deshacer. Si solo quieres dejar de usarla, desactívala.",

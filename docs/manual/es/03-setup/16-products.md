@@ -34,6 +34,10 @@ Para abrir un producto, presiona **Ver** en su renglón.
    tamaño. «Agua natural 1 L» y «Agua natural 600 ml» son dos productos.
 4. Elige la **Unidad base**: **Pieza** para lo que se cuenta, o una unidad de
    peso, volumen o longitud (kilogramo, litro, metro…) para lo que se mide.
+   Usa la unidad en la que pones el precio: el queso que vendes por kilo va en
+   **Kilogramo**. Si eliges una unidad chica, como **Gramo**, y escribes un
+   precio, la ficha te avisa que un precio por gramo solo admite centavos. Es
+   solo un aviso: el producto se guarda igual.
 5. En **Impuesto, costo y precio**, captura el **Costo** y el **Precio de
    venta**. Las etiquetas te dicen si van con el impuesto incluido o sin él,
    según lo que elegiste en el capítulo 13, «Impuestos». Debajo del precio ves

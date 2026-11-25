@@ -44,9 +44,9 @@ const basePresentation: Presentation = {
 
 const defaultPresentation: Presentation = { ...basePresentation, isDefaultSale: true };
 
-function renderTab(baseUnit: string) {
+function renderTab(baseUnit: string, i18n = createI18n()) {
   render(
-    <I18nextProvider i18n={createI18n()}>
+    <I18nextProvider i18n={i18n}>
       <PresentationsTab
         productId="prod-1"
         baseUnit={baseUnit}
@@ -78,7 +78,9 @@ describe("PresentationsTab — la unidad base se nombra, no se codifica", () => 
     renderTab("gr");
 
     expect(
-      screen.getByText("Las equivalencias se expresan en la unidad base del producto: gramos."),
+      screen.getByText(
+        "Una presentación es un empaque: cuánto trae en gramos, como «Caja con 12» o «Bolsa 10 Kg». No crees una por cada cantidad que vendes: la cantidad se escribe al vender.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -96,6 +98,53 @@ describe("PresentationsTab — la unidad base se nombra, no se codifica", () => 
     renderTab("xx");
 
     expect(screen.getByText("Equivale en xx")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F10-BULK-13 (Carlos, 2026-11-25): una presentación es un EMPAQUE, nunca una
+ * porción de venta. Lo a granel se vende escribiendo la cantidad, así que
+ * «Porción 250 g» no hace falta. La ayuda de los empaques y la de la unidad
+ * de la equivalencia son UN solo párrafo: dos ayudas seguidas que hablan de lo
+ * mismo se leen como una repetida.
+ */
+describe("PresentationsTab — la ayuda de los empaques (F10-BULK-13)", () => {
+  it("arriba de la tabla dice que una presentación es un empaque, en la unidad base", () => {
+    renderTab("kg");
+
+    const ayuda = screen.getByText(
+      "Una presentación es un empaque: cuánto trae en kilogramos, como «Caja con 12» o «Bolsa 10 Kg». No crees una por cada cantidad que vendes: la cantidad se escribe al vender.",
+    );
+    // ARRIBA de la tabla: se lee antes de agregar la primera presentación.
+    expect(
+      ayuda.compareDocumentPosition(screen.getByRole("table")) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("la ayuda de antes ya no se repite aparte", () => {
+    renderTab("kg");
+
+    expect(screen.queryByText(/Las equivalencias se expresan/)).not.toBeInTheDocument();
+  });
+
+  it("en piezas también se lee bien: la frase no depende del género de la unidad", () => {
+    renderTab("unit");
+
+    expect(
+      screen.getByText(/^Una presentación es un empaque: cuánto trae en piezas,/),
+    ).toBeInTheDocument();
+  });
+
+  it("en inglés usa el texto aprobado con la unidad en inglés", async () => {
+    const i18n = createI18n();
+    await i18n.changeLanguage("en");
+    renderTab("unit", i18n);
+
+    expect(
+      screen.getByText(
+        "A presentation is a package: how many pieces it holds, like “Box of 12” or “Bag 10 Kg”. Don't create one for every amount you sell: you type the amount when you sell.",
+      ),
+    ).toBeInTheDocument();
   });
 });
 

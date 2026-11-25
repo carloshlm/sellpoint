@@ -1,8 +1,12 @@
 import {
+  captureUnitsFor,
   isScannableBarcode,
+  isUnitCode,
   isValidBarcode,
   normalizeCode,
   UNIT_CODES,
+  UNITS,
+  type UnitCode,
   unitName,
 } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
@@ -523,6 +527,27 @@ function problemaDelCodigo(codigo: string): string | null {
   return isValidBarcode(codigo) ? null : "products.form.barcodeCheckDigit";
 }
 
+/**
+ * F10-BULK-13 — La unidad MAYOR de la familia de una unidad chica: gramo →
+ * kilogramo, mililitro → litro, centímetro → metro, onza → libra, pulgada →
+ * pie. `null` para las demás (kilogramo, litro, pieza, pie…): ya son la unidad
+ * del precio o no tienen a cuál subir.
+ *
+ * Sale de `captureUnitsFor`, la misma regla que el botón de unidad: la mayor
+ * es la hermana que se puede escribir y vale más que la base. Así el aviso no
+ * puede nombrar una unidad que el botón no ofrece.
+ */
+function largerCaptureUnit(baseUnit: string): UnitCode | null {
+  if (!isUnitCode(baseUnit)) {
+    return null;
+  }
+  const factor = UNITS[baseUnit].factor;
+  return (
+    captureUnitsFor(baseUnit).find((unit) => unit !== baseUnit && UNITS[unit].factor > factor) ??
+    null
+  );
+}
+
 function ProductForm({
   product,
   onDone,
@@ -783,6 +808,33 @@ function ProductForm({
   const costError = costErrorKey ? t(costErrorKey) : undefined;
 
   /**
+   * ── La unidad base es la unidad del PRECIO (Carlos, 2026-11-25) ──────
+   *
+   * El queso va en kilogramos, con su precio por kilo: un precio por gramo
+   * solo cabe en centavos ($185 el kilo serían $0.185, y el precio guarda dos
+   * decimales). Con una unidad chica Y un precio escrito, la ficha lo avisa,
+   * pero NO bloquea el guardado: la unidad la decide quien da de alta.
+   *
+   * Solo al ELEGIR la unidad: en el alta, o al cambiar la de un producto que
+   * ya existe. Un producto que ya está en gramos sigue funcionando con su
+   * presentación «Kilogramo» y, con historial, su unidad ya no se puede
+   * cambiar; repetirle el aviso cada vez que se abre sería pedirle algo
+   * imposible.
+   */
+  const unidadMayor = largerCaptureUnit(baseUnit);
+  const eligiendoUnidad = esAlta || baseUnit !== product?.baseUnit;
+  const avisoUnidadChica =
+    unidadMayor !== null && eligiendoUnidad && price.trim() !== ""
+      ? t("products.form.smallUnitWarning", {
+          // Minúscula en medio de la frase («por kilogramo»), capitalizada
+          // donde nombra la opción del desplegable («elige Kilogramo»).
+          larger: unitName(unidadMayor, uiLocale).toLowerCase(),
+          largerName: unitName(unidadMayor, uiLocale),
+          unit: unitName(baseUnit, uiLocale).toLowerCase(),
+        })
+      : null;
+
+  /**
    * El código de barras que el API va a revisar: el del alta y, al editar,
    * solo uno que CAMBIÓ. Los códigos de antes de la regla («AJOLOCARAMELO»)
    * no frenan un cambio de precio, igual que en `assertBarcodeChange`.
@@ -1019,23 +1071,34 @@ function ProductForm({
       {/* Se elige por NOMBRE ("Kilogramo") y se guarda el CÓDIGO (`kg`): nadie
           que no sea del oficio reconoce `oz` en un desplegable, pero el código
           es lo que viaja a la DB y a la planilla de importación. */}
-      <SelectField
-        label={t("products.form.baseUnit")}
-        value={baseUnit}
-        error={fieldErrors.baseUnit}
-        disabled={!canManage}
-        // «Pieza (unit)»: el código entre paréntesis es el que se guarda y el
-        // que viaja en la plantilla de importación — así nadie lo adivina al
-        // armar su Excel (Carlos, 2026-09-01).
-        options={UNIT_CODES.map((code) => ({
-          value: code,
-          label: `${unitName(code, uiLocale)} (${code})`,
-        }))}
-        onChange={(event) => {
-          setBaseUnit(event.target.value);
-          corregir("baseUnit");
-        }}
-      />
+      <div className="flex flex-col gap-2">
+        <SelectField
+          label={t("products.form.baseUnit")}
+          // F10-BULK-13: la regla en el momento de elegir, no en el manual.
+          hint={t("products.form.baseUnitHint")}
+          value={baseUnit}
+          error={fieldErrors.baseUnit}
+          disabled={!canManage}
+          // «Pieza (unit)»: el código entre paréntesis es el que se guarda y el
+          // que viaja en la plantilla de importación — así nadie lo adivina al
+          // armar su Excel (Carlos, 2026-09-01).
+          options={UNIT_CODES.map((code) => ({
+            value: code,
+            label: `${unitName(code, uiLocale)} (${code})`,
+          }))}
+          onChange={(event) => {
+            setBaseUnit(event.target.value);
+            corregir("baseUnit");
+          }}
+        />
+        {/* `status` y no `alert`: avisa sin interrumpir, porque no es un
+            error y el producto se guarda igual. */}
+        {avisoUnidadChica !== null && (
+          <p role="status" className="text-warning text-xs">
+            {avisoUnidadChica}
+          </p>
+        )}
+      </div>
 
       {/* Costo y precio editan la presentación base: el usuario los ve como
           "el costo y el precio del producto" y los carga acá mismo. El bloque

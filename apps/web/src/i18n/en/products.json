@@ -32,6 +32,8 @@
     "barcodeLocked": "Locked so a scan can't change it by accident. Tap «Change» if you need to fix it.",
     "barcodeUnlock": "Change",
     "baseUnit": "Base unit",
+    "baseUnitHint": "Choose the unit you set the price in. Cheese goes in kilograms: you type the grams when you sell it or receive it.",
+    "smallUnitWarning": "If you sell it by the {{larger}}, choose {{largerName}}: a price per {{unit}} can only hold cents.",
     "codesRequired": "Enter at least one of the two codes: the barcode (if the package has one) or the internal code.",
     "cost": "Cost",
     "cost_excluded": "Cost (before tax)",
@@ -81,7 +83,7 @@
     "noPriceHint": "Without a price, it's for purchases only.",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",
-    "baseUnitHint": "Equivalences are expressed in the product's base unit: {{unit}}.",
+    "packageHint": "A presentation is a package: how many {{unit}} it holds, like “Box of 12” or “Bag 10 Kg”. Don't create one for every amount you sell: you type the amount when you sell.",
     "removeDialog": {
       "title": "Delete presentation",
       "body": "You are about to delete \"{{name}}\" along with its barcode and price. This can not be undone. If you only want to stop using it, deactivate it instead.",
