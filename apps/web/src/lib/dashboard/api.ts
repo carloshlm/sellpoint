@@ -99,9 +99,17 @@ export interface DashboardSeries {
   }[];
 }
 
+/** Qué es cada artículo vendido; los conceptos son líneas de texto libre. */
+export type SoldItemKind = "product" | "service" | "concept";
+
 export interface DashboardProducts {
   topSold: {
     itemId: string;
+    /**
+     * F10-RPT-01 — de él sale el ícono del renglón. Opcional: durante un
+     * deploy, este web puede hablar con un API que todavía no lo manda.
+     */
+    kind?: SoldItemKind;
     sku: string;
     name: string;
     /** Cantidad vendida, ya convertida a la unidad base del producto. */
@@ -113,6 +121,8 @@ export interface DashboardProducts {
   }[];
   topProfit: {
     itemId: string;
+    /** F10-RPT-01 — opcional por la misma razón que en `topSold`. */
+    kind?: SoldItemKind;
     sku: string;
     name: string;
     revenue: string;

@@ -19,6 +19,12 @@ import { type DashboardPeriod, dashboardPeriodSchema } from "./dashboard-period"
 import { DashboardProductsService } from "./dashboard-products.service";
 import { DashboardSeriesService } from "./dashboard-series.service";
 import { type DirectExportQueryDto, directExportQuerySchema } from "./dto/direct-export.dto";
+import {
+  type ItemsExportQueryDto,
+  type ItemsReportQueryDto,
+  itemsExportQuerySchema,
+  itemsReportQuerySchema,
+} from "./dto/items-report.dto";
 import { type KardexExportQueryDto, kardexExportQuerySchema } from "./dto/kardex-export.dto";
 import {
   type SalesExportQueryDto,
@@ -48,6 +54,8 @@ import {
   taxExportQuerySchema,
   taxReportQuerySchema,
 } from "./dto/tax-report.dto";
+import { ItemsReportService } from "./items-report.service";
+import { ItemsReportExportService } from "./items-report-export.service";
 import { KardexExportService } from "./kardex-export.service";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
@@ -101,6 +109,8 @@ export class ReportsController {
     private readonly dashboardInventory: DashboardInventoryService,
     private readonly dashboardPayments: DashboardPaymentsService,
     private readonly dashboardControl: DashboardControlService,
+    private readonly itemsReport: ItemsReportService,
+    private readonly itemsExport: ItemsReportExportService,
   ) {}
 
   @Get()
@@ -384,6 +394,35 @@ export class ReportsController {
       response,
       await this.salesLinesExport.build(user, scope, query, kind, getLocale(request)),
     );
+  }
+
+  /**
+   * F10-RPT-03 — el reporte por artículo: «Más vendidos», «Mayor utilidad» y
+   * «Vendidos bajo su costo» (`view`), con sucursal, fechas y tipo. Es la
+   * consulta del panel con filtros: mismo permiso y mismo alcance que Ventas.
+   */
+  @Get("items")
+  @RequirePermissions("reports:read")
+  items(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(itemsReportQuerySchema, "reports.invalid_query"))
+    query: ItemsReportQueryDto,
+  ) {
+    return this.itemsReport.list(user, scope, query);
+  }
+
+  @Get("items/export")
+  @RequirePermissions("reports:read")
+  async itemsExportFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(itemsExportQuerySchema, "reports.invalid_query"))
+    query: ItemsExportQueryDto,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    this.descargar(response, await this.itemsExport.build(user, scope, query, getLocale(request)));
   }
 
   /**

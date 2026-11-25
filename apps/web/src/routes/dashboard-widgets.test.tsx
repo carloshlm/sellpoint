@@ -553,6 +553,94 @@ describe("F10-KPI-02: «Mayor utilidad» avisa lo que pierde y lo que no tiene c
 });
 
 /**
+ * F10-RPT-01 — Carlos (2026-11-25): «Card Más vendidos y Mayor utilidad poner
+ * algún icono que indique si son servicios o productos». El ícono es el de la
+ * pantalla de Reportes y lleva su nombre, para quien no lo ve.
+ */
+async function renglonesDe(titulo: string): Promise<HTMLElement[]> {
+  const encabezado = await screen.findByRole("heading", { name: titulo });
+  return within(encabezado.closest("section") as HTMLElement).getAllByRole("listitem");
+}
+
+/** El nombre accesible del ícono de cada renglón y el nombre del artículo. */
+function tiposDe(renglones: HTMLElement[]) {
+  return renglones.map((li) => [
+    within(li).getByRole("img").getAttribute("aria-label"),
+    li.querySelector(".truncate")?.textContent,
+  ]);
+}
+
+describe("F10-RPT-01: los dos tops dicen si cada renglón es producto, servicio o concepto", () => {
+  const CON_TIPO: dashboardApi.DashboardProducts = {
+    ...PRODUCTS,
+    topSold: [
+      {
+        ...PRODUCTS.topSold[0],
+        kind: "product",
+      } as dashboardApi.DashboardProducts["topSold"][number],
+      {
+        ...PRODUCTS.topSold[1],
+        itemId: "s1",
+        name: "Corte de cabello",
+        kind: "service",
+      } as dashboardApi.DashboardProducts["topSold"][number],
+      {
+        ...PRODUCTS.topSold[2],
+        itemId: "concept:flete a domicilio",
+        name: "Flete a domicilio",
+        unit: "unit",
+        kind: "concept",
+      } as dashboardApi.DashboardProducts["topSold"][number],
+    ],
+    topProfit: [
+      {
+        ...PRODUCTS.topProfit[0],
+        itemId: "s1",
+        name: "Corte de cabello",
+        kind: "service",
+      } as dashboardApi.DashboardProducts["topProfit"][number],
+      {
+        ...PRODUCTS.topProfit[0],
+        kind: "product",
+      } as dashboardApi.DashboardProducts["topProfit"][number],
+    ],
+  };
+
+  it("cada renglón de «Más vendidos» lleva el ícono de su tipo, con su nombre", async () => {
+    mocked.getDashboardProducts.mockResolvedValue(CON_TIPO);
+    await renderDashboard();
+
+    expect(tiposDe(await renglonesDe("Más vendidos"))).toEqual([
+      ["Producto", "Coca-Cola 600ml"],
+      ["Servicio", "Corte de cabello"],
+      ["Concepto", "Flete a domicilio"],
+    ]);
+  });
+
+  it("cada renglón de «Mayor utilidad» lleva el ícono de su tipo, con su nombre", async () => {
+    mocked.getDashboardProducts.mockResolvedValue(CON_TIPO);
+    await renderDashboard();
+
+    expect(tiposDe(await renglonesDe("Mayor utilidad"))).toEqual([
+      ["Servicio", "Corte de cabello"],
+      ["Producto", "Sabritas 45g"],
+    ]);
+    expect(screen.getAllByRole("img", { name: "Servicio" })).toHaveLength(2);
+  });
+
+  it("un API anterior, sin el tipo, deja los renglones como estaban: sin ícono", async () => {
+    await renderDashboard();
+
+    const renglones = await renglonesDe("Más vendidos");
+    expect(renglones).toHaveLength(3);
+    for (const li of renglones) {
+      expect(within(li).queryByRole("img")).not.toBeInTheDocument();
+    }
+    expect(screen.getByText("842 unidades")).toBeInTheDocument();
+  });
+});
+
+/**
  * F10-KPI-15 — la tarjeta «Control», bajo las pestañas de periodo: tres
  * contadores que hoy exigen abrir tres reportes y sumar a mano. Cada uno lleva
  * a su reporte ya filtrado con las fechas del periodo.

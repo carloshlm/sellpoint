@@ -1,12 +1,12 @@
 import { formatMoney, getUnit, unitSymbol } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, FileText, type LucideIcon, Package, Wrench } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollableList } from "@/components/ui/scrollable-list";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
-import type { DashboardPeriod, DashboardProducts } from "@/lib/dashboard/api";
+import type { DashboardPeriod, DashboardProducts, SoldItemKind } from "@/lib/dashboard/api";
 import { useDashboardProducts } from "@/lib/dashboard/hooks";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
@@ -47,6 +47,33 @@ function NombreConFicha({ fila }: { fila: FilaConFicha }) {
     );
   }
   return <span className={clase}>{fila.name}</span>;
+}
+
+/** Los íconos de la pantalla de Reportes: el mismo dibujo dice lo mismo en todos lados. */
+const ICONO_DEL_TIPO: Record<SoldItemKind, LucideIcon> = {
+  product: Package,
+  service: Wrench,
+  concept: FileText,
+};
+
+/**
+ * F10-RPT-01 — si el renglón es un producto, un servicio o un concepto, con
+ * su nombre para quien no ve el ícono. Un API anterior no manda el tipo: el
+ * renglón queda como estaba.
+ */
+function IconoDelTipo({ kind }: { kind: SoldItemKind | undefined }) {
+  const { t } = useTranslation();
+  if (kind === undefined) {
+    return null;
+  }
+  const Icono = ICONO_DEL_TIPO[kind];
+  return (
+    <Icono
+      role="img"
+      aria-label={t(`dashboard.top.kind.${kind}`)}
+      className="size-4 shrink-0 text-muted-foreground"
+    />
+  );
 }
 
 /** Un aviso de una línea que se abre para enseñar su lista. */
@@ -133,6 +160,7 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
               {data.topSold.map((producto, i) => (
                 <li key={producto.itemId} className="flex items-center gap-2">
                   <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <IconoDelTipo kind={producto.kind} />
                   <span className="min-w-0 flex-1 truncate">{producto.name}</span>
                   {producto.deltaPct !== null && producto.deltaPct !== 0 && (
                     <span
@@ -173,6 +201,7 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
               {data.topProfit.map((producto, i) => (
                 <li key={producto.itemId} className="flex items-center gap-2">
                   <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <IconoDelTipo kind={producto.kind} />
                   <span className="min-w-0 flex-1 truncate">{producto.name}</span>
                   <span className="text-muted-foreground text-xs tabular-nums">
                     {producto.marginPct}% {t("dashboard.top.margin").toLowerCase()}

@@ -155,6 +155,11 @@ periodo en que se vendió.
   estrella de verdad. Solo entra lo que te dejó algo; si nada te dejó utilidad en
   el periodo, dice **Nada dejó utilidad en este período.**
 
+En las dos listas, el ícono junto al nombre te dice qué es cada renglón: una
+caja para un **producto**, una llave para un **servicio** y una hoja para un
+**concepto**, que es un cobro que no está en tu catálogo de productos ni de
+servicios.
+
 Debajo de **Mayor utilidad** pueden aparecer dos avisos, cada uno con cuántos
 son. Presiona uno para ver su lista:
 

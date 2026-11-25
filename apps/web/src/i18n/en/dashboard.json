@@ -56,7 +56,12 @@
     "belowCost": "{{count}} sold below cost",
     "uncosted_one": "{{count}} sold without a cost: not counted in your profit",
     "uncosted": "{{count}} sold without a cost: not counted in your profit",
-    "more": "and {{count}} more"
+    "more": "and {{count}} more",
+    "kind": {
+      "product": "Product",
+      "service": "Service",
+      "concept": "Concept"
+    }
   },
   "inventory": {
     "title": "Inventory",

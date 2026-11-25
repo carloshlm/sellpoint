@@ -9,6 +9,9 @@ import { DashboardKpisService } from "./dashboard-kpis.service";
 import { DashboardPaymentsService } from "./dashboard-payments.service";
 import { DashboardProductsService } from "./dashboard-products.service";
 import { DashboardSeriesService } from "./dashboard-series.service";
+import { ItemsRankingService } from "./items-ranking.service";
+import { ItemsReportService } from "./items-report.service";
+import { ItemsReportExportService } from "./items-report-export.service";
 import { KardexExportService } from "./kardex-export.service";
 import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
@@ -53,6 +56,9 @@ import { TaxReportService } from "./tax-report.service";
     TaxExportService,
     CatalogExportService,
     KardexExportService,
+    ItemsRankingService,
+    ItemsReportService,
+    ItemsReportExportService,
   ],
   // F9-ADMIN-01: el expediente del backoffice reusa estos services con un
   // actor sintético (`admin/platform-actor.ts`).
@@ -75,6 +81,10 @@ import { TaxReportService } from "./tax-report.service";
     TaxExportService,
     SalesLinesReportService,
     SalesLinesExportService,
+    // F10-RPT-03: el reporte por artículo, para que el expediente lo reuse.
+    ItemsRankingService,
+    ItemsReportService,
+    ItemsReportExportService,
   ],
 })
 export class ReportsModule {}

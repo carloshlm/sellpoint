@@ -2,12 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useAdminTenantScope } from "@/lib/admin/scope";
 import type { ApiError } from "@/lib/api";
 import {
+  getItemsReport,
   getSalesLinesReport,
   getSalesReport,
   getShiftDetail,
   getShiftsReport,
   getStockReport,
   getTaxReport,
+  type ItemsReportPage,
+  type ItemsReportQuery,
   type SalesLineKind,
   type SalesLinesPage,
   type SalesLinesQuery,
@@ -99,6 +102,21 @@ export function useTaxReport(query: TaxReportQuery) {
   return useQuery<TaxReport, ApiError>({
     queryKey: [...TAX_REPORT_KEY, tenantId, query],
     queryFn: () => (tenantId === null ? getTaxReport(query) : getTaxReport(query, reportsPath)),
+    placeholderData: (previous) => previous,
+  });
+}
+
+export const ITEMS_REPORT_KEY = ["reports", "items"] as const;
+
+/**
+ * F10-RPT-03 — «Más vendidos», «Mayor utilidad» y «Vendidos bajo su costo».
+ * Desde el expediente del backoffice, del negocio mirado.
+ */
+export function useItemsReport(query: ItemsReportQuery) {
+  const { reportsPath, tenantId } = useAdminTenantScope();
+  return useQuery<ItemsReportPage, ApiError>({
+    queryKey: [...ITEMS_REPORT_KEY, tenantId, query],
+    queryFn: () => (tenantId === null ? getItemsReport(query) : getItemsReport(query, reportsPath)),
     placeholderData: (previous) => previous,
   });
 }

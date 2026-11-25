@@ -1,4 +1,6 @@
 import { api } from "@/lib/api";
+// Solo el tipo: el panel y el reporte por artículo hablan del mismo artículo.
+import type { SoldItemKind } from "@/lib/dashboard/api";
 import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 // Solo el tipo: el movimiento de efectivo es UNA fila, la misma que lee el
 // punto de venta (contrato L5 de F10-CASHMOV), y no se duplica aquí.
@@ -375,6 +377,93 @@ export function downloadSalesLinesReport(
 ): Promise<void> {
   const base = kind === "product" ? "ventas-por-producto" : "ventas-por-servicio";
   return bajar(`${basePath}${RUTA_DE_LINEAS[kind]}/export`, base, format, query);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// El reporte por artículo (F10-RPT-03): más vendidos, mayor utilidad y bajo costo
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * «Más vendidos» (por venta sin impuesto y luego por cantidad), «Mayor
+ * utilidad» (solo lo que dejó, con costo) y «Vendidos bajo su costo» (solo lo
+ * que perdió, de la mayor pérdida a la menor).
+ */
+export type ItemsReportView = "top-sold" | "top-profit" | "below-cost";
+
+/** `product` son los productos y los conceptos libres: todo lo que no es servicio. */
+export type ItemsReportType = "all" | "product" | "service";
+
+export interface ItemsReportRow {
+  kind: SoldItemKind;
+  /** El id del producto o del servicio; un concepto, `concept:` y su descripción. */
+  itemId: string;
+  /** El código interno del producto o el del servicio; null en un concepto. */
+  code: string | null;
+  name: string;
+  /** En la unidad base del producto (24 piezas, 7.75 kg); servicios y conceptos se cuentan. */
+  quantity: string;
+  /** La unidad base del producto; null en servicios y conceptos. */
+  baseUnit: string | null;
+  /** Venta sin impuesto. */
+  revenue: string;
+  /** Null si alguna venta del artículo no tiene costo: la utilidad no estaría completa. */
+  cost: string | null;
+  profit: string | null;
+  /** En %, con un decimal; null sin utilidad o con venta en $0. */
+  margin: number | null;
+}
+
+export interface ItemsReportTotals {
+  revenue: string;
+  /** Null si algún artículo de lo filtrado no tiene costo completo. */
+  cost: string | null;
+  profit: string | null;
+  margin: number | null;
+}
+
+/** Los filtros de los otros reportes (sucursal y fechas) más la vista y el tipo. */
+export interface ItemsReportQuery {
+  view: ItemsReportView;
+  /** Por omisión, `all`. */
+  type?: ItemsReportType;
+  warehouseId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ItemsReportPage {
+  rows: ItemsReportRow[];
+  /** De TODO lo filtrado, no de la página; null si no hay nada. */
+  totals: ItemsReportTotals | null;
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function getItemsReport(
+  query: ItemsReportQuery,
+  basePath = "/reports",
+): Promise<ItemsReportPage> {
+  const { data } = await api.get<ItemsReportPage>(`${basePath}/items`, { params: query });
+  return data;
+}
+
+/** El nombre del archivo si el API no lo manda; el API lo da en el idioma de quien baja. */
+const ARCHIVO_DE_LA_VISTA: Record<ItemsReportView, string> = {
+  "top-sold": "mas-vendidos",
+  "top-profit": "mayor-utilidad",
+  "below-cost": "vendidos-bajo-su-costo",
+};
+
+/** El mismo reporte en Excel o CSV, con los MISMOS filtros y sin paginar. */
+export function downloadItemsReport(
+  query: Omit<ItemsReportQuery, "page" | "pageSize">,
+  format: ReportFormat = "xlsx",
+  basePath = "/reports",
+): Promise<void> {
+  return bajar(`${basePath}/items/export`, ARCHIVO_DE_LA_VISTA[query.view], format, query);
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { DashboardInventoryService } from "./dashboard-inventory.service";
 import { DashboardPaymentsService } from "./dashboard-payments.service";
 import { DashboardProductsService } from "./dashboard-products.service";
 import { DashboardSeriesService } from "./dashboard-series.service";
+import { ItemsRankingService } from "./items-ranking.service";
 
 /**
  * F5-DASH-04/05/06/07 — los widgets del panel (integration, Postgres real +
@@ -30,7 +31,7 @@ describe("Los widgets del dashboard (integration)", () => {
     );
     await prisma.onModuleInit();
     series = new DashboardSeriesService(prisma, relojFalso);
-    productos = new DashboardProductsService(prisma, relojFalso);
+    productos = new DashboardProductsService(prisma, relojFalso, new ItemsRankingService(prisma));
     inventario = new DashboardInventoryService(prisma, new WeightedCostService(prisma), relojFalso);
     pagos = new DashboardPaymentsService(prisma, relojFalso);
   });
@@ -670,6 +671,264 @@ describe("Los widgets del dashboard (integration)", () => {
     expect(Number(flete?.revenue)).toBe(450);
     expect(r.topProfit.map((f) => f.name)).not.toContain("Flete a domicilio");
     expect(r.topProfit[0]?.name).toBe("Agua 1L");
+  });
+
+  /**
+   * F10-RPT-01 — Carlos (2026-11-25): «Card Más vendidos y Mayor utilidad poner
+   * algún icono que indique si son servicios o productos». El ícono sale del
+   * `kind` de cada renglón, que las dos listas no traían.
+   */
+  it("F10-RPT-01: cada renglón de los dos tops dice si es producto, servicio o concepto", async () => {
+    const ctx = await escenario();
+    const corte = await articulo(ctx, "service", "Corte de cabello");
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: ctx.productoB,
+      quantity: 5,
+      unitPrice: 100,
+      unitCost: 20,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:10:00Z",
+      servicioId: corte,
+      quantity: 2,
+      unitPrice: 150,
+      unitCost: 50,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:20:00Z",
+      concepto: "Flete a domicilio",
+      quantity: 1,
+      unitPrice: 80,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    expect(r.topSold.map((f) => [f.name, f.kind])).toEqual([
+      ["Botana", "product"],
+      ["Corte de cabello", "service"],
+      ["Flete a domicilio", "concept"],
+    ]);
+    // Un concepto no tiene costo: no llega a «Mayor utilidad».
+    expect(r.topProfit.map((f) => [f.name, f.kind])).toEqual([
+      ["Botana", "product"],
+      ["Corte de cabello", "service"],
+    ]);
+  });
+
+  /**
+   * F10-RPT-03 — el panel y el reporte por artículo comparten UNA consulta. Esta
+   * prueba fija la respuesta entera del panel en un escenario con cada borde
+   * (presentación, impuesto, costo a medias, pérdida, concepto, cancelada,
+   * periodo anterior): compartir la consulta no le cambia ni un centavo.
+   */
+  it("F10-RPT-03: el panel dice los mismos números con la consulta compartida", async () => {
+    const ctx = await escenario();
+    const corte = await articulo(ctx, "service", "Corte");
+    const cancelado = await articulo(ctx, "product", "Cancelado");
+    const deFebrero = await articulo(ctx, "product", "De febrero");
+    const caja = await prisma.withTenantContext(ctx.tenantId, (tx) =>
+      tx.productPresentation.create({
+        data: {
+          tenantId: ctx.tenantId,
+          productId: ctx.productoA,
+          name: "Caja ×12",
+          factor: 12,
+          allowFractionalInput: false,
+        },
+      }),
+    );
+    // Agua: 2 cajas con costo (600 − 500) y 3 piezas sin costo (84).
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: ctx.productoA,
+      presentacionId: caja.id,
+      quantity: 2,
+      unitPrice: 300,
+      unitCost: 250,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:05:00Z",
+      productoId: ctx.productoA,
+      quantity: 3,
+      unitPrice: 28,
+    });
+    // Botana: 5 × 112 con 60 de impuesto adentro; en febrero vendió 250.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:10:00Z",
+      productoId: ctx.productoB,
+      quantity: 5,
+      unitPrice: 112,
+      unitCost: 20,
+      taxAmount: 60,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-02-10T18:00:00Z",
+      productoId: ctx.productoB,
+      quantity: 5,
+      unitPrice: 50,
+      unitCost: 20,
+    });
+    // Corte: se vendió bajo su costo.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:20:00Z",
+      servicioId: corte,
+      quantity: 2,
+      unitPrice: 150,
+      unitCost: 200,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:30:00Z",
+      concepto: "Flete a domicilio",
+      quantity: 1,
+      unitPrice: 80,
+    });
+    await cancelar(
+      ctx,
+      await vender(ctx, {
+        creadaEn: "2026-03-14T18:40:00Z",
+        productoId: cancelado,
+        quantity: 1,
+        unitPrice: 1000,
+        unitCost: 1,
+      }),
+    );
+    await vender(ctx, {
+      creadaEn: "2026-02-11T18:00:00Z",
+      productoId: deFebrero,
+      quantity: 1,
+      unitPrice: 900,
+      unitCost: 1,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    const sku = expect.any(String);
+    expect(r).toEqual({
+      topSold: [
+        {
+          itemId: ctx.productoA,
+          kind: "product",
+          sku,
+          name: "Agua 1L",
+          units: "27.0000",
+          unit: "unit",
+          revenue: "684.00",
+          deltaPct: null,
+        },
+        {
+          itemId: ctx.productoB,
+          kind: "product",
+          sku,
+          name: "Botana",
+          units: "5.0000",
+          unit: "unit",
+          revenue: "500.00",
+          deltaPct: 100,
+        },
+        {
+          itemId: corte,
+          kind: "service",
+          sku,
+          name: "Corte",
+          units: "2.0000",
+          unit: "unit",
+          revenue: "300.00",
+          deltaPct: null,
+        },
+        {
+          itemId: "concept:flete a domicilio",
+          kind: "concept",
+          sku: "",
+          name: "Flete a domicilio",
+          units: "1.0000",
+          unit: "unit",
+          revenue: "80.00",
+          deltaPct: null,
+        },
+      ],
+      topProfit: [
+        {
+          itemId: ctx.productoB,
+          kind: "product",
+          sku,
+          name: "Botana",
+          revenue: "500.00",
+          cost: "100.00",
+          profit: "400.00",
+          marginPct: 80,
+        },
+        {
+          itemId: ctx.productoA,
+          kind: "product",
+          sku,
+          name: "Agua 1L",
+          revenue: "600.00",
+          cost: "500.00",
+          profit: "100.00",
+          marginPct: 16.7,
+        },
+      ],
+      belowCost: [
+        {
+          itemId: corte,
+          kind: "service",
+          sku,
+          name: "Corte",
+          revenue: "300.00",
+          cost: "400.00",
+          profit: "-100.00",
+          marginPct: -33.3,
+        },
+      ],
+      belowCostCount: 1,
+      uncosted: [
+        { itemId: ctx.productoA, kind: "product", sku, name: "Agua 1L", revenue: "84.00" },
+      ],
+      uncostedCount: 1,
+    });
+  });
+
+  /**
+   * F10-RPT-03 — el filtro de tipo del reporte. Un concepto libre cae en
+   * «productos», como en «Ventas por producto», que lee todo lo que no es
+   * servicio: así los dos reportes suman lo mismo del mismo periodo.
+   */
+  it("F10-RPT-03: «productos» trae también los conceptos; «servicios», solo servicios", async () => {
+    const ctx = await escenario();
+    const corte = await articulo(ctx, "service", "Corte");
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: ctx.productoA,
+      quantity: 2,
+      unitPrice: 30,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:10:00Z",
+      servicioId: corte,
+      quantity: 1,
+      unitPrice: 100,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:20:00Z",
+      concepto: "Flete a domicilio",
+      quantity: 1,
+      unitPrice: 80,
+    });
+    const ranking = new ItemsRankingService(prisma);
+    const por = async (type: "all" | "product" | "service") =>
+      (
+        await ranking.rank(ctx.tenantId, TODO, {
+          type,
+          order: "revenue",
+          limit: null,
+          offset: 0,
+        })
+      ).rows.map((f) => f.kind);
+
+    expect(await por("all")).toEqual(["service", "concept", "product"]);
+    expect(await por("product")).toEqual(["concept", "product"]);
+    expect(await por("service")).toEqual(["service"]);
   });
 
   /**
