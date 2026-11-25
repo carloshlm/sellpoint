@@ -6523,25 +6523,27 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-BULK-POS — Vender en gramos sin presentaciones
 
-- [ ] **F10-BULK-05** *(2026-11-25)* — Vender 250 g escribiendo 250
+- [x] **F10-BULK-05** *(2026-11-25, 922c61d1)* — Vender 250 g escribiendo 250
   - **Por qué:** hoy en la caja hay que escribir 0.250. Carlos (2026-11-23): «desde la venta tiene que elegir el producto y poner la cantidad de gramos, kilos, etc a vender».
   - **Salida:** el teclado de la caja (`components/pos/numpad.tsx`, `lib/pos/numpad.ts`) muestra el botón cuando la presentación del renglón es la de la unidad base. En «g» acepta enteros y un decimal, y entrega la cantidad en kilogramos. El renglón (`cart-panel.tsx`) dice «0.250 kilogramos (250 g)». El importe y el ticket no cambian («0.250 kg × $185.00»). Aplica igual en Cotización si comparte el renglón (verificarlo al implementar). El API no cambia. Tests de la caja y verificación en el navegador. Manual: capítulo 06.
   - **Depende de:** F10-BULK-04 · **Estimación:** 3 h
+  - **Hecho (2026-11-25):** el botón sale solo en la presentación base (`isBase`, ver la corrección de 9c5cfc1f) y con «Solo enteros» apagado. Verificado en el navegador: 250 en «g» deja «0.250 kilogramos (250 g)» y $9.50 a $38 el kilo.
 
 #### F10-BULK-INV — Entradas, salidas y traspasos
 
-- [ ] **F10-BULK-06** *(2026-11-25)* — Escribir 600 g en una entrada, salida o traspaso
+- [x] **F10-BULK-06** *(2026-11-25, 83ef8081)* — Escribir 600 g en una entrada, salida o traspaso
   - **Por qué:** los 600 g sueltos del ejemplo de Carlos hoy se teclean como 0.600.
   - **Salida:** `components/inventory/document-detail.tsx`: el botón junto a la cantidad de cada renglón que está en la presentación de la unidad base. El autoguardado manda la cantidad convertida y la equivalencia dice «600 g = 0.600 kilogramos». Manual: capítulo 23.
   - **Depende de:** F10-BULK-04 · **Estimación:** 2 h
-- [ ] **F10-BULK-07** *(2026-11-25)* — Elegir la presentación al agregar el renglón
+- [x] **F10-BULK-07** *(2026-11-25, 83ef8081 y 9c5cfc1f)* — Elegir la presentación al agregar el renglón
   - **Por qué:** buscar otra vez el mismo producto suma al renglón de la unidad base (`inventory/add-line-form.tsx:81-85`). Para tener el renglón de «Bolsa 10 Kg» hay que escanear su código o cambiar la presentación después.
   - **Salida:** cada resultado de la búsqueda con más de una presentación activa las ofrece como botones («Kilogramo · Bolsa 1 Kg · Bolsa 10 Kg») y cada botón agrega su renglón. Con la misma presentación y el mismo lote, suma como hoy. Un código de presentación escaneado sigue entrando directo (F10-PRESCODE). Si `GET /products` no trae las presentaciones de cada resultado, se agregan (id, nombre, factor). Vale para entradas, salidas y traspasos. Manual: capítulo 23.
   - **Depende de:** nada · **Estimación:** 3 h
-- [ ] **F10-BULK-08** *(2026-11-25)* — El total por producto cuando tiene varios renglones
+- [x] **F10-BULK-08** *(2026-11-25, 83ef8081)* — El total por producto cuando tiene varios renglones
   - **Por qué:** con tres renglones del mismo queso, cada uno muestra su «antes → después» acumulado y nadie ve cuánto entra en total.
   - **Salida:** bajo los renglones de un producto que aparece más de una vez, una fila de resumen: «Queso Oaxaca · 3 renglones · +12.600 kg · existencias 2.500 → 15.100 kg». Sale de la previa: suma de `quantityBase`, primer `stockBefore` y último `stockAfter`. Solo web. Manual: capítulo 23.
   - **Depende de:** nada · **Estimación:** 2 h
+  - **Hecho (2026-11-25):** verificado en el navegador con el ejemplo de Carlos: 2 «Bolsa 1 Kg» + 1 «Bolsa 10 Kg» + 600 g → «+12.600 kilogramos». **Corrección al juntar la ola (9c5cfc1f):** una «Bolsa 1 Kg» de factor 1 no es la presentación base; el API marca la base con `isBase` (la de factor 1 más antigua) y solo ahí sale el botón, porque con «g» recordado guardaba 2 g en vez de 2 bolsas. Y una sola regla en las tres pantallas: cambiar de unidad nunca cambia la cantidad guardada.
 
 #### F10-BULK-COUNT — Inventario físico
 
@@ -6561,17 +6563,18 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-BULK-BUY — Compras y órdenes de compra
 
-- [ ] **F10-BULK-12** *(2026-11-25)* — Comprar en kilos o en gramos
+- [x] **F10-BULK-12** *(2026-11-25, 36d13d48)* — Comprar en kilos o en gramos
   - **Por qué:** Carlos: «normalemnte se compra en Kilos pero no descartes que también puede comprarse en gramos».
   - **Salida:** el botón en la cantidad de `purchases/purchase-lines-table.tsx`, `purchases/purchase-order-lines-table.tsx` y la recepción, solo en la presentación de la unidad base. La etiqueta del costo nombra la unidad («Costo por kilogramo»), para que 600 g con costo por kilo no se confundan. De paso se revisa si sigue pendiente la tarea de F10-MANFIX sobre el selector de presentación, que muestra el código de la unidad en vez de su nombre. Manual: capítulos 28 y 29.
   - **Depende de:** F10-BULK-04 · **Estimación:** 2.5 h
 
 #### F10-BULK-CAT — El catálogo guía y no deja trampas
 
-- [ ] **F10-BULK-13** *(2026-11-25)* — El formulario dice qué unidad elegir
+- [x] **F10-BULK-13** *(2026-11-25, 48cbe977)* — El formulario dice qué unidad elegir
   - **Por qué:** la decisión de este módulo solo sirve si quien da de alta el producto la conoce en ese momento.
   - **Salida:** ayuda bajo «Unidad base» y un aviso que no bloquea cuando se elige gramo, mililitro, centímetro, onza o pulgada y hay precio (`routes/catalog.products.tsx`). Ayuda de «empaques» arriba de la tabla de Presentaciones (`catalog/presentations-tab.tsx`). Textos de F10-BULK-02. Manual: capítulo 16.
   - **Depende de:** F10-BULK-02 · **Estimación:** 1.5 h
+  - **Textos ajustados al implementar:** el aviso dice «Si lo vendes por {{larger}}, elige {{largerName}}: un precio por {{unit}} solo admite centavos.» («kilo» pasó a «kilogramo» para servir a todas las familias) y solo sale al ELEGIR la unidad, no al abrir un producto que ya está en gramos; la ayuda de presentaciones dice «cuánto trae en {{unit}}» (con «cuántos» se leía «cuántos piezas»).
 - [x] **F10-BULK-14** *(2026-11-25, 1713e9ee)* — Cambiar la unidad base también cambia su presentación
   - **Por qué:** cuando el cambio se permite (sin historial), la presentación base conserva el nombre y el «Solo enteros» de la unidad anterior (`products.service.ts:378-386`). Un producto pasado de pieza a kilogramo rechaza decimales.
   - **Salida:** en `update`, si cambia `baseUnit`, la presentación base se renombra cuando todavía lleva el nombre por omisión de la unidad anterior, y `allowFractionalInput` se recalcula con `derivesFractionalInput`. e2e en rojo primero.
@@ -6616,7 +6619,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-RPT-PANEL — El panel distingue y lleva al detalle
 
-- [ ] **F10-RPT-01** *(2026-11-25)* — Ícono de producto o servicio en «Más vendidos» y «Mayor utilidad»
+- [x] **F10-RPT-01** *(2026-11-25, 13bab917)* — Ícono de producto o servicio en «Más vendidos» y «Mayor utilidad»
   - **Por qué:** petición 4. Hoy no se sabe si «Corte de cabello» es un servicio o un producto.
   - **Salida:** `i.kind` en la consulta y el tipo de `topSold` y `topProfit` (`dashboard-products.service.ts`, `lib/dashboard/api`), y el ícono con su nombre accesible («Producto», «Servicio», «Concepto») en cada renglón de `components/dashboard/top-products.tsx`. Prueba de integración del `kind` y prueba web del ícono. Manual: capítulo 30.
   - **Depende de:** nada · **Estimación:** 1.5 h
@@ -6627,10 +6630,11 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-RPT-ITEMS — El reporte por artículo
 
-- [ ] **F10-RPT-03** *(2026-11-25)* — La consulta por artículo, una sola para el panel y el reporte
+- [x] **F10-RPT-03** *(2026-11-25, 13bab917)* — La consulta por artículo, una sola para el panel y el reporte
   - **Por qué:** peticiones 2, 5 y 6. Si el reporte calcula distinto que el panel, los dos dicen números distintos del mismo periodo.
   - **Salida:** la consulta por artículo de `dashboard-products.service.ts` se extrae a un servicio reusable con sucursal, rango de fechas, tipo, orden (ingreso, utilidad, pérdida) y paginación. El panel la usa como hoy: prueba que fija sus números. `GET reports/items` con DTO `.strict()` (`view`: `top-sold` | `top-profit` | `below-cost`; `type`: `all` | `product` | `service`; `warehouseId`, `from`, `to`, `page`, `pageSize`), alcance por sucursal y `reports:read`. Exportación Excel/CSV con `exportWithLimit` y encabezados es/en. e2e de las tres vistas, el tipo, el alcance y la exportación.
   - **Depende de:** F10-RPT-01 · **Estimación:** 4 h
+  - **Hecho (2026-11-25):** `ItemsRankingService` lo usan el panel y `GET reports/items`; sin `view` responde «Más vendidos» (así un id mal escrito da `common.invalid_id`, F10-MANFIX-20). Pendiente para F10-RPT-04: el endpoint del backoffice.
 - [ ] **F10-RPT-04** *(2026-11-25)* — Las pantallas «Más vendidos», «Mayor utilidad» y «Vendidos bajo su costo»
   - **Por qué:** peticiones 2, 5 y 6.
   - **Salida:** tres rutas (`/reports/top-sold`, `/reports/top-profit`, `/reports/below-cost`) sobre un solo componente, con `ReportHeading`, la barra de filtros de ventas más el filtro de tipo, `ReportTable` (skill sellpoint-tables), exportación y `validateSearch`. Cada artículo enlaza a sus ventas filtradas (F10-RPT-02). Funcionan también desde el expediente del backoffice (`basePath`). En «Vendidos bajo su costo», la pérdida en rojo y un aviso de que los artículos sin costo capturado no aparecen. Pruebas web. Manual: capítulo 31 con sus capturas nuevas.
