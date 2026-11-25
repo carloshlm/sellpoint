@@ -533,4 +533,127 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
       expect(within(filaProducto).getByText(/se pueden armar 3/i)).toBeInTheDocument();
     });
   });
+
+  /**
+   * F10-BULK-07 y 08 — lo mismo que en una entrada: el buscador ofrece cada
+   * presentación como botón y el producto con varios renglones lleva su
+   * resumen. Un traspaso es esta misma salida, así que también lo tiene.
+   */
+  describe("varias presentaciones del mismo producto", () => {
+    const QUESO_PRODUCT = {
+      id: "p-queso",
+      sku: "QUESO-OAX",
+      name: "Queso Oaxaca",
+      baseUnit: "kg",
+      isComposite: false,
+      tracksLots: false,
+      location: null,
+      availableUnits: null,
+      presentations: [
+        {
+          id: "pres-kg",
+          name: "Kilogramo",
+          factor: "1",
+          allowFractionalInput: true,
+          isPurchasable: true,
+          isSellable: true,
+        },
+        {
+          id: "pres-1k",
+          name: "Bolsa 1 Kg",
+          factor: "1",
+          allowFractionalInput: false,
+          isPurchasable: true,
+          isSellable: true,
+        },
+      ],
+    };
+
+    it("en un traspaso, el buscador también ofrece cada presentación activa", async () => {
+      const user = userEvent.setup();
+      mocked.getDocument.mockResolvedValue(
+        detalle({ reasonCode: "transfer", linkedWarehouseId: "w2" }),
+      );
+      mockedProducts.mockResolvedValue({
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        items: [
+          {
+            id: "p-queso",
+            sku: "QUESO-OAX",
+            name: "Queso Oaxaca",
+            baseUnit: "kg",
+            isComposite: false,
+            isActive: true,
+            attributes: {},
+            price: "185",
+            taxGroupId: null,
+            matchedPresentation: null,
+            presentations: [
+              { id: "pres-kg", name: "Kilogramo", factor: "1", isActive: true },
+              { id: "pres-1k", name: "Bolsa 1 Kg", factor: "1", isActive: true },
+            ],
+          },
+        ],
+      });
+      mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.type(screen.getByLabelText(/buscar producto/i), "queso");
+      await user.click(await screen.findByRole("button", { name: "Bolsa 1 Kg" }));
+
+      await waitFor(() => {
+        expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", {
+          productId: "p-queso",
+          presentationId: "pres-1k",
+        });
+      });
+    });
+
+    it("el resumen del producto resta: la salida dice el signo negativo", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          reasonCode: "loss",
+          reasonNote: "se echó a perder",
+          rows: [
+            fila({
+              id: "line-1",
+              lineNo: 1,
+              productId: "p-queso",
+              sku: "QUESO-OAX",
+              presentationId: "pres-1k",
+              quantityInput: "1",
+              quantityBase: "1",
+              available: "5",
+              stockBefore: "5",
+              stockAfter: "4",
+            }),
+            fila({
+              id: "line-2",
+              lineNo: 2,
+              productId: "p-queso",
+              sku: "QUESO-OAX",
+              presentationId: "pres-kg",
+              quantityInput: "0.6",
+              quantityBase: "0.6",
+              available: "4",
+              stockBefore: "4",
+              stockAfter: "3.4",
+            }),
+          ],
+          products: [QUESO_PRODUCT],
+          summary: { lines: 2, products: 1, newLots: 0, errors: 0 },
+        }),
+      );
+      await renderDoc();
+
+      expect(
+        await screen.findByText(
+          "Queso Oaxaca · 2 renglones · −1.600 kilogramos · existencias 5 → 3.400 kilogramos",
+        ),
+      ).toBeInTheDocument();
+    });
+  });
 });

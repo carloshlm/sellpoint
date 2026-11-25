@@ -368,12 +368,17 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       const tabla = (await screen.findAllByText("PAR-500"))[0]?.closest("table") as HTMLElement;
       const [encabezado, ...filas] = within(tabla).getAllByRole("row");
       const columnas = encabezado?.querySelectorAll("th").length;
-      expect(filas).toHaveLength(2);
-      for (const fila of filas) {
+      // Los dos renglones son del mismo producto: bajo ellos va su resumen
+      // (F10-BULK-08), una sola celda que ocupa la tabla entera.
+      expect(filas).toHaveLength(3);
+      const [primera, segunda, resumen] = filas as [HTMLElement, HTMLElement, HTMLElement];
+      for (const fila of [primera, segunda]) {
         expect(fila.querySelectorAll(":scope > td")).toHaveLength(columnas ?? -1);
       }
+      expect(resumen.querySelectorAll(":scope > td")).toHaveLength(1);
+      expect(resumen.querySelector("td")?.colSpan).toBe(columnas);
       expect(
-        within(filas[0] as HTMLElement).getByText("La cantidad tiene que ser mayor que cero."),
+        within(primera).getByText("La cantidad tiene que ser mayor que cero."),
       ).toBeInTheDocument();
     });
 
@@ -684,6 +689,348 @@ describe("las ayudas de la cantidad siguen la regla de los decimales", () => {
     expect(screen.getByText("10 Bolsa 10Kg = 100 kilogramos")).toBeInTheDocument();
     expect(screen.getByText("Disponible: 92 kilogramos = 92 Kilogramo")).toBeInTheDocument();
     expect(screen.getByText("Disponible: 92 kilogramos = 9.200 Bolsa 10Kg")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F10-BULK-06 y 08 — el ejemplo de Carlos (2026-11-25): «si tengo 2.500 Kg de
+ * queso y en la entrada hice una compra con dos o tres renglones de ese mismo
+ * producto por ejemplo: entrada de 2 Bolsas de 1 Kg de queso, 1 Bolsa de 10Kg
+ * de Queso, 600 gramos de queso».
+ */
+describe("el queso en varios renglones (F10-BULK-06 y 08)", () => {
+  // El «Kilogramo» es la presentación BASE (nació con el producto); «Bolsa 1
+  // Kg» también vale 1, pero el negocio la creó después: es un empaque.
+  const KILO = {
+    id: "pr-kg",
+    name: "Kilogramo",
+    factor: "1.0000",
+    allowFractionalInput: true,
+    isPurchasable: true,
+    isSellable: true,
+    isBase: true,
+  };
+  const BOLSA_1 = {
+    ...KILO,
+    id: "pr-1k",
+    name: "Bolsa 1 Kg",
+    allowFractionalInput: false,
+    isBase: false,
+  };
+  const BOLSA_10 = {
+    ...KILO,
+    id: "pr-10k",
+    name: "Bolsa 10 Kg",
+    factor: "10.0000",
+    allowFractionalInput: false,
+    isBase: false,
+  };
+  const QUESO: DocumentProduct = {
+    ...(detalle().products[0] as DocumentProduct),
+    id: "p-queso",
+    sku: "QUESO-OAX",
+    name: "Queso Oaxaca",
+    baseUnit: "kg",
+    presentations: [KILO, BOLSA_1, BOLSA_10],
+  };
+  const renglon = (overrides: Partial<DocumentRow>): DocumentRow => ({
+    ...(detalle().rows[0] as DocumentRow),
+    productId: "p-queso",
+    sku: "QUESO-OAX",
+    ...overrides,
+  });
+  const GRAMOS = /escribir la cantidad en gramos/i;
+  const KILOS = /escribir la cantidad en kilogramos/i;
+
+  beforeEach(() => {
+    // El botón recuerda la unidad en el dispositivo: cada prueba arranca sin recuerdo.
+    localStorage.clear();
+    mocked.updateDocumentLine.mockResolvedValue({});
+  });
+
+  const unRenglonEnKilos = (quantityInput: string | null) =>
+    detalle({
+      rows: [
+        renglon({
+          id: "line-1",
+          presentationId: "pr-kg",
+          quantityInput,
+          quantityBase: quantityInput,
+          stockBefore: "2.5000",
+          stockAfter: "3.1000",
+        }),
+      ],
+      products: [QUESO],
+    });
+
+  describe("F10-BULK-06: escribir 600 g en el renglón del kilo", () => {
+    it("con «g» elegido, 600 se guarda como 0.6 kilogramos", async () => {
+      const user = userEvent.setup();
+      mocked.getDocument.mockResolvedValue(unRenglonEnKilos(null));
+      await renderDoc();
+      await screen.findByText("QUESO-OAX");
+
+      await user.click(screen.getByRole("button", { name: GRAMOS }));
+      await user.type(screen.getByLabelText(/^cantidad$/i), "600");
+
+      await waitFor(
+        () => {
+          expect(mocked.updateDocumentLine).toHaveBeenCalledWith("doc-1", "line-1", {
+            quantity: 0.6,
+          });
+        },
+        { timeout: 2000 },
+      );
+      expect(mocked.updateDocumentLine).toHaveBeenCalledTimes(1);
+    });
+
+    it("la equivalencia dice «600 g = 0.600 kilogramos» y el campo muestra 600", async () => {
+      localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+      mocked.getDocument.mockResolvedValue(unRenglonEnKilos("0.6000"));
+      await renderDoc();
+
+      expect(await screen.findByText("600 g = 0.600 kilogramos")).toBeInTheDocument();
+      expect(screen.getByLabelText(/^cantidad$/i)).toHaveValue(600);
+      expect(screen.getByRole("button", { name: GRAMOS })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("en kilos, la equivalencia y el guardado siguen como antes", async () => {
+      const user = userEvent.setup();
+      mocked.getDocument.mockResolvedValue(unRenglonEnKilos("0.5000"));
+      await renderDoc();
+
+      expect(await screen.findByText("0.500 Kilogramo = 0.500 kilogramos")).toBeInTheDocument();
+      const input = screen.getByLabelText(/^cantidad$/i);
+      await user.clear(input);
+      await user.type(input, "1.5");
+
+      await waitFor(
+        () => {
+          expect(mocked.updateDocumentLine).toHaveBeenCalledWith("doc-1", "line-1", {
+            quantity: 1.5,
+          });
+        },
+        { timeout: 2000 },
+      );
+    });
+
+    it("cambiar de unidad convierte lo escrito y no guarda nada nuevo", async () => {
+      const user = userEvent.setup();
+      localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+      mocked.getDocument.mockResolvedValue(unRenglonEnKilos("0.6000"));
+      await renderDoc();
+      const input = await screen.findByLabelText(/^cantidad$/i);
+      expect(input).toHaveValue(600);
+
+      await user.click(screen.getByRole("button", { name: KILOS }));
+
+      expect(input).toHaveValue(0.6);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+    });
+
+    it("lo que no cabe en 4 decimales dice la mínima y no se guarda", async () => {
+      const user = userEvent.setup();
+      mocked.getDocument.mockResolvedValue(unRenglonEnKilos(null));
+      await renderDoc();
+      await screen.findByText("QUESO-OAX");
+
+      await user.click(screen.getByRole("button", { name: GRAMOS }));
+      await user.type(screen.getByLabelText(/^cantidad$/i), "0.05");
+
+      const filaQueso = screen.getByText("QUESO-OAX").closest("tr") as HTMLElement;
+      expect(
+        await within(filaQueso).findByText("La cantidad mínima es 0.1 g."),
+      ).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+    });
+
+    it("en «Bolsa 1 Kg» de factor 1 no hay botón, aunque «g» esté recordado: «2» son 2 bolsas", async () => {
+      const user = userEvent.setup();
+      localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [
+            renglon({ id: "line-1", presentationId: "pr-1k", quantityInput: null }),
+            renglon({ id: "line-2", lineNo: 2, presentationId: "pr-kg", quantityInput: null }),
+          ],
+          products: [QUESO],
+        }),
+      );
+      await renderDoc();
+      await screen.findAllByText("QUESO-OAX");
+
+      const [filaBolsa, filaKilo] = screen
+        .getAllByText("QUESO-OAX")
+        .map((celda) => celda.closest("tr") as HTMLElement);
+      expect(within(filaBolsa as HTMLElement).queryByRole("button", { name: GRAMOS })).toBeNull();
+      // En el «Kilogramo», que sí es la base, el botón está.
+      expect(
+        within(filaKilo as HTMLElement).getByRole("button", { name: GRAMOS }),
+      ).toBeInTheDocument();
+
+      await user.type(within(filaBolsa as HTMLElement).getByLabelText(/^cantidad$/i), "2");
+      await waitFor(
+        () => {
+          expect(mocked.updateDocumentLine).toHaveBeenCalledWith("doc-1", "line-1", {
+            quantity: 2,
+          });
+        },
+        { timeout: 2000 },
+      );
+    });
+
+    it("lo que no se puede escribir en la otra unidad deja el campo vacío y en gris, y no guarda nada", async () => {
+      const user = userEvent.setup();
+      const PULGADA = { ...KILO, id: "pr-in", name: "Pulgada" };
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [renglon({ id: "line-1", presentationId: "pr-in", quantityInput: "7" })],
+          products: [{ ...QUESO, baseUnit: "in", presentations: [PULGADA] }],
+        }),
+      );
+      await renderDoc();
+      const input = await screen.findByLabelText(/^cantidad$/i);
+      expect(input).toHaveValue(7);
+
+      // 7 in son 0.58333… ft: no hay decimal exacto que escribir.
+      await user.click(screen.getByRole("button", { name: /escribir la cantidad en pies/i }));
+
+      expect(input).toHaveValue(null);
+      expect(input).toHaveAttribute("placeholder", "7 in");
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+    });
+
+    it("en un empaque (Bolsa 10 Kg) no hay botón: la cantidad son bolsas", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [
+            renglon({
+              id: "line-1",
+              presentationId: "pr-10k",
+              quantityInput: "1",
+              quantityBase: "10",
+            }),
+          ],
+          products: [QUESO],
+        }),
+      );
+      await renderDoc();
+
+      await screen.findByText("1 Bolsa 10 Kg = 10 kilogramos");
+      expect(screen.queryByRole("button", { name: GRAMOS })).toBeNull();
+    });
+
+    it("al pasar de la bolsa al kilo, el campo se reescribe en gramos y no guarda 2 g", async () => {
+      const user = userEvent.setup();
+      localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+      const enBolsa = detalle({
+        rows: [
+          renglon({
+            id: "line-1",
+            presentationId: "pr-10k",
+            quantityInput: "2",
+            quantityBase: "20",
+          }),
+        ],
+        products: [QUESO],
+      });
+      mocked.getDocument.mockResolvedValue(enBolsa);
+      await renderDoc();
+      const input = await screen.findByLabelText(/^cantidad$/i);
+      expect(input).toHaveValue(2);
+
+      // Como el API: la línea conserva su cantidad en la presentación nueva.
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [
+            renglon({
+              id: "line-1",
+              presentationId: "pr-kg",
+              quantityInput: "2",
+              quantityBase: "2",
+            }),
+          ],
+          products: [QUESO],
+        }),
+      );
+      await user.selectOptions(screen.getByLabelText(/presentación/i), "pr-kg");
+
+      await waitFor(() => expect(input).toHaveValue(2000));
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(mocked.updateDocumentLine).toHaveBeenCalledTimes(1);
+      expect(mocked.updateDocumentLine).toHaveBeenCalledWith("doc-1", "line-1", {
+        presentationId: "pr-kg",
+      });
+    });
+  });
+
+  describe("F10-BULK-08: el total por producto", () => {
+    it("bajo el último renglón del queso: «Queso Oaxaca · 3 renglones · +12.600 kilogramos · existencias 2.500 → 15.100 kilogramos»", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [
+            renglon({
+              id: "l1",
+              lineNo: 1,
+              presentationId: "pr-1k",
+              quantityInput: "2.0000",
+              quantityBase: "2.0000",
+              stockBefore: "2.5000",
+              stockAfter: "4.5000",
+            }),
+            // Otro producto en medio: el resumen va bajo el ÚLTIMO renglón del queso.
+            {
+              ...(detalle().rows[0] as DocumentRow),
+              id: "l2",
+              lineNo: 2,
+            },
+            renglon({
+              id: "l3",
+              lineNo: 3,
+              presentationId: "pr-10k",
+              quantityInput: "1.0000",
+              quantityBase: "10.0000",
+              stockBefore: "4.5000",
+              stockAfter: "14.5000",
+            }),
+            renglon({
+              id: "l4",
+              lineNo: 4,
+              presentationId: "pr-kg",
+              quantityInput: "0.6000",
+              quantityBase: "0.6000",
+              stockBefore: "14.5000",
+              stockAfter: "15.1000",
+            }),
+          ],
+          products: [detalle().products[0] as DocumentProduct, QUESO],
+          summary: { lines: 4, products: 2, newLots: 0, errors: 0 },
+        }),
+      );
+      await renderDoc();
+
+      const resumen = await screen.findByText(
+        "Queso Oaxaca · 3 renglones · +12.600 kilogramos · existencias 2.500 → 15.100 kilogramos",
+      );
+      const filas = within(screen.getByRole("table")).getAllByRole("row");
+      const ultimaDelQueso = filas.findIndex((fila) => within(fila).queryByText("4") !== null);
+      expect(filas[ultimaDelQueso + 1]).toContainElement(resumen);
+      // El Paracetamol tiene un solo renglón: no lleva resumen.
+      expect(screen.queryByText(/Paracetamol 500mg · /)).toBeNull();
+    });
+
+    it("con un renglón por producto, la tabla se ve igual que hoy", async () => {
+      mocked.getDocument.mockResolvedValue(unRenglonEnKilos("0.6000"));
+      await renderDoc();
+      await screen.findByText("QUESO-OAX");
+
+      // El encabezado y un renglón: ni una fila de más.
+      expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(2);
+      expect(screen.queryByText(/renglones/)).toBeNull();
+    });
   });
 });
 

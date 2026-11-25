@@ -287,6 +287,44 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
   });
 
   /**
+   * F10-BULK-06 no toca el conteo: ahí se cuenta en unidad base (decisión del
+   * 2026-08-31) y su botón llega con «Contar por presentaciones» (F10-BULK-10).
+   * Dos renglones del mismo queso con lote tampoco llevan el resumen por
+   * producto de F10-BULK-08: es de entradas, salidas y traspasos.
+   */
+  it("un queso en kilos no ofrece el botón de unidad ni el resumen por producto", async () => {
+    localStorage.clear();
+    localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+    mocked.getDocument.mockResolvedValue(
+      detalle({
+        rows: [
+          fila({ id: "l1", lineNo: 1, lotCode: "L1", counted: "2.5", difference: "0" }),
+          fila({ id: "l2", lineNo: 2, lotCode: "L2", counted: "1", difference: "0" }),
+        ],
+        products: [
+          {
+            id: "p1",
+            sku: "PAR-500",
+            name: "Queso Oaxaca",
+            baseUnit: "kg",
+            isComposite: false,
+            tracksLots: true,
+            location: null,
+            availableUnits: null,
+            presentations: [],
+          },
+        ],
+      }),
+    );
+    await renderCount();
+
+    const campos = await screen.findAllByLabelText(/Contado/i);
+    expect(campos[0]).toHaveValue(2.5);
+    expect(screen.queryByRole("button", { name: /escribir la cantidad en/i })).toBeNull();
+    expect(screen.queryByText(/renglones/)).toBeNull();
+  });
+
+  /**
    * Carlos: «me aparecen columnas repetidas como Cantidad; Lote, Caducidad,
    * Ubicación y Stock no están alineadas con su encabezado».
    *

@@ -107,6 +107,7 @@
     "presentation": "Presentación",
     "presentationBase": "Unidad base",
     "equivalence": "{{quantity}} {{presentation}} = {{base}} {{unit}}",
+    "productSummary": "{{product}} · {{count}} renglones · {{delta}} · existencias {{before}} → {{after}}",
     "searchProduct": "Buscar producto",
     "searchProductPlaceholder": "Escanea, o teclea SKU o nombre",
     "searchNoResults": "Ningún producto coincide con lo que buscas.",

@@ -1,10 +1,13 @@
 import {
+  addQuantities,
   type Currency,
   documentRejectsPastExpiry,
   effectiveDocumentDate,
   formatMoney,
   formatQuantity,
   formatQuantityWithDecimals,
+  formatQuantityWithUnit,
+  fromBaseQuantity,
   LOT_EXPIRY_MAX_DATE,
   LOT_EXPIRY_MIN_DATE,
   localeToBcp47,
@@ -13,15 +16,17 @@ import {
   REASON_RULES,
   unitLabelFor,
   unitName,
+  unitSymbol,
 } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Money } from "@/components/common/money";
 import { MoneyInput } from "@/components/form/money-input";
 import { Button } from "@/components/ui/button";
+import { CaptureUnitToggle } from "@/components/ui/capture-unit-toggle";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
@@ -39,6 +44,7 @@ import {
 import { useProductLots } from "@/lib/inventory/kardex-hooks";
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
 import { mismoImporte, moneyInitialValue, moneyInputError } from "@/lib/money";
+import { useCaptureUnit } from "@/lib/use-capture-unit";
 import { useAuthStore } from "@/stores/auth.store";
 import { AddLineForm } from "./add-line-form";
 import { CountPanel, CountSummary } from "./count-panel";
@@ -207,6 +213,20 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const conUbicacion =
     usaUbicaciones && (document.type === "entry" || document.type === "physical_count");
   const productosPorId = new Map(document.products.map((p) => [p.id, p]));
+  // F10-BULK-08: el total de cada producto con varios renglones. Es de
+  // entradas, salidas y traspasos: el conteo tiene su propio resumen.
+  const summaries = esConteo
+    ? new Map<string, ProductSummary>()
+    : summarizeByProduct(document.rows);
+  // La fila del resumen ocupa la tabla entera: las mismas columnas que el encabezado.
+  const columnCount =
+    2 +
+    (esConteo ? 3 : 2) +
+    (conCosto ? 1 : 0) +
+    (conLote ? 2 : 0) +
+    (conUbicacion ? 1 : 0) +
+    (conStock ? 1 : 0) +
+    (conColumnaFinal ? 1 : 0);
 
   return (
     <section className="flex flex-col gap-5">
@@ -443,29 +463,42 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                       row.difference !== undefined &&
                       row.difference !== "0"),
                 )
-                .map((row) => (
-                  <LineRow
+                .map((row) => {
+                  const summary = summaries.get(row.productId);
+                  const product = productosPorId.get(row.productId);
+                  return (
                     // Por `id` y no por `lineNo` (Carlos, 2026-09-01): al volver a
                     // subir el conteo, las líneas nuevas traen los mismos números y
                     // React reutilizaba el componente con su contado viejo en el
                     // useState — cajita vacía con la diferencia ya calculada.
-                    key={row.id}
-                    documentId={documentId}
-                    row={row}
-                    autoFocusQuantity={row.id === focusLineId}
-                    product={productosPorId.get(row.productId)}
-                    editable={editable}
-                    conCosto={conCosto}
-                    conLote={conLote}
-                    conUbicacion={conUbicacion}
-                    esSalida={document.type === "exit"}
-                    esConteo={esConteo}
-                    conStock={conStock}
-                    conColumnaFinal={conColumnaFinal}
-                    minCaducidad={minCaducidad}
-                    registrarCampo={registrarCampo}
-                  />
-                ))}
+                    <Fragment key={row.id}>
+                      <LineRow
+                        documentId={documentId}
+                        row={row}
+                        autoFocusQuantity={row.id === focusLineId}
+                        product={product}
+                        editable={editable}
+                        conCosto={conCosto}
+                        conLote={conLote}
+                        conUbicacion={conUbicacion}
+                        esSalida={document.type === "exit"}
+                        esConteo={esConteo}
+                        conStock={conStock}
+                        conColumnaFinal={conColumnaFinal}
+                        minCaducidad={minCaducidad}
+                        registrarCampo={registrarCampo}
+                      />
+                      {summary?.lastRowId === row.id && product !== undefined && (
+                        <ProductSummaryRow
+                          summary={summary}
+                          product={product}
+                          isExit={document.type === "exit"}
+                          columnCount={columnCount}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })}
             </tbody>
           </table>
         </ScrollableTable>
@@ -574,7 +607,53 @@ function LineRow({
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
-  const [quantity, setQuantity] = useState(row.quantityInput ?? "");
+  const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
+  const baseUnit = product?.baseUnit ?? "";
+  /**
+   * F10-BULK-06 — los 600 g sueltos del queso se escriben como 600, no como
+   * 0.600. El botón de unidad va en el renglón que está en la presentación
+   * BASE del producto (`isBase` del API, o la «Unidad base» de una línea sin
+   * presentación): en un empaque la cantidad son empaques, y «Bolsa 1 Kg»
+   * también es un empaque aunque valga 1. El conteo no lo lleva: ahí se cuenta
+   * en unidad base y su desglose es F10-BULK-10.
+   *
+   * El campo guarda lo TECLEADO, en la unidad elegida; el autoguardado manda
+   * `capture.toBase(quantity)`, así que el API sigue recibiendo la cantidad en
+   * la unidad de la presentación y no cambia.
+   */
+  const atBasePresentation =
+    editable &&
+    !esConteo &&
+    product !== undefined &&
+    (presentacion === undefined ? row.presentationId === null : presentacion.isBase === true);
+  const capture = useCaptureUnit(baseUnit, atBasePresentation);
+  const shownQuantity = (saved: string | null) =>
+    saved === null ? "" : (capture.fromBase(saved) ?? saved);
+  const [quantity, setQuantity] = useState(() => shownQuantity(row.quantityInput));
+  /**
+   * La cantidad guardada, en gris, cuando el botón eligió una unidad en la que
+   * no se puede escribir (7 in en pies): el campo queda vacío y NO se guarda
+   * nada hasta que alguien teclee (`changeCaptureUnit`).
+   */
+  const [quantityPlaceholder, setQuantityPlaceholder] = useState<string | null>(null);
+  const typeQuantity = (text: string) => {
+    setQuantity(text);
+    setQuantityPlaceholder(null);
+  };
+  /**
+   * Al cambiar la presentación, el API conserva el número y cambia lo que
+   * significa: «2» bolsas pasan a ser 2 kilogramos. El campo se vuelve a
+   * escribir en la unidad que toca AHORA (2000 si el botón está en «g»), en el
+   * mismo render: si no, el autoguardado leería «2» como 2 g y lo guardaría.
+   */
+  const [quantityPresentationId, setQuantityPresentationId] = useState(row.presentationId);
+  if (quantityPresentationId !== row.presentationId) {
+    setQuantityPresentationId(row.presentationId);
+    setQuantity(shownQuantity(row.quantityInput));
+    setQuantityPlaceholder(null);
+  }
+  const quantityInBase = capture.toBase(quantity);
+  const quantityToSave = quantityInBase.quantity;
   // Lo CONTADO: el dato que un inventario físico viene a capturar.
   const [counted, setCounted] = useState(row.counted ?? "");
   // A dos decimales desde que abre: el API devuelve «6», no «6.00».
@@ -674,15 +753,22 @@ function LineRow({
       primeraCarga.current = false;
       return;
     }
-    if (quantity === (row.quantityInput ?? "")) {
+    // Lo que no cabe en la base («0.05 g») no se guarda: se queda en pantalla
+    // con su error, como un costo mal tecleado. El campo vacío que dejó el
+    // botón de unidad tampoco: vaciarlo no fue de quien captura.
+    if (
+      quantityToSave === null ||
+      quantityPlaceholder !== null ||
+      sameQuantity(quantityToSave, row.quantityInput)
+    ) {
       return;
     }
     const timer = setTimeout(() => {
-      const parsed = quantity.trim() === "" ? null : Number(quantity);
+      const parsed = quantityToSave === "" ? null : Number(quantityToSave);
       guardar.mutate(Number.isFinite(parsed) ? parsed : null);
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [quantity, row.quantityInput, guardar.mutate]);
+  }, [quantityToSave, quantityPlaceholder, row.quantityInput, guardar.mutate]);
 
   useEffect(() => {
     if (primeraCargaCosto.current) {
@@ -811,8 +897,33 @@ function LineRow({
     guardarCaducidad.error === null
       ? null
       : (guardarCaducidad.error as unknown as ApiError).message;
-  const conError = row.errors.length > 0 || errorCosto !== null || errorCaducidad !== null;
-  const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
+  const quantityError = quantityInBase.error;
+  const conError =
+    row.errors.length > 0 ||
+    errorCosto !== null ||
+    errorCaducidad !== null ||
+    quantityError !== null;
+
+  /**
+   * Cambiar de unidad NUNCA cambia la cantidad (la regla única, Carlos,
+   * 2026-11-25): el campo vuelve a escribir la que se queda, y el autoguardado
+   * no tiene nada nuevo que mandar. 600 g pasan a 0.6 kg.
+   *
+   * Se queda lo tecleado si es una cantidad (va a guardarse igual). Si el
+   * campo está vacío por el botón, o con un texto que no se puede guardar
+   * («0.05» en gramos), se queda lo GUARDADO: un texto con error no se vuelve
+   * a leer en la otra unidad. Lo que no se puede escribir en la unidad nueva
+   * (7 in en pies) deja el campo vacío con la cantidad en gris.
+   */
+  const changeCaptureUnit = (next: string) => {
+    const kept =
+      quantityPlaceholder === null && quantityInBase.quantity !== null
+        ? quantityInBase.quantity
+        : (row.quantityInput ?? "");
+    const switched = capture.switchUnit(next, kept);
+    setQuantity(switched.text);
+    setQuantityPlaceholder(switched.placeholder);
+  };
 
   return (
     // `align-top` + `LINE_CELL` (Carlos, 2026-08-26): la celda de cantidad
@@ -927,25 +1038,40 @@ function LineRow({
                 <label htmlFor={`line-${row.lineNo}-quantity`} className="sr-only">
                   {t("inventory.document.quantity")}
                 </label>
-                <input
-                  id={`line-${row.lineNo}-quantity`}
-                  ref={refDeCantidad(setQuantity)}
-                  type="number"
-                  step="0.0001"
-                  value={quantity}
-                  onChange={(event) => setQuantity(event.target.value)}
-                  className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                />
-                {guardar.isPending && (
-                  <span className="ml-2 text-muted-foreground text-xs">
-                    {t("inventory.document.saving")}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <input
+                    id={`line-${row.lineNo}-quantity`}
+                    ref={refDeCantidad(setQuantity)}
+                    type="number"
+                    step="0.0001"
+                    value={quantity}
+                    placeholder={quantityPlaceholder ?? undefined}
+                    aria-invalid={quantityError !== null ? true : undefined}
+                    onChange={(event) => typeQuantity(event.target.value)}
+                    className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                  <CaptureUnitToggle
+                    baseUnit={baseUnit}
+                    atBasePresentation={atBasePresentation}
+                    value={capture.unit}
+                    onChange={changeCaptureUnit}
+                  />
+                  {guardar.isPending && (
+                    <span className="ml-0.5 text-muted-foreground text-xs">
+                      {t("inventory.document.saving")}
+                    </span>
+                  )}
+                </div>
               </>
             ) : (
               (row.quantityInput ?? "—")
             )}
-            <Equivalencia row={row} product={product} locale={resolveUiLocale(i18n)} />
+            <Equivalencia
+              row={row}
+              product={product}
+              captureUnit={capture.unit}
+              locale={resolveUiLocale(i18n)}
+            />
             {esSalida && <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />}
             {esSalida && <RepartoFefo row={row} />}
             {esSalida && product?.isComposite === true && <Compuesto product={product} />}
@@ -1113,6 +1239,7 @@ function LineRow({
               <span className="text-left text-destructive text-xs">
                 {[
                   ...row.errors.map((error) => t(error.code, error.args)),
+                  ...(quantityError === null ? [] : [quantityError]),
                   ...(errorCosto === null ? [] : [errorCosto]),
                   ...(errorCaducidad === null ? [] : [errorCaducidad]),
                 ].join(" · ")}
@@ -1271,15 +1398,39 @@ function Compuesto({ product }: { product: DocumentProduct }) {
 function Equivalencia({
   row,
   product,
+  captureUnit,
   locale,
 }: {
   row: DocumentRow;
   product: DocumentProduct | undefined;
+  /** La unidad del botón (F10-BULK-06): la base, o su hermana («g»). */
+  captureUnit: string;
   locale: Parameters<typeof unitName>[1];
 }) {
   const { t } = useTranslation();
 
-  if (product === undefined || row.presentationId === null || row.quantityBase === null) {
+  if (product === undefined || row.quantityBase === null) {
+    return null;
+  }
+  const unit = unitName(product.baseUnit, locale, { plural: true }).toLowerCase();
+  // F10-BULK-06: con «g» elegido, «600 g = 0.600 kilogramos». Sale de lo
+  // GUARDADO, como el resto de la previa: el campo puede ir una tecla adelante.
+  if (captureUnit !== product.baseUnit) {
+    const typed = fromBaseQuantity(row.quantityBase, captureUnit, product.baseUnit);
+    if (typed !== null) {
+      return (
+        <span className="ml-2 block text-muted-foreground text-xs">
+          {t("inventory.document.equivalence", {
+            quantity: formatQuantity(typed, captureUnit),
+            presentation: unitSymbol(captureUnit),
+            base: formatQuantity(row.quantityBase, product.baseUnit),
+            unit,
+          })}
+        </span>
+      );
+    }
+  }
+  if (row.presentationId === null) {
     return null;
   }
   const presentacion = product.presentations.find((p) => p.id === row.presentationId);
@@ -1297,8 +1448,96 @@ function Equivalencia({
         ),
         presentation: presentacion.name,
         base: formatQuantity(row.quantityBase, product.baseUnit),
-        unit: unitName(product.baseUnit, locale, { plural: true }).toLowerCase(),
+        unit,
       })}
     </span>
   );
+}
+
+/**
+ * F10-BULK-08 — un producto que aparece en más de un renglón: cuántos son,
+ * cuánto mueven juntos y el saldo de antes y después. Todo sale de la previa
+ * del servidor: la suma de `quantityBase`, el `stockBefore` del PRIMER
+ * renglón y el `stockAfter` del ÚLTIMO (la previa ya los encadena).
+ */
+interface ProductSummary {
+  /** El renglón bajo el que va el resumen: el último del producto. */
+  lastRowId: string;
+  count: number;
+  /** La suma exacta de `quantityBase`, sin signo. */
+  quantity: string;
+  stockBefore: string | null;
+  stockAfter: string | null;
+}
+
+/** Solo los productos con dos renglones o más; en el orden de las filas. */
+function summarizeByProduct(rows: DocumentRow[]): Map<string, ProductSummary> {
+  const byProduct = new Map<string, ProductSummary>();
+  for (const row of rows) {
+    const previous = byProduct.get(row.productId);
+    byProduct.set(row.productId, {
+      lastRowId: row.id,
+      count: (previous?.count ?? 0) + 1,
+      // `addQuantities` y no `Number`: 0.1 + 0.2 tiene que dar 0.3.
+      quantity: addQuantities(previous?.quantity ?? "0", row.quantityBase ?? "0"),
+      stockBefore: previous === undefined ? row.stockBefore : previous.stockBefore,
+      stockAfter: row.stockAfter,
+    });
+  }
+  for (const [productId, summary] of byProduct) {
+    if (summary.count < 2) {
+      byProduct.delete(productId);
+    }
+  }
+  return byProduct;
+}
+
+/**
+ * «Queso Oaxaca · 3 renglones · +12.600 kilogramos · existencias 2.500 →
+ * 15.100 kilogramos», bajo el último renglón del queso. Una fila de una sola
+ * celda: la tabla la deja a la vista aunque se deslice en un celular
+ * (`TABLE_PIN_FULL_WIDTH_ROW`). Sin saldo que contar (un anulado) no se pinta.
+ */
+function ProductSummaryRow({
+  summary,
+  product,
+  isExit,
+  columnCount,
+}: {
+  summary: ProductSummary;
+  product: DocumentProduct;
+  isExit: boolean;
+  columnCount: number;
+}) {
+  const { t, i18n } = useTranslation();
+  const locale = resolveUiLocale(i18n);
+
+  if (summary.stockBefore === null || summary.stockAfter === null) {
+    return null;
+  }
+
+  return (
+    <tr className="border-b last:border-0">
+      <td colSpan={columnCount} className="px-2 pt-1 pb-3">
+        <p className="font-medium text-muted-foreground text-xs">
+          {t("inventory.document.productSummary", {
+            product: product.name,
+            count: summary.count,
+            // El mismo signo que el kardex: «+» lo que entra, «−» lo que sale.
+            delta: `${isExit ? "−" : "+"}${formatQuantityWithUnit(summary.quantity, product.baseUnit, locale)}`,
+            before: formatQuantity(summary.stockBefore, product.baseUnit),
+            after: formatQuantityWithUnit(summary.stockAfter, product.baseUnit, locale),
+          })}
+        </p>
+      </td>
+    </tr>
+  );
+}
+
+/** ¿Lo que está en el campo ya es lo guardado? «0.6» y «0.6000» son lo mismo. */
+function sameQuantity(typed: string, saved: string | null): boolean {
+  if (typed === (saved ?? "")) {
+    return true;
+  }
+  return typed !== "" && saved !== null && Number(typed) === Number(saved);
 }

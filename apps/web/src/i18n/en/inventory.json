@@ -107,6 +107,7 @@
     "presentation": "Presentation",
     "presentationBase": "Base unit",
     "equivalence": "{{quantity}} {{presentation}} = {{base}} {{unit}}",
+    "productSummary": "{{product}} · {{count}} lines · {{delta}} · stock {{before}} → {{after}}",
     "searchProduct": "Search product",
     "searchProductPlaceholder": "Scan, or type SKU or name",
     "searchNoResults": "No product matches your search.",

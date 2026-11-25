@@ -875,6 +875,114 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
     });
 
     /**
+     * F10-BULK-07 — Carlos (2026-11-25): «entrada de 2 Bolsas de 1 Kg de queso,
+     * 1 Bolsa de 10Kg de Queso, 600 gramos de queso». Buscar otra vez el queso
+     * sumaba al renglón del kilo: para tener el de la bolsa había que escanear
+     * su código o cambiar la presentación después.
+     */
+    describe("cada presentación activa es un botón del resultado", () => {
+      const queso = (presentations: productsApi.ListedPresentation[]) => {
+        mockedProducts.mockResolvedValue({
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          items: [
+            {
+              id: "p-queso",
+              sku: "QUESO-OAX",
+              name: "Queso Oaxaca",
+              baseUnit: "kg",
+              isComposite: false,
+              isActive: true,
+              attributes: {},
+              price: "185",
+              taxGroupId: null,
+              matchedPresentation: null,
+              presentations,
+            },
+          ],
+        });
+      };
+      const KILO = { id: "pres-kg", name: "Kilogramo", factor: "1", isActive: true };
+      const BOLSA_1 = { id: "pres-1k", name: "Bolsa 1 Kg", factor: "1", isActive: true };
+      const BOLSA_10 = { id: "pres-10k", name: "Bolsa 10 Kg", factor: "10", isActive: true };
+      const VIEJA = { id: "pres-5k", name: "Bolsa 5 Kg", factor: "5", isActive: false };
+
+      it("ofrece «Kilogramo · Bolsa 1 Kg · Bolsa 10 Kg» y cada botón agrega su renglón con su presentación", async () => {
+        const user = userEvent.setup();
+        queso([KILO, BOLSA_1, VIEJA, BOLSA_10]);
+        mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+        await renderDoc();
+        await screen.findByText("PAR-500");
+
+        await user.type(screen.getByLabelText(/buscar producto/i), "queso");
+        const resultado = (await screen.findByText(/QUESO-OAX/)).closest("li") as HTMLElement;
+        const botones = within(resultado).getAllByRole("button");
+
+        expect(botones.map((b) => b.textContent)).toEqual([
+          "Kilogramo",
+          "Bolsa 1 Kg",
+          "Bolsa 10 Kg",
+        ]);
+        // Una desactivada no se ofrece; cada botón dice de qué producto es.
+        expect(within(resultado).queryByRole("button", { name: "Bolsa 5 Kg" })).toBeNull();
+        expect(
+          within(resultado).getByRole("button", { name: "Bolsa 10 Kg" }),
+        ).toHaveAccessibleDescription(/QUESO-OAX.*Queso Oaxaca/);
+
+        await user.click(within(resultado).getByRole("button", { name: "Bolsa 10 Kg" }));
+
+        await waitFor(() => {
+          expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", {
+            productId: "p-queso",
+            presentationId: "pres-10k",
+          });
+        });
+      });
+
+      it("se eligen con el teclado: Tab hasta la presentación y Enter", async () => {
+        const user = userEvent.setup();
+        queso([KILO, BOLSA_1, BOLSA_10]);
+        mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+        await renderDoc();
+        await screen.findByText("PAR-500");
+
+        await user.type(screen.getByLabelText(/buscar producto/i), "queso");
+        await screen.findByRole("button", { name: "Bolsa 1 Kg" });
+
+        // Del buscador: «Agregar», «Kilogramo», «Bolsa 1 Kg».
+        await user.tab();
+        await user.tab();
+        await user.tab();
+        expect(screen.getByRole("button", { name: "Bolsa 1 Kg" })).toHaveFocus();
+        await user.keyboard("{Enter}");
+
+        await waitFor(() => {
+          expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", {
+            productId: "p-queso",
+            presentationId: "pres-1k",
+          });
+        });
+      });
+
+      it("con una sola presentación activa, el resultado sigue siendo un solo botón, como hoy", async () => {
+        const user = userEvent.setup();
+        queso([KILO, VIEJA]);
+        mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+        await renderDoc();
+        await screen.findByText("PAR-500");
+
+        await user.type(screen.getByLabelText(/buscar producto/i), "queso");
+        await user.click(await screen.findByRole("button", { name: /QUESO-OAX.*Queso Oaxaca/ }));
+
+        await waitFor(() => {
+          expect(mocked.addDocumentLine).toHaveBeenCalledWith("doc-1", { productId: "p-queso" });
+        });
+        expect(screen.queryByRole("button", { name: "Kilogramo" })).toBeNull();
+      });
+    });
+
+    /**
      * El caso que Carlos pidió por nombre: tras agregar una línea el foco
      * aterriza en la CANTIDAD, así que la siguiente pasada de pistola dispara
      * desde ahí. Esos dígitos entran en el campo antes de que nadie pueda saber

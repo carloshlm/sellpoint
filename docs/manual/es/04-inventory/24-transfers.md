@@ -20,7 +20,9 @@ salidas»).
    **Crear**.
 2. En **Motivo**, elige **Traspaso**.
 3. En **Sucursal destino**, elige a dónde va la mercancía.
-4. Agrega los productos y sus cantidades.
+4. Agrega los productos y sus cantidades, como en cualquier salida: cada
+   presentación del producto es un botón del buscador, y lo suelto se escribe
+   en gramos con el botón **g**.
 5. Presiona **Confirmar**.
 
 Al confirmar, la mercancía se descuenta del origen y queda en tránsito. En la
