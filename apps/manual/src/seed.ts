@@ -143,11 +143,14 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     stockMin: 2,
     location: "Refrigerador",
   });
-  const porcionQueso = await presentation(queso, {
-    name: "Porción 250 g",
-    factor: 0.25,
-    price: 52.5,
-  });
+  // F10-BULK-17: el queso va en la unidad de su precio, el kilogramo, y se
+  // vende suelto: lo que pide el cliente se escribe en la caja (250 g con el
+  // botón kg | g), sin una presentación por cada porción. Sus presentaciones
+  // son los empaques en que llega; sin precio de venta, quedan solo para
+  // compras (F10-NOPRICE). La «Bolsa 1 Kg» vale un kilo, pero es un empaque:
+  // la presentación base es la «Kilogramo» que nació con el producto.
+  await api("POST", `/products/${queso}/presentations`, { name: "Bolsa 1 Kg", factor: 1 });
+  await api("POST", `/products/${queso}/presentations`, { name: "Bolsa 10 Kg", factor: 10 });
   const aceite = await product({
     sku: "ACEITE-500",
     name: "Aceite de oliva 500 ml",
@@ -481,7 +484,8 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     { weight: 3, line: [galletas, () => entre(1, 2)] },
     { weight: 3, line: [pan, () => 1] },
     { weight: 4, line: [leche, () => entre(1, 2)] },
-    { weight: 2, line: [queso, () => 0.25, porcionQueso] },
+    // El queso, suelto: 250 g escritos en la caja.
+    { weight: 2, line: [queso, () => 0.25] },
     { weight: 2, line: [frijol, () => entre(1, 4) / 2] },
     { weight: 1, line: [aceite, () => 1] },
     { weight: 0.4, line: [agua, () => 12, cajaAgua] },
@@ -757,7 +761,7 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   ]);
   await cobrar("card", [
     { productId: leche, quantity: 2 },
-    { productId: queso, presentationId: porcionQueso, quantity: 1 },
+    { productId: queso, quantity: 0.25 },
   ]);
   const devuelta = idOf(
     await cobrar("cash", [
@@ -828,7 +832,7 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     "cash",
     [
       { productId: agua, presentationId: cajaAgua, quantity: 1 },
-      { productId: queso, presentationId: porcionQueso, quantity: 1 },
+      { productId: queso, quantity: 0.25 },
       { productId: leche, quantity: 2 },
     ],
     { discount: { amount: 15, code: DEMO.discountCode, reason: "Cliente frecuente" } },

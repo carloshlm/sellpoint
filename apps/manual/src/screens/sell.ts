@@ -66,8 +66,25 @@ async function setQuantity(page: Page, name: string, quantity: string): Promise<
 }
 
 /**
+ * Lo mismo en un producto por peso, eligiendo antes la unidad con el botón
+ * kg | g (`unit` es su nombre accesible, como «Escribir la cantidad en
+ * gramos»). Se elige SIEMPRE: la caja recuerda en el navegador la última
+ * unidad, y las capturas del cajero comparten el suyo.
+ */
+async function setQuantityIn(
+  page: Page,
+  name: string,
+  unit: string,
+  quantity: string,
+): Promise<void> {
+  await cartLine(page, name).getByRole("button", { name }).click();
+  await page.getByRole("button", { name: unit, exact: true }).click();
+  await page.getByLabel("Cantidad", { exact: true }).fill(quantity);
+}
+
+/**
  * El carrito de la venta VTA-000482, la del ticket del capítulo 7: una caja
- * de 12 aguas, una porción de queso y dos leches.
+ * de 12 aguas, 250 g de queso escritos en gramos y dos leches.
  */
 async function ticketCart(page: Page): Promise<void> {
   await scan(page, WATER_BARCODE, "Agua natural 1 L");
@@ -75,9 +92,10 @@ async function ticketCart(page: Page): Promise<void> {
     .getByLabel("Presentación")
     .selectOption({ label: "Caja con 12" });
   await addFromSearch(page, "queso", "Queso mozzarella");
-  await cartLine(page, "Queso mozzarella")
-    .getByLabel("Presentación")
-    .selectOption({ label: "Porción 250 g" });
+  await setQuantityIn(page, "Queso mozzarella", "Escribir la cantidad en gramos", "250");
+  // Con el teclado abierto, la leche se lo llevaría, y tocar su renglón ya
+  // elegido lo cerraría en vez de abrirlo.
+  await page.getByRole("button", { name: "Ocultar teclado" }).click();
   await addFromSearch(page, "leche", "Leche entera 1 L");
   await setQuantity(page, "Leche entera 1 L", "2");
   await page.getByRole("button", { name: "Ocultar teclado" }).click();
@@ -147,17 +165,17 @@ export const SELL: Screen[] = [
     chapter: SALE,
     as: "cashier",
     path: "/pos",
-    // Una caja de 12 aguas (escaneada), una porción de queso y la recarga de
-    // garrafón, y a la izquierda lo que aparece al teclear «ga».
+    // Una caja de 12 aguas (escaneada), 250 g de queso escritos en gramos
+    // («0.250 kilogramos (250 g)») y la recarga de garrafón, y a la izquierda
+    // lo que aparece al teclear «ga».
     prepare: async (page) => {
       await scan(page, WATER_BARCODE, "Agua natural 1 L");
       await cartLine(page, "Agua natural 1 L")
         .getByLabel("Presentación")
         .selectOption({ label: "Caja con 12" });
       await addFromSearch(page, "queso", "Queso mozzarella");
-      await cartLine(page, "Queso mozzarella")
-        .getByLabel("Presentación")
-        .selectOption({ label: "Porción 250 g" });
+      await setQuantityIn(page, "Queso mozzarella", "Escribir la cantidad en gramos", "250");
+      await page.getByRole("button", { name: "Ocultar teclado" }).click();
       await addFromSearch(page, "garraf", "Recarga de garrafón 20 L");
       await cartSearch(page).fill("ga");
       await page
@@ -174,10 +192,16 @@ export const SELL: Screen[] = [
     chapter: SALE,
     as: "cashier",
     path: "/pos",
-    // Kilo y medio de frijol, tecleado en el teclado de la pantalla.
+    // Kilo y medio de frijol, tecleado en kilos en el teclado de la pantalla
+    // (`sale-screen` deja recordado «g»).
     prepare: async (page) => {
       await addFromSearch(page, "frijol", "Frijol negro a granel");
-      await setQuantity(page, "Frijol negro a granel", "1.5");
+      await setQuantityIn(
+        page,
+        "Frijol negro a granel",
+        "Escribir la cantidad en kilogramos",
+        "1.5",
+      );
       await calm(page);
       await blur(page);
     },

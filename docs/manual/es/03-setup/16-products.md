@@ -69,34 +69,62 @@ Más abajo en el mismo formulario hay otros datos que aparecen solo si los usas:
 
 ## Venta por peso
 
-Si la unidad base es de peso, como **Kilogramo**, en la caja se puede cobrar
-una cantidad con decimales, como 0.750 kg de queso. Un producto en **Pieza** se
-vende solo en enteros: media pieza no existe.
+Lo que se vende a granel, como el queso o el frijol, lleva como **Unidad base**
+la unidad en la que pones el precio: el queso que vendes a $210 el kilo va en
+**Kilogramo**, con su precio por kilo. Es lo que te dice la ayuda del
+formulario (paso 4 de «Dar de alta un producto»).
+
+Lo suelto se vende escribiendo la cantidad. Al vender (capítulo 6), al dar
+entrada, salida o traspaso (capítulos 23 y 24) y al comprar, pedir o recibir
+(capítulos 28 y 29), junto a la cantidad hay dos botones, **kg** y **g**. Con
+**kg** escribes kilos (**0.250**); con **g**, los gramos que marca la báscula
+(**250**). SellPointy lo guarda en kilos y entre paréntesis dice los gramos,
+por ejemplo **0.250 kilogramos (250 g)**. El importe sale del precio por kilo:
+250 g de queso a $210 el kilo son $52.50. Igual con litros y mililitros (**L** y
+**ml**) o metros y centímetros (**m** y **cm**). Un producto que ya tienes en
+**Gramo** sigue igual, y los botones le sirven al revés: **g** y **kg**.
+
+Un producto en **Pieza** se vende solo en enteros: media pieza no existe.
 
 En el carrito, el ticket, las entradas y salidas, el stock y el kardex, una
 cantidad redonda se ve entera (**100 kilogramos**) y una con decimales lleva
 tres (**1.200 kilogramos**).
 
-## Presentaciones: la caja, el paquete, la porción
+## Presentaciones: la caja, la bolsa, el paquete
 
-Un producto puede venderse de varias formas. El agua se vende suelta y también
-en caja con 12; el queso, por kilo y también en porción de 250 g. Cada forma es
-una **presentación**, con su propio código de barras, su código interno y su
-propio precio.
+Una **presentación** es un empaque, y su equivalencia dice cuánto trae en la
+unidad base. El agua se vende por pieza y también en **Caja con 12**. El queso
+se vende suelto, por kilo, y te llega en **Bolsa 1 Kg** y en **Bolsa 10 Kg**.
+Cada presentación lleva su propio código de barras, su código interno y, si se
+vende, su propio precio.
+
+Una presentación nunca es una porción de venta. Si vendes 100, 200 o 300 g de
+queso, no des de alta una presentación para cada cantidad: la cantidad se
+escribe al vender, en gramos con el botón **g**. Arriba de la tabla de
+presentaciones del queso, la ayuda te lo recuerda: «Una presentación es un
+empaque: cuánto trae en kilogramos, como «Caja con 12» o «Bolsa 10 Kg». No
+crees una por cada cantidad que vendes: la cantidad se escribe al vender.»
 
 Todo producto nace con una presentación, la de su unidad base (en el agua, la
-**Pieza**). Para agregar otra:
+**Pieza**; en el queso, el **Kilogramo**). Para agregar otra:
 
 1. Abre el producto con **Ver** y elige la pestaña **Presentaciones**.
 2. Presiona **Agregar presentación**.
-3. Escribe el **Nombre** («Caja con 12»), la **Equivalencia** en la unidad base
-   (12 piezas; para una porción de queso, 0.25 kg), y si quieres su **Código de
-   barras**, su **Código interno** y su **Precio**. Si la dejas sin precio, se
-   guarda solo para compras: **Se vende** queda sin marcar. Es lo que quieres
-   para el bulto que compras y vendes por kilo.
+3. Escribe el **Nombre** («Bolsa 10 Kg»), la **Equivalencia** en la unidad base
+   (10 kilogramos; en la caja de agua, 12 piezas), y si quieres su **Código de
+   barras**, su **Código interno** y su **Precio**. Si la dejas sin precio,
+   abajo dice «Sin precio, se usa solo para compras.»: se guarda con **Se
+   vende** sin marcar. Es lo que quieres para las bolsas del queso, que compras
+   en empaque y vendes por kilo.
 4. Presiona **Agregar**.
 
 ![Las presentaciones del agua](screen:product-presentations)
+
+Una **Bolsa 1 Kg** equivale a un kilo, pero es un empaque, no la presentación
+base: la base es la que nació con el producto, el **Kilogramo**. En la bolsa no
+hay botones **kg** y **g**, y la cantidad son bolsas: si en una entrada o en una
+compra escribes **2** en la **Bolsa 1 Kg**, entran 2 bolsas, 2 kilogramos. Para
+escribir gramos, elige el **Kilogramo**.
 
 En la tabla decides, para cada presentación, si **Se compra**, si **Se vende**,
 cuál es la **Predeterminada** para vender y si va en **Solo enteros** (sin
