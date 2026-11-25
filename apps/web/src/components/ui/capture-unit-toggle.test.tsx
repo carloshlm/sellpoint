@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { useCaptureUnit } from "@/lib/use-capture-unit";
@@ -10,6 +11,10 @@ import { CaptureUnitToggle } from "./capture-unit-toggle";
  * sola pieza para la caja, el inventario y las compras. Lo tecleado se
  * convierte a la unidad base antes de guardarse; en un empaque no aparece,
  * porque ahí la cantidad son empaques.
+ *
+ * El campo del arnés cambia de unidad como las pantallas de entradas y
+ * compras (`switchUnit`): la cantidad que vale lo tecleado no cambia, solo se
+ * vuelve a escribir en la otra unidad.
  */
 function Harness({
   baseUnit,
@@ -21,19 +26,36 @@ function Harness({
   typed?: string;
 }) {
   const capture = useCaptureUnit(baseUnit, atBasePresentation);
-  const result = capture.toBase(typed);
+  const [field, setField] = useState<{ text: string; placeholder: string | null }>({
+    text: typed,
+    placeholder: null,
+  });
+  const result = capture.toBase(field.text);
   return (
     <>
       <CaptureUnitToggle
         baseUnit={baseUnit}
         atBasePresentation={atBasePresentation}
         value={capture.unit}
-        onChange={capture.setUnit}
+        onChange={(next) => setField(capture.switchUnit(next, result.quantity ?? ""))}
+      />
+      <input
+        aria-label="Cantidad"
+        value={field.text}
+        placeholder={field.placeholder ?? undefined}
+        onChange={(event) => setField({ text: event.target.value, placeholder: null })}
       />
       <output data-testid="quantity">{result.quantity ?? ""}</output>
       <output data-testid="error">{result.error ?? ""}</output>
     </>
   );
+}
+
+/** Borra el campo y escribe `text`: lo tecleado DESPUÉS de elegir la unidad. */
+async function typeQuantity(text: string): Promise<void> {
+  const field = screen.getByLabelText("Cantidad");
+  await userEvent.clear(field);
+  await userEvent.type(field, text);
 }
 
 function renderHarness(props: Parameters<typeof Harness>[0], language: "es" | "en" = "es") {
@@ -78,28 +100,50 @@ describe("CaptureUnitToggle", () => {
   });
 
   it("en la base la cantidad pasa tal cual; en gramos se convierte a kilogramos", async () => {
-    const { rerender, i18n } = renderHarness({ baseUnit: "kg", typed: "600" });
+    renderHarness({ baseUnit: "kg", typed: "600" });
     expect(screen.getByTestId("quantity")).toHaveTextContent("600");
 
     await userEvent.click(screen.getByRole("button", { name: GRAMOS }));
-
     expect(screen.getByRole("button", { name: GRAMOS })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: KILOS })).toHaveAttribute("aria-pressed", "false");
+
+    await typeQuantity("600");
     expect(screen.getByTestId("quantity")).toHaveTextContent("0.6");
     expect(screen.getByTestId("error")).toBeEmptyDOMElement();
 
-    rerender(
-      <I18nextProvider i18n={i18n}>
-        <Harness baseUnit="kg" typed="250.5" />
-      </I18nextProvider>,
-    );
+    await typeQuantity("250.5");
     expect(screen.getByTestId("quantity")).toHaveTextContent("0.2505");
   });
 
+  it("cambiar de unidad no cambia la cantidad: el campo la vuelve a escribir en la otra", async () => {
+    renderHarness({ baseUnit: "kg", typed: "5" });
+
+    await userEvent.click(screen.getByRole("button", { name: GRAMOS }));
+    expect(screen.getByLabelText("Cantidad")).toHaveValue("5000");
+    expect(screen.getByTestId("quantity")).toHaveTextContent("5");
+
+    await typeQuantity("600");
+    await userEvent.click(screen.getByRole("button", { name: KILOS }));
+    expect(screen.getByLabelText("Cantidad")).toHaveValue("0.6");
+    expect(screen.getByTestId("quantity")).toHaveTextContent("0.6");
+  });
+
+  it("lo que no se puede escribir en la otra unidad deja el campo vacío, con la cantidad en gris", async () => {
+    // 7 in son 0.58333… ft: no hay decimal exacto que escribir.
+    renderHarness({ baseUnit: "in", typed: "7" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Escribir la cantidad en pies" }));
+
+    const field = screen.getByLabelText("Cantidad");
+    expect(field).toHaveValue("");
+    expect(field).toHaveAttribute("placeholder", "7 in");
+  });
+
   it("también sirve al revés: un producto en gramos captura en kilogramos", async () => {
-    renderHarness({ baseUnit: "gr", typed: "1.25" });
+    renderHarness({ baseUnit: "gr" });
 
     await userEvent.click(screen.getByRole("button", { name: KILOS }));
+    await typeQuantity("1.25");
 
     expect(screen.getByTestId("quantity")).toHaveTextContent("1250");
   });
@@ -113,11 +157,13 @@ describe("CaptureUnitToggle", () => {
     expect(screen.getByRole("button", { name: GRAMOS })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     expect(screen.getByRole("button", { name: GRAMOS })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("quantity")).toHaveTextContent("0.25");
+    expect(screen.getByLabelText("Cantidad")).toHaveValue("250000");
+    expect(screen.getByTestId("quantity")).toHaveTextContent("250");
 
     await userEvent.tab({ shift: true });
     await userEvent.keyboard(" ");
     expect(screen.getByRole("button", { name: KILOS })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Cantidad")).toHaveValue("250");
     expect(screen.getByTestId("quantity")).toHaveTextContent("250");
   });
 
@@ -154,10 +200,11 @@ describe("CaptureUnitToggle", () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("bloqueado", "QuotaExceededError");
     });
-    renderHarness({ baseUnit: "kg", typed: "600" });
+    renderHarness({ baseUnit: "kg" });
 
     expect(screen.getByRole("button", { name: KILOS })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(screen.getByRole("button", { name: GRAMOS }));
+    await typeQuantity("600");
     expect(screen.getByTestId("quantity")).toHaveTextContent("0.6");
   });
 
@@ -178,8 +225,9 @@ describe("CaptureUnitToggle", () => {
   });
 
   it("lo que no cabe en 4 decimales da el error de la cantidad mínima", async () => {
-    const { unmount } = renderHarness({ baseUnit: "kg", typed: "0.05" });
+    const { unmount } = renderHarness({ baseUnit: "kg" });
     await userEvent.click(screen.getByRole("button", { name: GRAMOS }));
+    await typeQuantity("0.05");
 
     expect(screen.getByTestId("quantity")).toBeEmptyDOMElement();
     expect(screen.getByTestId("error")).toHaveTextContent("La cantidad mínima es 0.1 g.");
@@ -191,8 +239,9 @@ describe("CaptureUnitToggle", () => {
   });
 
   it("lo que no es un número no se convierte", async () => {
-    renderHarness({ baseUnit: "kg", typed: "abc" });
+    renderHarness({ baseUnit: "kg" });
     await userEvent.click(screen.getByRole("button", { name: GRAMOS }));
+    await typeQuantity("abc");
 
     expect(screen.getByTestId("quantity")).toBeEmptyDOMElement();
     expect(screen.getByTestId("error")).toHaveTextContent("Escribe una cantidad.");

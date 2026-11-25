@@ -443,7 +443,7 @@ export class PurchaseLinesService {
     const entry = await this.purchases.entradaViva(tx, tenantId, id);
     // `aDetalle` es privado en PurchasesService; el detalle público vuelve a
     // armarse acá con la misma forma a través del service dueño.
-    return this.purchases.detailFrom(compra, entry);
+    return this.purchases.detailFrom(tx, compra, entry);
   }
 }
 

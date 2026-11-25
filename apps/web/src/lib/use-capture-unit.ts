@@ -22,11 +22,21 @@ import { quantityInputError } from "@/lib/quantity";
  *
  * ── Cuándo convierte ────────────────────────────────────────────────────
  *
- * Solo si el renglón está en la presentación de la unidad base (factor 1) y
- * la base tiene una hermana que cabe (`captureUnitsFor`). En un empaque la
- * cantidad son empaques —«2 Bolsa 10 Kg»— y no se toca. Con la base elegida,
- * `toBase` devuelve lo tecleado tal cual: las validaciones de cantidad de cada
- * pantalla (`quantityInputError`) siguen siendo las de siempre.
+ * Solo si el renglón está en la presentación BASE del producto (la de factor
+ * 1 que nació con él: `isBase` del API, o un renglón sin presentación) y la
+ * base tiene una hermana que cabe (`captureUnitsFor`). En un empaque la
+ * cantidad son empaques —«2 Bolsa 10 Kg»— y no se toca; «Bolsa 1 Kg» también
+ * vale 1, pero sigue siendo un empaque. Con la base elegida, `toBase` devuelve
+ * lo tecleado tal cual: las validaciones de cantidad de cada pantalla
+ * (`quantityInputError`) siguen siendo las de siempre.
+ *
+ * ── Cambiar de unidad no cambia la cantidad ─────────────────────────────
+ *
+ * La regla única de las pantallas (Carlos, 2026-11-25): tocar el botón NUNCA
+ * cambia la cantidad guardada, solo la muestra en la otra unidad. Las entradas
+ * y las compras la vuelven a escribir con `switchUnit` (600 g pasan a 0.6
+ * kg); la caja deja el campo vacío con la conversión en gris. Antes cada
+ * pantalla hacía otra cosa, y en compras «5» kg pasaban a ser «5» g.
  *
  * ── El recuerdo ─────────────────────────────────────────────────────────
  *
@@ -63,6 +73,18 @@ function writePreference(baseUnit: string, unit: string): void {
 /** Lo que tecleado vale en la base, o por qué no se puede guardar. */
 export type CaptureToBase = { quantity: string; error: null } | { quantity: null; error: string };
 
+/** El campo después de cambiar de unidad (`switchUnit`). */
+export interface CaptureSwitch {
+  /** Lo que el campo muestra ahora: la MISMA cantidad, escrita en la unidad nueva. */
+  text: string;
+  /**
+   * La cantidad en la base, con su símbolo («7 in»), cuando en la unidad nueva
+   * no se puede escribir (7 in son 0.58333… ft): el campo queda vacío y esto
+   * va en gris. `null` si sí se pudo escribir.
+   */
+  placeholder: string | null;
+}
+
 export interface CaptureUnit {
   /** Las unidades que se ofrecen, con la base primero (`captureUnitsFor`). */
   units: readonly UnitCode[];
@@ -85,6 +107,13 @@ export interface CaptureUnit {
    * unidad (7 in en pies): quien la pinta la muestra en la base.
    */
   fromBase: (quantityBase: string | number) => string | null;
+  /**
+   * Elige otra unidad SIN cambiar la cantidad: `quantityBase`, la que se queda
+   * guardada (en la base), se vuelve a escribir en ella («5» kg pasan a «5000»
+   * g). Si ahí no se puede escribir, el campo queda vacío con la cantidad como
+   * `placeholder`, y quien guarda no guarda nada: sigue la de antes.
+   */
+  switchUnit: (next: string, quantityBase: string) => CaptureSwitch;
 }
 
 export function useCaptureUnit(baseUnit: string, atBasePresentation: boolean): CaptureUnit {
@@ -133,5 +162,22 @@ export function useCaptureUnit(baseUnit: string, atBasePresentation: boolean): C
   const fromBase = (quantityBase: string | number): string | null =>
     unit === baseUnit ? String(quantityBase) : fromBaseQuantity(quantityBase, unit, baseUnit);
 
-  return { units, showToggle, unit, setUnit, toBase, fromBase };
+  const switchUnit = (next: string, quantityBase: string): CaptureSwitch => {
+    // Una unidad que no se ofrece no se elige: la cantidad sigue en la actual.
+    const target = units.some((candidate) => candidate === next) ? next : unit;
+    setUnit(target);
+    const kept = quantityBase.trim();
+    if (kept === "") {
+      return { text: "", placeholder: null };
+    }
+    const rewritten = target === baseUnit ? kept : fromBaseQuantity(kept, target, baseUnit);
+    if (rewritten !== null) {
+      return { text: rewritten, placeholder: null };
+    }
+    // En la base siempre se puede: `fromBaseQuantity` ahí solo normaliza («7.0000» → «7»).
+    const inBase = fromBaseQuantity(kept, baseUnit, baseUnit) ?? kept;
+    return { text: "", placeholder: `${inBase} ${unitSymbol(baseUnit)}` };
+  };
+
+  return { units, showToggle, unit, setUnit, toBase, fromBase, switchUnit };
 }

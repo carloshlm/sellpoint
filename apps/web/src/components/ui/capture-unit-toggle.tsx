@@ -18,7 +18,8 @@ import { cn } from "@/lib/utils";
  *     value={capture.unit} onChange={capture.setUnit} />
  *
  * No aparece en un empaque (`atBasePresentation` falso: ahí la cantidad son
- * empaques) ni en una base sin hermana que quepa (`unit`, `ft`).
+ * empaques, también en una «Bolsa 1 Kg» que vale 1) ni en una base sin hermana
+ * que quepa (`unit`, `ft`).
  *
  * Mismo molde que el selector de idioma (`auth/language-switcher.tsx`): un
  * grupo segmentado compacto con `aria-pressed`, porque con dos opciones dos
@@ -29,7 +30,10 @@ import { cn } from "@/lib/utils";
  */
 interface CaptureUnitToggleProps {
   baseUnit: string;
-  /** ¿El renglón está en la presentación de la unidad base (factor 1)? */
+  /**
+   * ¿El renglón está en la presentación BASE del producto (`isBase` del API, o
+   * un renglón sin presentación)? Factor 1 no basta: «Bolsa 1 Kg» también vale 1.
+   */
   atBasePresentation: boolean;
   /** La unidad elegida (`useCaptureUnit().unit`). */
   value: string;

@@ -17,6 +17,7 @@ import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { basePresentationIds } from "../products/base-unit";
 import { CompositionService } from "../products/composition.service";
 import { bucketKeyByCode, loadCountBuckets, sumBuckets } from "./count-buckets";
 import type { ListDocumentsQueryDto, UpdateDocumentDto } from "./dto/document.dto";
@@ -474,7 +475,7 @@ export class DocumentsService {
 
       // El saldo actual de los productos involucrados, en UNA query.
       const productIds = [...new Set(document.lines.map((l) => l.productId))];
-      const [saldos, catalogo] = await Promise.all([
+      const [saldos, catalogo, bases] = await Promise.all([
         productIds.length === 0
           ? Promise.resolve([])
           : tx.stockByWarehouse.findMany({
@@ -514,6 +515,10 @@ export class DocumentsService {
                 },
               },
             }),
+        // F10-BULK — cuál es la presentación BASE de cada producto: solo ahí la
+        // cantidad lleva el botón de unidad («Bolsa 1 Kg» también vale 1, y ahí
+        // la cantidad son bolsas).
+        basePresentationIds(tx, productIds),
       ]);
       const saldoPorProducto = new Map(
         saldos.map((s) => [s.productId, new Prisma.Decimal(s.quantity.toString())]),
@@ -930,6 +935,7 @@ export class DocumentsService {
           presentations: p.presentations.map((pr) => ({
             ...pr,
             factor: pr.factor.toString(),
+            isBase: bases.has(pr.id),
           })),
         })),
         ...(esConteo

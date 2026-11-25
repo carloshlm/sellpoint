@@ -27,6 +27,7 @@ import {
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
 import { contextoFiscal, grupoDe } from "../pos/tax-resolver";
+import { basePresentationIds } from "../products/base-unit";
 import { derivesFractionalInput } from "../products/products.service";
 import {
   armarCompraConGrupos,
@@ -104,6 +105,8 @@ export interface PurchaseOrderProductView {
     isPurchasable: boolean;
     /** Si NO admite fracciones, la cantidad tecleada tiene que ser entera. */
     allowFractionalInput: boolean;
+    /** La presentación base (`basePresentationIds`): solo ahí la cantidad lleva «kg | g». */
+    isBase: boolean;
   }[];
 }
 
@@ -269,7 +272,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(creada);
+      return this.detailFrom(tx, creada);
     });
   }
 
@@ -317,7 +320,7 @@ export class PurchaseOrdersService {
 
   async detail(user: AuthUser, id: string): Promise<PurchaseOrderDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) =>
-      this.detailFrom(await this.buscar(tx, user.tenantId, id)),
+      this.detailFrom(tx, await this.buscar(tx, user.tenantId, id)),
     );
   }
 
@@ -388,7 +391,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, id));
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, id));
     });
   }
 
@@ -413,7 +416,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, id));
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, id));
     });
   }
 
@@ -455,7 +458,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, id));
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, id));
     });
   }
 
@@ -496,7 +499,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, id));
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, id));
     });
   }
 
@@ -532,7 +535,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, id));
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, id));
     });
   }
 
@@ -575,7 +578,7 @@ export class PurchaseOrdersService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, id));
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, id));
     });
   }
 
@@ -894,7 +897,19 @@ export class PurchaseOrdersService {
     return fila.defaultWarehouseId;
   }
 
-  detailFrom(orden: FilaDetallada): PurchaseOrderDetail {
+  /**
+   * El detalle público a partir de la fila ya leída. Lleva `tx` por una sola
+   * consulta: cuál presentación de cada producto es la base (`isBase`,
+   * F10-BULK). La recepción la lee de aquí.
+   */
+  async detailFrom(
+    tx: Prisma.TransactionClient,
+    orden: FilaDetallada,
+  ): Promise<PurchaseOrderDetail> {
+    const bases = await basePresentationIds(
+      tx,
+      orden.lines.map((l) => l.productId),
+    );
     return {
       ...aFila(orden),
       lines: orden.lines.map((l) => ({
@@ -927,6 +942,7 @@ export class PurchaseOrdersService {
             factor: pr.factor.toString(),
             isPurchasable: pr.isPurchasable,
             allowFractionalInput: pr.allowFractionalInput,
+            isBase: bases.has(pr.id),
           })),
         }),
       ),

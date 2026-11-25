@@ -83,6 +83,13 @@ export interface PurchaseProduct {
     /** `false` = la cantidad tiene que ser entera: media pieza no existe. */
     allowFractionalInput: boolean;
     cost?: string | null;
+    /**
+     * F10-BULK — la presentación BASE del producto: la de factor 1 que nació
+     * con él. Solo ahí la cantidad lleva el botón «kg | g»; «Bolsa 1 Kg» también
+     * vale 1, pero ahí la cantidad son bolsas. Opcional: un API anterior no lo
+     * manda, y sin él no hay botón.
+     */
+    isBase?: boolean;
   }[];
 }
 

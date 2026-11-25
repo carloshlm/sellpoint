@@ -103,14 +103,66 @@ export async function assertBaseUnitChangeable(
 }
 
 /**
+ * Qué presentación es la BASE de un producto: la de factor 1 que nació con él,
+ * la más antigua por `createdAt` y luego por `id` (el `id` desempata las que
+ * se crearon en la misma transacción, como en la importación masiva). No
+ * tiene por qué ser la predeterminada de venta: esa marca se puede pasar a un
+ * empaque. Es UN criterio, y lo usan `followBaseUnitChange` y
+ * `basePresentationIds`.
+ */
+const BASE_PRESENTATION_ORDER: Prisma.ProductPresentationOrderByWithRelationInput[] = [
+  { createdAt: "asc" },
+  { id: "asc" },
+];
+
+/**
+ * Las presentaciones base de varios productos, en UNA consulta (no una por
+ * producto). Lo usan las pantallas que ofrecen el botón de unidad («kg | g»):
+ * la caja, las entradas, salidas y traspasos, y las compras, por el campo
+ * `isBase` de cada presentación.
+ *
+ * Por qué no basta con «factor 1» (Carlos, 2026-11-25): el negocio crea
+ * «Bolsa 1 Kg» con factor 1 y su propio código de barras. Si el botón saliera
+ * ahí, con «g» recordado, escanear la bolsa y teclear «2» guardaría 2 g en vez
+ * de 2 bolsas.
+ *
+ * Mira también las desactivadas: si la base se apaga, la marca no salta a otra
+ * presentación de factor 1. Un producto sin presentación de factor 1 no
+ * aporta nada al conjunto.
+ */
+export async function basePresentationIds(
+  tx: Prisma.TransactionClient,
+  productIds: readonly string[],
+): Promise<Set<string>> {
+  const ids = [...new Set(productIds)];
+  if (ids.length === 0) {
+    return new Set();
+  }
+
+  const candidatas = await tx.productPresentation.findMany({
+    where: { productId: { in: ids }, factor: 1 },
+    orderBy: BASE_PRESENTATION_ORDER,
+    select: { id: true, productId: true },
+  });
+
+  // Vienen de la más antigua a la más nueva: la primera de cada producto gana.
+  const basePorProducto = new Map<string, string>();
+  for (const candidata of candidatas) {
+    if (!basePorProducto.has(candidata.productId)) {
+      basePorProducto.set(candidata.productId, candidata.id);
+    }
+  }
+  return new Set(basePorProducto.values());
+}
+
+/**
  * F10-BULK-14 — cuando la unidad base SÍ cambia (sin historial), la
  * presentación base la acompaña. Antes conservaba el nombre y el «Solo
  * enteros» de la unidad anterior: un producto pasado de pieza a kilogramo
  * seguía llamando «Pieza» a su kilo y rechazaba 0.250.
  *
- * La presentación base es la de factor 1 que nació con el producto (la más
- * antigua, con el mismo desempate que el detalle del producto). No tiene por
- * qué ser la predeterminada de venta: esa marca se puede pasar a un empaque.
+ * La presentación base sale de `BASE_PRESENTATION_ORDER`: la de factor 1 que
+ * nació con el producto, la misma que marca `basePresentationIds`.
  *
  * - El nombre cambia SOLO si todavía es el nombre por omisión de la unidad
  *   anterior, en cualquiera de los idiomas: uno que el negocio escribió no se
@@ -126,7 +178,7 @@ export async function followBaseUnitChange(
 ): Promise<void> {
   const base = await tx.productPresentation.findFirst({
     where: { productId, factor: 1 },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    orderBy: BASE_PRESENTATION_ORDER,
     select: { id: true, name: true },
   });
   if (!base) {

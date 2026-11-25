@@ -217,6 +217,13 @@ export interface LookupPresentation {
   isDefaultSale: boolean;
   /** Del server, derivado de la categoría de la unidad. El numpad lo obedece. */
   allowFractionalInput: boolean;
+  /**
+   * F10-BULK — la presentación BASE del producto: la de factor 1 que nació
+   * con él. Solo ahí la cantidad lleva el botón «kg | g»; «Bolsa 1 Kg» también
+   * vale 1, pero ahí la cantidad son bolsas. Opcional: un API anterior no lo
+   * manda, ni un carrito guardado antes, y sin él no hay botón.
+   */
+  isBase?: boolean;
 }
 
 /**

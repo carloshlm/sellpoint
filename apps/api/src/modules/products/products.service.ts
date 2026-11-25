@@ -21,6 +21,7 @@ import { BarcodeContributionService } from "./barcode-contribution.service";
 import { assertBarcodeChange, contributionOf } from "./barcode-rules";
 import {
   assertBaseUnitChangeable,
+  basePresentationIds,
   basePresentationName,
   derivesFractionalInput,
   followBaseUnitChange,
@@ -118,13 +119,11 @@ export class ProductsService {
         }),
       ]);
 
+      const productIds = products.map((product) => product.id);
       const coincidencias = needle
-        ? await presentacionesQueCoinciden(
-            tx,
-            products.map((product) => product.id),
-            needle,
-          )
+        ? await presentacionesQueCoinciden(tx, productIds, needle)
         : new Map<string, { id: string; name: string }>();
+      const presentacionesPorProducto = await presentacionesDeLaPagina(tx, productIds);
 
       return {
         total,
@@ -146,6 +145,9 @@ export class ProductsService {
           // interno es EXACTAMENTE lo que se buscó. Escanear la bolsa de 10 kg
           // tiene que agregar la bolsa, no el kilo (Carlos, 2026-11-23).
           matchedPresentation: coincidencias.get(product.id) ?? null,
+          // F10-BULK-07: el buscador de Entradas, Salidas y Traspasos ofrece
+          // cada presentación activa como un botón («Kilogramo · Bolsa 10 Kg»).
+          presentations: presentacionesPorProducto.get(product.id) ?? [],
         })),
       };
     });
@@ -179,8 +181,18 @@ export class ProductsService {
       const lotStock = await tx.stockLot.count({
         where: { quantity: { gt: 0 }, lot: { productId: id } },
       });
+      // Compras arma la ficha de un renglón nuevo desde aquí: `isBase` decide
+      // si su cantidad lleva el botón de unidad (`basePresentationIds`).
+      const bases = await basePresentationIds(tx, [id]);
 
-      return { ...product, hasLotStock: lotStock > 0 };
+      return {
+        ...product,
+        presentations: product.presentations.map((presentation) => ({
+          ...presentation,
+          isBase: bases.has(presentation.id),
+        })),
+        hasLotStock: lotStock > 0,
+      };
     });
   }
 
@@ -636,4 +648,50 @@ async function presentacionesQueCoinciden(
     select: { id: true, name: true, productId: true },
   });
   return new Map(encontradas.map((p) => [p.productId, { id: p.id, name: p.name }]));
+}
+
+/** Una presentación tal como la lleva cada resultado de `GET /products`. */
+export interface ListedPresentation {
+  id: string;
+  name: string;
+  /** Decimal en texto, como toda cantidad del API: un `number` se redondearía en el JSON. */
+  factor: string;
+  isActive: boolean;
+  /** La presentación base del producto (`basePresentationIds`): solo ahí va el botón de unidad. */
+  isBase: boolean;
+}
+
+/**
+ * F10-BULK-07 — las presentaciones de los productos de UNA página, en una sola
+ * consulta (no una por resultado), más la de `basePresentationIds` para su
+ * `isBase`. Van todas, también las desactivadas, con su `isActive`: la
+ * pantalla decide cuáles ofrece. El orden es el de la ficha (`findOne`):
+ * `factor` solo no lo define cuando dos presentaciones empatan.
+ */
+async function presentacionesDeLaPagina(
+  tx: Prisma.TransactionClient,
+  productIds: string[],
+): Promise<Map<string, ListedPresentation[]>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+  const filas = await tx.productPresentation.findMany({
+    where: { productId: { in: productIds } },
+    orderBy: [{ factor: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, name: true, factor: true, isActive: true, productId: true },
+  });
+  const bases = await basePresentationIds(tx, productIds);
+  const porProducto = new Map<string, ListedPresentation[]>();
+  for (const fila of filas) {
+    const lista = porProducto.get(fila.productId) ?? [];
+    lista.push({
+      id: fila.id,
+      name: fila.name,
+      factor: fila.factor.toString(),
+      isActive: fila.isActive,
+      isBase: bases.has(fila.id),
+    });
+    porProducto.set(fila.productId, lista);
+  }
+  return porProducto;
 }

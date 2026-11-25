@@ -26,6 +26,7 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
+import { basePresentationIds } from "../products/base-unit";
 import type {
   CancelPurchaseDto,
   CreatePurchaseDto,
@@ -119,6 +120,8 @@ export interface PurchaseProductView {
     isPurchasable: boolean;
     /** Si NO admite fracciones, la cantidad tecleada tiene que ser entera. */
     allowFractionalInput: boolean;
+    /** La presentación base (`basePresentationIds`): solo ahí la cantidad lleva «kg | g». */
+    isBase: boolean;
   }[];
 }
 
@@ -281,7 +284,7 @@ export class PurchasesService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(creada, null);
+      return this.detailFrom(tx, creada, null);
     });
   }
 
@@ -363,7 +366,7 @@ export class PurchasesService {
   async detail(user: AuthUser, id: string): Promise<PurchaseDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const compra = await this.buscar(tx, user.tenantId, id);
-      return this.detailFrom(compra, await this.entradaViva(tx, user.tenantId, id));
+      return this.detailFrom(tx, compra, await this.entradaViva(tx, user.tenantId, id));
     });
   }
 
@@ -424,7 +427,7 @@ export class PurchasesService {
         userAgent: meta.userAgent,
       });
       const refrescada = await this.buscar(tx, user.tenantId, id);
-      return this.detailFrom(refrescada, await this.entradaViva(tx, user.tenantId, id));
+      return this.detailFrom(tx, refrescada, await this.entradaViva(tx, user.tenantId, id));
     });
   }
 
@@ -469,7 +472,7 @@ export class PurchasesService {
         userAgent: meta.userAgent,
       });
       const refrescada = await this.buscar(tx, user.tenantId, id);
-      return this.detailFrom(refrescada, await this.entradaViva(tx, user.tenantId, id));
+      return this.detailFrom(tx, refrescada, await this.entradaViva(tx, user.tenantId, id));
     });
   }
 
@@ -547,7 +550,7 @@ export class PurchasesService {
         userAgent: meta.userAgent,
       });
       const sellada = await this.buscar(tx, user.tenantId, id);
-      return this.detailFrom(sellada, await this.entradaViva(tx, user.tenantId, id));
+      return this.detailFrom(tx, sellada, await this.entradaViva(tx, user.tenantId, id));
     });
   }
 
@@ -612,7 +615,7 @@ export class PurchasesService {
         userAgent: meta.userAgent,
       });
       const anulada = await this.buscar(tx, user.tenantId, id);
-      return this.detailFrom(anulada, null);
+      return this.detailFrom(tx, anulada, null);
     });
   }
 
@@ -937,7 +940,7 @@ export class PurchasesService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.detailFrom(await this.buscar(tx, user.tenantId, creada.id), null);
+      return this.detailFrom(tx, await this.buscar(tx, user.tenantId, creada.id), null);
     });
   }
 
@@ -977,11 +980,20 @@ export class PurchasesService {
     return entrada;
   }
 
-  /** El detalle público a partir de la fila ya leída: lo comparten este service y el de líneas. */
-  detailFrom(
+  /**
+   * El detalle público a partir de la fila ya leída: lo comparten este service
+   * y el de líneas. Lleva `tx` por una sola consulta: cuál presentación de cada
+   * producto es la base (`isBase`, F10-BULK).
+   */
+  async detailFrom(
+    tx: Prisma.TransactionClient,
     compra: FilaDetallada,
     entry: { id: string; folio: string; status: string } | null,
-  ): PurchaseDetail {
+  ): Promise<PurchaseDetail> {
+    const bases = await basePresentationIds(
+      tx,
+      compra.lines.map((l) => l.productId),
+    );
     return {
       ...aFila(compra, entry?.status === "confirmed"),
       lines: compra.lines.map((l) => ({
@@ -1023,6 +1035,7 @@ export class PurchasesService {
             factor: pr.factor.toString(),
             isPurchasable: pr.isPurchasable,
             allowFractionalInput: pr.allowFractionalInput,
+            isBase: bases.has(pr.id),
           })),
         }),
       ),

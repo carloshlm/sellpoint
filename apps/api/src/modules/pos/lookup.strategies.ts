@@ -1,5 +1,6 @@
 import { barcodeSearchForms, QUOTE_FOLIO_PREFIXES } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
+import { basePresentationIds } from "../products/base-unit";
 import { contextoFiscal, impuestoDeItem } from "./tax-resolver";
 import { sellableStock } from "./warehouse-availability";
 
@@ -50,6 +51,12 @@ export interface LookupPresentation {
   barcode: string | null;
   isDefaultSale: boolean;
   allowFractionalInput: boolean;
+  /**
+   * F10-BULK — la presentación base del producto (`basePresentationIds`). Solo
+   * ahí el teclado ofrece «kg | g»: en «Bolsa 1 Kg», aunque valga 1, la
+   * cantidad son bolsas.
+   */
+  isBase: boolean;
 }
 
 /**
@@ -301,6 +308,10 @@ export async function conDisponibilidad(
     ctx.tenantId,
     vendibles.map((p) => p.taxGroupId),
   );
+  const bases = await basePresentationIds(
+    ctx.tx,
+    vendibles.map((p) => p.id),
+  );
 
   return (
     vendibles
@@ -325,6 +336,7 @@ export async function conDisponibilidad(
             barcode: pr.barcode,
             isDefaultSale: pr.isDefaultSale,
             allowFractionalInput: pr.allowFractionalInput,
+            isBase: bases.has(pr.id),
           })),
           matchedPresentationId: presentacionPorProducto.get(p.id) ?? null,
         };

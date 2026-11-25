@@ -20,6 +20,29 @@ export interface ProductListItem {
    * trae la búsqueda, no el detalle.
    */
   matchedPresentation?: { id: string; name: string } | null;
+  /**
+   * F10-BULK-07: todas las presentaciones del producto, de la menor a la
+   * mayor y con su `isActive`; el buscador de Entradas, Salidas y Traspasos
+   * ofrece las activas como botones. Opcional: durante un deploy, un API
+   * anterior no las manda.
+   */
+  presentations?: ListedPresentation[];
+}
+
+/** Una presentación tal como la trae cada resultado de `GET /products`. */
+export interface ListedPresentation {
+  id: string;
+  name: string;
+  /** Decimal en texto, como toda cantidad del API. */
+  factor: string;
+  isActive: boolean;
+  /**
+   * F10-BULK — la presentación BASE del producto: la de factor 1 que nació
+   * con él. Solo ahí la cantidad lleva el botón «kg | g»; «Bolsa 1 Kg» también
+   * vale 1, pero ahí la cantidad son bolsas. Opcional: un API anterior no lo
+   * manda, y sin él no hay botón.
+   */
+  isBase?: boolean;
 }
 
 export interface Presentation {
@@ -37,9 +60,17 @@ export interface Presentation {
   price: string | null;
   cost: string | null;
   isActive: boolean;
+  /**
+   * F10-BULK — la presentación BASE del producto: la de factor 1 que nació
+   * con él. Solo ahí la cantidad lleva el botón «kg | g»; «Bolsa 1 Kg» también
+   * vale 1, pero ahí la cantidad son bolsas. Opcional: un API anterior no lo
+   * manda, y sin él no hay botón.
+   */
+  isBase?: boolean;
 }
 
-export interface ProductDetail extends Omit<ProductListItem, "price" | "matchedPresentation"> {
+export interface ProductDetail
+  extends Omit<ProductListItem, "price" | "matchedPresentation" | "presentations"> {
   stockMin: string;
   location: string | null;
   presentations: Presentation[];
