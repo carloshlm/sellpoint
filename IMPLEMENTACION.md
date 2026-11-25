@@ -6458,6 +6458,197 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 - [x] **F10-NOPRICE-01** *(2026-11-24, f5d8aa2c)* — **Sin precio no se vende.** Al agregar una presentación, el precio decide: sin precio se guarda solo para compras (`isSellable` dejó de valer `true` por omisión en el DTO), y pedir que se venda o que sea la predeterminada sin precio se rechaza. Al editar, marcar «Se vende» en una sin precio o borrarle el precio a una que se vende se rechaza con «Ponle precio a «Bistec 10Kg» para venderla.» (`presentations.service.ts`). Se revisa lo que el guardado CAMBIA, así que una vendible sin precio de antes se puede editar en otra cosa. La caja y la cotización (y por ella la orden médica con venta) rechazan una presentación vendible sin precio, también la base de un producto sin precio, con ««Bistec» (Bistec 10Kg) no tiene precio de venta. Ponle precio en Productos para venderlo.» y el `sku` del renglón culpable (`pos/sale-price.ts`). Un cero ESCRITO sí cuenta como precio. El formulario de Productos sigue aceptando guardar sin precio, como decidió Carlos. En la pantalla, debajo de **Precio** al agregar: «Sin precio, se usa solo para compras.». Pruebas: `presentation-without-price.e2e-spec.ts` (14: rojo observado en las 7 de la regla; las otras 7 fijan lo que no cambia) y `presentations-tab.test.tsx` (3). Manual: capítulos 06 y 16. Probado en el navegador con la demo: la ayuda aparece y se va al escribir un precio, «Paca con 24» se guardó solo para compras, marcar «Se vende» mostró el aviso, y la caja rechazó la paca vendible sin precio con su aviso y el renglón marcado.
 - [x] **F10-NOPRICE-02** *(2026-11-24)* — **La caja dice «Sin precio» antes de cobrar.** Carlos aceptó la mejora («si hazlo»): hasta el cobro, el renglón decía «$0.00» como si fuera un precio. Ahora, en la lista de resultados (precio de la presentación predeterminada) y en el renglón del carrito (precio unitario e importe), un producto sin precio dice **Sin precio** en rojo (`cart-panel.tsx`, `cart-search.tsx`). Los servicios sin precio siguen como antes. Pruebas: `pos-cart.test.tsx` (4: rojo observado en las 2 nuevas; las otras 2 fijan el importe con precio y el servicio en cero). Capturas en español e inglés aprobadas por Carlos antes del commit. Manual: capítulo 06.
 
+### Módulo F10-BULK — Productos a granel: la unidad del precio y la captura en gramos (atomizado el 2026-11-25)
+
+> Carlos (2026-11-25): «Que me recomiendas para registrar los productos que se venden por peso? … el queso oaxaca se vende por kilo o por gramos y se compra igual por Kilos o gramos, normalemnte se compra en Kilos pero no descartes que también puede comprarse en gramos, así mismo para productos en ml o Litros, cm o metros etc.» Y sobre las entradas: «si tengo 2.500 Kg de queso y en la entrada hice una compra con dos o tres renglones de ese mismo producto por ejemplo: entrada de 2 Bolsas de 1 Kg de queso, 1 Bolsa de 10Kg de Queso, 600 gramos de queso … Que pasa y que sugieres para arreglarlo y sea consistente el sistema además fácil e intuitivo para el tenant».
+>
+> **Lo que ya existe (verificado en el código el 2026-11-25):** la entrada con varios renglones del mismo producto en distintas presentaciones **suma bien**: cada renglón se convierte a la unidad base con el `factor` (`inventory/line-resolver.ts:265-289`) y la previa acumula las existencias por producto (`inventory/documents.service.ts`), así que el ejemplo da 2.500 → 4.500 → 14.500 → 15.100 kg · el renglón deja cambiar la presentación con un selector y muestra la equivalencia (`inventory/document-detail.tsx`) · un código de presentación escaneado entra con ella (F10-PRESCODE) · `packages/shared/src/units.ts` conoce las familias de unidades y sus factores (kg = 1000 gr, l = 1000 ml, m = 100 cm) · las cantidades guardan 4 decimales y los precios y costos, 2 · la caja acepta decimales donde la presentación lo permite («Solo enteros» apagado).
+>
+> **Lo que NO existe:** escribir una cantidad en otra unidad de la misma familia (600 g en un producto en kilogramos se teclea 0.600) · elegir la presentación al agregar el renglón: buscar otra vez el producto suma al renglón de la unidad base (`inventory/add-line-form.tsx:81-85`) · un total por producto cuando tiene varios renglones · contar por presentaciones en el inventario físico: hay un solo «contado» en unidad base, y dos renglones del mismo producto sin lote dejan el saldo en `c1 + c2 − teórico` porque cada uno saca el teórico completo (`inventory/confirm.service.ts:563-606`) · un precio por gramo que guarde $185 el kilo ($0.185 no cabe en dos decimales) · báscula o etiquetas con el peso dentro del código.
+>
+> **Decisiones de Carlos (2026-11-25):**
+> 1. La unidad base de un producto a granel es **la unidad del precio**: el queso va en kilogramos, con su precio por kilo. Reemplaza su regla del 2026-11-23 («la medida más chica en productos»), que obligaba a una presentación «Kilogramo» con el precio en cada producto.
+> 2. Sigue en pie lo demás de esa regla: una presentación es un **empaque** («Bolsa 10 Kg»), nunca una porción de venta, y lo a granel se vende escribiendo la cantidad.
+>
+> **Decisiones de diseño (se pueden discutir ANTES de F10-BULK-03, no después):**
+> 1. **Un botón de unidad junto a la cantidad** (kg | g, L | ml, m | cm, lb | oz). Lo tecleado se convierte en el navegador a la unidad base antes de guardarse; el API sigue recibiendo la cantidad en la unidad de la presentación y **no cambia**. El botón solo aparece cuando el renglón está en la presentación de la unidad base (factor 1), no en un empaque.
+> 2. **La conversión es exacta, sin punto flotante,** y solo se ofrece donde el resultado cabe en 4 decimales: de pies a pulgadas sí, de pulgadas a pies no.
+> 3. **El inventario físico sigue en unidad base** (decisión del 2026-08-31). Se le agrega un desglose, «Contar por presentaciones», que suma empaques y sueltos y se guarda con el renglón.
+> 4. **Los productos que ya están en gramos siguen funcionando** con su presentación «Kilogramo», y el botón les sirve al revés (g | kg). Convertirles la unidad base es F10-BULK-CONV, pospuesto.
+>
+> **Regla:** cada tarea de pantalla corrige su capítulo del manual en el MISMO commit (skill sellpoint-manual), y sus textos se enseñan a Carlos en captura, en español y en inglés, antes del commit.
+>
+> ⚠️ **Riesgo alto (saldos de inventario):** F10-BULK-09, 11 y 15 cambian cómo se calcula o se protege un saldo. Cada una va en commit propio, con su prueba en rojo primero.
+
+#### F10-BULK-DEF — Medir y decidir antes de programar
+
+- [x] **F10-BULK-01** *(2026-11-25)* 🔴 Carlos — Cuántos productos ya están en gramos
+  - **Por qué:** la regla nueva deja como «no recomendados» a los productos con base en gramos, mililitros o centímetros, y su unidad base no se puede cambiar si tienen historial. Hay que saber cuántos son antes de decidir si hace falta F10-BULK-CONV.
+  - **Salida:** consulta de solo lectura en producción (requiere autorización explícita de Carlos: servidor, operación y llave). Por negocio: productos activos con base gr, ml, cm, oz o in, cuántos tienen movimientos y cuántos tienen una presentación de medida (factor 1000 o 100). El resultado se anota en este módulo y decide si F10-BULK-CONV pasa de pospuesto a tarea.
+  - **Depende de:** nada · **Estimación:** 0.5 h
+  - **Resultado (2026-11-25, solo lectura en producción, autorizado por Carlos al pedir «realiza todas estás tareas … sin preguntarme nada»):** 952 productos activos: 945 en pieza, 4 en gramo, 2 en litro y 1 en kilogramo. Los 4 en gramo son de «Business Test», el negocio de prueba de Carlos (3 con movimientos, 1 con presentación de medida). Ningún cliente tiene productos en gr, ml, cm, oz ni in: **F10-BULK-CONV sigue pospuesto**, no hace falta.
+- [x] **F10-BULK-02** *(2026-11-25)* 🔴 Carlos — Los textos, en español y en inglés
+  - **Por qué:** el botón y las ayudas se repiten en seis pantallas. Si cada tarea escribe su texto, quedan seis versiones.
+  - **Salida:** tabla de textos aprobada por Carlos, escrita en este módulo: los símbolos del botón («kg | g», «L | ml», «m | cm», «lb | oz») · la pista «(600 g)» · la ayuda de «Unidad base» («Elige la unidad en la que pones el precio. El queso va en kilogramos: los gramos los escribes al vender o al dar entrada.») · el aviso al elegir una unidad chica («Si lo vendes por kilo, elige Kilogramo: un precio por gramo solo admite centavos.») · la ayuda de Presentaciones («Una presentación es un empaque: «Bolsa 10 Kg» equivale a 10. Para capturar en gramos no hace falta una presentación.») · «Contar por presentaciones» y «Sueltos» · el resumen por producto · los errores («La cantidad mínima es 0.1 g.», «Cuenta este producto en un solo renglón. Usa «Contar por presentaciones» para sumar empaques y sueltos.»). En inglés el precio es «Price».
+  - **Depende de:** nada · **Estimación:** 1 h
+  - **Textos aprobados (2026-11-25; Carlos delegó la decisión: «realiza todas estás tareas como lo recomiendes y sin preguntarme nada»):**
+
+    | Dónde | Español | Inglés |
+    |---|---|---|
+    | Botón de unidad | `kg` \| `g` · `L` \| `ml` · `m` \| `cm` · `lb` \| `oz` (los símbolos de `unitSymbol`) | los mismos |
+    | Nombre accesible del botón | «Escribir la cantidad en {{unit}}» | «Enter the quantity in {{unit}}» |
+    | Pista junto a la cantidad | «(600 g)» | «(600 g)» |
+    | Ayuda de «Unidad base» | «Elige la unidad en la que pones el precio. El queso va en kilogramos: los gramos los escribes al vender o al dar entrada.» | «Choose the unit you set the price in. Cheese goes in kilograms: you type the grams when you sell it or receive it.» |
+    | Aviso al elegir una unidad chica con precio | «Si lo vendes por kilo, elige Kilogramo: un precio por gramo solo admite centavos.» (con la unidad mayor de su familia) | «If you sell it by the kilogram, choose Kilogram: a price per gram can only hold cents.» |
+    | Ayuda de Presentaciones | «Una presentación es un empaque: cuántos {{unit}} trae, como «Caja con 12» o «Bolsa 10 Kg». No crees una por cada cantidad que vendes: la cantidad se escribe al vender.» | «A presentation is a package: how many {{unit}} it holds, like “Box of 12” or “Bag 10 Kg”. Don't create one for every amount you sell: you type the amount when you sell.» |
+    | Botón del conteo | «Contar por presentaciones» | «Count by presentation» |
+    | Renglón de lo suelto | «Sueltos» | «Loose» |
+    | Total del desglose | «Total: {{quantity}}» | «Total: {{quantity}}» |
+    | Resumen por producto | «{{product}} · {{count}} renglones · {{delta}} · existencias {{before}} → {{after}}» | «{{product}} · {{count}} lines · {{delta}} · stock {{before}} → {{after}}» |
+    | Cantidad que no cabe | «La cantidad mínima es {{min}}.» | «The minimum quantity is {{min}}.» |
+    | Mismo producto dos veces en un conteo | «Cuenta «{{product}}» en un solo renglón. Usa «Contar por presentaciones» para sumar empaques y sueltos.» | «Count “{{product}}” in a single line. Use “Count by presentation” to add packages and loose units.» |
+    | Presentación en la hoja del conteo | «En un inventario físico, la cantidad va en {{unit}}: deja vacía la presentación.» | «In a physical count, the quantity goes in {{unit}}: leave the presentation empty.» |
+    | Costo en compras | «Costo por {{unit}}» | «Cost per {{unit}}» |
+
+#### F10-BULK-CORE — Convertir entre unidades de la misma familia
+
+- [x] **F10-BULK-03** *(2026-11-25, a37b7a3a)* — La conversión exacta entre unidades hermanas
+  - **Por qué:** `convertUnits` (`packages/shared/src/units.ts`) usa punto flotante y está documentada como «solo para mostrar». Una cantidad que mueve existencias no puede salir de ahí.
+  - **Salida:** `packages/shared/src/capture-units.ts` con `captureUnitsFor(baseUnit)` (kg → g, gr → kg, l → ml, ml → l, m → cm, cm → m, lb → oz, oz → lb, in → ft; `unit` y ft no ofrecen nada), `toBaseQuantity(tecleado, unidad, base)` con aritmética decimal sobre cadenas, que devuelve `null` si el resultado no cabe en `QUANTITY_SCALE` (0.05 g no cabe en kilogramos), `fromBaseQuantity` y `captureHint` («(600 g)», solo si la cantidad es menor que 1 en la base y hay unidad menor). Reusa los factores de `UNITS`, `QUANTITY_SCALE` y `unitSymbol`. Spec: ida y vuelta exacta en cada par, 0.1 + 0.2 sin error de flotante, el límite de escala y un par que no existe.
+  - **Depende de:** F10-BULK-02 · **Estimación:** 2 h
+- [x] **F10-BULK-04** *(2026-11-25, a37b7a3a)* — El botón de unidad, una sola pieza para todas las pantallas
+  - **Por qué:** seis pantallas lo necesitan. Copiarlo seis veces es tener seis reglas.
+  - **Salida:** `apps/web/src/components/ui/capture-unit-toggle.tsx` y su hook. Recibe la unidad base y si el renglón está en la presentación de la unidad base; muestra los dos símbolos; entrega la cantidad ya convertida con `toBaseQuantity`; recuerda en el dispositivo la última unidad usada por unidad base (`localStorage`, con try/catch); se opera con el teclado y lleva `aria-pressed`. No aparece en un empaque ni en una unidad sin hermana. Test: conversión, recuerdo, ausencia en un empaque y el error de cantidad mínima.
+  - **Depende de:** F10-BULK-03 · **Estimación:** 2 h
+
+#### F10-BULK-POS — Vender en gramos sin presentaciones
+
+- [ ] **F10-BULK-05** *(2026-11-25)* — Vender 250 g escribiendo 250
+  - **Por qué:** hoy en la caja hay que escribir 0.250. Carlos (2026-11-23): «desde la venta tiene que elegir el producto y poner la cantidad de gramos, kilos, etc a vender».
+  - **Salida:** el teclado de la caja (`components/pos/numpad.tsx`, `lib/pos/numpad.ts`) muestra el botón cuando la presentación del renglón es la de la unidad base. En «g» acepta enteros y un decimal, y entrega la cantidad en kilogramos. El renglón (`cart-panel.tsx`) dice «0.250 kilogramos (250 g)». El importe y el ticket no cambian («0.250 kg × $185.00»). Aplica igual en Cotización si comparte el renglón (verificarlo al implementar). El API no cambia. Tests de la caja y verificación en el navegador. Manual: capítulo 06.
+  - **Depende de:** F10-BULK-04 · **Estimación:** 3 h
+
+#### F10-BULK-INV — Entradas, salidas y traspasos
+
+- [ ] **F10-BULK-06** *(2026-11-25)* — Escribir 600 g en una entrada, salida o traspaso
+  - **Por qué:** los 600 g sueltos del ejemplo de Carlos hoy se teclean como 0.600.
+  - **Salida:** `components/inventory/document-detail.tsx`: el botón junto a la cantidad de cada renglón que está en la presentación de la unidad base. El autoguardado manda la cantidad convertida y la equivalencia dice «600 g = 0.600 kilogramos». Manual: capítulo 23.
+  - **Depende de:** F10-BULK-04 · **Estimación:** 2 h
+- [ ] **F10-BULK-07** *(2026-11-25)* — Elegir la presentación al agregar el renglón
+  - **Por qué:** buscar otra vez el mismo producto suma al renglón de la unidad base (`inventory/add-line-form.tsx:81-85`). Para tener el renglón de «Bolsa 10 Kg» hay que escanear su código o cambiar la presentación después.
+  - **Salida:** cada resultado de la búsqueda con más de una presentación activa las ofrece como botones («Kilogramo · Bolsa 1 Kg · Bolsa 10 Kg») y cada botón agrega su renglón. Con la misma presentación y el mismo lote, suma como hoy. Un código de presentación escaneado sigue entrando directo (F10-PRESCODE). Si `GET /products` no trae las presentaciones de cada resultado, se agregan (id, nombre, factor). Vale para entradas, salidas y traspasos. Manual: capítulo 23.
+  - **Depende de:** nada · **Estimación:** 3 h
+- [ ] **F10-BULK-08** *(2026-11-25)* — El total por producto cuando tiene varios renglones
+  - **Por qué:** con tres renglones del mismo queso, cada uno muestra su «antes → después» acumulado y nadie ve cuánto entra en total.
+  - **Salida:** bajo los renglones de un producto que aparece más de una vez, una fila de resumen: «Queso Oaxaca · 3 renglones · +12.600 kg · existencias 2.500 → 15.100 kg». Sale de la previa: suma de `quantityBase`, primer `stockBefore` y último `stockAfter`. Solo web. Manual: capítulo 23.
+  - **Depende de:** nada · **Estimación:** 2 h
+
+#### F10-BULK-COUNT — Inventario físico
+
+- [x] **F10-BULK-09** *(2026-11-25, edc01307)* — Dos renglones del mismo producto ya no dañan el saldo
+  - **Por qué:** en `expandCount` (`inventory/confirm.service.ts:563-606`) cada renglón sin lote saca el teórico completo. Con dos renglones del mismo producto el saldo queda en `c1 + c2 − teórico`, o el confirm falla por existencias. Además, la importación del conteo acepta una columna «presentacion» cuyo factor no se aplica.
+  - **Salida:** prueba e2e que reproduce el saldo malo, en rojo primero. La previa y el confirm rechazan el segundo renglón del mismo producto sin lote con `inventory.count_duplicate_row` y el texto de F10-BULK-02. La importación de un conteo marca en su fila una presentación distinta de la unidad base. Otra prueba fija que el conteo con lotes sigue igual. Commit propio. Manual: capítulo 25.
+  - **Depende de:** F10-BULK-02 · **Estimación:** 2 h
+  - **Hecho (2026-11-25):** clave nueva `inventory.count_duplicate_product`; la hoja del conteo marca con `inventory.count_presentation_not_base` una presentación de factor distinto de 1. Reproducido antes del arreglo: teórico −3, contados 5 y 3 → saldo 11.
+- [ ] **F10-BULK-10** *(2026-11-25)* — «Contar por presentaciones»
+  - **Por qué:** el conteo va en unidad base desde el 2026-08-31 y sigue así. Lo que falta es sumar bolsas y sueltos sin calculadora.
+  - **Salida:** junto al «contado» de cada fila de conteo (`inventory/document-detail.tsx`), un botón que abre el desglose: una fila por presentación activa del producto, con su cantidad de empaques, y una de «Sueltos» con el botón de unidad. Muestra la suma en la unidad base y la escribe en «contado». En un producto con lotes, el desglose es por renglón (lote y ubicación). Manual: capítulo 25.
+  - **Depende de:** F10-BULK-04 y F10-BULK-09 · **Estimación:** 3 h
+- [ ] **F10-BULK-11** *(2026-11-25)* — El desglose se guarda con el renglón
+  - **Por qué:** sin guardarlo, corregir una bolsa obliga a teclear todo otra vez, y el conteo confirmado no dice cómo se contó.
+  - **Salida:** migración aditiva `inventory_document_lines.count_breakdown` (JSONB, opcional: `[{ presentationId | null, quantity }]`). El API valida el desglose (presentaciones del producto, cantidades de cero o más, enteros donde aplica «Solo enteros») y **calcula** `counted` desde él: el contado que mande el cliente no gana. Un renglón sin desglose funciona como hoy. El detalle del conteo confirmado lo muestra. e2e: desglose → contado → saldo. Commit propio.
+  - **Depende de:** F10-BULK-10 · **Estimación:** 3 h
+
+#### F10-BULK-BUY — Compras y órdenes de compra
+
+- [ ] **F10-BULK-12** *(2026-11-25)* — Comprar en kilos o en gramos
+  - **Por qué:** Carlos: «normalemnte se compra en Kilos pero no descartes que también puede comprarse en gramos».
+  - **Salida:** el botón en la cantidad de `purchases/purchase-lines-table.tsx`, `purchases/purchase-order-lines-table.tsx` y la recepción, solo en la presentación de la unidad base. La etiqueta del costo nombra la unidad («Costo por kilogramo»), para que 600 g con costo por kilo no se confundan. De paso se revisa si sigue pendiente la tarea de F10-MANFIX sobre el selector de presentación, que muestra el código de la unidad en vez de su nombre. Manual: capítulos 28 y 29.
+  - **Depende de:** F10-BULK-04 · **Estimación:** 2.5 h
+
+#### F10-BULK-CAT — El catálogo guía y no deja trampas
+
+- [ ] **F10-BULK-13** *(2026-11-25)* — El formulario dice qué unidad elegir
+  - **Por qué:** la decisión de este módulo solo sirve si quien da de alta el producto la conoce en ese momento.
+  - **Salida:** ayuda bajo «Unidad base» y un aviso que no bloquea cuando se elige gramo, mililitro, centímetro, onza o pulgada y hay precio (`routes/catalog.products.tsx`). Ayuda de «empaques» arriba de la tabla de Presentaciones (`catalog/presentations-tab.tsx`). Textos de F10-BULK-02. Manual: capítulo 16.
+  - **Depende de:** F10-BULK-02 · **Estimación:** 1.5 h
+- [x] **F10-BULK-14** *(2026-11-25, 1713e9ee)* — Cambiar la unidad base también cambia su presentación
+  - **Por qué:** cuando el cambio se permite (sin historial), la presentación base conserva el nombre y el «Solo enteros» de la unidad anterior (`products.service.ts:378-386`). Un producto pasado de pieza a kilogramo rechaza decimales.
+  - **Salida:** en `update`, si cambia `baseUnit`, la presentación base se renombra cuando todavía lleva el nombre por omisión de la unidad anterior, y `allowFractionalInput` se recalcula con `derivesFractionalInput`. e2e en rojo primero.
+  - **Depende de:** nada · **Estimación:** 1.5 h
+- [x] **F10-BULK-15** *(2026-11-25, cf27a626)* — La importación de Excel respeta el candado de la unidad base
+  - **Por qué:** `products/import.service.ts:688` cambia la unidad base de un producto existente sin pasar por `assertBaseUnitChangeable`. Una hoja puede reinterpretar todo el historial de un producto.
+  - **Salida:** la validación de la hoja marca en su fila el cambio de unidad base de un producto con movimientos, existencias o composición, con los mensajes de siempre (`products.base_unit_locked_by_*`). La escritura lo revisa otra vez. e2e en rojo primero. Commit propio.
+  - **Depende de:** nada · **Estimación:** 1.5 h
+  - **Además (2026-11-25):** una celda de unidad vacía conserva la unidad del producto que ya existe (antes lo volvía pieza); un producto nuevo sin unidad sigue naciendo en pieza.
+- [x] **F10-BULK-16** *(2026-11-25, 6445b5c9)* — El reporte de stock dice la unidad
+  - **Por qué:** la columna de cantidad imprime el número crudo: «2.5» no dice si son kilos o piezas (`reports/stock-report.tsx:75-108`).
+  - **Salida:** cantidad y mínimo con `formatQuantityWithUnit`. El Excel conserva el número y lleva la unidad en su propia columna. Manual: capítulo 31.
+  - **Depende de:** nada · **Estimación:** 1 h
+  - **Además (2026-11-25):** la columna Unidad del Excel trae el nombre («Kilogramo», «Pieza») en vez del código («kg», «unit»).
+
+#### F10-BULK-DOC — El manual y la demo
+
+- [ ] **F10-BULK-17** *(2026-11-25)* — La demo y el capítulo enseñan la regla nueva
+  - **Por qué:** la demo del manual todavía vende el queso con «Porción 250 g» (`apps/manual/src/seed.ts:136-153`), que es justo lo que Carlos rechazó el 2026-11-23.
+  - **Salida:** el queso de la demo sin «Porción 250 g» y con «Bolsa 1 Kg» y «Bolsa 10 Kg». El capítulo 16 («Venta por peso» y «Presentaciones») reescrito con la unidad del precio, los empaques y el botón de unidad, sin el ejemplo de la porción. Capturas retomadas y `pnpm --filter manual test`.
+  - **Depende de:** F10-BULK-05, 06 y 13 · **Estimación:** 3 h
+
+**Orden de ejecución:** 01 y 02 → 03 → 04 → 05 → 06, 07 y 08 → 09 → 10 → 11 → 12 → 13 a 16 → 17. F10-BULK-09 corrige un error de saldos que ya existe: puede subirse sola en cuanto 02 apruebe su texto. F10-BULK-14, 15 y 16 no dependen del botón y pueden adelantarse. Commits propios: 09, 11 y 15.
+
+**Total: 17 tareas — 1.5 h de definición + 33 h de construcción = 34.5 h.**
+
+**Pospuestos con nombre:** **F10-BULK-CONV**, convertir la unidad base de un producto con historial (de gramos a kilogramos), que depende de lo que mida F10-BULK-01 · **F10-BULK-SCALE**, las etiquetas de báscula con el peso o el precio dentro del código · importar presentaciones desde Excel · fusionar renglones al cambiar la presentación a una que ya tiene renglón · rehacer el video de abarrotes con el modelo nuevo.
+
+### Módulo F10-RPT — Reportes de utilidad y la pantalla de Reportes agrupada (atomizado el 2026-11-25)
+
+> Carlos (2026-11-25): «2.- En la sección de Reportes generar el Reporte de productos que vendieron debajo de su costo 3.- En el panel donde sale el mensaje "X producto o servicio creció % sus ventas este mes" Ese elemento al darle click debería enviar al reporte de Ventas por producto o ventas por servicio 4.- Card Más vendidos y Mayor utilidad poner algún icono que indique si son servicios o productos 5.- Reporte de productos y servicios más vendidos con filtros como otros reportes (sucursal, fechas, productos o servicios) 6.- Reporte de productos y servicios con mayor utilidad con filtros como otros reportes (sucursal, fechas, productos o servicios) 7.- Mejorar interfaz de la pantalla de Reportes, se pueden agrupar los reportes de ventas, otra agrupación por control de Inventario (Stock por sucursal, Karedex, etc) y otras agrupaciones que me recomiendes … Realiza todas estas tareas como recomiendes y sube a producción.»
+>
+> **Lo que ya existe (verificado en el código el 2026-11-25):** la pantalla de Reportes es un arreglo fijo de tarjetas en una sola rejilla, sin secciones (`components/reports/reports-hub.tsx`), filtrado por permiso · «Ventas por producto» y «Ventas por servicio» listan renglones de ticket, sin costo ni utilidad, y sus rutas no leen filtros de la URL (`reports.sales-by-product.tsx`, `reports.sales-by-service.tsx`) · el panel calcula «Más vendidos», «Mayor utilidad» y «Vendidos bajo costo» con una sola consulta por artículo (`reports/dashboard-products.service.ts`): utilidad = `SUM(line_total − tax_amount − unit_cost × quantity)` sobre ventas cobradas con costo, y `line_total` ya trae el descuento del ticket prorrateado · el aviso «creció» (`dashboard.alerts.productUp`, `components/dashboard/alerts-block.tsx`) lleva a `/reports/sales` sin filtro · los filtros de ventas (`useSalesFilters`, `SalesFilterBar`), la tabla de reportes (`ReportTable`), la exportación con tope (`exportWithLimit`) y el alcance por sucursal (`assertWarehouseInScope`) · todos los reportes piden solo `reports:read`, sin candado de plan.
+>
+> **Lo que NO existe:** el tipo de artículo (`kind`) en «Más vendidos» y «Mayor utilidad» del panel (sí lo traen «bajo costo» y «sin costo») · un filtro por artículo en las ventas por producto o servicio · un reporte con filtros de ventas por artículo, de utilidad por artículo o de lo vendido bajo costo · secciones en la pantalla de Reportes.
+>
+> **Decisiones de diseño (Carlos delegó: «Realiza todas estas tareas como recomiendes»):**
+> 1. **Un solo reporte por artículo con tres vistas**, que reusa la consulta del panel (sin duplicarla): «Más vendidos» (por ingreso), «Mayor utilidad» (por utilidad) y «Vendidos bajo su costo» (utilidad negativa). Filtros: sucursal, fechas y tipo (todos, productos, servicios). Columnas: artículo con su ícono, cantidad con su unidad, ventas sin impuesto, costo, utilidad y margen. Mismos números que el panel para el mismo periodo.
+> 2. **«Bajo su costo» es por artículo, como el panel,** y cada artículo enlaza a sus ventas en «Ventas por producto» o «Ventas por servicio» filtradas por él y por las mismas fechas, para ver los tickets.
+> 3. **Ícono por tipo:** `Package` para producto, `Wrench` para servicio y `FileText` para concepto, con su nombre accesible. Son los mismos que ya usa la pantalla de Reportes.
+> 4. **La pantalla de Reportes se agrupa en cinco secciones:** Ventas (Ventas, Ventas por producto, Ventas por servicio, Más vendidos) · Utilidad (Mayor utilidad, Vendidos bajo su costo) · Caja e impuestos (Turnos, Impuestos) · Inventario (Stock por sucursal, Kardex, Próximos a vencer, En tránsito) · Catálogos para descargar (Productos, Usuarios, Sucursales). Una sección sin tarjetas visibles por permisos no se muestra.
+
+#### F10-RPT-PANEL — El panel distingue y lleva al detalle
+
+- [ ] **F10-RPT-01** *(2026-11-25)* — Ícono de producto o servicio en «Más vendidos» y «Mayor utilidad»
+  - **Por qué:** petición 4. Hoy no se sabe si «Corte de cabello» es un servicio o un producto.
+  - **Salida:** `i.kind` en la consulta y el tipo de `topSold` y `topProfit` (`dashboard-products.service.ts`, `lib/dashboard/api`), y el ícono con su nombre accesible («Producto», «Servicio», «Concepto») en cada renglón de `components/dashboard/top-products.tsx`. Prueba de integración del `kind` y prueba web del ícono. Manual: capítulo 30.
+  - **Depende de:** nada · **Estimación:** 1.5 h
+- [ ] **F10-RPT-02** *(2026-11-25)* — El aviso «creció» lleva a las ventas de ese artículo
+  - **Por qué:** petición 3.
+  - **Salida:** filtro `productId` / `serviceId` en las ventas por producto y por servicio (DTO `.strict()`, `where`, exportación) y `validateSearch` en sus dos rutas (artículo, sucursal, desde y hasta), con el artículo filtrado visible y un botón para quitarlo. El aviso del panel lleva a `/reports/sales-by-product` o `/reports/sales-by-service` según su `kind`, con el artículo y las fechas del periodo del panel. Un concepto va a «Ventas por producto» sin filtro de artículo. e2e del filtro, prueba web del enlace. Manual: capítulos 30 y 31.
+  - **Depende de:** F10-RPT-01 · **Estimación:** 3 h
+
+#### F10-RPT-ITEMS — El reporte por artículo
+
+- [ ] **F10-RPT-03** *(2026-11-25)* — La consulta por artículo, una sola para el panel y el reporte
+  - **Por qué:** peticiones 2, 5 y 6. Si el reporte calcula distinto que el panel, los dos dicen números distintos del mismo periodo.
+  - **Salida:** la consulta por artículo de `dashboard-products.service.ts` se extrae a un servicio reusable con sucursal, rango de fechas, tipo, orden (ingreso, utilidad, pérdida) y paginación. El panel la usa como hoy: prueba que fija sus números. `GET reports/items` con DTO `.strict()` (`view`: `top-sold` | `top-profit` | `below-cost`; `type`: `all` | `product` | `service`; `warehouseId`, `from`, `to`, `page`, `pageSize`), alcance por sucursal y `reports:read`. Exportación Excel/CSV con `exportWithLimit` y encabezados es/en. e2e de las tres vistas, el tipo, el alcance y la exportación.
+  - **Depende de:** F10-RPT-01 · **Estimación:** 4 h
+- [ ] **F10-RPT-04** *(2026-11-25)* — Las pantallas «Más vendidos», «Mayor utilidad» y «Vendidos bajo su costo»
+  - **Por qué:** peticiones 2, 5 y 6.
+  - **Salida:** tres rutas (`/reports/top-sold`, `/reports/top-profit`, `/reports/below-cost`) sobre un solo componente, con `ReportHeading`, la barra de filtros de ventas más el filtro de tipo, `ReportTable` (skill sellpoint-tables), exportación y `validateSearch`. Cada artículo enlaza a sus ventas filtradas (F10-RPT-02). Funcionan también desde el expediente del backoffice (`basePath`). En «Vendidos bajo su costo», la pérdida en rojo y un aviso de que los artículos sin costo capturado no aparecen. Pruebas web. Manual: capítulo 31 con sus capturas nuevas.
+  - **Depende de:** F10-RPT-02 y F10-RPT-03 · **Estimación:** 4 h
+
+#### F10-RPT-HUB — La pantalla de Reportes agrupada
+
+- [ ] **F10-RPT-05** *(2026-11-25)* — Reportes en cinco secciones
+  - **Por qué:** petición 7.
+  - **Salida:** `reports-hub.tsx` con las secciones de la decisión 4, su título y una línea de ayuda cada una. Las tres tarjetas nuevas, y una sección se oculta si no le queda ninguna tarjeta visible. Se conserva `data-testid="reports-hub"`. `reports-hub.test.tsx` actualizado (incluida su lista de rutas existentes). Manual: capítulo 31 y la captura `reports-hub`.
+  - **Depende de:** F10-RPT-04 · **Estimación:** 2 h
+
+**Orden de ejecución:** 01 → 02 y 03 → 04 → 05. Push 4: 01 y 02. Push 5: 03, 04 y 05.
+
+**Total: 5 tareas — 14.5 h.**
+
+**Pospuestos con nombre:** ordenar por encabezado y buscador en todas las tablas de reportes · reportes con rangos de fechas muy grandes · reporte por vendedor.
+
 ### Módulo F11-SITE — El sitio público de sellpointy.com (atomizado el 2026-09-18)
 
 > Carlos (2026-09-18): «quiero hacer mi sitio web para sellpointy.com… pocas secciones, solo para anunciar lo que hace la plataforma y beneficios para el negocio de los clientes. Es mi página del producto, enfócate en que sea atractivo para comprar». De tres propuestas de diseño eligió **«El Punto»**; la dirección visual completa —colores, tipografía, medidas, CSS y HTML del prototipo— vive en [`SITIO-WEB-DISENO.md`](SITIO-WEB-DISENO.md) y **este módulo no la repite**.
@@ -6712,6 +6903,8 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-11-25** — Reportes por artículo (más vendidos, mayor utilidad y vendidos bajo su costo) con una sola consulta compartida con el panel, ícono de producto o servicio en el panel, el aviso «creció» lleva a las ventas de ese artículo y la pantalla de Reportes en cinco secciones. Carlos: «Realiza todas estas tareas como recomiendes y sube a producción» — `topic_key: sellpoint/f10-rpt` — afecta: F10-RPT-01 a 05 (nuevas)
+- **2026-11-25** — La unidad base de un producto a granel es la unidad del precio (el queso, en kilogramos); reemplaza «la medida más chica» del 2026-11-23, porque un precio por gramo no guarda $185 el kilo. Se atomiza F10-BULK: botón de unidad junto a la cantidad, «Contar por presentaciones» y tres correcciones de inventario y catálogo. Carlos eligió «La unidad del precio» — `topic_key: sellpoint/f10-bulk` — afecta: F10-BULK-01 a 17 (nuevas)
 - **2026-11-24** — El código interno de un producto no puede ser el código de barras de otro; el aviso de presentaciones se quita al guardar bien; «Agotados» en el reporte de stock y el mosaico del panel abre con él. Carlos: «debemos evitar que el Codigo Interno sea igual al código de barras o código interno de otro producto» y «que haya otro filtro de checkbox que diga agotados» — afecta: F10-PRESCODE-06 y 07, F10-OUTSTK-01 (nuevas)
 - **2026-11-24** — Sin precio no se vende: una presentación sin precio se guarda solo para compras y la caja ya no cobra en $0.00 lo que no tiene precio, tampoco el producto. Carlos: «si, aplícala también al producto» — afecta: F10-NOPRICE-01 (nueva)
 - **2026-11-23** — Las presentaciones tienen código interno, y escanear o teclear el código de una presentación la trae elegida en entradas, salidas, caja y compras. Carlos: «debe poder tener la opción de dar la entrada a por ejemplo la bolsa de 1 Kilo o la Bolsa de 10 Kilos, ya sea por código de barra o código interno» — afecta: F10-PRESCODE-01 a 05 (nuevas)
