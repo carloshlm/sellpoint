@@ -54,7 +54,7 @@ siguiente PROV-… .
 | `codigo_de_barras` | El código impreso en el empaque, solo dígitos (de 6 a 14). Opcional. Una clave con letras va en `sku`. |
 | `sku` | El código interno. **Obligatorio.** |
 | `nombre` | El nombre. **Obligatorio.** |
-| `unidad_base` | `unit` para pieza, `kg`, `gr`, `l`, `ml`… |
+| `unidad_base` | `unit` para pieza, `kg`, `gr`, `l`, `ml`… Vacía, un producto nuevo nace en pieza y uno que ya existe conserva la suya. En un producto que ya existe, no se cambia si tiene existencias, movimientos o forma parte de un producto compuesto: la fila marca el error. |
 | `costo` | Con o sin impuesto, según tu ajuste de impuestos: el diálogo te lo recuerda. |
 | `precio` | El precio de venta. |
 | `stock_minimo` | La cantidad para el aviso de «bajo mínimo». |

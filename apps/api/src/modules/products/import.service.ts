@@ -39,6 +39,12 @@ import {
 } from "./barcode-contribution.service";
 import { barcodeProblem, contributionOf } from "./barcode-rules";
 import {
+  basePresentationName,
+  baseUnitLocks,
+  derivesFractionalInput,
+  followBaseUnitChange,
+} from "./base-unit";
+import {
   codeOwnersIn,
   codeTakenArgs,
   codeTakenMessage,
@@ -48,7 +54,6 @@ import {
   takenInSameColumn,
 } from "./catalog-codes";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
-import { basePresentationName, derivesFractionalInput } from "./products.service";
 
 /** 5 MB de contenido REAL (ya decodificado, no en base64). */
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -142,6 +147,11 @@ interface ParsedRow {
   sku: string;
   name: string;
   baseUnit: string;
+  /**
+   * F10-BULK-15: `false` = la celda de unidad vino vacía. En un producto que
+   * ya existe eso es «sin cambio», como en el precio y la ubicación.
+   */
+  baseUnitGiven: boolean;
   stockMin: number;
   price: number | null;
   cost: number | null;
@@ -388,7 +398,8 @@ export class ImportService {
       }
       seenSkus.add(sku);
 
-      const baseUnit = value("unidad_base") || "unit";
+      const unidadEscrita = value("unidad_base");
+      const baseUnit = unidadEscrita || "unit";
       if (!getUnit(baseUnit)) {
         errors.push(
           conCodigo({ row: rowNumber, field: "unidad_base", message: "products.unknown_unit" }),
@@ -491,6 +502,7 @@ export class ImportService {
         sku,
         name,
         baseUnit,
+        baseUnitGiven: unidadEscrita !== "",
         stockMin: Number(value("stock_minimo")) || 0,
         price: money.precio ?? null,
         cost: money.costo ?? null,
@@ -510,6 +522,7 @@ export class ImportService {
         select: {
           id: true,
           sku: true,
+          baseUnit: true,
           tracksLots: true,
           presentations: {
             where: { isDefaultSale: true },
@@ -523,10 +536,22 @@ export class ImportService {
     // El código que la presentación base ya tiene: volver a subir la planilla
     // de siempre no castiga un código de antes de la regla (2026-10-30).
     const baseBySku = new Map(existing.map((product) => [product.sku, product.presentations[0]]));
-    const conId: ParsedRow[] = parsed.map((item) => ({
-      ...item,
-      existingId: idBySku.get(item.sku) ?? null,
-    }));
+    const unidadBySku = new Map(existing.map((product) => [product.sku, product.baseUnit]));
+    const conId: ParsedRow[] = parsed.map((item) => {
+      const existingId = idBySku.get(item.sku) ?? null;
+      // F10-BULK-15: la celda vacía conserva la unidad del producto que ya
+      // existe. Antes lo volvía pieza: una hoja de solo precios convertía el
+      // queso en kilos a piezas (o, con historial, rebotaba por el candado).
+      const unidadActual = unidadBySku.get(item.sku);
+      return {
+        ...item,
+        existingId,
+        baseUnit:
+          !item.baseUnitGiven && existingId !== null && unidadActual !== undefined
+            ? unidadActual
+            : item.baseUnit,
+      };
+    });
 
     // F10-MANFIX-06 — encender el control por lote es de Plus, también por
     // planilla: la importación escribe con `tx.product` DIRECTO y no pasa por
@@ -572,6 +597,25 @@ export class ImportService {
     const duenosDeCodigos = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       codeOwnersIn(tx, user.tenantId, conId.flatMap(codigosQueSeEscriben)),
     );
+
+    // F10-BULK-15 — la planilla escribe `baseUnit` con `tx.product.update`
+    // DIRECTO, así que el candado de `ProductsService.update` tampoco la
+    // cubría: una hoja podía reinterpretar todo el historial de un producto.
+    // Misma regla que el formulario (`base-unit.ts`), por fila y solo para los
+    // productos existentes cuya unidad CAMBIA: volver a subir la de siempre
+    // no pide nada.
+    const unidadDeAntes = new Map(existing.map((product) => [product.id, product.baseUnit]));
+    const cambianDeUnidad = conId.flatMap((item) =>
+      item.existingId !== null && item.baseUnit !== unidadDeAntes.get(item.existingId)
+        ? [item.existingId]
+        : [],
+    );
+    const candadosDeUnidad =
+      cambianDeUnidad.length > 0
+        ? await this.prisma.withTenantContext(user.tenantId, (tx) =>
+            baseUnitLocks(tx, cambianDeUnidad),
+          )
+        : new Map<string, string>();
 
     const importable: ParsedRow[] = [];
     for (const item of conId) {
@@ -619,6 +663,11 @@ export class ImportService {
           ...(choque.args && { args: choque.args }),
           itemCode: item.sku,
         });
+        continue;
+      }
+      const candado = item.existingId === null ? undefined : candadosDeUnidad.get(item.existingId);
+      if (candado !== undefined) {
+        errors.push({ row: item.row, field: "unidad_base", message: candado, itemCode: item.sku });
         continue;
       }
       importable.push(item);
@@ -678,8 +727,40 @@ export class ImportService {
         }
       }
 
+      // F10-BULK-15: el candado de la unidad base se repite aquí, contra la
+      // unidad que cada producto tiene AHORA. Un movimiento, un saldo o una
+      // composición que llegó entre la revisión y esta escritura no deja colar
+      // el cambio: la importación entera rebota, como con los códigos.
+      const existentes = importable.flatMap((item) =>
+        item.existingId === null ? [] : [item.existingId],
+      );
+      const unidadAhora = new Map(
+        existentes.length === 0
+          ? []
+          : (
+              await tx.product.findMany({
+                where: { id: { in: existentes } },
+                select: { id: true, baseUnit: true },
+              })
+            ).map((product) => [product.id, product.baseUnit]),
+      );
+      const cambianAhora = importable.flatMap((item) => {
+        const anterior = item.existingId === null ? undefined : unidadAhora.get(item.existingId);
+        return anterior !== undefined && anterior !== item.baseUnit
+          ? [item.existingId as string]
+          : [];
+      });
+      const candadosAhora = await baseUnitLocks(tx, cambianAhora);
+      for (const id of cambianAhora) {
+        const candado = candadosAhora.get(id);
+        if (candado !== undefined) {
+          throw new ConflictException({ message: candado });
+        }
+      }
+
       for (const item of importable) {
         if (item.existingId) {
+          const unidadAnterior = unidadAhora.get(item.existingId);
           // El SKU no se toca: es la LLAVE por la que se reconoció la fila.
           await tx.product.update({
             where: { id: item.existingId },
@@ -696,6 +777,16 @@ export class ImportService {
               attributes: item.attributes as Prisma.InputJsonValue,
             },
           });
+
+          // F10-BULK-14: si la unidad cambió (sin historial), la presentación
+          // base la acompaña, con la misma regla que el formulario.
+          if (unidadAnterior !== undefined && unidadAnterior !== item.baseUnit) {
+            await followBaseUnitChange(tx, item.existingId, {
+              from: unidadAnterior,
+              to: item.baseUnit,
+              locale: options.locale,
+            });
+          }
 
           // Precio y costo viven en la presentación predeterminada: se
           // actualiza esa, no se crea otra (misma regla que el form).
