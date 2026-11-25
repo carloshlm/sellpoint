@@ -6458,7 +6458,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 - [x] **F10-NOPRICE-01** *(2026-11-24, f5d8aa2c)* — **Sin precio no se vende.** Al agregar una presentación, el precio decide: sin precio se guarda solo para compras (`isSellable` dejó de valer `true` por omisión en el DTO), y pedir que se venda o que sea la predeterminada sin precio se rechaza. Al editar, marcar «Se vende» en una sin precio o borrarle el precio a una que se vende se rechaza con «Ponle precio a «Bistec 10Kg» para venderla.» (`presentations.service.ts`). Se revisa lo que el guardado CAMBIA, así que una vendible sin precio de antes se puede editar en otra cosa. La caja y la cotización (y por ella la orden médica con venta) rechazan una presentación vendible sin precio, también la base de un producto sin precio, con ««Bistec» (Bistec 10Kg) no tiene precio de venta. Ponle precio en Productos para venderlo.» y el `sku` del renglón culpable (`pos/sale-price.ts`). Un cero ESCRITO sí cuenta como precio. El formulario de Productos sigue aceptando guardar sin precio, como decidió Carlos. En la pantalla, debajo de **Precio** al agregar: «Sin precio, se usa solo para compras.». Pruebas: `presentation-without-price.e2e-spec.ts` (14: rojo observado en las 7 de la regla; las otras 7 fijan lo que no cambia) y `presentations-tab.test.tsx` (3). Manual: capítulos 06 y 16. Probado en el navegador con la demo: la ayuda aparece y se va al escribir un precio, «Paca con 24» se guardó solo para compras, marcar «Se vende» mostró el aviso, y la caja rechazó la paca vendible sin precio con su aviso y el renglón marcado.
 - [x] **F10-NOPRICE-02** *(2026-11-24)* — **La caja dice «Sin precio» antes de cobrar.** Carlos aceptó la mejora («si hazlo»): hasta el cobro, el renglón decía «$0.00» como si fuera un precio. Ahora, en la lista de resultados (precio de la presentación predeterminada) y en el renglón del carrito (precio unitario e importe), un producto sin precio dice **Sin precio** en rojo (`cart-panel.tsx`, `cart-search.tsx`). Los servicios sin precio siguen como antes. Pruebas: `pos-cart.test.tsx` (4: rojo observado en las 2 nuevas; las otras 2 fijan el importe con precio y el servicio en cero). Capturas en español e inglés aprobadas por Carlos antes del commit. Manual: capítulo 06.
 
-### Módulo F10-BULK — Productos a granel: la unidad del precio y la captura en gramos (atomizado el 2026-11-25)
+### Módulo F10-BULK — Productos a granel: la unidad del precio y la captura en gramos (hecho el 2026-11-25)
 
 > Carlos (2026-11-25): «Que me recomiendas para registrar los productos que se venden por peso? … el queso oaxaca se vende por kilo o por gramos y se compra igual por Kilos o gramos, normalemnte se compra en Kilos pero no descartes que también puede comprarse en gramos, así mismo para productos en ml o Litros, cm o metros etc.» Y sobre las entradas: «si tengo 2.500 Kg de queso y en la entrada hice una compra con dos o tres renglones de ese mismo producto por ejemplo: entrada de 2 Bolsas de 1 Kg de queso, 1 Bolsa de 10Kg de Queso, 600 gramos de queso … Que pasa y que sugieres para arreglarlo y sea consistente el sistema además fácil e intuitivo para el tenant».
 >
@@ -6552,11 +6552,11 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Salida:** prueba e2e que reproduce el saldo malo, en rojo primero. La previa y el confirm rechazan el segundo renglón del mismo producto sin lote con `inventory.count_duplicate_row` y el texto de F10-BULK-02. La importación de un conteo marca en su fila una presentación distinta de la unidad base. Otra prueba fija que el conteo con lotes sigue igual. Commit propio. Manual: capítulo 25.
   - **Depende de:** F10-BULK-02 · **Estimación:** 2 h
   - **Hecho (2026-11-25):** clave nueva `inventory.count_duplicate_product`; la hoja del conteo marca con `inventory.count_presentation_not_base` una presentación de factor distinto de 1. Reproducido antes del arreglo: teórico −3, contados 5 y 3 → saldo 11.
-- [ ] **F10-BULK-10** *(2026-11-25)* — «Contar por presentaciones»
+- [x] **F10-BULK-10** *(2026-11-25, 9f715b87)* — «Contar por presentaciones»
   - **Por qué:** el conteo va en unidad base desde el 2026-08-31 y sigue así. Lo que falta es sumar bolsas y sueltos sin calculadora.
   - **Salida:** junto al «contado» de cada fila de conteo (`inventory/document-detail.tsx`), un botón que abre el desglose: una fila por presentación activa del producto, con su cantidad de empaques, y una de «Sueltos» con el botón de unidad. Muestra la suma en la unidad base y la escribe en «contado». En un producto con lotes, el desglose es por renglón (lote y ubicación). Manual: capítulo 25.
   - **Depende de:** F10-BULK-04 y F10-BULK-09 · **Estimación:** 3 h
-- [ ] **F10-BULK-11** *(2026-11-25)* — El desglose se guarda con el renglón
+- [x] **F10-BULK-11** *(2026-11-25, 35e1cc14)* — El desglose se guarda con el renglón
   - **Por qué:** sin guardarlo, corregir una bolsa obliga a teclear todo otra vez, y el conteo confirmado no dice cómo se contó.
   - **Salida:** migración aditiva `inventory_document_lines.count_breakdown` (JSONB, opcional: `[{ presentationId | null, quantity }]`). El API valida el desglose (presentaciones del producto, cantidades de cero o más, enteros donde aplica «Solo enteros») y **calcula** `counted` desde él: el contado que mande el cliente no gana. Un renglón sin desglose funciona como hoy. El detalle del conteo confirmado lo muestra. e2e: desglose → contado → saldo. Commit propio.
   - **Depende de:** F10-BULK-10 · **Estimación:** 3 h
@@ -6592,10 +6592,12 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 #### F10-BULK-DOC — El manual y la demo
 
-- [ ] **F10-BULK-17** *(2026-11-25)* — La demo y el capítulo enseñan la regla nueva
+- [x] **F10-BULK-17** *(2026-11-25, 96d2b259)* — La demo y el capítulo enseñan la regla nueva
   - **Por qué:** la demo del manual todavía vende el queso con «Porción 250 g» (`apps/manual/src/seed.ts:136-153`), que es justo lo que Carlos rechazó el 2026-11-23.
   - **Salida:** el queso de la demo sin «Porción 250 g» y con «Bolsa 1 Kg» y «Bolsa 10 Kg». El capítulo 16 («Venta por peso» y «Presentaciones») reescrito con la unidad del precio, los empaques y el botón de unidad, sin el ejemplo de la porción. Capturas retomadas y `pnpm --filter manual test`.
   - **Depende de:** F10-BULK-05, 06 y 13 · **Estimación:** 3 h
+
+**Verificación (2026-11-25):** un verificador independiente (opus) revisó las tres de riesgo alto contra la base `bae98da9`, en un worktree aparte. **09 y 15: PASS** (el conteo normal y el de lotes salen idénticos a la base; la hoja con historial ya no reinterpreta la unidad). **11: un bloqueante**, corregido en `35e1cc14` con su prueba en rojo primero: agregar otra vez un renglón que ya existe descartaba el desglose con 201. En la misma tanda: en un producto con lotes, las filas sin lote vuelven a decir solo «falta el lote» (09 les sumaba el aviso del renglón repetido). Probado en el navegador con la demo: la entrada del queso (+12.600 kilogramos), la venta de 250 g ($9.50 a $38 el kilo) y «Contar por presentaciones» (Total: 12.600 kilogramos). Tres push: P1 `57b05cc2`, P2 `13bab917`, P3 (este). **Avisos con nombre:** el contado de un desglose no se recalcula si después cambia el factor de la presentación; borrar una presentación usada en un desglose pierde su nombre; el candado de la unidad base (formulario e importación) no cierra la carrera contra un movimiento simultáneo, que no toma el candado de códigos; el mensaje «Falta el contado: escribe cuántas piezas hay» dice «piezas» también en un producto en kilogramos (ya pasaba).
 
 **Orden de ejecución:** 01 y 02 → 03 → 04 → 05 → 06, 07 y 08 → 09 → 10 → 11 → 12 → 13 a 16 → 17. F10-BULK-09 corrige un error de saldos que ya existe: puede subirse sola en cuanto 02 apruebe su texto. F10-BULK-14, 15 y 16 no dependen del botón y pueden adelantarse. Commits propios: 09, 11 y 15.
 
@@ -6603,7 +6605,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 **Pospuestos con nombre:** **F10-BULK-CONV**, convertir la unidad base de un producto con historial (de gramos a kilogramos), que depende de lo que mida F10-BULK-01 · **F10-BULK-SCALE**, las etiquetas de báscula con el peso o el precio dentro del código · importar presentaciones desde Excel · fusionar renglones al cambiar la presentación a una que ya tiene renglón · rehacer el video de abarrotes con el modelo nuevo.
 
-### Módulo F10-RPT — Reportes de utilidad y la pantalla de Reportes agrupada (atomizado el 2026-11-25)
+### Módulo F10-RPT — Reportes de utilidad y la pantalla de Reportes agrupada (hecho el 2026-11-25)
 
 > Carlos (2026-11-25): «2.- En la sección de Reportes generar el Reporte de productos que vendieron debajo de su costo 3.- En el panel donde sale el mensaje "X producto o servicio creció % sus ventas este mes" Ese elemento al darle click debería enviar al reporte de Ventas por producto o ventas por servicio 4.- Card Más vendidos y Mayor utilidad poner algún icono que indique si son servicios o productos 5.- Reporte de productos y servicios más vendidos con filtros como otros reportes (sucursal, fechas, productos o servicios) 6.- Reporte de productos y servicios con mayor utilidad con filtros como otros reportes (sucursal, fechas, productos o servicios) 7.- Mejorar interfaz de la pantalla de Reportes, se pueden agrupar los reportes de ventas, otra agrupación por control de Inventario (Stock por sucursal, Karedex, etc) y otras agrupaciones que me recomiendes … Realiza todas estas tareas como recomiendes y sube a producción.»
 >
@@ -6623,7 +6625,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Por qué:** petición 4. Hoy no se sabe si «Corte de cabello» es un servicio o un producto.
   - **Salida:** `i.kind` en la consulta y el tipo de `topSold` y `topProfit` (`dashboard-products.service.ts`, `lib/dashboard/api`), y el ícono con su nombre accesible («Producto», «Servicio», «Concepto») en cada renglón de `components/dashboard/top-products.tsx`. Prueba de integración del `kind` y prueba web del ícono. Manual: capítulo 30.
   - **Depende de:** nada · **Estimación:** 1.5 h
-- [ ] **F10-RPT-02** *(2026-11-25)* — El aviso «creció» lleva a las ventas de ese artículo
+- [x] **F10-RPT-02** *(2026-11-25, 89d3194a)* — El aviso «creció» lleva a las ventas de ese artículo
   - **Por qué:** petición 3.
   - **Salida:** filtro `productId` / `serviceId` en las ventas por producto y por servicio (DTO `.strict()`, `where`, exportación) y `validateSearch` en sus dos rutas (artículo, sucursal, desde y hasta), con el artículo filtrado visible y un botón para quitarlo. El aviso del panel lleva a `/reports/sales-by-product` o `/reports/sales-by-service` según su `kind`, con el artículo y las fechas del periodo del panel. Un concepto va a «Ventas por producto» sin filtro de artículo. e2e del filtro, prueba web del enlace. Manual: capítulos 30 y 31.
   - **Depende de:** F10-RPT-01 · **Estimación:** 3 h
@@ -6635,14 +6637,14 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Salida:** la consulta por artículo de `dashboard-products.service.ts` se extrae a un servicio reusable con sucursal, rango de fechas, tipo, orden (ingreso, utilidad, pérdida) y paginación. El panel la usa como hoy: prueba que fija sus números. `GET reports/items` con DTO `.strict()` (`view`: `top-sold` | `top-profit` | `below-cost`; `type`: `all` | `product` | `service`; `warehouseId`, `from`, `to`, `page`, `pageSize`), alcance por sucursal y `reports:read`. Exportación Excel/CSV con `exportWithLimit` y encabezados es/en. e2e de las tres vistas, el tipo, el alcance y la exportación.
   - **Depende de:** F10-RPT-01 · **Estimación:** 4 h
   - **Hecho (2026-11-25):** `ItemsRankingService` lo usan el panel y `GET reports/items`; sin `view` responde «Más vendidos» (así un id mal escrito da `common.invalid_id`, F10-MANFIX-20). Pendiente para F10-RPT-04: el endpoint del backoffice.
-- [ ] **F10-RPT-04** *(2026-11-25)* — Las pantallas «Más vendidos», «Mayor utilidad» y «Vendidos bajo su costo»
+- [x] **F10-RPT-04** *(2026-11-25, 89d3194a)* — Las pantallas «Más vendidos», «Mayor utilidad» y «Vendidos bajo su costo»
   - **Por qué:** peticiones 2, 5 y 6.
   - **Salida:** tres rutas (`/reports/top-sold`, `/reports/top-profit`, `/reports/below-cost`) sobre un solo componente, con `ReportHeading`, la barra de filtros de ventas más el filtro de tipo, `ReportTable` (skill sellpoint-tables), exportación y `validateSearch`. Cada artículo enlaza a sus ventas filtradas (F10-RPT-02). Funcionan también desde el expediente del backoffice (`basePath`). En «Vendidos bajo su costo», la pérdida en rojo y un aviso de que los artículos sin costo capturado no aparecen. Pruebas web. Manual: capítulo 31 con sus capturas nuevas.
   - **Depende de:** F10-RPT-02 y F10-RPT-03 · **Estimación:** 4 h
 
 #### F10-RPT-HUB — La pantalla de Reportes agrupada
 
-- [ ] **F10-RPT-05** *(2026-11-25)* — Reportes en cinco secciones
+- [x] **F10-RPT-05** *(2026-11-25, 89d3194a)* — Reportes en cinco secciones
   - **Por qué:** petición 7.
   - **Salida:** `reports-hub.tsx` con las secciones de la decisión 4, su título y una línea de ayuda cada una. Las tres tarjetas nuevas, y una sección se oculta si no le queda ninguna tarjeta visible. Se conserva `data-testid="reports-hub"`. `reports-hub.test.tsx` actualizado (incluida su lista de rutas existentes). Manual: capítulo 31 y la captura `reports-hub`.
   - **Depende de:** F10-RPT-04 · **Estimación:** 2 h
