@@ -61,6 +61,7 @@ const PIEZA: posApi.LookupPresentation = {
   barcode: null,
   isDefaultSale: true,
   allowFractionalInput: false,
+  isBase: true,
 };
 
 const AGUA: posApi.LookupProductItem = {
@@ -489,6 +490,58 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
         ),
       );
       expect(mocked.printTicket).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * F10-BULK-05 — la cotización usa el mismo carrito y el mismo teclado que
+     * la venta: 250 g del queso por kilo viajan como 0.25.
+     */
+    it("en la cotización también se escriben gramos, y viajan en kilos", async () => {
+      localStorage.removeItem("sellpoint.captureUnit.kg");
+      mocked.createQuote.mockResolvedValue({
+        id: "quote-2",
+        folio: "COT-000008",
+        warehouseId: "w1",
+        status: "open",
+        total: "46.25",
+        note: null,
+        createdAt: "2026-11-25T16:00:00.000Z",
+        lines: [],
+        sourceModule: null,
+      });
+      const kilogramo = {
+        ...PIEZA,
+        id: "pres-queso-kg",
+        name: "Kilogramo",
+        price: "185.00",
+        allowFractionalInput: true,
+      };
+      await renderRuta("/pos/quotes/new", ["pos:quote"]);
+      await screen.findByTestId("quote-builder");
+      useCartStore.getState().add({
+        ...AGUA,
+        id: "prod-queso",
+        sku: "QUESO-OAX",
+        name: "Queso Oaxaca",
+        baseUnit: "kg",
+        presentations: [kilogramo],
+      });
+
+      await userEvent.click(await screen.findByText("Queso Oaxaca"));
+      const numpad = await screen.findByTestId("numpad");
+      await userEvent.click(
+        within(numpad).getByRole("button", { name: "Escribir la cantidad en gramos" }),
+      );
+      for (const tecla of ["2", "5", "0"]) {
+        await userEvent.click(within(numpad).getByRole("button", { name: tecla }));
+      }
+      await userEvent.click(screen.getByRole("button", { name: "Generar cotización" }));
+
+      await waitFor(() => expect(mocked.createQuote).toHaveBeenCalledTimes(1));
+      expect(mocked.createQuote.mock.calls[0]?.[0]?.lines).toEqual([
+        { productId: "prod-queso", presentationId: kilogramo.id, quantity: 0.25 },
+      ]);
+      localStorage.removeItem("sellpoint.captureUnit.kg");
     });
 
     /**

@@ -56,9 +56,20 @@ Cada renglón del carrito muestra el producto, la cantidad, el importe y una
   abierto, el teclado pasa a ese producto: lo que escribas cambia su cantidad.
   Para cerrarlo, presiona **Ocultar teclado**.
 - **Venta por peso.** En lo que se vende por kilo, como el queso o el frijol a
-  granel, el teclado trae punto decimal: escribe **1.5** para kilo y medio o
-  **0.350** para 350 gramos. En lo que se vende por pieza, y en los servicios,
-  solo van números enteros.
+  granel, el teclado trae punto decimal y, junto a la cantidad, dos botones:
+  **kg** y **g**. Con **kg** escribes kilos: **1.5** para kilo y medio. Con
+  **g** escribes los gramos que marca la báscula: **350** para 350 gramos, con
+  hasta un decimal (**350.5**). Al tocar **g**, el campo queda vacío y en gris
+  dice cuántos gramos lleva el renglón; lo que escribas los reemplaza. El
+  renglón sigue en kilos y entre paréntesis dice los gramos, por ejemplo
+  **0.350 kilogramos (350 g)**, y el importe es el mismo. SellPointy recuerda
+  en esa computadora la unidad que elegiste para los siguientes productos por
+  kilo. Igual con litros y mililitros (**L** y **ml**) o metros y centímetros
+  (**m** y **cm**). En un empaque, como **Bolsa 10 Kg**, no hay botones: la
+  cantidad son bolsas. Tampoco en una **Bolsa 1 Kg** que diste de alta aparte:
+  aunque vale un kilo, es un empaque, y si la escaneas y escribes **2**, vendes
+  2 bolsas. En lo que se vende por pieza, y en los servicios, solo van números
+  enteros.
 - **Vaciar el carrito.** **Vaciar carrito** quita todos los productos de una
   vez. Te pide confirmarlo antes de quitarlos.
 

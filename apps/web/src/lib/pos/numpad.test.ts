@@ -1,4 +1,10 @@
-import { pulsarTecla, sanearCantidad } from "./numpad";
+import {
+  captureDecimals,
+  fitsIntegerDigits,
+  pressCaptureKey,
+  pulsarTecla,
+  sanearCantidad,
+} from "./numpad";
 
 /**
  * F4-CART-03 — el numpad inteligente.
@@ -124,5 +130,70 @@ describe("sanearCantidad (F4-CART-03)", () => {
 
   it("el vacío sigue vacío, sin aviso", () => {
     expect(sanearCantidad("", entera)).toEqual({ value: "", truncated: false });
+  });
+});
+
+/**
+ * F10-BULK-05 — escribir en la unidad hermana: 250 g de un queso por kilo. Lo
+ * tecleado no puede tener más decimales de los que caben en la base (0.1 g es
+ * lo mínimo en kilogramos) y la conversión que se pinta al elegir la unidad no
+ * se edita: la primera tecla empieza de cero.
+ */
+describe("la captura en otra unidad (F10-BULK-05)", () => {
+  const enGramos = { allowFractional: true, maxDecimals: 1 };
+
+  it("pulsarTecla no admite un segundo decimal en gramos", () => {
+    expect(pulsarTecla("250.5", "5", enGramos)).toBe("250.5");
+    expect(pulsarTecla("250", ".", enGramos)).toBe("250.");
+  });
+
+  it("sanearCantidad corta el segundo decimal en gramos, y lo dice", () => {
+    expect(sanearCantidad("250.55", enGramos)).toEqual({ value: "250.5", truncated: true });
+  });
+
+  it("sin maxDecimals, los límites son los de la columna", () => {
+    expect(pulsarTecla("1.234", "5", { allowFractional: true })).toBe("1.2345");
+  });
+
+  it("fitsIntegerDigits: diez enteros en la base caben, once no", () => {
+    // Kilos escritos en un producto en gramos: 1234567890 kg serían 13 enteros.
+    expect(fitsIntegerDigits("1234567890.5")).toBe(true);
+    expect(fitsIntegerDigits("12345678901")).toBe(false);
+  });
+
+  it("captureDecimals: los decimales de la cantidad mínima, hasta los de la columna", () => {
+    expect(captureDecimals("0.1")).toBe(1);
+    expect(captureDecimals("0.01")).toBe(2);
+    expect(captureDecimals("0.000025")).toBe(4);
+    expect(captureDecimals(null)).toBe(4);
+  });
+
+  describe("pressCaptureKey", () => {
+    it("la primera tecla reemplaza la conversión pintada", () => {
+      expect(pressCaptureKey({ text: "1000", fresh: true }, "2", enGramos)).toEqual({
+        text: "2",
+        fresh: false,
+      });
+      expect(pressCaptureKey({ text: "1000", fresh: true }, ".", enGramos)).toEqual({
+        text: "0.",
+        fresh: false,
+      });
+    });
+
+    it("borrar sobre la conversión pintada no hace nada: el campo se ve vacío", () => {
+      const pintada = { text: "1000", fresh: true };
+      expect(pressCaptureKey(pintada, "borrar", enGramos)).toBe(pintada);
+    });
+
+    it("después, las teclas se agregan a la derecha como siempre", () => {
+      expect(pressCaptureKey({ text: "25", fresh: false }, "0", enGramos)).toEqual({
+        text: "250",
+        fresh: false,
+      });
+      expect(pressCaptureKey({ text: "250", fresh: false }, "borrar", enGramos)).toEqual({
+        text: "25",
+        fresh: false,
+      });
+    });
   });
 });

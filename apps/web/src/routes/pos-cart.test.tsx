@@ -49,6 +49,7 @@ const PIEZA: posApi.LookupPresentation = {
   barcode: "7501234567001",
   isDefaultSale: true,
   allowFractionalInput: false,
+  isBase: true,
 };
 
 const CAJA: posApi.LookupPresentation = {
@@ -59,6 +60,7 @@ const CAJA: posApi.LookupPresentation = {
   barcode: "7501234567002",
   isDefaultSale: false,
   allowFractionalInput: false,
+  isBase: false,
 };
 
 const AGUA: posApi.LookupProductItem = {
@@ -91,6 +93,53 @@ const HARINA: posApi.LookupProductItem = {
   name: "Harina a granel",
   baseUnit: "kg",
   presentations: [{ ...PIEZA, id: "pres-kg", name: "Kilo", allowFractionalInput: true }],
+};
+
+/** F10-BULK-05: el queso va en kilogramos, con su precio por kilo y un empaque. */
+const KILOGRAMO: posApi.LookupPresentation = {
+  id: "pres-queso-kg",
+  name: "Kilogramo",
+  factor: "1",
+  price: "185.00",
+  barcode: null,
+  isDefaultSale: true,
+  allowFractionalInput: true,
+  isBase: true,
+};
+
+const BOLSA: posApi.LookupPresentation = {
+  id: "pres-queso-bolsa",
+  name: "Bolsa 10 Kg",
+  factor: "10",
+  price: "1700.00",
+  barcode: "7501234567010",
+  isDefaultSale: false,
+  allowFractionalInput: true,
+  isBase: false,
+};
+
+/**
+ * El caso de Carlos (2026-11-25): el negocio crea «Bolsa 1 Kg» con factor 1 y
+ * su propio código de barras. Vale 1, pero NO es la presentación base.
+ */
+const BOLSA_1KG: posApi.LookupPresentation = {
+  id: "pres-queso-bolsa-1",
+  name: "Bolsa 1 Kg",
+  factor: "1",
+  price: "185.00",
+  barcode: "7501234567027",
+  isDefaultSale: false,
+  allowFractionalInput: true,
+  isBase: false,
+};
+
+const QUESO: posApi.LookupProductItem = {
+  ...AGUA,
+  id: "prod-queso",
+  sku: "QUESO-OAX",
+  name: "Queso Oaxaca",
+  baseUnit: "kg",
+  presentations: [KILOGRAMO, BOLSA],
 };
 
 const demoUser = (permissions: string[], tenant: Partial<TenantBlock> = {}): AuthUser =>
@@ -428,6 +477,208 @@ describe("El carrito del POS (F4-CART)", () => {
 
       await waitFor(() => expect(useCartStore.getState().lines[0]?.quantity).toBe("12"));
       expect(screen.getByText(/solo admite enteros/i)).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * F10-BULK-05 — vender 250 g escribiendo 250. Carlos (2026-11-23): «desde la
+   * venta tiene que elegir el producto y poner la cantidad de gramos». El
+   * carrito sigue guardando KILOS —el precio es por kilo y el API no cambia—:
+   * el botón «kg | g» del teclado solo cambia la unidad en que se ESCRIBE.
+   */
+  describe("vender en gramos (F10-BULK-05)", () => {
+    const GRAMOS = "Escribir la cantidad en gramos";
+    const KILOS = "Escribir la cantidad en kilogramos";
+    const RECUERDO = "sellpoint.captureUnit.kg";
+
+    // La unidad elegida se recuerda en el navegador: cada prueba arranca en kg.
+    beforeEach(() => localStorage.removeItem(RECUERDO));
+    afterEach(() => localStorage.removeItem(RECUERDO));
+
+    async function abrirTeclado(nombre: string): Promise<HTMLElement> {
+      await userEvent.click(await screen.findByText(nombre));
+      return screen.findByTestId("numpad");
+    }
+
+    async function teclear(numpad: HTMLElement, teclas: string[]): Promise<void> {
+      for (const tecla of teclas) {
+        await userEvent.click(within(numpad).getByRole("button", { name: tecla }));
+      }
+    }
+
+    it("tocar «g», teclear 250 y confirmar deja 0.25 kg en el carrito y la pista «(250 g)»", async () => {
+      await renderPos();
+      useCartStore.getState().add(QUESO);
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+      await userEvent.click(within(numpad).getByRole("button", { name: GRAMOS }));
+      await teclear(numpad, ["2", "5", "0"]);
+      await userEvent.click(screen.getByRole("button", { name: /ocultar teclado/i }));
+
+      const linea = useCartStore.getState().lines[0];
+      expect(linea?.quantity).toBe("0.25");
+      expect(screen.getByTestId(`cart-qty-${linea?.key}`)).toHaveTextContent(
+        "0.250 kilogramos (250 g)",
+      );
+      // El importe no cambia: 0.250 kg × $185.00.
+      expect(screen.getByTestId(`cart-total-${linea?.key}`)).toHaveTextContent("46.25");
+      expect(screen.getByTestId("cart-total")).toHaveTextContent("46.25");
+    });
+
+    it("al tocar «g» el campo queda vacío y en gris dice los gramos del renglón, sin cambiar lo vendido", async () => {
+      await renderPos();
+      useCartStore.getState().add(QUESO);
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+      await userEvent.click(within(numpad).getByRole("button", { name: GRAMOS }));
+
+      const campo = within(numpad).getByLabelText("Cantidad");
+      expect(campo).toHaveValue("");
+      expect(campo).toHaveAttribute("placeholder", "1000");
+      expect(useCartStore.getState().lines[0]?.quantity).toBe("1");
+      expect(within(numpad).getByRole("button", { name: GRAMOS })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+    });
+
+    it("en «g» acepta un decimal y no el segundo", async () => {
+      await renderPos();
+      useCartStore.getState().add(QUESO);
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+      await userEvent.click(within(numpad).getByRole("button", { name: GRAMOS }));
+      await teclear(numpad, ["2", "5", "0", ".", "5", "5"]);
+
+      expect(within(numpad).getByLabelText("Cantidad")).toHaveValue("250.5");
+      expect(useCartStore.getState().lines[0]?.quantity).toBe("0.2505");
+    });
+
+    it("en «g» el teclado de la computadora también escribe gramos", async () => {
+      await renderPos();
+      useCartStore.getState().add(QUESO);
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+      await userEvent.click(within(numpad).getByRole("button", { name: GRAMOS }));
+      await userEvent.type(within(numpad).getByLabelText("Cantidad"), "600");
+
+      expect(useCartStore.getState().lines[0]?.quantity).toBe("0.6");
+    });
+
+    it("en un empaque no hay botón de unidad: la cantidad son bolsas", async () => {
+      await renderPos();
+      useCartStore.getState().add({ ...QUESO, matchedPresentationId: BOLSA.id });
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+
+      expect(
+        within(numpad).queryByRole("button", { name: /Escribir la cantidad en/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("en «Bolsa 1 Kg» de factor 1 no hay botón, aunque «g» esté recordado: «2» son 2 bolsas", async () => {
+      localStorage.setItem(RECUERDO, "gr");
+      await renderPos();
+      useCartStore.getState().add({
+        ...QUESO,
+        presentations: [KILOGRAMO, BOLSA_1KG, BOLSA],
+        matchedPresentationId: BOLSA_1KG.id,
+      });
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+      expect(
+        within(numpad).queryByRole("button", { name: /Escribir la cantidad en/ }),
+      ).not.toBeInTheDocument();
+      await teclear(numpad, ["Borrar el último dígito", "2"]);
+
+      const linea = useCartStore.getState().lines[0];
+      expect(linea?.quantity).toBe("2");
+      expect(screen.getByTestId(`cart-qty-${linea?.key}`)).not.toHaveTextContent("(");
+      expect(screen.getByTestId(`cart-total-${linea?.key}`)).toHaveTextContent("370.00");
+    });
+
+    it("en la presentación base, el mismo queso sí ofrece el botón", async () => {
+      await renderPos();
+      useCartStore.getState().add({ ...QUESO, presentations: [KILOGRAMO, BOLSA_1KG, BOLSA] });
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+
+      expect(within(numpad).getByRole("button", { name: GRAMOS })).toBeInTheDocument();
+    });
+
+    it("en un producto por pieza no hay botón de unidad", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA);
+
+      const numpad = await abrirTeclado("Agua mineral");
+
+      expect(
+        within(numpad).queryByRole("button", { name: /Escribir la cantidad en/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("con «Solo enteros» en un producto por kilo sigue sin punto y sin botón de unidad", async () => {
+      await renderPos();
+      useCartStore.getState().add({
+        ...QUESO,
+        presentations: [{ ...KILOGRAMO, allowFractionalInput: false }],
+      });
+
+      const numpad = await abrirTeclado("Queso Oaxaca");
+
+      expect(within(numpad).queryByRole("button", { name: "." })).not.toBeInTheDocument();
+      expect(
+        within(numpad).queryByRole("button", { name: /Escribir la cantidad en/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("en kg el teclado escribe kilos como siempre", async () => {
+      await renderPos();
+      useCartStore.getState().add(HARINA);
+
+      const numpad = await abrirTeclado("Harina a granel");
+      expect(within(numpad).getByRole("button", { name: KILOS })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await teclear(numpad, ["Borrar el último dígito", "1", ".", "5"]);
+
+      const linea = useCartStore.getState().lines[0];
+      expect(linea?.quantity).toBe("1.5");
+      const cantidad = screen.getByTestId(`cart-qty-${linea?.key}`);
+      expect(cantidad).toHaveTextContent("1.500 kilogramos");
+      expect(cantidad).not.toHaveTextContent("(");
+    });
+
+    it("lo escrito en kilos debajo de 1 también dice sus gramos", async () => {
+      await renderPos();
+      useCartStore.getState().add(HARINA, { quantity: "0.35" });
+
+      const key = useCartStore.getState().lines[0]?.key as string;
+      expect(await screen.findByTestId(`cart-qty-${key}`)).toHaveTextContent(
+        "0.350 kilogramos (350 g)",
+      );
+    });
+
+    it("la unidad elegida se recuerda en el siguiente renglón por kilo", async () => {
+      await renderPos();
+      useCartStore.getState().add(QUESO);
+      const numpad = await abrirTeclado("Queso Oaxaca");
+      await userEvent.click(within(numpad).getByRole("button", { name: GRAMOS }));
+      await userEvent.click(screen.getByRole("button", { name: /ocultar teclado/i }));
+
+      useCartStore.getState().add(HARINA);
+      const otro = await abrirTeclado("Harina a granel");
+
+      expect(within(otro).getByRole("button", { name: GRAMOS })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await teclear(otro, ["5", "0", "0"]);
+      const harina = useCartStore
+        .getState()
+        .lines.find((l) => l.type === "product" && l.productId === HARINA.id);
+      expect(harina?.quantity).toBe("0.5");
     });
   });
 

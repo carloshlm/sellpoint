@@ -1,4 +1,4 @@
-import { type Currency, formatMoney, formatSoldQuantity } from "@sellpoint/shared";
+import { type Currency, captureHint, formatMoney, formatSoldQuantity } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -117,9 +117,15 @@ export function CartPanel() {
           >
             {t("pos.cart.hideNumpad")}
           </Button>
+          {/* Un teclado por renglón (`key`): lo tecleado en gramos es de SU
+              renglón, y al pasar a otro se vuelve a leer la unidad recordada
+              (F10-BULK-05). */}
           <Numpad
+            key={activa.key}
             value={activa.quantity}
             allowFractional={admiteDecimales(activa)}
+            baseUnit={activa.type === "product" ? activa.baseUnit : undefined}
+            atBasePresentation={enPresentacionBase(activa)}
             hint={aviso}
             onHint={setAviso}
             onChange={(v) => useCartStore.getState().setQuantity(activa.key, v)}
@@ -155,6 +161,21 @@ function admiteDecimales(line: CartLine): boolean {
   return (
     line.presentations.find((p) => p.id === line.presentationId)?.allowFractionalInput ?? false
   );
+}
+
+/**
+ * F10-BULK-05 — ¿El renglón está en la presentación BASE del producto? Solo
+ * ahí se escribe en gramos y se pinta «(250 g)»: en «Bolsa 10 Kg» la cantidad
+ * son bolsas. Factor 1 no basta (Carlos, 2026-11-25): «Bolsa 1 Kg» también
+ * vale 1 y lleva su propio código; con «g» recordado, escanearla y teclear
+ * «2» vendía 2 g en vez de 2 bolsas. Lo dice el API con `isBase`. Un servicio
+ * o un concepto no tienen unidad.
+ */
+function enPresentacionBase(line: CartLine): boolean {
+  if (line.type !== "product") {
+    return false;
+  }
+  return line.presentations.find((p) => p.id === line.presentationId)?.isBase === true;
 }
 
 function CartLineRow({
@@ -201,6 +222,12 @@ function CartLineRow({
   // pintar «$0.00» lo haría pasar por un precio. Solo productos: un servicio
   // sin precio se sigue cobrando en cero.
   const sinPrecio = line.type === "product" && precioDeLinea(line) === null;
+  // F10-BULK-05: «0.250 kilogramos (250 g)». La cantidad sigue en kilos; la
+  // pista dice los gramos que se pesaron. Solo en la presentación base.
+  const pista =
+    line.type === "product" && enPresentacionBase(line)
+      ? captureHint(line.quantity, line.baseUnit, locale)
+      : null;
 
   return (
     <li
@@ -251,6 +278,12 @@ function CartLineRow({
                 locale,
               )
             : line.quantity}
+          {pista !== null && (
+            <>
+              {" "}
+              <span className="text-muted-foreground">{pista}</span>
+            </>
+          )}
         </button>
 
         <button

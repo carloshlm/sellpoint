@@ -20,9 +20,15 @@ import { QUANTITY_SCALE } from "@sellpoint/shared";
  * backend revalida igual: esto es defensa en profundidad, no la única red.
  */
 
-interface ReglasDeCantidad {
+export interface ReglasDeCantidad {
   /** ¿La presentación admite decimales? */
   allowFractional: boolean;
+  /**
+   * Cuántos decimales se pueden escribir. Por omisión, los de la columna
+   * (`QUANTITY_SCALE`). En gramos de un producto por kilo es 1: 0.05 g no
+   * cabe en cuatro decimales de kilogramo (F10-BULK-05).
+   */
+  maxDecimals?: number;
 }
 
 /** Los enteros que caben en `DECIMAL(14,4)`: 14 dígitos menos los 4 decimales. */
@@ -70,7 +76,7 @@ export function pulsarTecla(
   if (fraccion !== undefined) {
     // El quinto decimal lo REDONDEARÍA Postgres en silencio, y el usuario vería
     // guardado un número que no escribió.
-    return fraccion.length >= QUANTITY_SCALE ? actual : `${actual}${tecla}`;
+    return fraccion.length >= (reglas.maxDecimals ?? QUANTITY_SCALE) ? actual : `${actual}${tecla}`;
   }
 
   // El cero inicial se REEMPLAZA: sin esto, tocar 5 sobre una línea que nace en
@@ -132,7 +138,7 @@ export function sanearCantidad(texto: string, reglas: ReglasDeCantidad): Cantida
 
   const [entero = "", fraccion] = limpio.split(".");
   const enteroCortado = entero.slice(0, MAX_ENTEROS);
-  const fraccionCortada = fraccion?.slice(0, QUANTITY_SCALE);
+  const fraccionCortada = fraccion?.slice(0, reglas.maxDecimals ?? QUANTITY_SCALE);
 
   const value =
     fraccionCortada === undefined ? enteroCortado : `${enteroCortado}.${fraccionCortada}`;
@@ -140,4 +146,65 @@ export function sanearCantidad(texto: string, reglas: ReglasDeCantidad): Cantida
   // El punto a medio escribir (`"12."`) NO cuenta como recorte: es un estado
   // legítimo de alguien tecleando, no un error que haya que explicar.
   return { value, truncated: value !== original };
+}
+
+/**
+ * F10-BULK-05 — cuántos decimales se escriben en la unidad hermana: los de su
+ * cantidad mínima (`minimumCaptureQuantity`), hasta los de la columna. En
+ * gramos de un producto por kilo, la mínima es 0.1 g: un decimal.
+ *
+ * El tope de la columna no deja escribir de más donde la mínima tiene más
+ * decimales (0.000025 ft en una base de pulgadas): lo que se escribe con
+ * cuatro decimales también cabe en la base, y `toBase` revisa el resto.
+ */
+export function captureDecimals(minimum: string | null): number {
+  if (minimum === null) {
+    return QUANTITY_SCALE;
+  }
+  const [, fraccion = ""] = minimum.split(".");
+  return Math.min(QUANTITY_SCALE, fraccion.length);
+}
+
+/**
+ * Lo tecleado en la unidad hermana («250» en gramos) y si el campo todavía
+ * muestra solo la conversión de lo que ya lleva el renglón.
+ */
+export interface CaptureEntry {
+  text: string;
+  /**
+   * `true` recién elegida la unidad o abierto el teclado: el campo se ve vacío,
+   * con la conversión en gris, y la primera tecla empieza de cero. Sin esto,
+   * el queso que nace en 1 kg mostraría «1000» y teclear 250 daría 1000250 g.
+   */
+  fresh: boolean;
+}
+
+/**
+ * Una pulsación en la unidad hermana. Igual que `pulsarTecla`, salvo sobre la
+ * conversión recién pintada: un dígito o el punto empiezan de cero, y borrar
+ * no hace nada (el campo se ve vacío: no hay qué borrar). En ese caso devuelve
+ * la misma entrada, para que la pantalla sepa que nada cambió.
+ */
+export function pressCaptureKey(
+  entry: CaptureEntry,
+  key: string | TeclaEspecial,
+  rules: ReglasDeCantidad,
+): CaptureEntry {
+  if (entry.fresh) {
+    if (key === "borrar" || key === "limpiar") {
+      return entry;
+    }
+    return { text: pulsarTecla("", key, rules), fresh: false };
+  }
+  return { text: pulsarTecla(entry.text, key, rules), fresh: false };
+}
+
+/**
+ * ¿La cantidad en la base cabe en los enteros de la columna? En la base lo
+ * cuida `pulsarTecla`; escrita en una unidad MAYOR (kilos de un producto en
+ * gramos), diez enteros tecleados serían trece en la base.
+ */
+export function fitsIntegerDigits(quantityBase: string): boolean {
+  const [entero = ""] = quantityBase.replace("-", "").split(".");
+  return entero.length <= MAX_ENTEROS;
 }
