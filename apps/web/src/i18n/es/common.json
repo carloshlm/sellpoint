@@ -4,6 +4,10 @@
     "welcome": "Hola, {{name}}",
     "placeholder": "Acá va a vivir tu panel. Estamos construyéndolo."
   },
+  "captureUnit": {
+    "label": "Escribir la cantidad en {{unit}}",
+    "minimum": "La cantidad mínima es {{min}}."
+  },
   "dateRange": {
     "from": "Desde",
     "to": "Hasta",

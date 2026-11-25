@@ -4,6 +4,10 @@
     "welcome": "Hi, {{name}}",
     "placeholder": "Your dashboard will live here. We're building it."
   },
+  "captureUnit": {
+    "label": "Enter the quantity in {{unit}}",
+    "minimum": "The minimum quantity is {{min}}."
+  },
   "dateRange": {
     "from": "From",
     "to": "To",
