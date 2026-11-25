@@ -19,6 +19,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import type { AuthUser } from "../auth/types/auth-user";
 import { basePresentationIds } from "../products/base-unit";
 import { CompositionService } from "../products/composition.service";
+import { countBreakdownNames, describeCountBreakdown } from "./count-breakdown";
 import { bucketKeyByCode, loadCountBuckets, sumBuckets } from "./count-buckets";
 import type { ListDocumentsQueryDto, UpdateDocumentDto } from "./dto/document.dto";
 import { nextFolio } from "./folio";
@@ -520,6 +521,11 @@ export class DocumentsService {
         // la cantidad son bolsas).
         basePresentationIds(tx, productIds),
       ]);
+      // F10-BULK-11: el nombre de cada presentación que nombra un desglose,
+      // también de las ya desactivadas (el catálogo de arriba trae solo las activas).
+      const nombresDesglose = esConteo
+        ? await countBreakdownNames(tx, user.tenantId, document.lines)
+        : new Map<string, string>();
       const saldoPorProducto = new Map(
         saldos.map((s) => [s.productId, new Prisma.Decimal(s.quantity.toString())]),
       );
@@ -831,7 +837,10 @@ export class DocumentsService {
           });
         }
         const repiteProducto = productoRepetidoDe.get(line.lineNo);
-        if (esBorrador && repiteProducto !== undefined) {
+        // Si a la fila le falta el lote, ese es su arreglo: el aviso del
+        // renglón repetido sugeriría otro (lo encontró el verificador).
+        const faltaLote = errors.some((e) => e.code === "inventory.lot_required");
+        if (esBorrador && repiteProducto !== undefined && !faltaLote) {
           errors.push({
             field: "counted",
             code: "inventory.count_duplicate_product",
@@ -906,6 +915,8 @@ export class DocumentsService {
             ? {
                 theoretical: (teoricoPorLinea.get(line.lineNo) ?? new Prisma.Decimal(0)).toString(),
                 counted: line.counted?.toString() ?? null,
+                // F10-BULK-11: cómo se contó («2 × Bolsa 1 Kg + 600 g»); `null` sin desglose.
+                countBreakdown: describeCountBreakdown(line.countBreakdown, nombresDesglose),
                 difference:
                   line.counted === null
                     ? null

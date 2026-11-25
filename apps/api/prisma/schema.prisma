@@ -1201,6 +1201,9 @@ model InventoryDocumentLine {
   /// persona contó.
   theoretical    Decimal?  @db.Decimal(14, 4)
   counted        Decimal?  @db.Decimal(14, 4)
+  /// F10-BULK-11: «Contar por presentaciones», `[{ presentationId | null, quantity }]`
+  /// (`null` son los sueltos en unidad base). Si está, `counted` sale de él.
+  countBreakdown Json?     @map("count_breakdown")
   createdAt      DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

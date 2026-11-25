@@ -291,6 +291,29 @@ describe("Inventario físico: un producto, un renglón (F10-BULK-09)", () => {
     });
   });
 
+  /**
+   * Lo que encontró el verificador (2026-11-25): en un producto con lotes, dos
+   * filas sin lote ya decían «falta indicar el lote»; la regla nueva les sumaba
+   * «Cuenta … en un solo renglón», que sugiere otro arreglo. Se conserva el
+   * mensaje de siempre.
+   */
+  it("con lotes, las filas sin lote solo dicen que falta el lote, como antes", async () => {
+    const { token, warehouseId, suero } = await escenario();
+    const id = await conteo(token, warehouseId, [
+      `${suero.sku},BBB-SEP,2040-09-30,A-1,18`,
+      `${suero.sku},,,,5`,
+      `${suero.sku},,,,6`,
+    ]);
+
+    const filas = await previa(token, id);
+
+    expect(filas.map((f) => f.errors.map((e) => e.code))).toEqual([
+      [],
+      ["inventory.lot_required"],
+      ["inventory.lot_required"],
+    ]);
+  });
+
   describe("la presentación en la hoja del conteo", () => {
     const encabezado = "sku,presentacion,lote,caducidad,ubicacion,contado";
 

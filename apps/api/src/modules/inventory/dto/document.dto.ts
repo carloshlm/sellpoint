@@ -1,6 +1,8 @@
 import {
   INVENTORY_DOCUMENT_TYPES,
   normalizeLotCode,
+  QUANTITY_MAX,
+  QUANTITY_SCALE,
   SELECTABLE_ENTRY_REASONS,
   SELECTABLE_EXIT_REASONS,
 } from "@sellpoint/shared";
@@ -17,6 +19,46 @@ export const createDocumentSchema = z.object({
 export const cancelDocumentSchema = z.object({
   reason: z.string().trim().min(1).max(500).optional(),
 });
+
+/** Cuántos renglones admite un desglose: más presentaciones activas que esto no existen. */
+export const COUNT_BREAKDOWN_MAX_ROWS = 50;
+
+/**
+ * Una cantidad del desglose: TEXTO decimal de cero o más, como viaja toda
+ * cantidad del API (un número en el JSON se redondearía). El cero vale: es la
+ * caja vacía. Los enteros de «Solo enteros» y que la presentación sea del
+ * producto los revisa el servicio, que es quien conoce el producto.
+ */
+function countBreakdownQuantity() {
+  return z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d+)?$/, "inventory.count_breakdown_quantity")
+    .refine(
+      (quantity) => (quantity.split(".")[1]?.length ?? 0) <= QUANTITY_SCALE,
+      "inventory.quantity_too_many_decimals",
+    )
+    .refine((quantity) => Number(quantity) <= QUANTITY_MAX, "inventory.quantity_too_large");
+}
+
+/**
+ * El desglose de un renglón del conteo: `[{ presentationId, quantity }]`, con
+ * `presentationId: null` para los sueltos en unidad base. Vacío no significa
+ * nada (para borrarlo se manda `null`), así que lleva al menos un renglón.
+ */
+export function countBreakdownField() {
+  return z
+    .array(
+      z.object({
+        presentationId: z.uuid().nullable(),
+        quantity: countBreakdownQuantity(),
+      }),
+    )
+    .min(1, "inventory.count_breakdown_rows")
+    .max(COUNT_BREAKDOWN_MAX_ROWS, "inventory.count_breakdown_rows");
+}
+
+export type CountBreakdownInput = z.infer<ReturnType<typeof countBreakdownField>>;
 
 /**
  * La línea de un BORRADOR, no la de un asiento.
@@ -35,6 +77,12 @@ export const upsertDocumentLineSchema = z.object({
   expiresAt: z.iso.date().nullish(),
   location: z.string().trim().max(64).nullish(),
   counted: countedAmount().nullish(),
+  /**
+   * F10-BULK-11 — «Contar por presentaciones». Si viene, el API calcula
+   * `counted` desde él y el `counted` del mismo cuerpo no gana
+   * (`count-breakdown.ts`). `null` lo borra.
+   */
+  countBreakdown: countBreakdownField().nullish(),
 });
 
 export const replaceDocumentLinesSchema = z.object({

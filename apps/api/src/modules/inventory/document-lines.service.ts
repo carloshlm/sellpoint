@@ -7,6 +7,7 @@ import {
 } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { resolveCountBreakdown } from "./count-breakdown";
 import { DocumentsService } from "./documents.service";
 import type { ReplaceDocumentLinesDto, UpsertDocumentLineDto } from "./dto/document.dto";
 import { assertLotExpiry } from "./lot-expiry";
@@ -25,6 +26,10 @@ import { assertLotExpiry } from "./lot-expiry";
  * fecha ya pasada en una entrada de mercancía no se va a poder confirmar
  * nunca. Las dos se rechazan al guardar, cuando quien la tecleó todavía tiene
  * el campo enfrente.
+ *
+ * Y el DESGLOSE del conteo (F10-BULK-11) también se valida al guardar: es de
+ * donde sale el contado, y un contado calculado de una presentación ajena no
+ * es una línea a medio llenar.
  */
 @Injectable()
 export class DocumentLinesService {
@@ -73,6 +78,12 @@ export class DocumentLinesService {
         },
       });
 
+      // F10-BULK-11: el desglose se valida y se aplica ANTES de decidir si se
+      // suma o se crea. La rama que suma lo descartaba con 201 (lo encontró el
+      // verificador): un desglose en una entrada daba 422 en un renglón nuevo
+      // y pasaba en silencio sobre uno que ya existía.
+      const desglose = await this.breakdownData(tx, user, document, dto.productId, dto);
+
       if (existente !== null) {
         const suma =
           dto.quantity === undefined || dto.quantity === null
@@ -80,7 +91,7 @@ export class DocumentLinesService {
             : new Prisma.Decimal((existente.quantity ?? 0).toString()).plus(dto.quantity);
         return tx.inventoryDocumentLine.update({
           where: { id: existente.id },
-          data: { quantity: suma },
+          data: { quantity: suma, ...desglose },
         });
       }
 
@@ -104,6 +115,7 @@ export class DocumentLinesService {
           expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
           location: dto.location ?? null,
           counted: dto.counted ?? null,
+          ...desglose,
         },
       });
     });
@@ -138,9 +150,34 @@ export class DocumentLinesService {
           }),
           ...(dto.location !== undefined && { location: dto.location ?? null }),
           ...(dto.counted !== undefined && { counted: dto.counted ?? null }),
+          // Al final: si hay desglose, su contado pisa el del cuerpo.
+          ...(await this.breakdownData(tx, user, document, linea.productId, dto)),
         },
       });
     });
+  }
+
+  private async breakdownData(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    document: InventoryDocument,
+    productId: string,
+    dto: Pick<Partial<UpsertDocumentLineDto>, "counted" | "countBreakdown">,
+  ): Promise<BreakdownData> {
+    if (dto.countBreakdown !== undefined && dto.countBreakdown !== null) {
+      const { countBreakdown, counted } = await resolveCountBreakdown(
+        tx,
+        user.tenantId,
+        document,
+        productId,
+        dto.countBreakdown,
+      );
+      return { countBreakdown, counted };
+    }
+    if (dto.countBreakdown === null || dto.counted !== undefined) {
+      return { countBreakdown: Prisma.DbNull };
+    }
+    return {};
   }
 
   async remove(user: AuthUser, documentId: string, lineId: string): Promise<void> {
@@ -166,6 +203,11 @@ export class DocumentLinesService {
       dto.lines.forEach((line, index) => {
         assertCaducidadTecleada(document, line.expiresAt, { lineIndex: index });
       });
+      // Se validan TODOS antes de borrar: un desglose malo deja el borrador como estaba.
+      const desgloses: BreakdownData[] = [];
+      for (const line of dto.lines) {
+        desgloses.push(await this.breakdownData(tx, user, document, line.productId, line));
+      }
       await tx.inventoryDocumentLine.deleteMany({ where: { documentId } });
 
       if (dto.lines.length === 0) {
@@ -185,6 +227,7 @@ export class DocumentLinesService {
           expiresAt: line.expiresAt ? new Date(line.expiresAt) : null,
           location: line.location ?? null,
           counted: line.counted ?? null,
+          ...desgloses[index],
         })),
       });
 
@@ -195,6 +238,19 @@ export class DocumentLinesService {
     });
   }
 }
+
+/**
+ * Lo que el desglose escribe en la línea (F10-BULK-11):
+ *
+ * - con desglose, el desglose y el contado que sale de él;
+ * - con `countBreakdown: null`, o con un `counted` tecleado sin desglose, lo
+ *   borra: un contado escrito a mano ya no es la suma de esos empaques;
+ * - sin ninguno de los dos, nada.
+ */
+type BreakdownData =
+  | { countBreakdown: Prisma.InputJsonValue; counted: Prisma.Decimal }
+  | { countBreakdown: typeof Prisma.DbNull }
+  | Record<string, never>;
 
 /**
  * La caducidad que viene en el cuerpo: el año siempre, y lo ya caducado solo
