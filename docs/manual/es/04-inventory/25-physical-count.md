@@ -37,6 +37,33 @@ Si subes el archivo otra vez, reemplaza lo que cargaste antes: sirve para
 corregir. También puedes corregir un número directamente en la columna
 **Contado** de la pantalla.
 
+## Contar por presentaciones
+
+Lo contado va en la unidad base del producto: el queso, en kilogramos. Si en el
+estante lo tienes en empaques, no hace falta sacar la cuenta a mano. Bajo el
+campo **Contado** de la fila presiona **Contar por presentaciones**: se abre un
+desglose con una fila por cada empaque del producto («Bolsa 1 Kg», «Bolsa 10
+Kg») y una de **Sueltos**.
+
+Por ejemplo, en el refrigerador hay 2 bolsas de 1 kg, 1 bolsa de 10 kg y un
+trozo de 600 g de queso Oaxaca:
+
+1. Escribe **2** junto a «Bolsa 1 Kg» y **1** junto a «Bolsa 10 Kg».
+2. En **Sueltos**, toca **g** y escribe **600**.
+3. Abajo aparece **Total: 12.600 kilogramos**. Presiona **Usar este total** y
+   ese número queda en **Contado**.
+
+La fila guarda cómo contaste: bajo lo contado se lee «2 × Bolsa 1 Kg + 1 ×
+Bolsa 10 Kg + 600 g», también en el conteo ya confirmado. Si te equivocaste en
+una bolsa, vuelve a abrir el desglose: trae lo que escribiste y solo corriges
+esa. Un empaque marcado como **Solo enteros** no acepta medio empaque. Si
+después escribes un número directo en **Contado**, ese número es el que vale y
+el desglose se borra.
+
+El botón aparece en los productos que tienen empaques además de su unidad base.
+En un producto con lote, cada fila (su lote y su ubicación) se desglosa por
+separado. Con el teclado, **Enter** usa el total y **Esc** cierra sin guardar.
+
 ## Revisar las diferencias
 
 Arriba de la lista aparece el resumen: cuántos productos **Contados**, cuántos
@@ -67,7 +94,8 @@ Cada producto sin lote se cuenta en una sola fila y en su unidad base (piezas,
 kilogramos): si la hoja lo trae dos veces, la segunda fila no deja confirmar
 hasta que corrijas la hoja y la vuelvas a subir, y si trae una presentación como
 «Caja con 12», SellPointy no lee esa fila al subirla y la deja sin contado para
-que escribas cuánto hay en la unidad base.
+que escribas cuánto hay en la unidad base. Para sumar cajas y sueltos en esa
+fila, usa **Contar por presentaciones**.
 
 Tres cosas conviene saber:
 

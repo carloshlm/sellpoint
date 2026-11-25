@@ -77,8 +77,28 @@ export interface DocumentRow {
   /** Solo en un conteo (`physical_count`). `null` en las líneas sin contar. */
   theoretical?: string;
   counted?: string | null;
+  /**
+   * F10-BULK-11: cómo se contó («Contar por presentaciones»), con el nombre de
+   * cada presentación. `null` o ausente: el contado se escribió directo.
+   */
+  countBreakdown?: CountBreakdownView[] | null;
   difference?: string | null;
   errors: DocumentRowError[];
+}
+
+/**
+ * Un renglón del desglose del conteo, como viaja al API: `presentationId:
+ * null` son los sueltos, en unidad base. La cantidad es texto decimal, como
+ * toda cantidad del API.
+ */
+export interface CountBreakdownEntry {
+  presentationId: string | null;
+  quantity: string;
+}
+
+/** El renglón del desglose que devuelve la previa, con el nombre de su presentación. */
+export interface CountBreakdownView extends CountBreakdownEntry {
+  presentationName: string | null;
 }
 
 /**
@@ -200,6 +220,8 @@ export interface UpsertLineInput {
   expiresAt?: string | null;
   location?: string | null;
   counted?: number | null;
+  /** F10-BULK-11: con desglose, el API calcula `counted` desde él. `null` lo borra. */
+  countBreakdown?: CountBreakdownEntry[] | null;
 }
 
 /**

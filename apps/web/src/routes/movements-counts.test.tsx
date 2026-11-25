@@ -598,3 +598,238 @@ describe("el contado no admite negativos (Carlos, 2026-09-01, noche)", () => {
     expect(screen.getByLabelText(/^contado$/i)).toHaveAttribute("min", "0");
   });
 });
+
+/**
+ * F10-BULK-10/11 — «Contar por presentaciones».
+ *
+ * El conteo sigue en unidad base (decisión del 2026-08-31). Lo que faltaba es
+ * sumar bolsas y sueltos sin calculadora: junto al «Contado» de cada fila, un
+ * botón abre el desglose —una fila por empaque y una de «Sueltos» con el botón
+ * de unidad— y su total se escribe en «Contado». El desglose viaja al API, que
+ * es quien calcula el contado y lo guarda con el renglón.
+ */
+describe("Inventario físico: contar por presentaciones (F10-BULK-10)", () => {
+  const queso = (
+    overrides: Partial<DocumentDetail["products"][number]> = {},
+  ): DocumentDetail["products"][number] => ({
+    id: "p1",
+    sku: "QUE-1",
+    name: "Queso Oaxaca",
+    baseUnit: "kg",
+    isComposite: false,
+    tracksLots: false,
+    location: null,
+    availableUnits: null,
+    presentations: [
+      {
+        id: "pr-kg",
+        name: "Kilogramo",
+        factor: "1",
+        allowFractionalInput: true,
+        isPurchasable: true,
+        isSellable: true,
+        isBase: true,
+      },
+      {
+        id: "pr-b1",
+        name: "Bolsa 1 Kg",
+        factor: "1",
+        allowFractionalInput: false,
+        isPurchasable: true,
+        isSellable: true,
+        isBase: false,
+      },
+      {
+        id: "pr-b10",
+        name: "Bolsa 10 Kg",
+        factor: "10",
+        allowFractionalInput: false,
+        isPurchasable: true,
+        isSellable: true,
+        isBase: false,
+      },
+    ],
+    ...overrides,
+  });
+
+  const conteoDeQueso = (
+    rowOverrides: Partial<DocumentRow> = {},
+    status: "draft" | "confirmed" = "draft",
+  ) =>
+    detalle({
+      status,
+      rows: [
+        fila({
+          sku: "QUE-1",
+          theoretical: "2.5",
+          counted: null,
+          difference: null,
+          ...rowOverrides,
+        }),
+      ],
+      products: [queso()],
+    });
+
+  const BOTON = /^contar por presentaciones$/i;
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("abre una fila por empaque y una de «Sueltos», sin la presentación base", async () => {
+    mocked.getDocument.mockResolvedValue(conteoDeQueso());
+    const { user } = await renderCount();
+
+    await user.click(await screen.findByRole("button", { name: BOTON }));
+
+    const desglose = screen.getByRole("group", { name: /contar por presentaciones/i });
+    expect(within(desglose).getByLabelText("Bolsa 1 Kg")).toHaveFocus();
+    expect(within(desglose).getByLabelText("Bolsa 10 Kg")).toBeInTheDocument();
+    expect(within(desglose).getByLabelText("Sueltos")).toBeInTheDocument();
+    expect(within(desglose).queryByLabelText("Kilogramo")).toBeNull();
+    // Los sueltos llevan el botón de unidad: 600 g se escriben como 600.
+    expect(
+      within(desglose).getByRole("button", { name: /escribir la cantidad en gramos/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("2 × Bolsa 1 Kg + 1 × Bolsa 10 Kg + 600 g: el total sale en kilogramos y se guarda con el renglón", async () => {
+    mocked.getDocument.mockResolvedValue(conteoDeQueso());
+    mocked.updateDocumentLine.mockResolvedValue({ counted: "12.6" } as never);
+    const { user } = await renderCount();
+
+    await user.click(await screen.findByRole("button", { name: BOTON }));
+    const desglose = screen.getByRole("group", { name: /contar por presentaciones/i });
+    await user.type(within(desglose).getByLabelText("Bolsa 1 Kg"), "2");
+    await user.type(within(desglose).getByLabelText("Bolsa 10 Kg"), "1");
+    await user.click(
+      within(desglose).getByRole("button", { name: /escribir la cantidad en gramos/i }),
+    );
+    await user.type(within(desglose).getByLabelText("Sueltos"), "600");
+
+    expect(within(desglose).getByText("Total: 12.600 kilogramos")).toBeInTheDocument();
+
+    await user.click(within(desglose).getByRole("button", { name: /usar este total/i }));
+
+    await waitFor(() => {
+      expect(mocked.updateDocumentLine).toHaveBeenCalledWith("doc-1", "line-1", {
+        countBreakdown: [
+          { presentationId: "pr-b1", quantity: "2" },
+          { presentationId: "pr-b10", quantity: "1" },
+          { presentationId: null, quantity: "0.6" },
+        ],
+      });
+    });
+    // El total queda en «Contado» y el desglose se cierra.
+    expect(await screen.findByLabelText(/^contado$/i)).toHaveValue(12.6);
+    expect(screen.queryByRole("group", { name: /contar por presentaciones/i })).toBeNull();
+  });
+
+  it("el total escrito en «Contado» no se vuelve a mandar como contado tecleado", async () => {
+    mocked.getDocument.mockResolvedValue(conteoDeQueso());
+    mocked.updateDocumentLine.mockResolvedValue({ counted: "20" } as never);
+    const { user } = await renderCount();
+
+    await user.click(await screen.findByRole("button", { name: BOTON }));
+    await user.type(screen.getByLabelText("Bolsa 10 Kg"), "2");
+    await user.click(screen.getByRole("button", { name: /usar este total/i }));
+
+    expect(await screen.findByLabelText(/^contado$/i)).toHaveValue(20);
+    // Pasa el autoguardado de «Contado» (400 ms): un `counted` borraría el desglose.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(mocked.updateDocumentLine).toHaveBeenCalledTimes(1);
+    expect(mocked.updateDocumentLine).not.toHaveBeenCalledWith(
+      "doc-1",
+      "line-1",
+      expect.objectContaining({ counted: expect.anything() }),
+    );
+  });
+
+  it("respeta «Solo enteros» de cada empaque: medio bolsa no deja usar el total", async () => {
+    mocked.getDocument.mockResolvedValue(conteoDeQueso());
+    const { user } = await renderCount();
+
+    await user.click(await screen.findByRole("button", { name: BOTON }));
+    await user.type(screen.getByLabelText("Bolsa 10 Kg"), "1.5");
+
+    expect(
+      screen.getByText("«Bolsa 10 Kg» no se parte: usa una cantidad entera."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /usar este total/i })).toBeDisabled();
+  });
+
+  it("se usa con el teclado: Enter usa el total y Escape cierra sin guardar", async () => {
+    mocked.getDocument.mockResolvedValue(conteoDeQueso());
+    mocked.updateDocumentLine.mockResolvedValue({ counted: "10" } as never);
+    const { user } = await renderCount();
+
+    const boton = await screen.findByRole("button", { name: BOTON });
+    await user.click(boton);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("group", { name: /contar por presentaciones/i })).toBeNull();
+    expect(boton).toHaveFocus();
+    expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+
+    await user.keyboard("{Enter}");
+    await user.tab();
+    await user.keyboard("1{Enter}");
+
+    await waitFor(() => {
+      expect(mocked.updateDocumentLine).toHaveBeenCalledWith("doc-1", "line-1", {
+        countBreakdown: [{ presentationId: "pr-b10", quantity: "1" }],
+      });
+    });
+  });
+
+  it("al volver a abrirlo trae lo guardado, para corregir una bolsa sin teclear todo", async () => {
+    mocked.getDocument.mockResolvedValue(
+      conteoDeQueso({
+        counted: "12.6",
+        difference: "10.1",
+        countBreakdown: [
+          { presentationId: "pr-b1", quantity: "2", presentationName: "Bolsa 1 Kg" },
+          { presentationId: "pr-b10", quantity: "1", presentationName: "Bolsa 10 Kg" },
+          { presentationId: null, quantity: "0.6", presentationName: null },
+        ],
+      }),
+    );
+    const { user } = await renderCount();
+
+    // Cerrado, el renglón ya dice cómo se contó.
+    expect(await screen.findByText("2 × Bolsa 1 Kg + 1 × Bolsa 10 Kg + 600 g")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: BOTON }));
+    expect(screen.getByLabelText("Bolsa 1 Kg")).toHaveValue("2");
+    expect(screen.getByLabelText("Bolsa 10 Kg")).toHaveValue("1");
+    expect(screen.getByLabelText("Sueltos")).toHaveValue("0.6");
+    expect(screen.getByText("Total: 12.600 kilogramos")).toBeInTheDocument();
+  });
+
+  it("el conteo confirmado muestra el desglose junto a lo contado, sin el botón", async () => {
+    mocked.getDocument.mockResolvedValue(
+      conteoDeQueso(
+        {
+          counted: "12.6",
+          difference: "10.1",
+          countBreakdown: [
+            { presentationId: "pr-b1", quantity: "2", presentationName: "Bolsa 1 Kg" },
+            { presentationId: "pr-b10", quantity: "1", presentationName: "Bolsa 10 Kg" },
+            { presentationId: null, quantity: "0.6", presentationName: null },
+          ],
+        },
+        "confirmed",
+      ),
+    );
+    await renderCount(["inventory:read", "inventory:movement", "inventory:manage"]);
+
+    expect(await screen.findByText("2 × Bolsa 1 Kg + 1 × Bolsa 10 Kg + 600 g")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: BOTON })).toBeNull();
+  });
+
+  it("un producto sin empaques no ofrece el botón: su contado se escribe directo", async () => {
+    await renderCount();
+
+    await screen.findByLabelText(/^contado$/i);
+    expect(screen.queryByRole("button", { name: BOTON })).toBeNull();
+  });
+});

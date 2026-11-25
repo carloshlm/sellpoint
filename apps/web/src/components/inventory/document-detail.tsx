@@ -42,11 +42,16 @@ import {
   useDocument,
 } from "@/lib/inventory/hooks";
 import { useProductLots } from "@/lib/inventory/kardex-hooks";
-import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
+import type { CountBreakdownEntry, DocumentProduct, DocumentRow } from "@/lib/inventory/types";
 import { mismoImporte, moneyInitialValue, moneyInputError } from "@/lib/money";
 import { useCaptureUnit } from "@/lib/use-capture-unit";
 import { useAuthStore } from "@/stores/auth.store";
 import { AddLineForm } from "./add-line-form";
+import {
+  breakdownPresentations,
+  CountBreakdownPanel,
+  formatCountBreakdown,
+} from "./count-breakdown";
 import { CountPanel, CountSummary } from "./count-panel";
 import { DocumentHeaderForm } from "./document-header-form";
 import { PrintDocumentButton } from "./print-document-button";
@@ -485,6 +490,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                         esConteo={esConteo}
                         conStock={conStock}
                         conColumnaFinal={conColumnaFinal}
+                        columnCount={columnCount}
                         minCaducidad={minCaducidad}
                         registrarCampo={registrarCampo}
                       />
@@ -581,6 +587,7 @@ function LineRow({
   esConteo,
   conStock,
   conColumnaFinal,
+  columnCount,
   minCaducidad,
   autoFocusQuantity,
   registrarCampo,
@@ -598,6 +605,8 @@ function LineRow({
   conStock: boolean;
   /** La tabla tiene su última columna (quitar y avisos): la fila también, aunque vacía. */
   conColumnaFinal: boolean;
+  /** Las columnas de la tabla: el desglose del conteo ocupa una fila entera. */
+  columnCount: number;
   /** El `min` del calendario de la caducidad: hoy en una entrada de mercancía. */
   minCaducidad: string;
   autoFocusQuantity: boolean;
@@ -656,6 +665,21 @@ function LineRow({
   const quantityToSave = quantityInBase.quantity;
   // Lo CONTADO: el dato que un inventario físico viene a capturar.
   const [counted, setCounted] = useState(row.counted ?? "");
+  /**
+   * F10-BULK-10 — «Contar por presentaciones». El total del desglose lo
+   * calcula el API y llega en la respuesta: se escribe en «Contado» y se
+   * recuerda aquí para que el autoguardado de «Contado» no lo vuelva a mandar
+   * como contado tecleado, que borraría el desglose. Teclear lo olvida.
+   */
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const breakdownTrigger = useRef<HTMLButtonElement | null>(null);
+  const breakdownCounted = useRef<string | null>(null);
+  const conDesglose =
+    esConteo && product !== undefined && breakdownPresentations(product).length > 0;
+  const closeBreakdown = () => {
+    setBreakdownOpen(false);
+    breakdownTrigger.current?.focus();
+  };
   // A dos decimales desde que abre: el API devuelve «6», no «6.00».
   const [unitCost, setUnitCost] = useState(moneyInitialValue(row.unitCost));
   const [lotCode, setLotCode] = useState(row.lotCode ?? "");
@@ -727,6 +751,20 @@ function LineRow({
     mutationFn: (value: number | null) =>
       updateDocumentLine(documentId, row.id, { counted: value }),
     onSuccess: invalidar,
+  });
+
+  const guardarDesglose = useMutation({
+    mutationFn: (countBreakdown: CountBreakdownEntry[]) =>
+      updateDocumentLine(documentId, row.id, { countBreakdown }) as Promise<{
+        counted: string | null;
+      }>,
+    onSuccess: (line) => {
+      const total = line?.counted ?? "";
+      breakdownCounted.current = total;
+      setCounted(total);
+      closeBreakdown();
+      invalidar();
+    },
   });
 
   const guardarUbicacion = useMutation({
@@ -813,7 +851,7 @@ function LineRow({
       primeraCargaContado.current = false;
       return;
     }
-    if (counted === (row.counted ?? "")) {
+    if (counted === (row.counted ?? "") || counted === breakdownCounted.current) {
       return;
     }
     const timer = setTimeout(() => {
@@ -931,85 +969,107 @@ function LineRow({
     // centrado por defecto el input quedaba a otra altura que el resto de la
     // fila. Ahora todo alinea al tope y cada celda de texto centra su
     // contenido a la altura del input — las ayudas caen debajo.
-    <tr className={`border-b align-top last:border-0 ${conError ? "bg-destructive/5" : ""}`}>
-      <td className="px-2 py-2">
-        <div className={LINE_CELL}>{row.lineNo}</div>
-      </td>
-      <td className="px-2 py-2">
-        <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
-          <span className="font-mono">{row.sku}</span>
-          {product !== undefined && <span className="text-muted-foreground">{product.name}</span>}
-        </div>
-      </td>
-      {esConteo ? (
-        <>
-          {/* Teórico: lo que el sistema creía tener al capturar la línea. */}
-          <td className="px-2 py-2">
-            <div className={LINE_CELL}>{row.theoretical ?? "—"}</div>
-          </td>
-          {/*
+    <>
+      <tr className={`border-b align-top last:border-0 ${conError ? "bg-destructive/5" : ""}`}>
+        <td className="px-2 py-2">
+          <div className={LINE_CELL}>{row.lineNo}</div>
+        </td>
+        <td className="px-2 py-2">
+          <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
+            <span className="font-mono">{row.sku}</span>
+            {product !== undefined && <span className="text-muted-foreground">{product.name}</span>}
+          </div>
+        </td>
+        {esConteo ? (
+          <>
+            {/* Teórico: lo que el sistema creía tener al capturar la línea. */}
+            <td className="px-2 py-2">
+              <div className={LINE_CELL}>{row.theoretical ?? "—"}</div>
+            </td>
+            {/*
             CONTADO — el único campo editable de un conteo, y el que se
             asienta. Antes este input mandaba `quantity`, que en una línea de
             conteo guarda el TEÓRICO: corregir acá no corregía el conteo,
             pisaba la referencia y al aprobar se aplicaba lo del archivo
             (Carlos, 2026-08-31).
           */}
-          <td className="px-2 py-2">
-            {editable ? (
-              <>
-                <label htmlFor={`line-${row.lineNo}-counted`} className="sr-only">
-                  {t("inventory.count.counted")}
-                </label>
-                <input
-                  id={`line-${row.lineNo}-counted`}
-                  ref={refDeCantidad(setCounted)}
-                  type="number"
-                  min={0}
-                  step="0.0001"
-                  value={counted}
-                  onChange={(event) => setCounted(event.target.value)}
-                  className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                />
-                {guardarContado.isPending && (
-                  <span className="ml-2 text-muted-foreground text-xs">
-                    {t("inventory.document.saving")}
-                  </span>
-                )}
-              </>
-            ) : (
-              (row.counted ?? "—")
-            )}
-            {row.newLot && (
-              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
-                {t("inventory.count.newLot")}
-              </span>
-            )}
-          </td>
-          <td
-            className={`px-2 py-2 ${
-              row.difference !== null && row.difference !== undefined && row.difference !== "0"
-                ? "font-medium text-destructive"
-                : ""
-            }`}
-          >
-            {row.difference ?? "—"}
-          </td>
-        </>
-      ) : (
-        <>
-          <td className="px-2 py-2">
-            {editable && product !== undefined ? (
-              <>
-                <label htmlFor={`line-${row.lineNo}-presentation`} className="sr-only">
-                  {t("inventory.document.presentation")}
-                </label>
-                <select
-                  id={`line-${row.lineNo}-presentation`}
-                  value={row.presentationId ?? ""}
-                  onChange={(event) => guardarPresentacion.mutate(event.target.value || null)}
-                  className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            <td className="px-2 py-2">
+              {editable ? (
+                <>
+                  <label htmlFor={`line-${row.lineNo}-counted`} className="sr-only">
+                    {t("inventory.count.counted")}
+                  </label>
+                  <input
+                    id={`line-${row.lineNo}-counted`}
+                    ref={refDeCantidad(setCounted)}
+                    type="number"
+                    min={0}
+                    step="0.0001"
+                    value={counted}
+                    onChange={(event) => {
+                      breakdownCounted.current = null;
+                      setCounted(event.target.value);
+                    }}
+                    className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                  {(guardarContado.isPending || guardarDesglose.isPending) && (
+                    <span className="ml-2 text-muted-foreground text-xs">
+                      {t("inventory.document.saving")}
+                    </span>
+                  )}
+                </>
+              ) : (
+                (row.counted ?? "—")
+              )}
+              {/* Cómo se contó: «2 × Bolsa 1 Kg + 1 × Bolsa 10 Kg + 600 g». */}
+              {esConteo && row.countBreakdown != null && row.countBreakdown.length > 0 && (
+                <span className="block text-muted-foreground text-xs">
+                  {formatCountBreakdown(row.countBreakdown, product, resolveUiLocale(i18n))}
+                </span>
+              )}
+              {editable && conDesglose && (
+                <button
+                  ref={breakdownTrigger}
+                  type="button"
+                  aria-expanded={breakdownOpen}
+                  aria-controls={`line-${row.lineNo}-breakdown`}
+                  onClick={() => setBreakdownOpen((open) => !open)}
+                  className="block text-primary text-xs underline-offset-2 hover:underline"
                 >
-                  {/*
+                  {t("inventory.count.byPresentation")}
+                </button>
+              )}
+              {row.newLot && (
+                <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
+                  {t("inventory.count.newLot")}
+                </span>
+              )}
+            </td>
+            <td
+              className={`px-2 py-2 ${
+                row.difference !== null && row.difference !== undefined && row.difference !== "0"
+                  ? "font-medium text-destructive"
+                  : ""
+              }`}
+            >
+              {row.difference ?? "—"}
+            </td>
+          </>
+        ) : (
+          <>
+            <td className="px-2 py-2">
+              {editable && product !== undefined ? (
+                <>
+                  <label htmlFor={`line-${row.lineNo}-presentation`} className="sr-only">
+                    {t("inventory.document.presentation")}
+                  </label>
+                  <select
+                    id={`line-${row.lineNo}-presentation`}
+                    value={row.presentationId ?? ""}
+                    onChange={(event) => guardarPresentacion.mutate(event.target.value || null)}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  >
+                    {/*
                 La opción sintética "Unidad base" solo existe si ninguna
                 presentación ya la representa (factor 1) — dos nombres para lo
                 mismo confunden, y peor: la sintética no pasa por
@@ -1017,168 +1077,170 @@ function LineRow({
                 enteros". Se conserva únicamente mientras la línea siga
                 guardada sin presentación, para no mentir sobre su estado.
               */}
-                  {(!product.presentations.some((p) => Number(p.factor) === 1) ||
-                    row.presentationId === null) && (
-                    <option value="">{t("inventory.document.presentationBase")}</option>
-                  )}
-                  {product.presentations.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              (presentacion?.name ?? t("inventory.document.presentationBase"))
-            )}
-          </td>
+                    {(!product.presentations.some((p) => Number(p.factor) === 1) ||
+                      row.presentationId === null) && (
+                      <option value="">{t("inventory.document.presentationBase")}</option>
+                    )}
+                    {product.presentations.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                (presentacion?.name ?? t("inventory.document.presentationBase"))
+              )}
+            </td>
+            <td className="px-2 py-2">
+              {editable ? (
+                <>
+                  <label htmlFor={`line-${row.lineNo}-quantity`} className="sr-only">
+                    {t("inventory.document.quantity")}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      id={`line-${row.lineNo}-quantity`}
+                      ref={refDeCantidad(setQuantity)}
+                      type="number"
+                      step="0.0001"
+                      value={quantity}
+                      placeholder={quantityPlaceholder ?? undefined}
+                      aria-invalid={quantityError !== null ? true : undefined}
+                      onChange={(event) => typeQuantity(event.target.value)}
+                      className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                    />
+                    <CaptureUnitToggle
+                      baseUnit={baseUnit}
+                      atBasePresentation={atBasePresentation}
+                      value={capture.unit}
+                      onChange={changeCaptureUnit}
+                    />
+                    {guardar.isPending && (
+                      <span className="ml-0.5 text-muted-foreground text-xs">
+                        {t("inventory.document.saving")}
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                (row.quantityInput ?? "—")
+              )}
+              <Equivalencia
+                row={row}
+                product={product}
+                captureUnit={capture.unit}
+                locale={resolveUiLocale(i18n)}
+              />
+              {esSalida && (
+                <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />
+              )}
+              {esSalida && <RepartoFefo row={row} />}
+              {esSalida && product?.isComposite === true && <Compuesto product={product} />}
+            </td>
+          </>
+        )}
+        {conCosto && (
           <td className="px-2 py-2">
             {editable ? (
               <>
-                <label htmlFor={`line-${row.lineNo}-quantity`} className="sr-only">
-                  {t("inventory.document.quantity")}
+                <label htmlFor={`line-${row.lineNo}-unit-cost`} className="sr-only">
+                  {t("inventory.document.unitCost")}
                 </label>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    id={`line-${row.lineNo}-quantity`}
-                    ref={refDeCantidad(setQuantity)}
-                    type="number"
-                    step="0.0001"
-                    value={quantity}
-                    placeholder={quantityPlaceholder ?? undefined}
-                    aria-invalid={quantityError !== null ? true : undefined}
-                    onChange={(event) => typeQuantity(event.target.value)}
-                    className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  />
-                  <CaptureUnitToggle
-                    baseUnit={baseUnit}
-                    atBasePresentation={atBasePresentation}
-                    value={capture.unit}
-                    onChange={changeCaptureUnit}
-                  />
-                  {guardar.isPending && (
-                    <span className="ml-0.5 text-muted-foreground text-xs">
-                      {t("inventory.document.saving")}
-                    </span>
-                  )}
-                </div>
+                <MoneyInput
+                  id={`line-${row.lineNo}-unit-cost`}
+                  ref={registrarCampo(setUnitCost)}
+                  className="w-40"
+                  aria-invalid={costoInvalido ? true : undefined}
+                  value={unitCost}
+                  onChange={setUnitCost}
+                />
               </>
             ) : (
-              (row.quantityInput ?? "—")
+              // Confirmado: se LEE, y se lee como se capturó — en la moneda del
+              // negocio y a dos decimales, no el decimal crudo del API. Si el
+              // neto que entró al kardex es otro (F9-COSTMODE-07), se dice.
+              <>
+                <Money value={row.unitCost} />
+                {row.unitCostNet !== null && row.unitCostNet !== row.unitCost && (
+                  <span className="block text-muted-foreground text-xs">
+                    {t("inventory.document.netCost", {
+                      cost: formatMoney(Number(row.unitCostNet), currency, resolveUiLocale(i18n)),
+                    })}
+                  </span>
+                )}
+              </>
             )}
-            <Equivalencia
-              row={row}
-              product={product}
-              captureUnit={capture.unit}
-              locale={resolveUiLocale(i18n)}
-            />
-            {esSalida && <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />}
-            {esSalida && <RepartoFefo row={row} />}
-            {esSalida && product?.isComposite === true && <Compuesto product={product} />}
           </td>
-        </>
-      )}
-      {conCosto && (
-        <td className="px-2 py-2">
-          {editable ? (
-            <>
-              <label htmlFor={`line-${row.lineNo}-unit-cost`} className="sr-only">
-                {t("inventory.document.unitCost")}
-              </label>
-              <MoneyInput
-                id={`line-${row.lineNo}-unit-cost`}
-                ref={registrarCampo(setUnitCost)}
-                className="w-40"
-                aria-invalid={costoInvalido ? true : undefined}
-                value={unitCost}
-                onChange={setUnitCost}
-              />
-            </>
-          ) : (
-            // Confirmado: se LEE, y se lee como se capturó — en la moneda del
-            // negocio y a dos decimales, no el decimal crudo del API. Si el
-            // neto que entró al kardex es otro (F9-COSTMODE-07), se dice.
-            <>
-              <Money value={row.unitCost} />
-              {row.unitCostNet !== null && row.unitCostNet !== row.unitCost && (
-                <span className="block text-muted-foreground text-xs">
-                  {t("inventory.document.netCost", {
-                    cost: formatMoney(Number(row.unitCostNet), currency, resolveUiLocale(i18n)),
-                  })}
-                </span>
-              )}
-            </>
-          )}
-        </td>
-      )}
-      {/*
+        )}
+        {/*
         F3-LOTS: la captura del lote vive en la ENTRADA — en la salida lo
         elige FEFO (RepartoFefo) y en el conteo viene por la planilla. Sin
         estos inputs, `inventory.lot_required` pedía algo que la pantalla no
         dejaba dar. Encabezado en la columna, label sr-only en el input.
       */}
-      {conLote && (
-        <>
-          <td className="px-2 py-2">
-            {product?.tracksLots === true ? (
-              editable ? (
-                <>
-                  <label htmlFor={`line-${row.lineNo}-lot`} className="sr-only">
-                    {t("inventory.document.lotCode")}
-                  </label>
-                  <input
-                    id={`line-${row.lineNo}-lot`}
-                    ref={registrarCampo(setLotCode)}
-                    type="text"
-                    value={lotCode}
-                    onFocus={() => setLotTocado(true)}
-                    onChange={(event) =>
-                      // Se normaliza AL TECLEAR y no solo al guardar: el API
-                      // también lo hace —esa es la garantía de los datos— pero
-                      // si la pantalla no, el cajero escribe `stm01`, guarda, y
-                      // al recargar ve `STM01`. Lo que se escribe tiene que ser
-                      // lo que se guarda.
-                      setLotCode(normalizeLotCode(event.target.value))
-                    }
-                    className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  />
-                </>
+        {conLote && (
+          <>
+            <td className="px-2 py-2">
+              {product?.tracksLots === true ? (
+                editable ? (
+                  <>
+                    <label htmlFor={`line-${row.lineNo}-lot`} className="sr-only">
+                      {t("inventory.document.lotCode")}
+                    </label>
+                    <input
+                      id={`line-${row.lineNo}-lot`}
+                      ref={registrarCampo(setLotCode)}
+                      type="text"
+                      value={lotCode}
+                      onFocus={() => setLotTocado(true)}
+                      onChange={(event) =>
+                        // Se normaliza AL TECLEAR y no solo al guardar: el API
+                        // también lo hace —esa es la garantía de los datos— pero
+                        // si la pantalla no, el cajero escribe `stm01`, guarda, y
+                        // al recargar ve `STM01`. Lo que se escribe tiene que ser
+                        // lo que se guarda.
+                        setLotCode(normalizeLotCode(event.target.value))
+                      }
+                      className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                    />
+                  </>
+                ) : (
+                  (row.lotCode ?? "—")
+                )
               ) : (
-                (row.lotCode ?? "—")
-              )
-            ) : (
-              "—"
-            )}
-          </td>
-          <td className="px-2 py-2">
-            {product?.tracksLots === true ? (
-              editable ? (
-                <>
-                  <label htmlFor={`line-${row.lineNo}-expires`} className="sr-only">
-                    {t("inventory.document.lotExpiresAt")}
-                  </label>
-                  <input
-                    id={`line-${row.lineNo}-expires`}
-                    ref={registrarCampo(setExpiresAt)}
-                    type="date"
-                    value={expiresAt}
-                    min={minCaducidad}
-                    max={LOT_EXPIRY_MAX_DATE}
-                    aria-invalid={errorCaducidad !== null ? true : undefined}
-                    onChange={(event) => setExpiresAt(event.target.value)}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  />
-                </>
+                "—"
+              )}
+            </td>
+            <td className="px-2 py-2">
+              {product?.tracksLots === true ? (
+                editable ? (
+                  <>
+                    <label htmlFor={`line-${row.lineNo}-expires`} className="sr-only">
+                      {t("inventory.document.lotExpiresAt")}
+                    </label>
+                    <input
+                      id={`line-${row.lineNo}-expires`}
+                      ref={registrarCampo(setExpiresAt)}
+                      type="date"
+                      value={expiresAt}
+                      min={minCaducidad}
+                      max={LOT_EXPIRY_MAX_DATE}
+                      aria-invalid={errorCaducidad !== null ? true : undefined}
+                      onChange={(event) => setExpiresAt(event.target.value)}
+                      className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                    />
+                  </>
+                ) : (
+                  (row.expiresAt?.slice(0, 10) ?? "—")
+                )
               ) : (
-                (row.expiresAt?.slice(0, 10) ?? "—")
-              )
-            ) : (
-              "—"
-            )}
-          </td>
-        </>
-      )}
-      {/*
+                "—"
+              )}
+            </td>
+          </>
+        )}
+        {/*
         La UBICACIÓN no se pregunta por el LOTE, se pregunta por el NEGOCIO.
         Para un producto con lote es parte de la identidad del saldo
         (`stock_lots` es lote+almacén+ubicación: contar el estante A-1 no dice
@@ -1187,78 +1249,102 @@ function LineRow({
         atarla a `tracksLots` dejaba sin dónde escribirla justo a los productos
         más comunes (Carlos, 2026-08-31).
       */}
-      {conUbicacion && (
-        <td className="px-2 py-2">
-          {editable ? (
-            <>
-              <label htmlFor={`line-${row.lineNo}-location`} className="sr-only">
-                {t("inventory.document.location")}
-              </label>
-              <input
-                id={`line-${row.lineNo}-location`}
-                ref={registrarCampo(setLocation)}
-                type="text"
-                value={location}
-                onChange={(event) => setLocation(event.target.value)}
-                placeholder={t("inventory.document.locationPlaceholder")}
-                className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
-              />
-            </>
-          ) : (
-            (row.location ?? "—")
-          )}
-        </td>
-      )}
-      {conStock && (
-        <td className="px-2 py-2">
-          <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
-            <span>
-              {/* Sin saldo que contar (anulados): «—» antes que un número
-                  reconstruido a medias. El exacto vive en el kardex. */}
-              {row.stockBefore === null || row.stockAfter === null
-                ? "—"
-                : `${formatQuantity(row.stockBefore, product?.baseUnit ?? "")} → ${formatQuantity(row.stockAfter, product?.baseUnit ?? "")}`}
-            </span>
-            {!esConteo && row.newLot && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                {t("inventory.document.newLot")}
-              </span>
+        {conUbicacion && (
+          <td className="px-2 py-2">
+            {editable ? (
+              <>
+                <label htmlFor={`line-${row.lineNo}-location`} className="sr-only">
+                  {t("inventory.document.location")}
+                </label>
+                <input
+                  id={`line-${row.lineNo}-location`}
+                  ref={registrarCampo(setLocation)}
+                  type="text"
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  placeholder={t("inventory.document.locationPlaceholder")}
+                  className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                />
+              </>
+            ) : (
+              (row.location ?? "—")
             )}
-          </div>
-        </td>
-      )}
-      {/*
+          </td>
+        )}
+        {conStock && (
+          <td className="px-2 py-2">
+            <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
+              <span>
+                {/* Sin saldo que contar (anulados): «—» antes que un número
+                  reconstruido a medias. El exacto vive en el kardex. */}
+                {row.stockBefore === null || row.stockAfter === null
+                  ? "—"
+                  : `${formatQuantity(row.stockBefore, product?.baseUnit ?? "")} → ${formatQuantity(row.stockAfter, product?.baseUnit ?? "")}`}
+              </span>
+              {!esConteo && row.newLot && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                  {t("inventory.document.newLot")}
+                </span>
+              )}
+            </div>
+          </td>
+        )}
+        {/*
         Quitar una línea del BORRADOR no toca el ledger: la línea todavía no
         movió nada. Por eso no hay diálogo de confirmación — pedirla acá
         entrenaría a aceptar sin leer (mismo criterio que LotEditor).
       */}
-      {conColumnaFinal && (
-        <td className="px-2 py-2 text-right">
-          <div className={`${LINE_CELL} flex-wrap justify-end gap-x-4 gap-y-1`}>
-            {conError && (
-              <span className="text-left text-destructive text-xs">
-                {[
-                  ...row.errors.map((error) => t(error.code, error.args)),
-                  ...(quantityError === null ? [] : [quantityError]),
-                  ...(errorCosto === null ? [] : [errorCosto]),
-                  ...(errorCaducidad === null ? [] : [errorCaducidad]),
-                ].join(" · ")}
-              </span>
-            )}
-            {editable && !esConteo && (
-              <button
-                type="button"
-                onClick={() => quitar.mutate()}
-                disabled={quitar.isPending}
-                className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
-              >
-                {t("inventory.document.removeLine")}
-              </button>
-            )}
-          </div>
-        </td>
+        {conColumnaFinal && (
+          <td className="px-2 py-2 text-right">
+            <div className={`${LINE_CELL} flex-wrap justify-end gap-x-4 gap-y-1`}>
+              {conError && (
+                <span className="text-left text-destructive text-xs">
+                  {[
+                    ...row.errors.map((error) => t(error.code, error.args)),
+                    ...(quantityError === null ? [] : [quantityError]),
+                    ...(errorCosto === null ? [] : [errorCosto]),
+                    ...(errorCaducidad === null ? [] : [errorCaducidad]),
+                  ].join(" · ")}
+                </span>
+              )}
+              {editable && !esConteo && (
+                <button
+                  type="button"
+                  onClick={() => quitar.mutate()}
+                  disabled={quitar.isPending}
+                  className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
+                >
+                  {t("inventory.document.removeLine")}
+                </button>
+              )}
+            </div>
+          </td>
+        )}
+      </tr>
+      {/*
+      F10-BULK-10: el desglose va en su propia fila de una sola celda, bajo el
+      renglón que cuenta (con lotes, su lote y su ubicación).
+    */}
+      {editable && conDesglose && breakdownOpen && product !== undefined && (
+        <tr className="border-b">
+          <td colSpan={columnCount} className="px-2 pt-1 pb-3">
+            <CountBreakdownPanel
+              id={`line-${row.lineNo}-breakdown`}
+              row={row}
+              product={product}
+              saving={guardarDesglose.isPending}
+              error={
+                guardarDesglose.error === null
+                  ? null
+                  : (guardarDesglose.error as unknown as ApiError).message
+              }
+              onApply={(entries) => guardarDesglose.mutate(entries)}
+              onClose={closeBreakdown}
+            />
+          </td>
+        </tr>
       )}
-    </tr>
+    </>
   );
 }
 
