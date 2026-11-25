@@ -125,6 +125,9 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       "reports/sales-by-product/export?format=xlsx",
       "reports/sales-by-service",
       "reports/sales-by-service/export?format=xlsx",
+      // F10-RPT-04: el reporte por artículo del expediente.
+      "reports/items",
+      "reports/items/export?format=xlsx",
     ]) {
       await request(app.getHttpServer())
         .get(ruta(sufijo))

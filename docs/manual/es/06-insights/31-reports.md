@@ -5,7 +5,8 @@ plan: Desde Basic
 ---
 
 Los reportes responden las preguntas que el panel no alcanza: qué se vendió
-cada día, cómo cerró cada turno, cuánto impuesto cobraste. Todos se pueden
+cada día, qué te deja más utilidad, cómo cerró cada turno, cuánto impuesto
+cobraste. Todos se pueden
 bajar a Excel para guardarlos, enviarlos a tu contador o trabajarlos a tu modo.
 
 Entra desde el menú de la izquierda, en **Reportes** › **Reportes generales**.
@@ -14,25 +15,53 @@ Los ve quien tiene el permiso **Ver reportes**; de fábrica, los roles
 
 ![Reportes generales](screen:reports-hub)
 
-## Qué hay en cada tarjeta
+## Qué hay en cada sección
 
-Las tarjetas hacen una de tres cosas: abren un reporte con sus filtros, bajan un
-Excel en ese momento o te llevan a la pantalla donde ya vive esa información.
+Las tarjetas están agrupadas en cinco secciones, cada una con su título y una
+línea que dice qué encuentras en ella. Cada tarjeta hace una de tres cosas: abre
+un reporte con sus filtros, baja un Excel en ese momento o te lleva a la
+pantalla donde ya vive esa información. Si tu rol no puede ver ninguna tarjeta
+de una sección, esa sección no aparece.
+
+### Ventas
+
+| Tarjeta | Qué hace |
+|---|---|
+| **Ventas** | Abre el reporte de ventas del periodo. |
+| **Ventas por producto** | Abre cada producto vendido, ticket por ticket. |
+| **Ventas por servicio** | Abre cada servicio vendido, ticket por ticket. |
+| **Más vendidos** | Abre los productos y servicios que más vendiste. |
+
+### Utilidad
+
+| Tarjeta | Qué hace |
+|---|---|
+| **Mayor utilidad** | Abre los productos y servicios que más te dejan. |
+| **Vendidos bajo su costo** | Abre lo que vendiste por menos de lo que te costó. |
+
+### Caja e impuestos
+
+| Tarjeta | Qué hace |
+|---|---|
+| **Cierres de turno** | Abre cada turno con su arqueo. |
+| **Impuestos cobrados** | Abre lo cobrado por cada impuesto y tasa. |
+
+### Inventario
 
 | Tarjeta | Qué hace |
 |---|---|
 | **Stock por sucursal** | Abre el reporte de existencias, con sus costos, su precio y su valor a precio de venta. |
-| **Ventas** | Abre el reporte de ventas del periodo. |
-| **Ventas por producto** | Abre cada producto vendido, ticket por ticket. |
-| **Ventas por servicio** | Abre cada servicio vendido, ticket por ticket. |
-| **Cierres de turno** | Abre cada turno con su arqueo. |
-| **Impuestos cobrados** | Abre lo cobrado por cada impuesto y tasa. |
 | **Kardex** | Te lleva a **Productos**: abre un producto y su pestaña de kardex, que tiene su propio botón de Excel (capítulo 22). Desde Pro. |
+| **Vencimientos** | Te lleva a **Próximos a vencer** (capítulo 26). En Plus. |
+| **En tránsito** | Te lleva a **Traspasos** (capítulo 24). Desde Pro. |
+
+### Catálogos para descargar
+
+| Tarjeta | Qué hace |
+|---|---|
 | **Catálogo** | Baja en ese momento un Excel con todos tus productos y sus campos propios. |
 | **Usuarios** | Baja un Excel con quién tiene acceso, con qué rol y a qué sucursales. |
 | **Sucursales** | Baja un Excel con tus sucursales y cuántos productos guarda cada una. |
-| **Vencimientos** | Te lleva a **Próximos a vencer** (capítulo 26). En Plus. |
-| **En tránsito** | Te lleva a **Traspasos** (capítulo 24). Desde Pro. |
 
 Cada reporte que abre una tarjeta tiene, junto a su título, el botón **Volver a
 Reportes** para regresar a esta lista.
@@ -47,9 +76,10 @@ Cada reporte tiene arriba sus filtros, y la tabla cambia en cuanto eliges uno:
   como opción para volver a ella.
 - **Desde** y **Hasta**, para el rango de fechas. **Ventas**, **Ventas por
   producto** y **Ventas por servicio** abren con **Desde** en el día de hoy y
-  **Hasta** vacío: al entrar ves lo que se vendió hoy. **Limpiar fechas** borra
-  las dos fechas y la tabla muestra todas las fechas; para ver otro día o un
-  periodo, elige sus fechas.
+  **Hasta** vacío: al entrar ves lo que se vendió hoy. **Más vendidos**,
+  **Mayor utilidad** y **Vendidos bajo su costo** abren con el mes en curso,
+  del día 1 a hoy. **Limpiar fechas** borra las dos fechas y la tabla muestra
+  todas las fechas; para ver otro día o un periodo, elige sus fechas.
 
 La tabla muestra 20 renglones por página; usa **Anterior** y **Siguiente** para
 moverte.
@@ -106,6 +136,74 @@ Por eso no tienen el filtro de **Estado**; sus filtros son **Sucursal**,
 **Desde** y **Hasta**, y abren con lo vendido hoy. Al pie verás el **Impuesto** y
 el **Total** de todo el periodo filtrado. El Excel trae las mismas columnas que
 la pantalla, sin columna de estado.
+
+### Las ventas de un solo producto o servicio
+
+Si llegas desde el aviso de un producto que creció, en el panel (capítulo 30),
+el reporte abre con las ventas de **ese producto** (o de ese servicio) y con las
+fechas del mes. Arriba de la tabla verás de cuál es, por ejemplo **Solo las
+ventas de Agua mineral**. La tabla, el pie y el Excel traen solo sus ventas, y
+puedes cambiar la **Sucursal** y las fechas como siempre.
+
+Para volver a ver todos, presiona **Quitar filtro**: la tabla muestra otra vez
+todos los productos (o todos los servicios), con las mismas fechas.
+
+## Más vendidos y mayor utilidad
+
+![El reporte de los más vendidos](screen:reports-top-sold)
+
+**Más vendidos** pone en orden tus productos y servicios por lo que vendieron,
+de la venta más alta a la más baja. **Mayor utilidad** deja solo los que te
+dejaron ganancia, de la utilidad más alta a la más baja. Para las mismas fechas,
+sus números son los mismos que los de **Más vendidos** y **Mayor utilidad** en
+el panel (capítulo 30).
+
+![El reporte de mayor utilidad](screen:reports-top-profit)
+
+Cada renglón es un artículo, con estas columnas:
+
+- **Artículo**: su nombre, con un ícono que dice si es un producto, un servicio
+  o un concepto (un texto libre de una cotización).
+- **Cantidad**: cuánto se vendió, en su unidad base, por ejemplo «2.500
+  kilogramos» o «24 piezas». Un servicio se cuenta: «3».
+- **Venta sin impuesto**: lo que cobraste por él, ya con sus descuentos y sin
+  impuestos.
+- **Costo**: el costo que tenía el artículo en cada venta (capítulo 30).
+- **Utilidad**: la venta sin impuesto menos el costo.
+- **Margen**: de lo que vendiste sin impuestos, qué parte te quedó.
+
+Si alguna venta del artículo no tenía costo, el **Costo**, la **Utilidad** y el
+**Margen** quedan vacíos: sin el costo no se puede saber cuánto te dejó. Para
+que cuente, captura el costo del producto o del servicio.
+
+Sus filtros son **Sucursal**, **Desde**, **Hasta** y **Tipo**: **Todos**,
+**Productos** o **Servicios**. Los conceptos salen con los **Productos**. Al pie
+verás la **Venta sin impuesto**, el **Costo**, la **Utilidad** y el **Margen** de
+todo el periodo filtrado; si a algún artículo le falta su costo, el costo, la
+utilidad y el margen del pie dicen «—».
+
+Presiona el nombre de un artículo para ver sus tickets: un producto abre
+**Ventas por producto** y un servicio, **Ventas por servicio**, con las ventas de
+ese artículo, la misma sucursal y las mismas fechas. Un concepto abre **Ventas
+por producto** con todas las ventas de esas fechas.
+
+El Excel trae los mismos artículos y, además de las columnas de la pantalla, el
+**Tipo** y el **Código** de cada uno. La cantidad va como número y su unidad en
+su propia columna, **Unidad**, para que puedas sumarla.
+
+## Vendidos bajo su costo
+
+![El reporte de lo vendido bajo su costo](screen:reports-below-cost)
+
+Deja solo lo que vendiste por menos de lo que te costó, de la pérdida más
+grande a la más pequeña. La **Utilidad** sale en rojo: es lo que perdiste. Tiene
+las mismas columnas, filtros, pie y Excel que **Más vendidos**, y el nombre de
+cada artículo también abre sus tickets.
+
+Arriba verás el aviso **Solo aparecen los artículos con costo capturado: sin su
+costo no se puede saber si se vendieron por debajo de él.** Un artículo sin
+costo no sale aquí aunque lo hayas vendido muy barato; para que salga, captura
+su costo.
 
 ## Cierres de turno
 

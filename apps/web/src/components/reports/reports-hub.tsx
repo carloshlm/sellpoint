@@ -3,12 +3,15 @@ import {
   Boxes,
   ClipboardCheck,
   ClipboardList,
+  Coins,
   FileSpreadsheet,
   Package,
   PackageSearch,
   Percent,
   ScrollText,
   Timer,
+  TrendingDown,
+  TrendingUp,
   Truck,
   Users,
   Wrench,
@@ -25,7 +28,7 @@ import {
 /**
  * F5-HUB-02 — el hub de Reportes.
  *
- * Ocho tarjetas con TRES comportamientos, y la diferencia no es cosmética:
+ * Las tarjetas tienen TRES comportamientos, y la diferencia no es cosmética:
  *
  *  · **Pantalla propia** (stock, ventas): consultas con filtros que no existen
  *    en ningún otro lado.
@@ -51,41 +54,91 @@ interface TarjetaDeReporte {
   permiso: string;
 }
 
-const TARJETAS: readonly TarjetaDeReporte[] = [
-  // Con sus pantallas ya construidas (F5-STK-04 / F5-SALES-03) vuelven a ser
-  // enlaces: ahí se filtra y desde ahí se exporta con los filtros puestos,
-  // que es más útil que bajar el universo entero desde el hub.
-  { key: "stock", icon: Package, to: "/reports/stock", permiso: "reports:read" },
-  { key: "sales", icon: FileSpreadsheet, to: "/reports/sales", permiso: "reports:read" },
-  // Ventas con más resolución: una línea de ticket por renglón. Mismo permiso
-  // que Ventas; el catálogo de servicios solo pide un permiso (`services:read`)
-  // y Ventas por producto tampoco pide el de productos.
+/**
+ * F10-RPT-05 — las tarjetas van en cinco secciones (Carlos, 2026-11-25: «se
+ * pueden agrupar los reportes de ventas, otra agrupación por control de
+ * Inventario … y otras agrupaciones que me recomiendes»). Cada sección tiene
+ * su título y una línea de ayuda (`reports.hub.sections.<key>`).
+ */
+interface SeccionDeReportes {
+  key: "sales" | "profit" | "cash" | "inventory" | "downloads";
+  tarjetas: readonly TarjetaDeReporte[];
+}
+
+const SECCIONES: readonly SeccionDeReportes[] = [
   {
-    key: "salesByProduct",
-    icon: PackageSearch,
-    to: "/reports/sales-by-product",
-    permiso: "reports:read",
+    key: "sales",
+    tarjetas: [
+      // Con sus pantallas ya construidas (F5-SALES-03) vuelven a ser enlaces:
+      // ahí se filtra y desde ahí se exporta con los filtros puestos, que es
+      // más útil que bajar el universo entero desde el hub.
+      { key: "sales", icon: FileSpreadsheet, to: "/reports/sales", permiso: "reports:read" },
+      // Ventas con más resolución: una línea de ticket por renglón. Mismo
+      // permiso que Ventas; el catálogo de servicios solo pide un permiso
+      // (`services:read`) y Ventas por producto tampoco pide el de productos.
+      {
+        key: "salesByProduct",
+        icon: PackageSearch,
+        to: "/reports/sales-by-product",
+        permiso: "reports:read",
+      },
+      {
+        key: "salesByService",
+        icon: Wrench,
+        to: "/reports/sales-by-service",
+        permiso: "reports:read",
+      },
+      // F10-RPT-04: el reporte por artículo, en sus tres vistas.
+      { key: "topSold", icon: TrendingUp, to: "/reports/top-sold", permiso: "reports:read" },
+    ],
   },
-  { key: "salesByService", icon: Wrench, to: "/reports/sales-by-service", permiso: "reports:read" },
-  // F5-SHIFT-04: cada turno con su arqueo; quien lee ventas lee cierres.
-  { key: "shifts", icon: ClipboardCheck, to: "/reports/shifts", permiso: "reports:read" },
-  // F4-TAX-21: lo cobrado por impuesto y tasa; quien lee ventas lo declara.
-  { key: "taxes", icon: Percent, to: "/reports/taxes", permiso: "reports:read" },
-  // El kardex necesita un producto ELEGIDO, así que la tarjeta lleva al
-  // catálogo: desde ahí se abre la ficha y su pestaña de Kardex, donde está el
-  // botón de exportar (F5-KDX-02). Una pantalla nueva acá pediría el mismo
-  // buscador de productos que el catálogo ya tiene.
-  { key: "kardex", icon: ScrollText, to: "/catalog/products", permiso: "reports:read" },
   {
-    key: "products",
-    icon: ClipboardList,
-    descargar: downloadCatalogReport,
-    permiso: "reports:read",
+    key: "profit",
+    tarjetas: [
+      { key: "topProfit", icon: Coins, to: "/reports/top-profit", permiso: "reports:read" },
+      { key: "belowCost", icon: TrendingDown, to: "/reports/below-cost", permiso: "reports:read" },
+    ],
   },
-  { key: "users", icon: Users, descargar: downloadUsersReport, permiso: "reports:read" },
-  { key: "warehouses", icon: Boxes, descargar: downloadWarehousesReport, permiso: "reports:read" },
-  { key: "expiring", icon: Timer, to: "/movements/expiring", permiso: "inventory:read" },
-  { key: "inTransit", icon: Truck, to: "/movements/transfers", permiso: "inventory:read" },
+  {
+    key: "cash",
+    tarjetas: [
+      // F5-SHIFT-04: cada turno con su arqueo; quien lee ventas lee cierres.
+      { key: "shifts", icon: ClipboardCheck, to: "/reports/shifts", permiso: "reports:read" },
+      // F4-TAX-21: lo cobrado por impuesto y tasa; quien lee ventas lo declara.
+      { key: "taxes", icon: Percent, to: "/reports/taxes", permiso: "reports:read" },
+    ],
+  },
+  {
+    key: "inventory",
+    tarjetas: [
+      { key: "stock", icon: Package, to: "/reports/stock", permiso: "reports:read" },
+      // El kardex necesita un producto ELEGIDO, así que la tarjeta lleva al
+      // catálogo: desde ahí se abre la ficha y su pestaña de Kardex, donde
+      // está el botón de exportar (F5-KDX-02). Una pantalla nueva acá pediría
+      // el mismo buscador de productos que el catálogo ya tiene.
+      { key: "kardex", icon: ScrollText, to: "/catalog/products", permiso: "reports:read" },
+      { key: "expiring", icon: Timer, to: "/movements/expiring", permiso: "inventory:read" },
+      { key: "inTransit", icon: Truck, to: "/movements/transfers", permiso: "inventory:read" },
+    ],
+  },
+  {
+    key: "downloads",
+    tarjetas: [
+      {
+        key: "products",
+        icon: ClipboardList,
+        descargar: downloadCatalogReport,
+        permiso: "reports:read",
+      },
+      { key: "users", icon: Users, descargar: downloadUsersReport, permiso: "reports:read" },
+      {
+        key: "warehouses",
+        icon: Boxes,
+        descargar: downloadWarehousesReport,
+        permiso: "reports:read",
+      },
+    ],
+  },
 ];
 
 export function ReportsHub() {
@@ -94,7 +147,12 @@ export function ReportsHub() {
   const [bajando, setBajando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const visibles = TARJETAS.filter((tarjeta) => has(tarjeta.permiso));
+  // Una sección sin tarjetas visibles por permisos no se muestra: un título
+  // con nada debajo se lee como un error.
+  const secciones = SECCIONES.map((seccion) => ({
+    ...seccion,
+    tarjetas: seccion.tarjetas.filter((tarjeta) => has(tarjeta.permiso)),
+  })).filter((seccion) => seccion.tarjetas.length > 0);
 
   async function descargar(tarjeta: TarjetaDeReporte) {
     if (tarjeta.descargar === undefined) {
@@ -117,7 +175,7 @@ export function ReportsHub() {
     "flex h-full w-full items-start gap-3 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring";
 
   return (
-    <section className="flex flex-col gap-4" data-testid="reports-hub">
+    <section className="flex flex-col gap-6" data-testid="reports-hub">
       <h1 className="font-semibold text-xl">{t("reports.hub.title")}</h1>
 
       {error !== null && (
@@ -126,50 +184,69 @@ export function ReportsHub() {
         </p>
       )}
 
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visibles.map((tarjeta) => {
-          const Icono = tarjeta.icon;
-          const titulo = t(`reports.hub.${tarjeta.key}.title`);
-          const detalle = t(`reports.hub.${tarjeta.key}.detail`);
-          const contenido = (
-            <>
-              <Icono className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span className="flex flex-col gap-1">
-                <span className="font-medium text-sm">{titulo}</span>
-                <span className="text-muted-foreground text-xs">{detalle}</span>
-              </span>
-            </>
-          );
+      {secciones.map((seccion) => (
+        <section
+          key={seccion.key}
+          aria-labelledby={`reports-hub-${seccion.key}`}
+          className="flex flex-col gap-3"
+        >
+          <div className="flex flex-col gap-1">
+            <h2 id={`reports-hub-${seccion.key}`} className="font-medium text-base">
+              {t(`reports.hub.sections.${seccion.key}.title`)}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              {t(`reports.hub.sections.${seccion.key}.help`)}
+            </p>
+          </div>
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {seccion.tarjetas.map((tarjeta) => {
+              const Icono = tarjeta.icon;
+              const titulo = t(`reports.hub.${tarjeta.key}.title`);
+              const detalle = t(`reports.hub.${tarjeta.key}.detail`);
+              const contenido = (
+                <>
+                  <Icono
+                    className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <span className="flex flex-col gap-1">
+                    <span className="font-medium text-sm">{titulo}</span>
+                    <span className="text-muted-foreground text-xs">{detalle}</span>
+                  </span>
+                </>
+              );
 
-          return (
-            <li key={tarjeta.key}>
-              {tarjeta.to === undefined ? (
-                // BOTÓN y no enlace: no navega a ningún lado, descarga. Un
-                // `<a>` que no lleva a una URL miente al lector de pantalla y
-                // rompe el «abrir en pestaña nueva».
-                <button
-                  type="button"
-                  aria-label={titulo}
-                  className={CLASES}
-                  disabled={bajando !== null}
-                  onClick={() => void descargar(tarjeta)}
-                >
-                  {contenido}
-                  {bajando === tarjeta.key && (
-                    <span className="ml-auto text-muted-foreground text-xs">
-                      {t("common.form.loading")}
-                    </span>
+              return (
+                <li key={tarjeta.key}>
+                  {tarjeta.to === undefined ? (
+                    // BOTÓN y no enlace: no navega a ningún lado, descarga. Un
+                    // `<a>` que no lleva a una URL miente al lector de pantalla y
+                    // rompe el «abrir en pestaña nueva».
+                    <button
+                      type="button"
+                      aria-label={titulo}
+                      className={CLASES}
+                      disabled={bajando !== null}
+                      onClick={() => void descargar(tarjeta)}
+                    >
+                      {contenido}
+                      {bajando === tarjeta.key && (
+                        <span className="ml-auto text-muted-foreground text-xs">
+                          {t("common.form.loading")}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <Link to={tarjeta.to} aria-label={titulo} className={CLASES}>
+                      {contenido}
+                    </Link>
                   )}
-                </button>
-              ) : (
-                <Link to={tarjeta.to} aria-label={titulo} className={CLASES}>
-                  {contenido}
-                </Link>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </section>
   );
 }

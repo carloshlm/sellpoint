@@ -1,10 +1,21 @@
 import { formatMoney, formatSoldQuantity, type Locale } from "@sellpoint/shared";
+import { X } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ReportHeading } from "@/components/reports/report-heading";
 import { type ReportColumn, ReportTable } from "@/components/reports/report-table";
-import { SalesFilterBar, useSalesFilters } from "@/components/reports/sales-filters";
+import {
+  SalesFilterBar,
+  type SalesLinesFiltersInitial,
+  useSalesFilters,
+} from "@/components/reports/sales-filters";
+import { Button } from "@/components/ui/button";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
-import { downloadSalesLinesReport, type SalesLineKind } from "@/lib/reports/api";
+import {
+  downloadSalesLinesReport,
+  type SalesLineKind,
+  type SalesLinesQuery,
+} from "@/lib/reports/api";
 import { useSalesLinesReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -28,17 +39,44 @@ const TEST_ID: Record<SalesLineKind, string> = {
  * Los filtros, el rango con que abre y el orden son los de Ventas, menos el
  * Estado: estos dos reportes listan SOLO lo cobrado (Carlos, 2026-11-02:
  * «sólo debe mostrar las ventas cobradas»), así que no hay anuladas que marcar.
+ *
+ * F10-RPT-02 — por un enlace abren ya filtradas (`initial`, validado por la
+ * ruta): un artículo, una sucursal y unas fechas. El artículo se ve arriba de
+ * la tabla con «Quitar filtro»; como los demás filtros, es solo el valor
+ * INICIAL y la pantalla lo cambia como siempre.
  */
-export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
+export function SalesLinesReport({
+  kind,
+  initial = {},
+}: {
+  kind: SalesLineKind;
+  initial?: SalesLinesFiltersInitial;
+}) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es") as Locale;
   const currency = useScopedCurrency();
   // Desde el expediente del backoffice, como Ventas: la consulta y el archivo
   // van al negocio mirado y el filtro de almacén no aplica (sería el del admin).
   const { reportsPath, tenantId: negocioAjeno } = useAdminTenantScope();
-  const { filtros, page, setPage, barra } = useSalesFilters({ showStatus: false });
+  const { filtros, page, setPage, barra } = useSalesFilters({
+    showStatus: false,
+    // Campo por campo y no la búsqueda entera: en ella el router deja también
+    // lo crudo de la URL (un `?discounted=true` no debe viajar al API).
+    initial: { from: initial.from, to: initial.to },
+    initialWarehouseId: initial.warehouseId,
+  });
+  const [itemId, setItemId] = useState(initial.itemId);
+  // Lo mismo para la tabla y para el Excel: exportar baja lo que se ve.
+  const consulta: SalesLinesQuery = { ...filtros, ...(itemId !== undefined && { itemId }) };
 
-  const { data, isPending, error } = useSalesLinesReport(kind, { ...filtros, page, pageSize: 20 });
+  const { data, isPending, error } = useSalesLinesReport(kind, {
+    ...consulta,
+    page,
+    pageSize: 20,
+  });
+  // El nombre lo manda el API aparte de los renglones: así se lee aunque en
+  // esas fechas no haya ventas. Un API anterior no lo manda; ahí, el del primero.
+  const articulo = data?.item?.name ?? data?.rows[0]?.name ?? null;
 
   const codigos: ReportColumn[] =
     kind === "product"
@@ -99,6 +137,31 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
 
       <SalesFilterBar id={`sales-by-${kind}`} showWarehouse={negocioAjeno === null} {...barra} />
 
+      {itemId !== undefined && (
+        <div
+          className="flex flex-wrap items-center gap-2 text-sm"
+          data-testid="sales-lines-item-filter"
+        >
+          <span className="rounded-full border bg-muted px-3 py-1 font-medium">
+            {articulo === null
+              ? t(`reports.salesLines.itemFilter.${kind}`)
+              : t("reports.salesLines.itemFilter.named", { name: articulo })}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setItemId(undefined);
+              setPage(1);
+            }}
+          >
+            <X className="size-4" aria-hidden="true" />
+            {t("reports.salesLines.itemFilter.clear")}
+          </Button>
+        </div>
+      )}
+
       <ReportTable
         columns={columnas}
         rows={filas}
@@ -110,8 +173,8 @@ export function SalesLinesReport({ kind }: { kind: SalesLineKind }) {
         onQueryChange={(query) => setPage(query.page)}
         onExport={() =>
           void (negocioAjeno === null
-            ? downloadSalesLinesReport(kind, filtros)
-            : downloadSalesLinesReport(kind, filtros, "xlsx", reportsPath))
+            ? downloadSalesLinesReport(kind, consulta)
+            : downloadSalesLinesReport(kind, consulta, "xlsx", reportsPath))
         }
       />
 

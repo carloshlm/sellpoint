@@ -1,6 +1,7 @@
 import { localCalendarDate } from "@sellpoint/shared";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { z } from "zod";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { useAdminTenantScope } from "@/lib/admin/scope";
@@ -45,6 +46,55 @@ export interface SalesFiltersInitial {
   to?: string;
 }
 
+/**
+ * F10-RPT-02 — con qué filtros abren «Ventas por producto» y «Ventas por
+ * servicio» por un enlace: el del aviso «creció» del panel y los de los
+ * reportes por artículo. El contrato de esos enlaces es
+ * `/reports/sales-by-product?itemId=<uuid>&from=YYYY-MM-DD&to=YYYY-MM-DD`, y
+ * lo mismo con `sales-by-service`.
+ */
+export interface SalesLinesFiltersInitial {
+  /** El producto (o el servicio) del que se ven las ventas. */
+  itemId?: string;
+  warehouseId?: string;
+  from?: string;
+  to?: string;
+}
+
+const fechaDeCalendario = z.iso.date();
+
+/** Un id del API, o nada: el API responde 400 a cualquier otra cosa. */
+function idValido(valor: unknown): string | undefined {
+  const id = z.uuid().safeParse(valor);
+  return id.success ? id.data : undefined;
+}
+
+function fechaValida(valor: unknown): string | undefined {
+  const fecha = fechaDeCalendario.safeParse(valor);
+  return fecha.success ? fecha.data : undefined;
+}
+
+/**
+ * El `validateSearch` de las dos rutas, como el de Ventas: lo que venga en la
+ * URL es texto que escribió cualquiera, y lo inválido se descarta (la
+ * pantalla abre como siempre) en vez de mandarle al API algo que respondería
+ * 400.
+ *
+ * Devuelve las cuatro claves SIEMPRE, en `undefined` si no sirven: el router
+ * mezcla lo validado ENCIMA de lo crudo de la URL, y omitir una clave dejaría
+ * pasar el valor inválido tal como llegó.
+ */
+export function validateSalesLinesSearch(
+  search: Record<string, unknown>,
+): SalesLinesFiltersInitial {
+  return {
+    itemId: idValido(search.itemId),
+    warehouseId: idValido(search.warehouseId),
+    from: fechaValida(search.from),
+    to: fechaValida(search.to),
+  };
+}
+
 interface SalesFiltersOptions {
   /**
    * Si la pantalla ofrece el filtro de Estado. Ventas sí; «Ventas por
@@ -58,6 +108,13 @@ interface SalesFiltersOptions {
    */
   showDiscounted?: boolean;
   initial?: SalesFiltersInitial;
+  /**
+   * F10-RPT-02 — la sucursal con que abre, ya validada. Va aparte de
+   * `initial` a propósito: Ventas le pasa su búsqueda ENTERA, y ahí el router
+   * deja lo crudo de la URL que su `validateSearch` no conoce; un
+   * `?warehouseId=` cualquiera llegaría al API sin pasar por la aduana.
+   */
+  initialWarehouseId?: string;
 }
 
 /**
@@ -68,6 +125,7 @@ export function useSalesFilters({
   showStatus = true,
   showDiscounted = false,
   initial = {},
+  initialWarehouseId,
 }: SalesFiltersOptions = {}) {
   const rangoPorOmision = useRangoInicial();
   // Un enlace con fechas manda el rango completo: si trae solo «Hasta», no se
@@ -76,7 +134,7 @@ export function useSalesFilters({
     initial.from !== undefined || initial.to !== undefined
       ? { from: initial.from ?? "", to: initial.to ?? "" }
       : rangoPorOmision;
-  const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [warehouseId, setWarehouseId] = useState<string | null>(initialWarehouseId ?? null);
   const [estado, setEstado] = useState<Estado>(initial.status ?? "todas");
   const [soloConDescuento, setSoloConDescuento] = useState(initial.discounted === true);
   const [rango, setRango] = useState<RangoDeFechas>(rangoInicial);
@@ -137,11 +195,18 @@ interface SalesFilterBarProps {
   onEstado: (valor: Estado) => void;
   onDiscounted: (valor: boolean) => void;
   onRango: (valor: RangoDeFechas) => void;
+  /**
+   * F10-RPT-04 — los filtros propios de una pantalla, al final de la barra:
+   * el Tipo de los reportes por artículo. Así comparten renglón y separación
+   * con los de siempre.
+   */
+  children?: ReactNode;
 }
 
 /**
  * Sucursal, Estado, Desde y Hasta: la barra de Ventas, compartida por sus dos
- * detalles, que no llevan Estado. Ventas suma «Solo con descuento».
+ * detalles, que no llevan Estado. Ventas suma «Solo con descuento», y los
+ * reportes por artículo, su Tipo.
  */
 export function SalesFilterBar({
   id,
@@ -156,6 +221,7 @@ export function SalesFilterBar({
   onEstado,
   onDiscounted,
   onRango,
+  children,
 }: SalesFilterBarProps) {
   const { t } = useTranslation();
 
@@ -205,6 +271,8 @@ export function SalesFilterBar({
           {t("reports.sales.onlyDiscounted")}
         </label>
       )}
+
+      {children}
     </div>
   );
 }

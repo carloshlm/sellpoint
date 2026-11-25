@@ -165,7 +165,10 @@ export interface SalesLineRow {
  * cobrado y su API responde 400 si llega `status`. Tampoco llevan
  * `discounted`: el descuento es del ticket, no de la línea.
  */
-export type SalesLinesQuery = Omit<SalesReportQuery, "status" | "discounted">;
+export type SalesLinesQuery = Omit<SalesReportQuery, "status" | "discounted"> & {
+  /** F10-RPT-02 — solo las líneas de un producto (o de un servicio, en el de servicios). */
+  itemId?: string;
+};
 
 export interface SalesLinesPage {
   rows: SalesLineRow[];
@@ -174,6 +177,11 @@ export interface SalesLinesPage {
   total: number;
   page: number;
   pageSize: number;
+  /**
+   * F10-RPT-02 — el artículo de `itemId` con su nombre vigente; null si ya no
+   * existe. Solo viaja con `itemId`.
+   */
+  item?: { id: string; name: string } | null;
 }
 
 const RUTA_DE_LINEAS: Record<SalesLineKind, string> = {

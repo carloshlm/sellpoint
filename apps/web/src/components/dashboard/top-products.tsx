@@ -1,8 +1,9 @@
 import { formatMoney, getUnit, unitSymbol } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, FileText, type LucideIcon, Package, Wrench } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ItemKindIcon } from "@/components/reports/item-kind-icon";
 import { ScrollableList } from "@/components/ui/scrollable-list";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -49,31 +50,14 @@ function NombreConFicha({ fila }: { fila: FilaConFicha }) {
   return <span className={clase}>{fila.name}</span>;
 }
 
-/** Los íconos de la pantalla de Reportes: el mismo dibujo dice lo mismo en todos lados. */
-const ICONO_DEL_TIPO: Record<SoldItemKind, LucideIcon> = {
-  product: Package,
-  service: Wrench,
-  concept: FileText,
-};
-
 /**
  * F10-RPT-01 — si el renglón es un producto, un servicio o un concepto, con
- * su nombre para quien no ve el ícono. Un API anterior no manda el tipo: el
- * renglón queda como estaba.
+ * su nombre para quien no ve el ícono. El ícono es el MISMO de los reportes
+ * (`ItemKindIcon`). Un API anterior no manda el tipo: el renglón queda como
+ * estaba.
  */
 function IconoDelTipo({ kind }: { kind: SoldItemKind | undefined }) {
-  const { t } = useTranslation();
-  if (kind === undefined) {
-    return null;
-  }
-  const Icono = ICONO_DEL_TIPO[kind];
-  return (
-    <Icono
-      role="img"
-      aria-label={t(`dashboard.top.kind.${kind}`)}
-      className="size-4 shrink-0 text-muted-foreground"
-    />
-  );
+  return kind === undefined ? null : <ItemKindIcon kind={kind} />;
 }
 
 /** Un aviso de una línea que se abre para enseñar su lista. */

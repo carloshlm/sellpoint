@@ -50,6 +50,40 @@
     "taxes": {
       "title": "Taxes collected",
       "detail": "What each tax and rate collected in the period: what gets filed."
+    },
+    "sections": {
+      "sales": {
+        "title": "Sales",
+        "help": "What you sold: receipt by receipt, by item, and what sells the most."
+      },
+      "profit": {
+        "title": "Profit",
+        "help": "How much each item earns you, and which ones you sell below cost."
+      },
+      "cash": {
+        "title": "Cash and taxes",
+        "help": "Each shift's cash count and the taxes you collected."
+      },
+      "inventory": {
+        "title": "Inventory",
+        "help": "What you have, how it moved, and what is about to expire or on its way."
+      },
+      "downloads": {
+        "title": "Catalogs to download",
+        "help": "Each card downloads an Excel file right away, without opening another screen."
+      }
+    },
+    "topSold": {
+      "title": "Top sellers",
+      "detail": "The products and services you sold the most, with their quantity and sales before tax."
+    },
+    "topProfit": {
+      "title": "Top profit",
+      "detail": "The ones that earn you the most: sales, cost, profit, and margin for each."
+    },
+    "belowCost": {
+      "title": "Sold below cost",
+      "detail": "What you sold for less than it cost you, and how much you lost."
     }
   },
   "sales": {
@@ -73,7 +107,29 @@
     "unitPrice": "Price",
     "tax": "Tax",
     "total": "Total",
-    "totalsLabel": "Period totals"
+    "totalsLabel": "Period totals",
+    "itemFilter": {
+      "named": "Only sales of {{name}}",
+      "product": "Only sales of one product",
+      "service": "Only sales of one service",
+      "clear": "Clear filter"
+    }
+  },
+  "items": {
+    "type": "Type",
+    "types": {
+      "all": "All",
+      "product": "Products",
+      "service": "Services"
+    },
+    "item": "Item",
+    "quantity": "Quantity",
+    "revenue": "Sales before tax",
+    "cost": "Cost",
+    "profit": "Profit",
+    "margin": "Margin",
+    "totalsLabel": "Period totals",
+    "belowCostNotice": "Only items with a recorded cost show up here: without their cost, there is no way to tell whether they sold below it."
   },
   "stock": {
     "avgCost": "Average cost",

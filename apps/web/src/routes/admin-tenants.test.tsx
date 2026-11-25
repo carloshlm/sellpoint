@@ -61,6 +61,8 @@ vi.mock("@/lib/reports/api", async (importOriginal) => ({
   getTaxReport: vi.fn(),
   getSalesLinesReport: vi.fn(),
   downloadSalesLinesReport: vi.fn(),
+  getItemsReport: vi.fn(),
+  downloadItemsReport: vi.fn(),
 }));
 vi.mock("@/lib/warehouses/api", () => ({
   listWarehouses: vi.fn().mockResolvedValue([]),
@@ -79,6 +81,8 @@ const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
 const mockedShiftDetail = vi.mocked(reportsApi.getShiftDetail);
 const mockedSalesLines = vi.mocked(reportsApi.getSalesLinesReport);
 const mockedSalesLinesExport = vi.mocked(reportsApi.downloadSalesLinesReport);
+const mockedItems = vi.mocked(reportsApi.getItemsReport);
+const mockedItemsExport = vi.mocked(reportsApi.downloadItemsReport);
 
 const demoUser = (isPlatformAdmin: boolean, permissions = ["tenants:manage"]): AuthUser =>
   buildAuthUser({
@@ -561,6 +565,73 @@ describe("las ventas por producto y por servicio del negocio mirado", () => {
         expect(mockedSalesLinesExport).toHaveBeenCalledWith(
           kind,
           expect.any(Object),
+          "xlsx",
+          "/admin/tenants/t1/reports",
+        ),
+      );
+    }
+  });
+});
+
+/**
+ * F10-RPT-04 — «Más vendidos», «Mayor utilidad» y «Vendidos bajo su costo»
+ * también van en el expediente, con los datos y el archivo del negocio mirado.
+ */
+describe("los reportes por artículo del negocio mirado", () => {
+  it("cada pestaña pide su vista y baja su archivo con el prefijo del expediente", async () => {
+    mockedItems.mockResolvedValue({
+      rows: [
+        {
+          kind: "product",
+          itemId: "3f2b9c1e-8d4a-4b6f-9a1c-2e7d5f0a1b3c",
+          code: "QUESO-001",
+          name: "Queso Oaxaca",
+          quantity: "2.5000",
+          baseUnit: "kg",
+          revenue: "510.00",
+          cost: "375.00",
+          profit: "135.00",
+          margin: 26.5,
+        },
+      ],
+      totals: { revenue: "510.00", cost: "375.00", profit: "135.00", margin: 26.5 },
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderEn("/admin/tenants/t1?tab=reports");
+    const pestana = await screen.findByTestId("tenant-reports");
+    const user = userEvent.setup();
+
+    for (const [tab, view] of [
+      ["Más vendidos", "top-sold"],
+      ["Mayor utilidad", "top-profit"],
+      ["Vendidos bajo su costo", "below-cost"],
+    ] as const) {
+      mockedItems.mockClear();
+      mockedItemsExport.mockClear();
+      await user.click(within(pestana).getByRole("tab", { name: tab }));
+      const reporte = await within(pestana).findByTestId(`${view}-report`);
+      await waitFor(() =>
+        expect(mockedItems).toHaveBeenCalledWith(
+          expect.objectContaining({ view, page: 1 }),
+          "/admin/tenants/t1/reports",
+        ),
+      );
+      // Como Ventas: el backoffice no asume el mes ni ofrece el almacén del admin.
+      expect(mockedItems.mock.calls[0]?.[0]).not.toHaveProperty("from");
+      expect(within(reporte).queryByLabelText("Sucursal")).toBeNull();
+      expect(within(reporte).getByLabelText("Tipo")).toBeInTheDocument();
+      // El artículo se lee sin enlazar: `/reports/*` sería la app propia del admin.
+      expect((await within(reporte).findByText("Queso Oaxaca")).closest("a")).toBeNull();
+      expect(
+        within(pestana).queryByRole("link", { name: /volver a reportes|back to reports/i }),
+      ).toBeNull();
+
+      await user.click(within(reporte).getByRole("button", { name: "Exportar Excel" }));
+      await waitFor(() =>
+        expect(mockedItemsExport).toHaveBeenCalledWith(
+          expect.objectContaining({ view }),
           "xlsx",
           "/admin/tenants/t1/reports",
         ),

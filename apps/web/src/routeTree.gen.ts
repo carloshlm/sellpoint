@@ -49,12 +49,15 @@ import { Route as PurchasesPurchaseIdRouteImport } from './routes/purchases.$pur
 import { Route as PurchasesNewRouteImport } from './routes/purchases.new'
 import { Route as ReceptionTurnsRouteImport } from './routes/reception.turns'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
+import { Route as ReportsBelowCostRouteImport } from './routes/reports.below-cost'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
 import { Route as ReportsSalesByProductRouteImport } from './routes/reports.sales-by-product'
 import { Route as ReportsSalesByServiceRouteImport } from './routes/reports.sales-by-service'
 import { Route as ReportsShiftsRouteImport } from './routes/reports.shifts'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
 import { Route as ReportsTaxesRouteImport } from './routes/reports.taxes'
+import { Route as ReportsTopProfitRouteImport } from './routes/reports.top-profit'
+import { Route as ReportsTopSoldRouteImport } from './routes/reports.top-sold'
 import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SuppliersIndexRouteImport } from './routes/suppliers.index'
 import { Route as SuppliersSupplierIdRouteImport } from './routes/suppliers.$supplierId'
@@ -282,6 +285,11 @@ const ReportsIndexRoute = ReportsIndexRouteImport.update({
   path: '/reports/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsBelowCostRoute = ReportsBelowCostRouteImport.update({
+  id: '/reports/below-cost',
+  path: '/reports/below-cost',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsSalesRoute = ReportsSalesRouteImport.update({
   id: '/reports/sales',
   path: '/reports/sales',
@@ -310,6 +318,16 @@ const ReportsStockRoute = ReportsStockRouteImport.update({
 const ReportsTaxesRoute = ReportsTaxesRouteImport.update({
   id: '/reports/taxes',
   path: '/reports/taxes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsTopProfitRoute = ReportsTopProfitRouteImport.update({
+  id: '/reports/top-profit',
+  path: '/reports/top-profit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsTopSoldRoute = ReportsTopSoldRouteImport.update({
+  id: '/reports/top-sold',
+  path: '/reports/top-sold',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsBillingRoute = SettingsBillingRouteImport.update({
@@ -484,12 +502,15 @@ export interface FileRoutesByFullPath {
   '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
+  '/reports/below-cost': typeof ReportsBelowCostRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/sales-by-product': typeof ReportsSalesByProductRoute
   '/reports/sales-by-service': typeof ReportsSalesByServiceRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
+  '/reports/top-profit': typeof ReportsTopProfitRoute
+  '/reports/top-sold': typeof ReportsTopSoldRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/suppliers/$supplierId': typeof SuppliersSupplierIdRoute
   '/suppliers/new': typeof SuppliersNewRoute
@@ -557,12 +578,15 @@ export interface FileRoutesByTo {
   '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
+  '/reports/below-cost': typeof ReportsBelowCostRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/sales-by-product': typeof ReportsSalesByProductRoute
   '/reports/sales-by-service': typeof ReportsSalesByServiceRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
+  '/reports/top-profit': typeof ReportsTopProfitRoute
+  '/reports/top-sold': typeof ReportsTopSoldRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/suppliers/$supplierId': typeof SuppliersSupplierIdRoute
   '/suppliers/new': typeof SuppliersNewRoute
@@ -631,12 +655,15 @@ export interface FileRoutesById {
   '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
+  '/reports/below-cost': typeof ReportsBelowCostRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/sales-by-product': typeof ReportsSalesByProductRoute
   '/reports/sales-by-service': typeof ReportsSalesByServiceRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
+  '/reports/top-profit': typeof ReportsTopProfitRoute
+  '/reports/top-sold': typeof ReportsTopSoldRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/suppliers/$supplierId': typeof SuppliersSupplierIdRoute
   '/suppliers/new': typeof SuppliersNewRoute
@@ -706,12 +733,15 @@ export interface FileRouteTypes {
     | '/purchases/$purchaseId'
     | '/purchases/new'
     | '/reception/turns'
+    | '/reports/below-cost'
     | '/reports/sales'
     | '/reports/sales-by-product'
     | '/reports/sales-by-service'
     | '/reports/shifts'
     | '/reports/stock'
     | '/reports/taxes'
+    | '/reports/top-profit'
+    | '/reports/top-sold'
     | '/settings/billing'
     | '/suppliers/$supplierId'
     | '/suppliers/new'
@@ -779,12 +809,15 @@ export interface FileRouteTypes {
     | '/purchases/$purchaseId'
     | '/purchases/new'
     | '/reception/turns'
+    | '/reports/below-cost'
     | '/reports/sales'
     | '/reports/sales-by-product'
     | '/reports/sales-by-service'
     | '/reports/shifts'
     | '/reports/stock'
     | '/reports/taxes'
+    | '/reports/top-profit'
+    | '/reports/top-sold'
     | '/settings/billing'
     | '/suppliers/$supplierId'
     | '/suppliers/new'
@@ -852,12 +885,15 @@ export interface FileRouteTypes {
     | '/purchases/$purchaseId'
     | '/purchases/new'
     | '/reception/turns'
+    | '/reports/below-cost'
     | '/reports/sales'
     | '/reports/sales-by-product'
     | '/reports/sales-by-service'
     | '/reports/shifts'
     | '/reports/stock'
     | '/reports/taxes'
+    | '/reports/top-profit'
+    | '/reports/top-sold'
     | '/settings/billing'
     | '/suppliers/$supplierId'
     | '/suppliers/new'
@@ -926,12 +962,15 @@ export interface RootRouteChildren {
   PurchasesPurchaseIdRoute: typeof PurchasesPurchaseIdRoute
   PurchasesNewRoute: typeof PurchasesNewRoute
   ReceptionTurnsRoute: typeof ReceptionTurnsRoute
+  ReportsBelowCostRoute: typeof ReportsBelowCostRoute
   ReportsSalesRoute: typeof ReportsSalesRoute
   ReportsSalesByProductRoute: typeof ReportsSalesByProductRoute
   ReportsSalesByServiceRoute: typeof ReportsSalesByServiceRoute
   ReportsShiftsRoute: typeof ReportsShiftsRoute
   ReportsStockRoute: typeof ReportsStockRoute
   ReportsTaxesRoute: typeof ReportsTaxesRoute
+  ReportsTopProfitRoute: typeof ReportsTopProfitRoute
+  ReportsTopSoldRoute: typeof ReportsTopSoldRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
   SuppliersSupplierIdRoute: typeof SuppliersSupplierIdRoute
   SuppliersNewRoute: typeof SuppliersNewRoute
@@ -1246,6 +1285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/below-cost': {
+      id: '/reports/below-cost'
+      path: '/reports/below-cost'
+      fullPath: '/reports/below-cost'
+      preLoaderRoute: typeof ReportsBelowCostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/sales': {
       id: '/reports/sales'
       path: '/reports/sales'
@@ -1286,6 +1332,20 @@ declare module '@tanstack/react-router' {
       path: '/reports/taxes'
       fullPath: '/reports/taxes'
       preLoaderRoute: typeof ReportsTaxesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/top-profit': {
+      id: '/reports/top-profit'
+      path: '/reports/top-profit'
+      fullPath: '/reports/top-profit'
+      preLoaderRoute: typeof ReportsTopProfitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/top-sold': {
+      id: '/reports/top-sold'
+      path: '/reports/top-sold'
+      fullPath: '/reports/top-sold'
+      preLoaderRoute: typeof ReportsTopSoldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/billing': {
@@ -1502,12 +1562,15 @@ const rootRouteChildren: RootRouteChildren = {
   PurchasesPurchaseIdRoute: PurchasesPurchaseIdRoute,
   PurchasesNewRoute: PurchasesNewRoute,
   ReceptionTurnsRoute: ReceptionTurnsRoute,
+  ReportsBelowCostRoute: ReportsBelowCostRoute,
   ReportsSalesRoute: ReportsSalesRoute,
   ReportsSalesByProductRoute: ReportsSalesByProductRoute,
   ReportsSalesByServiceRoute: ReportsSalesByServiceRoute,
   ReportsShiftsRoute: ReportsShiftsRoute,
   ReportsStockRoute: ReportsStockRoute,
   ReportsTaxesRoute: ReportsTaxesRoute,
+  ReportsTopProfitRoute: ReportsTopProfitRoute,
+  ReportsTopSoldRoute: ReportsTopSoldRoute,
   SettingsBillingRoute: SettingsBillingRoute,
   SuppliersSupplierIdRoute: SuppliersSupplierIdRoute,
   SuppliersNewRoute: SuppliersNewRoute,

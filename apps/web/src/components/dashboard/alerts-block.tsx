@@ -1,12 +1,14 @@
-import { formatMoney } from "@sellpoint/shared";
+import { formatMoney, localCalendarDate } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { SalesLinesFiltersInitial } from "@/components/reports/sales-filters";
 import type { ShiftsFiltersInitial } from "@/components/reports/shifts-report";
 import { Button } from "@/components/ui/button";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
+import type { DashboardProducts } from "@/lib/dashboard/api";
 import {
   useDashboardInventory,
   useDashboardKpis,
@@ -22,8 +24,42 @@ const A_LA_VISTA = 4;
 type Destino =
   | { to: "/reports/stock" | "/reports/sales" }
   | { to: "/reports/shifts"; search: ShiftsFiltersInitial }
+  | {
+      to: "/reports/sales-by-product" | "/reports/sales-by-service";
+      search: SalesLinesFiltersInitial;
+    }
   | { to: "/expenses"; search: { paymentStatus: "pending" } }
   | { to: "/dashboard"; hash: "margin-check" };
+
+/**
+ * F10-RPT-02 — el aviso «creció» lleva a las ventas de ESE artículo (Carlos,
+ * 2026-11-25: «Ese elemento al darle click debería enviar al reporte de
+ * Ventas por producto o ventas por servicio»), en las fechas del mes del
+ * aviso: del día 1 a hoy, en el calendario del negocio, que es la ventana
+ * `month` con que el API calculó el «creció».
+ *
+ * Un concepto (texto libre de una cotización) no tiene un id que filtrar, y
+ * un API anterior no dice el tipo: los dos van a «Ventas por producto», que
+ * también lista los conceptos, sin artículo y con las mismas fechas.
+ */
+function aVentasDelArticulo(
+  articulo: DashboardProducts["topSold"][number],
+  mes: { from: string; to: string },
+): Destino {
+  if (articulo.kind === "service") {
+    return { to: "/reports/sales-by-service", search: { itemId: articulo.itemId, ...mes } };
+  }
+  if (articulo.kind === "product") {
+    return { to: "/reports/sales-by-product", search: { itemId: articulo.itemId, ...mes } };
+  }
+  return { to: "/reports/sales-by-product", search: mes };
+}
+
+/** El mes en curso del negocio, de su día 1 a hoy (`YYYY-MM-DD`). */
+function mesEnCurso(timeZone: string): { from: string; to: string } {
+  const hoy = localCalendarDate(timeZone, new Date());
+  return { from: `${hoy.slice(0, 7)}-01`, to: hoy };
+}
 
 interface Aviso {
   key: string;
@@ -60,6 +96,10 @@ function AlertsBlock() {
   const { forcePermission } = useAdminTenantScope();
   const currency = useScopedCurrency();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
+  // Sin zona del negocio, la del navegador (como el «hoy» de los reportes).
+  const zona =
+    useAuthStore((s) => s.user?.tenant.timezone) ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [desplegado, setDesplegado] = useState(false);
   const puedeVerDinero = forcePermission || has("reports:read");
   const puedeVerStock = forcePermission || has("inventory:read");
@@ -171,7 +211,7 @@ function AlertsBlock() {
     alertas.push({
       key: "producto-arriba",
       texto: `📈 ${t("dashboard.alerts.productUp", { name: estrella.name, pct: estrella.deltaPct })}`,
-      destino: { to: "/reports/sales" },
+      destino: aVentasDelArticulo(estrella, mesEnCurso(zona)),
       tono: "verde",
     });
   }
@@ -243,6 +283,13 @@ function EnlaceAviso({
   children: string;
 }) {
   if (destino.to === "/reports/shifts" || destino.to === "/expenses") {
+    return (
+      <Link to={destino.to} search={destino.search} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  if (destino.to === "/reports/sales-by-product" || destino.to === "/reports/sales-by-service") {
     return (
       <Link to={destino.to} search={destino.search} className={className}>
         {children}

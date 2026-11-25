@@ -218,7 +218,11 @@ contar, y van del más urgente al menos urgente:
 7. **Vendidos sin costo**: cuántos productos vendidos este mes no tienen costo
    capturado, así que tu utilidad está incompleta. También te lleva a los avisos
    de **Mayor utilidad**.
-8. **Un producto que creció** 20% o más sus ventas este mes.
+8. **Un producto que creció** 20% o más sus ventas este mes. Te lleva a
+   **Ventas por producto** con solo las ventas de ese producto, del día 1 del
+   mes a hoy (capítulo 31). Si es un servicio, te lleva a **Ventas por
+   servicio** con solo las de ese servicio. Si es un concepto, abre **Ventas
+   por producto** con todo lo vendido en el mes.
 9. **Un método de pago** que ya es el 60% o más de tus ventas del mes.
 
 Se ven cuatro a la vez. Si hay más, el botón **Ver 2 más** (o los que sean)

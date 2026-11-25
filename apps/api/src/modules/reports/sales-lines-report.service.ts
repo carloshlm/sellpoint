@@ -52,6 +52,13 @@ export interface SalesLinesPage {
   total: number;
   page: number;
   pageSize: number;
+  /**
+   * F10-RPT-02 — el artículo del filtro `itemId`, con su nombre vigente: la
+   * pantalla dice qué filtra aunque en esas fechas no haya renglones. Null si
+   * el id no es un artículo de ese tipo en este negocio. Solo viaja con
+   * `itemId`: sin él, la respuesta es la de siempre.
+   */
+  item?: { id: string; name: string } | null;
 }
 
 const COLUMNAS = {
@@ -127,7 +134,7 @@ export class SalesLinesReportService {
     const where = await this.where(user, scope, query, kind);
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const [total, filas, suma] = await Promise.all([
+      const [total, filas, suma, articulo] = await Promise.all([
         tx.saleItem.count({ where }),
         tx.saleItem.findMany({
           where,
@@ -142,6 +149,9 @@ export class SalesLinesReportService {
           where,
           _sum: { taxAmount: true, lineTotal: true },
         }),
+        query.itemId === undefined
+          ? Promise.resolve(undefined)
+          : leerArticulo(tx, user.tenantId, query.itemId, kind),
       ]);
 
       return {
@@ -156,6 +166,8 @@ export class SalesLinesReportService {
         total,
         page: query.page,
         pageSize: query.pageSize,
+        // Al final y solo con el filtro: sin `itemId`, la respuesta no cambia.
+        ...(articulo !== undefined && { item: articulo }),
       };
     });
   }
@@ -199,6 +211,11 @@ export class SalesLinesReportService {
    * Las ventas que filtra Ventas, con `completed` encima en un `AND`: así no
    * se pisa nada que el `where` compartido diga del estado (hoy nada, porque
    * el schema no deja pasar `status`, pero la regla no depende de eso).
+   *
+   * F10-RPT-02 — con `itemId`, solo las líneas de ese artículo: el
+   * `productId` en «por producto» (que además sigue sin servicio, así que un
+   * concepto nunca entra) y el `serviceId` en «por servicio». Un id del otro
+   * tipo no trae nada.
    */
   private async where(
     user: AuthUser,
@@ -206,13 +223,36 @@ export class SalesLinesReportService {
     query: SalesLinesQueryDto,
     kind: SaleLineKind,
   ): Promise<Prisma.SaleItemWhereInput> {
-    const ventas = await this.sales.where(user, scope, query);
+    const { itemId, ...filtrosDeVentas } = query;
+    const ventas = await this.sales.where(user, scope, filtrosDeVentas);
+    const articulo: Prisma.SaleItemWhereInput =
+      kind === "service"
+        ? { serviceId: itemId ?? { not: null } }
+        : { serviceId: null, ...(itemId !== undefined && { productId: itemId }) };
     return {
       tenantId: user.tenantId,
-      serviceId: kind === "service" ? { not: null } : null,
+      ...articulo,
       sale: { AND: [ventas, { status: "completed" }] },
     };
   }
+}
+
+/**
+ * El nombre vigente del artículo filtrado, del tipo del reporte: un servicio
+ * en «por producto» es null, igual que un id que no es de este negocio (el
+ * `tenantId` va explícito además del RLS, como en el `where`).
+ */
+async function leerArticulo(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  itemId: string,
+  kind: SaleLineKind,
+): Promise<{ id: string; name: string } | null> {
+  const where = { id: itemId, tenantId };
+  const select = { id: true, name: true } as const;
+  return kind === "service"
+    ? tx.service.findFirst({ where, select })
+    : tx.product.findFirst({ where, select });
 }
 
 type LineaLeida = Prisma.SaleItemGetPayload<{ select: typeof COLUMNAS }>;

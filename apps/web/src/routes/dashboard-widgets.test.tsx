@@ -1,3 +1,4 @@
+import { localCalendarDate } from "@sellpoint/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
@@ -1122,5 +1123,86 @@ describe("F10-KPI-17: los avisos nuevos, con orden y tope", () => {
     expect(mocked.getDashboardInventory).toHaveBeenCalledTimes(1);
     expect(mocked.getDashboardPayments).toHaveBeenCalledTimes(1);
     expect(mocked.getDashboardControl).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * F10-RPT-02 — Carlos (2026-11-25): «En el panel donde sale el mensaje "X
+ * producto o servicio creció % sus ventas este mes" Ese elemento al darle
+ * click debería enviar al reporte de Ventas por producto o ventas por
+ * servicio».
+ */
+describe("F10-RPT-02: el aviso «creció» lleva a las ventas de ese artículo", () => {
+  const ITEM_ID = "3f2b9c1e-8d4a-4b6f-9a1c-2e7d5f0a1b3c";
+
+  /** El mes del aviso en el calendario del negocio (`buildTenantBlock`: CDMX). */
+  const hoy = () => localCalendarDate("America/Mexico_City", new Date());
+  const inicioDeMes = () => `${hoy().slice(0, 7)}-01`;
+
+  /** Solo el aviso «creció» dispara, con la estrella del tipo pedido. */
+  function soloLaEstrella(kind: dashboardApi.SoldItemKind | undefined, itemId = ITEM_ID) {
+    sinLasDeSiempre();
+    const estrella = {
+      ...PRODUCTS.topSold[0],
+      itemId,
+      name: "Corte de cabello",
+      deltaPct: 32,
+      ...(kind !== undefined && { kind }),
+    } as dashboardApi.DashboardProducts["topSold"][number];
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, topSold: [estrella] });
+  }
+
+  /** El enlace del aviso, ya leído: la ruta y sus filtros. */
+  async function enlaceDelAviso() {
+    const renglon = await aviso(/Corte de cabello creció 32%/);
+    const href = renglon.querySelector("a")?.getAttribute("href") ?? "";
+    const url = new URL(href, "http://panel.test");
+    return { ruta: url.pathname, filtros: Object.fromEntries(url.searchParams) };
+  }
+
+  it("un producto lleva a «Ventas por producto» con su id y las fechas del mes", async () => {
+    soloLaEstrella("product");
+    await renderDashboard();
+
+    expect(await enlaceDelAviso()).toEqual({
+      ruta: "/reports/sales-by-product",
+      filtros: { itemId: ITEM_ID, from: inicioDeMes(), to: hoy() },
+    });
+  });
+
+  it("un servicio lleva a «Ventas por servicio» con su id y las fechas del mes", async () => {
+    soloLaEstrella("service");
+    await renderDashboard();
+
+    expect(await enlaceDelAviso()).toEqual({
+      ruta: "/reports/sales-by-service",
+      filtros: { itemId: ITEM_ID, from: inicioDeMes(), to: hoy() },
+    });
+  });
+
+  it("un concepto, o un API anterior sin el tipo, lleva a «Ventas por producto» sin artículo", async () => {
+    soloLaEstrella("concept", "concept:flete a domicilio");
+    await renderDashboard();
+    expect(await enlaceDelAviso()).toEqual({
+      ruta: "/reports/sales-by-product",
+      filtros: { from: inicioDeMes(), to: hoy() },
+    });
+
+    cleanup();
+    soloLaEstrella(undefined);
+    await renderDashboard();
+    expect(await enlaceDelAviso()).toEqual({
+      ruta: "/reports/sales-by-product",
+      filtros: { from: inicioDeMes(), to: hoy() },
+    });
+  });
+
+  it("los demás avisos siguen yendo a donde iban", async () => {
+    await renderDashboard();
+
+    const metodo = await aviso(/62% de tus ventas del mes es con efectivo/);
+    expect(metodo.querySelector("a")?.getAttribute("href")).toBe("/reports/sales");
+    const abajo = await aviso(/14% abajo del mismo día/);
+    expect(abajo.querySelector("a")?.getAttribute("href")).toBe("/reports/sales");
   });
 });

@@ -49,17 +49,24 @@ export type SalesExportQueryDto = z.infer<typeof salesExportQuerySchema>;
  *
  * Tampoco llevan `discounted` (F10-KPI-11): el descuento es del TICKET, y
  * esos reportes son de líneas. Mandarlo sigue respondiendo 400, como antes.
+ *
+ * Suman `itemId` (F10-RPT-02): las líneas de UN artículo, el producto en
+ * «por producto» y el servicio en «por servicio». Un solo nombre para los
+ * dos, porque la ruta ya dice de qué tipo es. Es a donde llevan el aviso
+ * «creció» del panel y los reportes por artículo, para ver sus tickets.
  */
-export const salesLinesQuerySchema = salesReportQuerySchema.omit({
-  status: true,
-  discounted: true,
-});
+const lineFilters = {
+  itemId: idField().optional(),
+};
+
+export const salesLinesQuerySchema = salesReportQuerySchema
+  .omit({ status: true, discounted: true })
+  .extend(lineFilters);
 
 export type SalesLinesQueryDto = z.infer<typeof salesLinesQuerySchema>;
 
-export const salesLinesExportQuerySchema = salesExportQuerySchema.omit({
-  status: true,
-  discounted: true,
-});
+export const salesLinesExportQuerySchema = salesExportQuerySchema
+  .omit({ status: true, discounted: true })
+  .extend(lineFilters);
 
 export type SalesLinesExportQueryDto = z.infer<typeof salesLinesExportQuerySchema>;

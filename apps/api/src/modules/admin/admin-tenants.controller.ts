@@ -34,6 +34,12 @@ import { type DashboardPeriod, dashboardPeriodSchema } from "../reports/dashboar
 import { DashboardProductsService } from "../reports/dashboard-products.service";
 import { DashboardSeriesService } from "../reports/dashboard-series.service";
 import {
+  type ItemsExportQueryDto,
+  type ItemsReportQueryDto,
+  itemsExportQuerySchema,
+  itemsReportQuerySchema,
+} from "../reports/dto/items-report.dto";
+import {
   type SalesExportQueryDto,
   type SalesLinesExportQueryDto,
   type SalesLinesQueryDto,
@@ -61,6 +67,8 @@ import {
   taxExportQuerySchema,
   taxReportQuerySchema,
 } from "../reports/dto/tax-report.dto";
+import { ItemsReportService } from "../reports/items-report.service";
+import { ItemsReportExportService } from "../reports/items-report-export.service";
 import { SalesExportService } from "../reports/sales-export.service";
 import { SalesLinesExportService } from "../reports/sales-lines-export.service";
 import { type SaleLineKind, SalesLinesReportService } from "../reports/sales-lines-report.service";
@@ -117,6 +125,8 @@ export class AdminTenantsController {
     private readonly salesLines: SalesLinesReportService,
     private readonly salesLinesExport: SalesLinesExportService,
     private readonly shiftPdf: ShiftPdfService,
+    private readonly itemsReport: ItemsReportService,
+    private readonly itemsExport: ItemsReportExportService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -433,6 +443,37 @@ export class AdminTenantsController {
     @Res() response: Response,
   ) {
     await this.bajarLineas(tenantId, admin, query, "service", request, response);
+  }
+
+  // ── Por artículo: más vendidos, mayor utilidad y bajo su costo (F10-RPT-04) ─
+  // Los filtros del reporte del negocio, con el mismo DTO `.strict()`.
+
+  @Get(":tenantId/reports/items")
+  items(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(itemsReportQuerySchema, "reports.invalid_query"))
+    query: ItemsReportQueryDto,
+  ) {
+    return this.itemsReport.list(platformAdminActor(tenantId, admin), SCOPE_ALL, query);
+  }
+
+  @Get(":tenantId/reports/items/export")
+  async itemsExportFile(
+    @UuidParam("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(itemsExportQuerySchema, "reports.invalid_query"))
+    query: ItemsExportQueryDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const file = await this.itemsExport.build(
+      platformAdminActor(tenantId, admin),
+      SCOPE_ALL,
+      query,
+      getLocale(request as Request & RequestWithLocale),
+    );
+    await this.descargar(response, tenantId, file);
   }
 
   @Get(":tenantId/reports/stock/export")

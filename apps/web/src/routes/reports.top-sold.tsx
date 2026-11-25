@@ -1,0 +1,31 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { OnboardingGate } from "@/components/auth/onboarding-gate";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { AppLayout } from "@/components/layout/app-layout";
+import { ItemsReport, validateItemsReportSearch } from "@/components/reports/items-report";
+
+/** «Más vendidos»: los artículos por su venta sin impuesto, con el permiso de Ventas. */
+function TopSoldRoute() {
+  const search = Route.useSearch();
+  return (
+    <ProtectedRoute>
+      <OnboardingGate>
+        <AppLayout>
+          <PermissionGate need="reports:read">
+            <ItemsReport view="top-sold" initial={search} />
+          </PermissionGate>
+        </AppLayout>
+      </OnboardingGate>
+    </ProtectedRoute>
+  );
+}
+
+/**
+ * F10-RPT-04 — acepta `type`, `warehouseId`, `from` y `to` en la URL: lo
+ * inválido se descarta y la pantalla abre como siempre.
+ */
+export const Route = createFileRoute("/reports/top-sold")({
+  component: TopSoldRoute,
+  validateSearch: validateItemsReportSearch,
+});

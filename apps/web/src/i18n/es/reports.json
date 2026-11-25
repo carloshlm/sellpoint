@@ -50,6 +50,40 @@
     "taxes": {
       "title": "Impuestos cobrados",
       "detail": "Lo cobrado por cada impuesto y tasa en el período: lo que se declara."
+    },
+    "sections": {
+      "sales": {
+        "title": "Ventas",
+        "help": "Lo que vendiste: ticket por ticket, por artículo y lo que más se vende."
+      },
+      "profit": {
+        "title": "Utilidad",
+        "help": "Cuánto te deja cada artículo y cuáles vendes por debajo de su costo."
+      },
+      "cash": {
+        "title": "Caja e impuestos",
+        "help": "El arqueo de cada turno y los impuestos que cobraste."
+      },
+      "inventory": {
+        "title": "Inventario",
+        "help": "Cuánto tienes, cómo se movió y lo que está por vencer o en camino."
+      },
+      "downloads": {
+        "title": "Catálogos para descargar",
+        "help": "Cada tarjeta baja un Excel en ese momento, sin abrir otra pantalla."
+      }
+    },
+    "topSold": {
+      "title": "Más vendidos",
+      "detail": "Los productos y servicios que más vendiste, con su cantidad y su venta sin impuesto."
+    },
+    "topProfit": {
+      "title": "Mayor utilidad",
+      "detail": "Los que más te dejan: venta, costo, utilidad y margen de cada uno."
+    },
+    "belowCost": {
+      "title": "Vendidos bajo su costo",
+      "detail": "Lo que vendiste por menos de lo que te costó y cuánto perdiste."
     }
   },
   "sales": {
@@ -73,7 +107,29 @@
     "unitPrice": "Precio unitario",
     "tax": "Impuesto",
     "total": "Total",
-    "totalsLabel": "Totales del período"
+    "totalsLabel": "Totales del período",
+    "itemFilter": {
+      "named": "Solo las ventas de {{name}}",
+      "product": "Solo las ventas de un producto",
+      "service": "Solo las ventas de un servicio",
+      "clear": "Quitar filtro"
+    }
+  },
+  "items": {
+    "type": "Tipo",
+    "types": {
+      "all": "Todos",
+      "product": "Productos",
+      "service": "Servicios"
+    },
+    "item": "Artículo",
+    "quantity": "Cantidad",
+    "revenue": "Venta sin impuesto",
+    "cost": "Costo",
+    "profit": "Utilidad",
+    "margin": "Margen",
+    "totalsLabel": "Totales del período",
+    "belowCostNotice": "Solo aparecen los artículos con costo capturado: sin su costo no se puede saber si se vendieron por debajo de él."
   },
   "stock": {
     "avgCost": "Costo promedio",

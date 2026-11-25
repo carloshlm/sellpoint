@@ -1,9 +1,15 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ReportsHub } from "@/components/reports/reports-hub";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
@@ -25,12 +31,15 @@ const RUTAS_EXISTENTES = [
   "/movements/expiring",
   "/movements/transfers",
   "/reports",
+  "/reports/below-cost",
   "/reports/sales",
   "/reports/sales-by-product",
   "/reports/sales-by-service",
   "/reports/shifts",
   "/reports/stock",
   "/reports/taxes",
+  "/reports/top-profit",
+  "/reports/top-sold",
 ];
 
 const mocked = vi.mocked(reportsApi);
@@ -61,7 +70,7 @@ async function renderRuta(path: string, permissions: string[]) {
 /**
  * F5-HUB-02 — el hub de Reportes.
  *
- * Ocho tarjetas, tres comportamientos distintos:
+ * Las tarjetas, en cinco secciones (F10-RPT-05), tienen tres comportamientos:
  *  · Las que llevan a una PANTALLA (stock, ventas) navegan.
  *  · Las que son EXPORT DIRECTO (usuarios, sucursales, catálogo) descargan sin
  *    moverse: una tabla acá duplicaría listados que ya existen.
@@ -76,11 +85,73 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     mocked.downloadCatalogReport.mockResolvedValue(undefined);
   });
 
-  it("con `reports:read` se ven las doce tarjetas", async () => {
+  it("con `reports:read` e `inventory:read` se ven las quince tarjetas", async () => {
     await renderRuta("/reports", ["reports:read", "inventory:read"]);
 
     const hub = await screen.findByTestId("reports-hub");
-    expect(within(hub).getAllByRole("listitem")).toHaveLength(12);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(15);
+  });
+
+  /**
+   * F10-RPT-05 — Carlos (2026-11-25): «se pueden agrupar los reportes de
+   * ventas, otra agrupación por control de Inventario (Stock por sucursal,
+   * Karedex, etc) y otras agrupaciones que me recomiendes». Cinco secciones,
+   * cada una con su título y una línea de ayuda (decisión 4 de F10-RPT).
+   */
+  it("las tarjetas van en cinco secciones, cada una con su título y su ayuda", async () => {
+    await renderRuta("/reports", ["reports:read", "inventory:read"]);
+
+    const hub = await screen.findByTestId("reports-hub");
+    const secciones = within(hub)
+      .getAllByRole("region")
+      .map((seccion) => ({
+        titulo: within(seccion).getByRole("heading", { level: 2 }).textContent,
+        tarjetas: within(seccion)
+          .getAllByRole("listitem")
+          .map((tarjeta) => tarjeta.querySelector("a, button")?.getAttribute("aria-label")),
+      }));
+    expect(secciones).toEqual([
+      {
+        titulo: "Ventas",
+        tarjetas: ["Ventas", "Ventas por producto", "Ventas por servicio", "Más vendidos"],
+      },
+      { titulo: "Utilidad", tarjetas: ["Mayor utilidad", "Vendidos bajo su costo"] },
+      { titulo: "Caja e impuestos", tarjetas: ["Cierres de turno", "Impuestos cobrados"] },
+      {
+        titulo: "Inventario",
+        tarjetas: ["Stock por sucursal", "Kardex", "Vencimientos", "En tránsito"],
+      },
+      { titulo: "Catálogos para descargar", tarjetas: ["Catálogo", "Usuarios", "Sucursales"] },
+    ]);
+    // Cada sección se nombra por su título y lleva su línea de ayuda.
+    expect(within(hub).getByRole("region", { name: "Utilidad" })).toHaveTextContent(
+      "Cuánto te deja cada artículo y cuáles vendes por debajo de su costo.",
+    );
+    expect(within(hub).getByRole("region", { name: "Catálogos para descargar" })).toHaveTextContent(
+      "Cada tarjeta baja un Excel en ese momento, sin abrir otra pantalla.",
+    );
+  });
+
+  /** F10-RPT-04 — las tres pantallas nuevas, con su detalle. */
+  it("Más vendidos, Mayor utilidad y Vendidos bajo su costo llevan a su pantalla", async () => {
+    await renderRuta("/reports", ["reports:read"]);
+
+    const hub = await screen.findByTestId("reports-hub");
+    expect(within(hub).getByRole("link", { name: "Más vendidos" })).toHaveAttribute(
+      "href",
+      "/reports/top-sold",
+    );
+    expect(within(hub).getByRole("link", { name: "Mayor utilidad" })).toHaveAttribute(
+      "href",
+      "/reports/top-profit",
+    );
+    expect(within(hub).getByRole("link", { name: "Vendidos bajo su costo" })).toHaveAttribute(
+      "href",
+      "/reports/below-cost",
+    );
+    expect(
+      within(hub).getByText("Lo que vendiste por menos de lo que te costó y cuánto perdiste."),
+    ).toBeInTheDocument();
   });
 
   /**
@@ -95,12 +166,7 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     const titulos = within(hub)
       .getAllByRole("listitem")
       .map((tarjeta) => tarjeta.querySelector("a, button")?.getAttribute("aria-label"));
-    expect(titulos.slice(0, 4)).toEqual([
-      "Stock por sucursal",
-      "Ventas",
-      "Ventas por producto",
-      "Ventas por servicio",
-    ]);
+    expect(titulos.slice(0, 3)).toEqual(["Ventas", "Ventas por producto", "Ventas por servicio"]);
     expect(screen.getByRole("link", { name: "Ventas por producto" })).toHaveAttribute(
       "href",
       "/reports/sales-by-product",
@@ -209,7 +275,41 @@ describe("Hub de reportes (F5-HUB-02)", () => {
 
     const hub = await screen.findByTestId("reports-hub");
     expect(within(hub).queryByRole("link", { name: /vencimientos/i })).not.toBeInTheDocument();
-    expect(within(hub).getAllByRole("listitem")).toHaveLength(10);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(13);
+    // Inventario sigue: le quedan Stock por sucursal y Kardex.
+    expect(
+      within(within(hub).getByRole("region", { name: "Inventario" })).getAllByRole("listitem"),
+    ).toHaveLength(2);
+  });
+
+  /**
+   * Una sección sin tarjetas visibles por permisos no se muestra: un título
+   * con nada debajo se lee como un error. Hoy la ruta del hub pide
+   * `reports:read` y con él las cinco tienen algo; por eso se monta el hub
+   * solo, con un permiso que deja nada más las tarjetas de inventario.
+   */
+  it("una sección sin tarjetas visibles por permisos no se muestra", async () => {
+    useAuthStore.getState().setAuth("jwt", demoUser(["inventory:read"]));
+    const router = createRouter({
+      routeTree: createRootRoute({ component: ReportsHub }),
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    const hub = await screen.findByTestId("reports-hub");
+    expect(
+      within(hub)
+        .getAllByRole("region")
+        .map((seccion) => within(seccion).getByRole("heading", { level: 2 }).textContent),
+    ).toEqual(["Inventario"]);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("sin `reports:read` la ruta rebota", async () => {

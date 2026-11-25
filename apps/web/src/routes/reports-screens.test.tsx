@@ -1,7 +1,7 @@
 import { localCalendarDate } from "@sellpoint/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -873,6 +873,158 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
 
       await waitFor(() => expect(screen.queryByText(nombre)).not.toBeInTheDocument());
       expect(mocked.getSalesLinesReport).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * F10-RPT-02 — las dos pantallas aceptan `itemId`, `warehouseId`, `from` y
+   * `to` en la URL: así llegan ya filtradas desde el aviso «creció» del panel
+   * (Carlos, 2026-11-25) y desde los reportes por artículo.
+   */
+  describe("ventas de un solo artículo por la URL (F10-RPT-02)", () => {
+    const AGUA = "3f2b9c1e-8d4a-4b6f-9a1c-2e7d5f0a1b3c";
+    const CORTE = "6a0e7d2c-1b3f-4c5d-8e9f-0a1b2c3d4e5f";
+
+    /** La respuesta del API con el artículo filtrado, como la manda con `itemId`. */
+    const conArticulo = (item: { id: string; name: string } | null, rows = [filaLinea()]) =>
+      mocked.getSalesLinesReport.mockResolvedValue({
+        rows,
+        totals: rows.length > 0 ? { tax: "17.93", total: "130.00" } : null,
+        total: rows.length,
+        page: 1,
+        pageSize: 20,
+        item,
+      });
+
+    const filtroDeArticulo = () => screen.queryByTestId("sales-lines-item-filter");
+
+    it("aplica el artículo y las fechas de la URL, y dice qué artículo filtra", async () => {
+      conArticulo({ id: AGUA, name: "Agua mineral" });
+      await renderRuta(`/reports/sales-by-product?itemId=${AGUA}&from=2026-11-01&to=2026-11-25`);
+      await screen.findAllByText("Agua mineral");
+
+      expect(mocked.getSalesLinesReport.mock.calls[0]).toEqual([
+        "product",
+        expect.objectContaining({
+          itemId: AGUA,
+          from: "2026-11-01",
+          to: "2026-11-25",
+          page: 1,
+        }),
+      ]);
+      // Las fechas de la URL ganan sobre el «hoy» con que abre siempre.
+      expect(screen.getByLabelText(/desde/i)).toHaveValue("2026-11-01");
+      expect(screen.getByLabelText(/hasta/i)).toHaveValue("2026-11-25");
+      expect(filtroDeArticulo()).toHaveTextContent("Solo las ventas de Agua mineral");
+      expect(screen.getByRole("button", { name: "Quitar filtro" })).toBeInTheDocument();
+    });
+
+    it("«Quitar filtro» vuelve a todos los productos, en la página 1 y con las mismas fechas", async () => {
+      conArticulo({ id: AGUA, name: "Agua mineral" });
+      await renderRuta(`/reports/sales-by-product?itemId=${AGUA}&from=2026-11-01&to=2026-11-25`);
+      await screen.findAllByText("Agua mineral");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "Quitar filtro" }));
+
+      await waitFor(() => {
+        const ultima = mocked.getSalesLinesReport.mock.lastCall?.[1] ?? {};
+        expect(ultima).not.toHaveProperty("itemId");
+        expect(ultima).toMatchObject({ from: "2026-11-01", to: "2026-11-25", page: 1 });
+      });
+      expect(filtroDeArticulo()).not.toBeInTheDocument();
+    });
+
+    it("el Excel baja solo las ventas del artículo", async () => {
+      conArticulo({ id: AGUA, name: "Agua mineral" });
+      await renderRuta(`/reports/sales-by-product?itemId=${AGUA}`);
+      await screen.findAllByText("Agua mineral");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() =>
+        expect(mocked.downloadSalesLinesReport).toHaveBeenCalledWith(
+          "product",
+          expect.objectContaining({ itemId: AGUA }),
+        ),
+      );
+      expect(mocked.downloadSalesLinesReport.mock.calls[0]?.[1]).not.toHaveProperty("page");
+    });
+
+    it("«Ventas por servicio» aplica el servicio y la sucursal de la URL", async () => {
+      // Un id de verdad: la ruta descarta lo que no es uuid, como el API.
+      const NORTE = "9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e";
+      vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
+        buildWarehouse(),
+        buildWarehouse({ id: NORTE, code: "ALM-002", name: "Norte" }),
+      ]);
+      conArticulo({ id: CORTE, name: "Corte de cabello" }, [
+        filaLinea({ name: "Corte de cabello", baseUnit: null, presentation: null }),
+      ]);
+      await renderRuta(`/reports/sales-by-service?itemId=${CORTE}&warehouseId=${NORTE}`);
+      await screen.findAllByText("Corte de cabello");
+
+      expect(mocked.getSalesLinesReport.mock.calls[0]).toEqual([
+        "service",
+        expect.objectContaining({ itemId: CORTE, warehouseId: NORTE }),
+      ]);
+      await waitFor(() => expect(screen.getByLabelText(/sucursal/i)).toHaveValue(NORTE));
+      expect(filtroDeArticulo()).toHaveTextContent("Solo las ventas de Corte de cabello");
+    });
+
+    it("sin ventas en esas fechas, o con un artículo que ya no existe, el filtro sigue a la vista", async () => {
+      conArticulo({ id: AGUA, name: "Agua mineral" }, []);
+      await renderRuta(`/reports/sales-by-product?itemId=${AGUA}&from=2020-01-01&to=2020-01-31`);
+      await waitFor(() =>
+        expect(filtroDeArticulo()).toHaveTextContent("Solo las ventas de Agua mineral"),
+      );
+
+      cleanup();
+      conArticulo(null, []);
+      await renderRuta(`/reports/sales-by-service?itemId=${CORTE}`);
+      await waitFor(() =>
+        expect(filtroDeArticulo()).toHaveTextContent("Solo las ventas de un servicio"),
+      );
+      expect(screen.getByRole("button", { name: "Quitar filtro" })).toBeInTheDocument();
+    });
+
+    it("lo inválido de la URL se descarta y la pantalla abre como siempre, en hoy", async () => {
+      await renderRuta(
+        "/reports/sales-by-product?itemId=no-es-un-id&warehouseId=tampoco&from=2026-13-45&to=ayer",
+      );
+      await screen.findByText("Agua mineral");
+
+      const primera = mocked.getSalesLinesReport.mock.calls[0]?.[1] ?? {};
+      expect(primera).toMatchObject({ from: hoyDelNegocio() });
+      expect(primera).not.toHaveProperty("itemId");
+      expect(primera).not.toHaveProperty("warehouseId");
+      expect(primera).not.toHaveProperty("to");
+      expect(filtroDeArticulo()).not.toBeInTheDocument();
+    });
+
+    it.each(["/reports/sales-by-product", "/reports/sales-by-service"])(
+      "sin parámetros, %s abre como siempre: hoy, todas las sucursales y sin artículo",
+      async (path) => {
+        await renderRuta(path);
+        await waitFor(() => expect(mocked.getSalesLinesReport).toHaveBeenCalled());
+
+        const primera = mocked.getSalesLinesReport.mock.calls[0]?.[1] ?? {};
+        expect(primera).toMatchObject({ from: hoyDelNegocio() });
+        expect(primera).not.toHaveProperty("itemId");
+        expect(primera).not.toHaveProperty("warehouseId");
+        expect(filtroDeArticulo()).not.toBeInTheDocument();
+      },
+    );
+
+    it("Ventas, que comparte los filtros, sigue sin tomar la sucursal ni el artículo de la URL", async () => {
+      await renderRuta(`/reports/sales?warehouseId=${CORTE}&itemId=${AGUA}`);
+      await screen.findByText("VTA-000001");
+
+      const primera = mocked.getSalesReport.mock.calls[0]?.[0] ?? {};
+      expect(primera).toMatchObject({ from: hoyDelNegocio() });
+      expect(primera).not.toHaveProperty("warehouseId");
+      expect(primera).not.toHaveProperty("itemId");
     });
   });
 

@@ -121,6 +121,37 @@ export const INSIGHTS: Screen[] = [
     target: (page) => [page.getByTestId("sales-by-service-report")],
   },
   {
+    id: "reports-top-sold",
+    chapter: REPORTS,
+    as: "owner",
+    path: "/reports/top-sold",
+    // F10-RPT-04: abre con el mes en curso, y la demo vende una decena de
+    // artículos cada día: el título, los filtros y los primeros renglones.
+    target: (page) => [
+      page.getByTestId("top-sold-report").locator("h1"),
+      page.getByRole("row").nth(6),
+    ],
+  },
+  {
+    id: "reports-top-profit",
+    chapter: REPORTS,
+    as: "owner",
+    path: "/reports/top-profit",
+    target: (page) => [
+      page.getByTestId("top-profit-report").locator("h1"),
+      page.getByRole("row").nth(6),
+    ],
+  },
+  {
+    id: "reports-below-cost",
+    chapter: REPORTS,
+    as: "owner",
+    path: "/reports/below-cost",
+    // La pantalla entera: el aviso de arriba es de lo que habla el capítulo,
+    // haya o no pérdidas en el mes de la demo.
+    target: (page) => [page.getByTestId("below-cost-report")],
+  },
+  {
     id: "reports-shifts",
     chapter: REPORTS,
     as: "owner",
