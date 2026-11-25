@@ -3,7 +3,11 @@ import { type Currency, formatMoney, unitName } from "@sellpoint/shared";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoneyInput } from "@/components/form/money-input";
-import { QuantityInput } from "@/components/form/quantity-input";
+import {
+  CaptureQuantityField,
+  costUnitName,
+  isBasePresentation,
+} from "@/components/purchases/capture-quantity-field";
 import {
   type ProductoElegido,
   ProductSearch,
@@ -35,7 +39,10 @@ interface LineaEditable {
   sku: string;
   description: string;
   presentationId: string;
+  /** En la unidad de la presentación: lo que viaja al API (F10-BULK-12). */
   quantity: string;
+  /** Lo tecleado en gramos que no cabe en kilogramos («La cantidad mínima es 0.1 g.»). */
+  captureError: string | null;
   unitCost: string;
   discount: string;
   /** Lo que el API ya calculó (vacío mientras no se guarde). */
@@ -70,6 +77,7 @@ async function fichaDe(producto: {
       isPurchasable: p.isPurchasable,
       allowFractionalInput: p.allowFractionalInput,
       cost: p.cost ?? null,
+      isBase: p.isBase,
     })),
   };
 }
@@ -82,6 +90,7 @@ function aEditable(orden: PurchaseOrder): LineaEditable[] {
     description: l.description,
     presentationId: l.presentationId ?? "",
     quantity: l.quantityOrdered,
+    captureError: null,
     unitCost: l.unitCost ?? "",
     discount: Number(l.discount) > 0 ? l.discount : "",
     lineTotal: l.lineTotal,
@@ -197,13 +206,15 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
 
     const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
     const productoDe = (id: string) => catalogo.find((p) => p.id === id);
-    const cambiar = (index: number, campo: keyof LineaEditable, valor: string) => {
+    const cambiarCampos = (index: number, campos: Partial<LineaEditable>) => {
       // El aviso de arriba describe lo que se intentó guardar: al corregir, ya no aplica.
       setError(null);
       setLineas((previas) =>
-        previas.map((linea, i) => (i === index ? { ...linea, [campo]: valor } : linea)),
+        previas.map((linea, i) => (i === index ? { ...linea, ...campos } : linea)),
       );
     };
+    const cambiar = (index: number, campo: keyof LineaEditable, valor: string) =>
+      cambiarCampos(index, { [campo]: valor });
 
     async function agregar(producto: ProductoElegido) {
       const yaEstaba = productoDe(producto.id);
@@ -225,6 +236,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
           description: producto.name,
           presentationId: presentacionInicial,
           quantity: "",
+          captureError: null,
           unitCost: costoInicial(
             ultimo,
             presentacionInicial,
@@ -296,6 +308,9 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
     };
     const problemasLocales = (): LineIssue[] =>
       lineas.flatMap((linea, i) => {
+        if (linea.captureError !== null) {
+          return [{ line: i + 1, field: "quantity", message: linea.captureError }];
+        }
         const clave = errorDeCantidad(linea);
         return clave === null
           ? []
@@ -389,8 +404,23 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                     (p) => p.id === linea.presentationId,
                   );
                   const errorCantidad = errorDeCantidad(linea);
-                  const mostrarErrorCantidad =
-                    errorCantidad !== null && (intentado || errorCantidad !== CANTIDAD_REQUERIDA);
+                  // El error de la unidad hermana se dice siempre: «0.05 g» no es un borrador a medias.
+                  const mensajeCantidad =
+                    linea.captureError ??
+                    (errorCantidad !== null && (intentado || errorCantidad !== CANTIDAD_REQUERIDA)
+                      ? t(errorCantidad, { presentation: nombreDePresentacion(linea) })
+                      : null);
+                  const unidadDelCosto = costUnitName(producto, linea.presentationId, locale);
+                  const idUnidadDelCosto = `purchase-order-line-${index}-cost-unit`;
+                  const textoUnidadDelCosto = unidadDelCosto !== null && (
+                    <span
+                      id={idUnidadDelCosto}
+                      className="block text-muted-foreground text-xs"
+                      data-testid={`cost-unit-${index}`}
+                    >
+                      {t("purchases.lines.costPer", { unit: unidadDelCosto })}
+                    </span>
+                  );
                   const porcentaje =
                     Number(linea.quantity) > 0
                       ? Math.min(
@@ -418,7 +448,12 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                             value={linea.presentationId}
                             onChange={(event) => {
-                              cambiar(index, "presentationId", event.target.value);
+                              // Lo tecleado en gramos ya se guardó convertido: el
+                              // error de la unidad hermana no aplica a la nueva.
+                              cambiarCampos(index, {
+                                presentationId: event.target.value,
+                                captureError: null,
+                              });
                               if (linea.unitCost.trim() === "" && producto !== undefined) {
                                 cambiar(
                                   index,
@@ -455,25 +490,26 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                       <td className="p-2 text-right tabular-nums">
                         {editable ? (
                           <>
-                            <QuantityInput
+                            <CaptureQuantityField
                               aria-label={t("purchaseOrders.lines.quantity")}
                               name={`lines.${index}.quantity`}
+                              baseUnit={producto?.baseUnit}
+                              atBasePresentation={isBasePresentation(
+                                producto,
+                                linea.presentationId,
+                              )}
                               allowsDecimals={lineaAdmiteDecimales(producto, linea.presentationId)}
-                              invalid={mostrarErrorCantidad}
-                              value={linea.quantity}
-                              onChange={(valor) => cambiar(index, "quantity", valor)}
+                              invalid={mensajeCantidad !== null}
+                              quantity={linea.quantity}
+                              onChange={(capturada) => cambiarCampos(index, capturada)}
                             />
-                            {mostrarErrorCantidad && (
+                            {mensajeCantidad !== null && (
                               <span
                                 role="alert"
                                 className="mt-1 block text-destructive text-xs"
                                 data-testid={`quantity-error-${index}`}
                               >
-                                {t(errorCantidad ?? "", {
-                                  presentation:
-                                    presentacion?.name ??
-                                    (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),
-                                })}
+                                {mensajeCantidad}
                               </span>
                             )}
                           </>
@@ -486,10 +522,15 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                           <>
                             <MoneyInput
                               aria-label={t("purchaseOrders.lines.unitCost")}
+                              aria-describedby={
+                                unidadDelCosto === null ? undefined : idUnidadDelCosto
+                              }
                               name={`lines.${index}.unitCost`}
                               value={linea.unitCost}
                               onChange={(valor) => cambiar(index, "unitCost", valor)}
                             />
+                            {/* F10-BULK-12: 600 g con un costo por kilo no se confunden. */}
+                            {textoUnidadDelCosto}
                             {linea.lastCost !== null && (
                               <span
                                 className="block text-muted-foreground text-xs"
@@ -507,10 +548,11 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                               </span>
                             )}
                           </>
-                        ) : linea.unitCost === "" ? (
-                          "—"
                         ) : (
-                          dinero(linea.unitCost)
+                          <>
+                            {linea.unitCost === "" ? "—" : dinero(linea.unitCost)}
+                            {textoUnidadDelCosto}
+                          </>
                         )}
                       </td>
                       <td className="p-2 text-right tabular-nums">

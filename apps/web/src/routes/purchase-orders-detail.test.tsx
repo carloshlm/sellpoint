@@ -718,3 +718,142 @@ describe("costoDeCatalogo con la base del negocio", () => {
     expect(costoDeCatalogo(ficha, "caja", documento, negocio)).toBe(esperado);
   });
 });
+
+/**
+ * F10-BULK-12 — pedir en kilos o en gramos: el mismo botón de unidad que la
+ * compra, solo en la presentación de la unidad base, y el costo acordado dice
+ * de qué unidad es.
+ */
+describe("Órdenes de compra — pedir en kilos o en gramos (F10-BULK-12)", () => {
+  const GRAMOS = "Escribir la cantidad en gramos";
+
+  /** El queso a granel en borrador: base en kilogramos y la «Bolsa 10 Kg». */
+  function ordenDeQueso(
+    linea: Partial<ordersApi.PurchaseOrder["lines"][number]> = {},
+    over: Partial<ordersApi.PurchaseOrder> = {},
+  ): ordersApi.PurchaseOrder {
+    const base = buildPurchaseOrder({ status: "draft", issuedAt: null });
+    return {
+      ...base,
+      lines: [
+        {
+          ...(base.lines[0] as ordersApi.PurchaseOrder["lines"][number]),
+          productId: "prod-queso",
+          productSku: "QSO-1",
+          description: "Queso Oaxaca",
+          presentationId: null,
+          presentationName: null,
+          quantityOrdered: "",
+          unitCost: "180",
+          ...linea,
+        },
+      ],
+      products: [
+        {
+          id: "prod-queso",
+          sku: "QSO-1",
+          name: "Queso Oaxaca",
+          baseUnit: "kg",
+          presentations: [
+            {
+              id: "pres-bolsa",
+              name: "Bolsa 10 Kg",
+              factor: "10",
+              isPurchasable: true,
+              allowFractionalInput: false,
+            },
+          ],
+        },
+      ],
+      ...over,
+    };
+  }
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("en kilogramos, «g» y 600 guarda 0.6", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(ordenDeQueso());
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const fila = screen.getByTestId("purchase-order-line-0");
+
+    await user.click(within(fila).getByRole("button", { name: GRAMOS }));
+    await user.type(within(fila).getByLabelText("Cantidad"), "600");
+    await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+
+    await waitFor(() =>
+      expect(mocked.replacePurchaseOrderLines).toHaveBeenCalledWith("po1", [
+        expect.objectContaining({ presentationId: null, quantity: 0.6 }),
+      ]),
+    );
+  });
+
+  it("el costo acordado dice «Costo por kilogramo»", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(ordenDeQueso());
+    await renderFicha(GESTOR);
+    const fila = screen.getByTestId("purchase-order-line-0");
+
+    expect(within(fila).getByLabelText("Costo acordado")).toHaveAccessibleDescription(
+      /^Costo por kilogramo/,
+    );
+  });
+
+  it("emitida, el costo sigue diciendo su unidad y no hay botón", async () => {
+    localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+    mocked.getPurchaseOrder.mockResolvedValue(
+      ordenDeQueso(
+        { quantityOrdered: "0.6" },
+        { status: "open", issuedAt: "2026-09-10T18:05:00Z" },
+      ),
+    );
+    await renderFicha(GESTOR);
+    const fila = screen.getByTestId("purchase-order-line-0");
+
+    expect(within(fila).getByTestId("cost-unit-0")).toHaveTextContent("Costo por kilogramo");
+    expect(within(fila).queryByRole("button", { name: GRAMOS })).not.toBeInTheDocument();
+    expect(fila).toHaveTextContent("0.6");
+  });
+
+  it("en un empaque no hay botón y el costo es por bolsa; «Solo enteros» se sigue cumpliendo", async () => {
+    localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+    mocked.getPurchaseOrder.mockResolvedValue(ordenDeQueso({ presentationId: "pres-bolsa" }));
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const fila = screen.getByTestId("purchase-order-line-0");
+
+    expect(within(fila).queryByRole("button", { name: GRAMOS })).not.toBeInTheDocument();
+    expect(within(fila).getByLabelText("Costo acordado")).toHaveAccessibleDescription(
+      /^Costo por Bolsa 10 Kg/,
+    );
+    const cantidad = within(fila).getByLabelText("Cantidad");
+    await user.type(cantidad, "1.5");
+    expect(screen.getByTestId("quantity-error-0")).toHaveTextContent(
+      "«Bolsa 10 Kg» no se parte: usa una cantidad entera.",
+    );
+    await user.clear(cantidad);
+    await user.type(cantidad, "3");
+    await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+    await waitFor(() =>
+      expect(mocked.replacePurchaseOrderLines).toHaveBeenCalledWith("po1", [
+        expect.objectContaining({ presentationId: "pres-bolsa", quantity: 3 }),
+      ]),
+    );
+  });
+
+  it("en la base se siguen escribiendo decimales: 2.5 kg guarda 2.5", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(ordenDeQueso());
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const fila = screen.getByTestId("purchase-order-line-0");
+
+    await user.type(within(fila).getByLabelText("Cantidad"), "2.5");
+    await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+    await waitFor(() =>
+      expect(mocked.replacePurchaseOrderLines).toHaveBeenCalledWith("po1", [
+        expect.objectContaining({ quantity: 2.5 }),
+      ]),
+    );
+  });
+});

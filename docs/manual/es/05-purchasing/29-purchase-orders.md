@@ -26,7 +26,11 @@ la factura (capítulo 28, «Compras con la factura del proveedor»).
 3. En **Productos del pedido**, agrega cada producto con su **Presentación**, la
    **Cantidad** y el **Costo acordado**. Si lo buscas por el código de una
    presentación que se compra, la línea ya trae esa. Si quieres, anota la **Referencia del
-   proveedor**, las **Condiciones de pago** y **Notas**.
+   proveedor**, las **Condiciones de pago** y **Notas**. Un producto a granel en
+   su presentación base se pide en kilos o en gramos con los botones **kg** y **g**
+   junto a la **Cantidad**, y bajo el costo la línea dice de qué unidad es
+   (**Costo por kilogramo**), igual que en la compra (capítulo 28, «Compras con
+   la factura del proveedor»).
 4. Presiona **Emitir orden** y confirma.
 
 Al emitirla, los productos y los costos acordados quedan fijos. Cada orden lleva
@@ -49,7 +53,9 @@ Cada vez que llega mercancía de la orden:
    de verdad llegó: ajusta lo incompleto y quita lo que no vino. Si el producto
    se controla por lote, escribe el **Lote** y la **Caducidad**. La caducidad
    lleva el año completo, entre 2000 y 2099, y no puede ser de antes de hoy: no
-   se recibe mercancía caducada.
+   se recibe mercancía caducada. Si la línea se pidió en la presentación base,
+   **Llegó** también tiene los botones **kg** y **g**: lo que llegó en gramos se
+   guarda en kilos.
 3. Si la mercancía trae **Remisión o packing slip**, anota su número para
    cotejarlo después con la factura.
 4. Presiona **Confirmar recepción**.

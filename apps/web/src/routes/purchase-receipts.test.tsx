@@ -10,7 +10,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
-import { buildPurchaseReceipt } from "@/test/purchase-order-fixture";
+import { buildPurchaseOrder, buildPurchaseReceipt } from "@/test/purchase-order-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
@@ -75,6 +75,8 @@ const GESTOR = ["purchases:read", "purchases:manage", "purchases:cancel"];
 
 beforeEach(() => {
   mocked.getPurchaseReceipt.mockResolvedValue(buildPurchaseReceipt());
+  // F10-BULK-12: de la orden sale la unidad base y la presentación de cada línea.
+  mocked.getPurchaseOrder.mockResolvedValue(buildPurchaseOrder());
   mocked.replacePurchaseReceiptLines.mockImplementation(async () => buildPurchaseReceipt());
   mockedLots.mockResolvedValue([
     {
@@ -268,5 +270,134 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     expect(screen.queryByRole("button", { name: "Anular recepción" })).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("COM-000001");
     expect(screen.queryByLabelText("Llegó")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * F10-BULK-12 — recibir en kilos o en gramos. La presentación de la recepción
+ * se hereda de la orden: el botón de unidad aparece cuando esa línea va en la
+ * unidad base, y lo que llegó en gramos viaja convertido a kilogramos.
+ */
+describe("Recepción — recibir en kilos o en gramos (F10-BULK-12)", () => {
+  const GRAMOS = "Escribir la cantidad en gramos";
+
+  /** La orden con el queso en kilogramos (sin presentación) y los guantes en caja. */
+  function ordenConQueso(): ordersApi.PurchaseOrder {
+    const base = buildPurchaseOrder();
+    return {
+      ...base,
+      lines: [
+        ...base.lines,
+        {
+          ...(base.lines[0] as ordersApi.PurchaseOrder["lines"][number]),
+          id: "pol-queso",
+          lineNo: 2,
+          productId: "prod-queso",
+          productSku: "QSO-1",
+          description: "Queso Oaxaca",
+          presentationId: null,
+          presentationName: null,
+          quantityOrdered: "5",
+          pending: "5",
+        },
+      ],
+      products: [
+        ...base.products,
+        { id: "prod-queso", sku: "QSO-1", name: "Queso Oaxaca", baseUnit: "kg", presentations: [] },
+      ],
+    };
+  }
+
+  function recepcionConQueso(): ordersApi.PurchaseReceipt {
+    const base = buildPurchaseReceipt();
+    const caja = {
+      ...(base.lines[0] as ordersApi.PurchaseReceipt["lines"][number]),
+      tracksLots: false,
+    };
+    return {
+      ...base,
+      lines: [
+        caja,
+        {
+          ...caja,
+          id: "rl-queso",
+          lineNo: 2,
+          purchaseOrderLineId: "pol-queso",
+          orderLineNo: 2,
+          productId: "prod-queso",
+          productSku: "QSO-1",
+          description: "Queso Oaxaca",
+          presentationName: null,
+          allowFractionalInput: true,
+          quantityOrdered: "5",
+          pending: "5",
+          quantity: "5",
+        },
+      ],
+    };
+  }
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("en kilogramos, «g» y 600 guarda 0.6; la caja no ofrece el botón", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(ordenConQueso());
+    mocked.getPurchaseReceipt.mockResolvedValue(recepcionConQueso());
+    await renderRecepcion(GESTOR);
+    const user = userEvent.setup();
+    const caja = screen.getByTestId("receipt-line-0");
+    const queso = screen.getByTestId("receipt-line-1");
+
+    expect(within(caja).queryByRole("button", { name: GRAMOS })).not.toBeInTheDocument();
+    await user.click(await within(queso).findByRole("button", { name: GRAMOS }));
+    const llego = within(queso).getByLabelText("Llegó");
+    await user.clear(llego);
+    await user.type(llego, "600");
+    await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+
+    await waitFor(() =>
+      expect(mocked.replacePurchaseReceiptLines).toHaveBeenCalledWith("po1", "rcp1", [
+        expect.objectContaining({ purchaseOrderLineId: "pol1", quantity: 100 }),
+        expect.objectContaining({ purchaseOrderLineId: "pol-queso", quantity: 0.6 }),
+      ]),
+    );
+  });
+
+  it("con los gramos recordados, los 5 kg pendientes se ven como 5000 g y se guardan igual", async () => {
+    localStorage.setItem("sellpoint.captureUnit.kg", "gr");
+    mocked.getPurchaseOrder.mockResolvedValue(ordenConQueso());
+    mocked.getPurchaseReceipt.mockResolvedValue(recepcionConQueso());
+    await renderRecepcion(GESTOR);
+    const user = userEvent.setup();
+    const queso = screen.getByTestId("receipt-line-1");
+
+    // La orden llega después de la recepción: hasta entonces, sin botón y en la base.
+    await waitFor(() => expect(within(queso).getByLabelText("Llegó")).toHaveValue("5000"));
+    expect(within(queso).getByRole("button", { name: GRAMOS })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+    await waitFor(() =>
+      expect(mocked.replacePurchaseReceiptLines).toHaveBeenCalledWith("po1", "rcp1", [
+        expect.objectContaining({ purchaseOrderLineId: "pol1", quantity: 100 }),
+        expect.objectContaining({ purchaseOrderLineId: "pol-queso", quantity: 5 }),
+      ]),
+    );
+  });
+
+  it("en la caja «Solo enteros» se sigue cumpliendo", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(ordenConQueso());
+    mocked.getPurchaseReceipt.mockResolvedValue(recepcionConQueso());
+    await renderRecepcion(GESTOR);
+    const user = userEvent.setup();
+    const llego = within(screen.getByTestId("receipt-line-0")).getByLabelText("Llegó");
+
+    await user.clear(llego);
+    await user.type(llego, "1.5");
+    expect(screen.getByTestId("quantity-error-0")).toHaveTextContent(
+      "«Caja ×12» no se parte: usa una cantidad entera.",
+    );
   });
 });

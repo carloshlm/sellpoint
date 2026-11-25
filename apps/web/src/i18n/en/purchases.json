@@ -96,6 +96,7 @@
     "presentation": "Presentation",
     "quantity": "Quantity",
     "unitCost": "Unit cost",
+    "costPer": "Cost per {{unit}}",
     "discount": "Discount",
     "tax": "Tax",
     "amount": "Amount",

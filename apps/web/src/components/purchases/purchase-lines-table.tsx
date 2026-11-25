@@ -2,13 +2,17 @@ import { type Currency, formatMoney, unitName } from "@sellpoint/shared";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoneyInput } from "@/components/form/money-input";
-import { QuantityInput } from "@/components/form/quantity-input";
 import { LotCells } from "@/components/inventory/lot-cells";
 import {
   costoDeCatalogo,
   costoInicial,
   type LineasHandle,
 } from "@/components/purchase-orders/purchase-order-lines-table";
+import {
+  CaptureQuantityField,
+  costUnitName,
+  isBasePresentation,
+} from "@/components/purchases/capture-quantity-field";
 import {
   type ProductoElegido,
   ProductSearch,
@@ -39,7 +43,10 @@ interface LineaEditable {
   uid: string;
   description: string;
   presentationId: string;
+  /** En la unidad de la presentación: lo que viaja al API (F10-BULK-12). */
   quantity: string;
+  /** Lo tecleado en gramos que no cabe en kilogramos («La cantidad mínima es 0.1 g.»). */
+  captureError: string | null;
   unitCost: string;
   discount: string;
   lotCode: string;
@@ -79,6 +86,7 @@ async function fichaDe(producto: {
       isPurchasable: p.isPurchasable,
       allowFractionalInput: p.allowFractionalInput,
       cost: p.cost ?? null,
+      isBase: p.isBase,
     })),
   };
 }
@@ -91,6 +99,7 @@ function aEditable(compra: Purchase): LineaEditable[] {
     description: linea.description,
     presentationId: linea.presentationId ?? "",
     quantity: linea.quantity ?? "",
+    captureError: null,
     unitCost: linea.unitCost ?? "",
     discount: Number(linea.discount) > 0 ? linea.discount : "",
     lotCode: linea.lotCode ?? "",
@@ -156,13 +165,15 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
     const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
     const productoDe = (id: string) => catalogo.find((p) => p.id === id);
 
-    const cambiar = (index: number, campo: keyof LineaEditable, valor: string) => {
+    const cambiarCampos = (index: number, campos: Partial<LineaEditable>) => {
       // El aviso de arriba describe lo que se intentó: al corregir, ya no aplica.
       setError(null);
       setLineas((previas) =>
-        previas.map((linea, i) => (i === index ? { ...linea, [campo]: valor } : linea)),
+        previas.map((linea, i) => (i === index ? { ...linea, ...campos } : linea)),
       );
     };
+    const cambiar = (index: number, campo: keyof LineaEditable, valor: string) =>
+      cambiarCampos(index, { [campo]: valor });
 
     async function agregar(producto: ProductoElegido) {
       // La ficha se resuelve ANTES de armar la línea, en una variable local:
@@ -195,6 +206,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
           // la primera (el API cae a la unidad base si llega vacía).
           presentationId: presentacionInicial,
           quantity: "",
+          captureError: null,
           // El último costo con el proveedor, o el del catálogo (Carlos, 2026-09-11/12).
           unitCost: costoInicial(
             ultimo,
@@ -264,6 +276,9 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
     /** Las cantidades que no caben en su presentación, con su línea (vacía se permite en el borrador). */
     const problemasLocales = (): LineIssue[] =>
       lineas.flatMap((linea, i) => {
+        if (linea.captureError !== null) {
+          return [{ line: i + 1, field: "quantity", message: linea.captureError }];
+        }
         const producto = productoDe(linea.productId);
         const clave = quantityInputError(linea.quantity, {
           allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
@@ -306,7 +321,9 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
             : quantityInputError(linea.quantity, {
                 allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
               });
-        if (claveCantidad !== null) {
+        if (linea.captureError !== null) {
+          problemas.push({ line, field: "quantity", message: linea.captureError });
+        } else if (claveCantidad !== null) {
           problemas.push({
             line,
             field: "quantity",
@@ -415,6 +432,17 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       : quantityInputError(linea.quantity, {
                           allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
                         });
+                  const mensajeCantidad =
+                    linea.captureError ??
+                    (errorCantidad === null
+                      ? null
+                      : t(errorCantidad, {
+                          presentation:
+                            presentacion?.name ??
+                            (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),
+                        }));
+                  const unidadDelCosto = costUnitName(producto, linea.presentationId, locale);
+                  const idUnidadDelCosto = `purchase-line-${index}-cost-unit`;
                   return (
                     <tr
                       key={linea.uid}
@@ -440,7 +468,12 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                           value={linea.presentationId}
                           disabled={!editable}
                           onChange={(event) => {
-                            cambiar(index, "presentationId", event.target.value);
+                            // Lo tecleado en gramos ya se guardó convertido: el
+                            // error de la unidad hermana no aplica a la nueva.
+                            cambiarCampos(index, {
+                              presentationId: event.target.value,
+                              captureError: null,
+                            });
                             if (linea.unitCost.trim() === "" && producto !== undefined) {
                               cambiar(
                                 index,
@@ -471,37 +504,46 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                         )}
                       </td>
                       <td className="p-2 text-right">
-                        <QuantityInput
+                        <CaptureQuantityField
                           aria-label={t("purchases.lines.quantity")}
                           name={`lines.${index}.quantity`}
+                          baseUnit={producto?.baseUnit}
+                          atBasePresentation={isBasePresentation(producto, linea.presentationId)}
                           allowsDecimals={lineaAdmiteDecimales(producto, linea.presentationId)}
-                          invalid={errorCantidad !== null}
-                          value={linea.quantity}
+                          invalid={mensajeCantidad !== null}
+                          quantity={linea.quantity}
                           disabled={!editable}
-                          onChange={(valor) => cambiar(index, "quantity", valor)}
+                          onChange={(capturada) => cambiarCampos(index, capturada)}
                         />
-                        {errorCantidad !== null && (
+                        {mensajeCantidad !== null && (
                           <span
                             role="alert"
                             className="mt-1 block text-destructive text-xs"
                             data-testid={`quantity-error-${index}`}
                           >
-                            {t(errorCantidad, {
-                              presentation:
-                                presentacion?.name ??
-                                (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),
-                            })}
+                            {mensajeCantidad}
                           </span>
                         )}
                       </td>
                       <td className="p-2 text-right">
                         <MoneyInput
                           aria-label={t("purchases.lines.unitCost")}
+                          aria-describedby={unidadDelCosto === null ? undefined : idUnidadDelCosto}
                           name={`lines.${index}.unitCost`}
                           value={linea.unitCost}
                           disabled={!editable}
                           onChange={(valor) => cambiar(index, "unitCost", valor)}
                         />
+                        {/* F10-BULK-12: 600 g con un costo por kilo no se confunden. */}
+                        {unidadDelCosto !== null && (
+                          <span
+                            id={idUnidadDelCosto}
+                            className="block text-muted-foreground text-xs"
+                            data-testid={`cost-unit-${index}`}
+                          >
+                            {t("purchases.lines.costPer", { unit: unidadDelCosto })}
+                          </span>
+                        )}
                         {linea.unitCostNet !== null && (
                           <span className="block text-muted-foreground text-xs">
                             {t("purchases.lines.netCost", { cost: dinero(linea.unitCostNet) })}

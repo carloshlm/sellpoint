@@ -96,6 +96,7 @@
     "presentation": "Presentación",
     "quantity": "Cantidad",
     "unitCost": "Costo unitario",
+    "costPer": "Costo por {{unit}}",
     "discount": "Descuento",
     "tax": "Impuesto",
     "amount": "Importe",

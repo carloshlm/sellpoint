@@ -3,9 +3,12 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateField } from "@/components/form/date-field";
-import { QuantityInput } from "@/components/form/quantity-input";
 import { TextField } from "@/components/form/text-field";
 import { LotCells } from "@/components/inventory/lot-cells";
+import {
+  CaptureQuantityField,
+  isBasePresentation,
+} from "@/components/purchases/capture-quantity-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CanceledNotice } from "@/components/ui/canceled-notice";
@@ -24,6 +27,7 @@ import type { PurchaseReceipt, PurchaseReceiptLineInput } from "@/lib/purchase-o
 import {
   useCancelPurchaseReceipt,
   useConfirmPurchaseReceipt,
+  usePurchaseOrder,
   useReplacePurchaseReceiptLines,
   useUpdatePurchaseReceipt,
 } from "@/lib/purchase-orders/hooks";
@@ -45,7 +49,10 @@ interface LineaEditable {
   quantityOrdered: string;
   quantityReceived: string;
   pending: string;
+  /** En la unidad de la presentación de la orden: lo que viaja al API. */
   quantity: string;
+  /** Lo tecleado en gramos que no cabe en kilogramos (F10-BULK-12). */
+  captureError: string | null;
   lotCode: string;
   expiresAt: string;
 }
@@ -64,6 +71,7 @@ const aEditable = (r: PurchaseReceipt): LineaEditable[] =>
     quantityReceived: l.quantityReceived,
     pending: l.pending,
     quantity: l.quantity,
+    captureError: null,
     lotCode: l.lotCode ?? "",
     expiresAt: l.expiresAt ?? "",
   }));
@@ -107,6 +115,18 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const guardarLineas = useReplacePurchaseReceiptLines();
   const confirmar = useConfirmPurchaseReceipt();
   const anular = useCancelPurchaseReceipt();
+  // F10-BULK-12: la recepción no dice la unidad base ni el factor de su
+  // presentación; la orden sí. Mientras no llega, la cantidad va sin botón.
+  const { data: orden } = usePurchaseOrder(receipt.purchaseOrderId);
+  const unidadDeCaptura = (linea: LineaEditable) => {
+    const producto = orden?.products.find((p) => p.id === linea.productId);
+    const deOrden = orden?.lines.find((l) => l.id === linea.purchaseOrderLineId);
+    return {
+      baseUnit: producto?.baseUnit,
+      atBasePresentation:
+        deOrden !== undefined && isBasePresentation(producto, deOrden.presentationId),
+    };
+  };
   /** Las MISMAS etiquetas de las columnas: el aviso nombra el campo como lo ve la persona. */
   const etiquetas: Record<string, string> = {
     purchaseOrderLineId: t("purchaseOrders.lines.product"),
@@ -135,8 +155,10 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
     setError(null);
     guardarCabecera.mutate({ ...ids, input: cambios }, { onError });
   });
+  const cambiarCampos = (index: number, campos: Partial<LineaEditable>) =>
+    setLineas((previas) => previas.map((l, i) => (i === index ? { ...l, ...campos } : l)));
   const cambiar = (index: number, campo: keyof LineaEditable, valor: string) =>
-    setLineas((previas) => previas.map((l, i) => (i === index ? { ...l, [campo]: valor } : l)));
+    cambiarCampos(index, { [campo]: valor });
   const fecha = (iso: string) =>
     new Intl.DateTimeFormat(i18n.language, { dateStyle: "short", timeStyle: "short" }).format(
       new Date(iso),
@@ -148,19 +170,17 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
     linea.quantity.trim() === "" || Number(linea.quantity) === 0
       ? "purchaseOrders.lines.errors.quantityRequired"
       : quantityInputError(linea.quantity, { allowsDecimals: linea.allowFractionalInput });
+  /** El aviso de la cantidad, ya traducido: primero el de la unidad hermana. */
+  const mensajeDeCantidad = (linea: LineaEditable): string | null => {
+    if (linea.captureError !== null) return linea.captureError;
+    const clave = errorDeCantidad(linea);
+    return clave === null ? null : t(clave, { presentation: linea.presentationName ?? "" });
+  };
   /** Frena el envío y dice QUÉ línea: bajo el campo y en el aviso de arriba. */
   const validar = (): boolean => {
     const problemas: LineIssue[] = lineas.flatMap((linea, i) => {
-      const clave = errorDeCantidad(linea);
-      return clave === null
-        ? []
-        : [
-            {
-              line: i + 1,
-              field: "quantity",
-              message: t(clave, { presentation: linea.presentationName ?? "" }),
-            },
-          ];
+      const message = mensajeDeCantidad(linea);
+      return message === null ? [] : [{ line: i + 1, field: "quantity", message }];
     });
     if (problemas.length === 0) return true;
     setError(describeLineIssues(problemas, t, etiquetas));
@@ -375,24 +395,23 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                     <td className="p-2 text-right">
                       {borrador ? (
                         <>
-                          <QuantityInput
+                          <CaptureQuantityField
                             aria-label={t("purchaseOrders.receipt.quantity")}
                             name={`lines.${index}.quantity`}
+                            {...unidadDeCaptura(linea)}
                             allowsDecimals={linea.allowFractionalInput}
-                            invalid={errorDeCantidad(linea) !== null}
-                            value={linea.quantity}
+                            invalid={mensajeDeCantidad(linea) !== null}
+                            quantity={linea.quantity}
                             disabled={!puedeEditar}
-                            onChange={(valor) => cambiar(index, "quantity", valor)}
+                            onChange={(capturada) => cambiarCampos(index, capturada)}
                           />
-                          {errorDeCantidad(linea) !== null && (
+                          {mensajeDeCantidad(linea) !== null && (
                             <span
                               role="alert"
                               className="mt-1 block text-destructive text-xs"
                               data-testid={`quantity-error-${index}`}
                             >
-                              {t(errorDeCantidad(linea) as string, {
-                                presentation: linea.presentationName ?? "",
-                              })}
+                              {mensajeDeCantidad(linea)}
                             </span>
                           )}
                         </>

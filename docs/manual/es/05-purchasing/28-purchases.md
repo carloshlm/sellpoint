@@ -49,6 +49,23 @@ compras hay y el total del rango. Los estados son:
 
 ![Una compra nueva](screen:purchase-new)
 
+**Comprar a granel en kilos o en gramos.** Si la línea va en la presentación
+base del producto (el queso en **Kilogramo**, la que se creó con él), junto a la
+**Cantidad** hay dos botones: **kg** y **g**. Con **kg** escribes kilos (**2.5**);
+con **g** escribes gramos (**600**), y la compra los guarda en kilos: 0.6. Si ya
+había una cantidad y tocas el otro botón, la cantidad no cambia: se vuelve a
+escribir en la unidad nueva, y 5 kg se ven como 5000 g. Si no se puede escribir
+en la otra unidad, el campo queda vacío y en gris dice la cantidad, que sigue
+igual. SellPointy recuerda en esa computadora la unidad que elegiste. Igual con
+litros y mililitros (**L** y **ml**), metros y centímetros (**m** y **cm**) o
+libras y onzas (**lb** y **oz**). En gramos, la cantidad mínima es 0.1 g. En un
+empaque, como **Bolsa 10 Kg**, no hay botones: la cantidad son bolsas. Tampoco en
+una **Bolsa 1 Kg** que diste de alta aparte: aunque vale un kilo, es un empaque.
+
+Bajo el costo, cada línea dice de qué unidad es: **Costo por kilogramo** en la
+unidad base, o **Costo por Bolsa 10 Kg** si compraste el empaque. Así 600 g con
+un costo por kilo no se confunden: el costo sigue siendo el de un kilo.
+
 Al agregar un producto, SellPointy te recuerda el último costo al que se lo
 compraste a ese proveedor. Si escribiste el **Total que dice la factura** y no
 cuadra con la suma de las líneas, te avisa con la diferencia; la compra se puede
