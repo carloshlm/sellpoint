@@ -9,6 +9,10 @@ const baseEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.url(),
+  // Conexiones del pool del API (Sentry SELLPOINT-API-7, 2026-11-25). 20 en
+  // producción, cuyo Postgres admite 50; el sandbox admite 20 y la baja a 10
+  // en su docker-compose.
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
   REDIS_URL: z.url(),
   CORS_ORIGINS: z
     .string()

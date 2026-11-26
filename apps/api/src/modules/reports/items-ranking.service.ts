@@ -147,7 +147,18 @@ const TIPO: Record<ItemsRankingType, Prisma.Sql> = {
 export class ItemsRankingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async rank(tenantId: string, scope: UserScope, query: ItemsRankingQuery): Promise<ItemsRanking> {
+  /**
+   * `tx` es una transacción PRESTADA, ya abierta con `withTenantContext` del
+   * MISMO `tenantId`: el panel hace sus consultas en fila dentro de una sola,
+   * en vez de pedir una conexión por consulta (Sentry SELLPOINT-API-7). Sin
+   * ella, abre la suya.
+   */
+  async rank(
+    tenantId: string,
+    scope: UserScope,
+    query: ItemsRankingQuery,
+    tx?: Prisma.TransactionClient,
+  ): Promise<ItemsRanking> {
     if (query.warehouseId !== undefined) {
       // 403 y no una lista vacía: «esa sucursal no vendió nada» sería mentira.
       assertWarehouseInScope(scope, query.warehouseId);
@@ -166,10 +177,8 @@ export class ItemsRankingService {
     const limite = query.limit === null ? Prisma.empty : Prisma.sql`LIMIT ${query.limit}`;
     const orden = ORDEN[query.order];
 
-    const filas = await this.prisma.withTenantContext(
-      tenantId,
-      (tx) =>
-        tx.$queryRaw<FilaLeida[]>`
+    const consulta = (cliente: Prisma.TransactionClient) =>
+      cliente.$queryRaw<FilaLeida[]>`
         WITH por_articulo AS (
           SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
                  i.kind,
@@ -213,8 +222,11 @@ export class ItemsRankingService {
                pg.revenue::text AS revenue, pg.cost::text AS cost, pg.profit::text AS profit
           FROM resumen r
           LEFT JOIN pagina pg ON true
-         ORDER BY pg.puesto`,
-    );
+         ORDER BY pg.puesto`;
+    const filas =
+      tx === undefined
+        ? await this.prisma.withTenantContext(tenantId, consulta)
+        : await consulta(tx);
 
     // El resumen viaja en TODOS los renglones (y en uno vacío si la página no trae nada).
     const resumen = filas[0];

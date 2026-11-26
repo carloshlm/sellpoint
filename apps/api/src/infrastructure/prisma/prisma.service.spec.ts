@@ -146,3 +146,65 @@ describe("PrismaService — el rol de conexión no puede saltarse RLS", () => {
     await conRolDeApp.onModuleDestroy();
   });
 });
+
+/**
+ * Sentry SELLPOINT-API-7 (2026-11-25): una carga del Panel pedía más
+ * conexiones de las que tenía el pool, y la que se quedaba en la fila más de
+ * 2 s se rendía con «Unable to start a transaction in the given time».
+ */
+describe("PrismaService — el pool aguanta una ráfaga de transacciones", () => {
+  const conPool = (extra: Record<string, unknown> = {}) =>
+    new PrismaService(
+      new ConfigService<Env, true>({ DATABASE_URL: process.env.DATABASE_URL, ...extra }),
+    );
+
+  /** `cuantas` transacciones que ocupan su conexión `segundos` segundos. */
+  const ocupar = (prisma: PrismaService, cuantas: number, segundos: number) =>
+    Array.from({ length: cuantas }, () =>
+      prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_sleep(${segundos})`;
+        },
+        { timeout: 10_000 },
+      ),
+    );
+
+  it("caben 20 a la vez, y la 21 espera su turno más de 2 s en vez de rendirse", async () => {
+    const prisma = conPool();
+    await prisma.onModuleInit();
+
+    const inicioOcupadas = Date.now();
+    // 20 escrito a mano, no la constante: si alguien la baja, esto se pone rojo.
+    const ocupadas = ocupar(prisma, 20, 3);
+    // Que las del pool tomen su conexión antes de pedir otra.
+    await new Promise((r) => setTimeout(r, 300));
+
+    const inicio = Date.now();
+    await expect(prisma.$transaction((tx) => tx.$queryRaw`SELECT 1 AS uno`)).resolves.toEqual([
+      { uno: 1 },
+    ]);
+    // Esperó a que se liberara una: el pool no tiene más de 20, y la espera
+    // pasa de los 2 s con los que Prisma se rendía.
+    expect(Date.now() - inicio).toBeGreaterThan(2_000);
+
+    await Promise.all(ocupadas);
+    // Las 20 corrieron juntas: con el pool de 10 de antes habrían tardado 6 s.
+    expect(Date.now() - inicioOcupadas).toBeLessThan(4_500);
+    await prisma.onModuleDestroy();
+  }, 20_000);
+
+  it("DATABASE_POOL_MAX cambia el tamaño del pool (el sandbox usa 10)", async () => {
+    const prisma = conPool({ DATABASE_POOL_MAX: 2 });
+    await prisma.onModuleInit();
+
+    const ocupadas = ocupar(prisma, 2, 1.5);
+    await new Promise((r) => setTimeout(r, 300));
+
+    const inicio = Date.now();
+    await prisma.$transaction((tx) => tx.$queryRaw`SELECT 1`);
+    expect(Date.now() - inicio).toBeGreaterThan(800);
+
+    await Promise.all(ocupadas);
+    await prisma.onModuleDestroy();
+  }, 20_000);
+});

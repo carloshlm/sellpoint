@@ -1065,7 +1065,7 @@ El helper vive en `packages/shared` para reutilizarse en `apps/api` (PDFs, email
 | Grupo | Variables | Nota |
 |---|---|---|
 | App | `NODE_ENV`, `PORT`, `APP_URL`, `CORS_ORIGINS` | `APP_URL` arma los enlaces de los correos |
-| Base | `DATABASE_URL`, `DATABASE_URL_ADMIN` | La primera es el runtime (`sellpoint_app`, sujeto a RLS); la segunda, solo las migraciones y el seed |
+| Base | `DATABASE_URL`, `DATABASE_URL_ADMIN`, `DATABASE_POOL_MAX` | La primera es el runtime (`sellpoint_app`, sujeto a RLS); la segunda, solo las migraciones y el seed. `DATABASE_POOL_MAX` son las conexiones del pool del API: 20 por omisión, 10 en sandbox, cuyo Postgres admite 20 |
 | Redis | `REDIS_URL` | |
 | JWT | `JWT_PRIVATE_KEY_BASE64`, `JWT_PUBLIC_KEY_BASE64` (producción) · `JWT_PRIVATE_KEY_PATH`, `JWT_PUBLIC_KEY_PATH` (desarrollo) · `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_ACCESS_TTL_MIN` | |
 | Sesión | `REFRESH_COOKIE_PATH`, `REFRESH_TOKEN_TTL_DAYS`, `REFRESH_FAMILY_MAX_DAYS`, `COOKIE_DOMAIN` | `COOKIE_DOMAIN` va vacía: la cookie es solo del host |

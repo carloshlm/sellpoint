@@ -89,6 +89,7 @@ describe("validateEnv", () => {
       expect(result.COOKIE_DOMAIN).toBe("");
       expect(result.REFRESH_TOKEN_TTL_DAYS).toBe(7);
       expect(result.REFRESH_FAMILY_MAX_DAYS).toBe(30);
+      expect(result.DATABASE_POOL_MAX).toBe(20);
       expect(result.THROTTLE_ENABLED).toBe(true);
       expect(result.TRUST_PROXY_HOPS).toBe(1);
       // 300 y no 100 (2026-08-31): límite anti-bot con margen humano — ver env.schema.ts.

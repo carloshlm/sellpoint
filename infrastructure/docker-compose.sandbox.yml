@@ -56,6 +56,11 @@ services:
     cpu_shares: 256
     env_file:
       - /opt/sellpoint-sandbox/.env
+    environment:
+      # Su Postgres admite 20 conexiones (max_connections, abajo) y reserva 3:
+      # el pool de 20 de producción recibiría «too many clients» en vez de
+      # esperar turno (Sentry SELLPOINT-API-7, 2026-11-25).
+      DATABASE_POOL_MAX: "10"
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { localCalendarDate, startOfDayUtc } from "@sellpoint/shared";
+import type { Prisma } from "../../generated/prisma/client";
 import { CLOCK, type ClockPort } from "../../infrastructure/clock/clock.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -62,11 +63,8 @@ export class DashboardSeriesService {
 
     const almacenes = scope.warehouseIds === "all" ? null : [...scope.warehouseIds];
 
-    const porDia = (desde: Date, hasta: Date) =>
-      this.prisma.withTenantContext(
-        user.tenantId,
-        (tx) =>
-          tx.$queryRaw<{ d: number; total: string }[]>`
+    const porDia = (tx: Prisma.TransactionClient, desde: Date, hasta: Date) =>
+      tx.$queryRaw<{ d: number; total: string }[]>`
           SELECT EXTRACT(DAY FROM (s.created_at AT TIME ZONE ${zona}))::int AS d,
                  SUM(s.total)::text AS total
             FROM sales s
@@ -74,8 +72,7 @@ export class DashboardSeriesService {
              AND s.status = 'completed'
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${desde} AND s.created_at < ${hasta}
-           GROUP BY d`,
-      );
+           GROUP BY d`;
 
     // Los mismos días de la semana de las cuatro semanas anteriores, como
     // fechas LOCALES (el mediodía UTC esquiva cualquier borde de horario).
@@ -86,13 +83,15 @@ export class DashboardSeriesService {
     );
     const inicioReferencia = startOfDayUtc(diasDeReferencia.at(-1) ?? hoy, zona);
 
-    const [actual, anterior, horas, referencia] = await Promise.all([
-      porDia(inicioMes, ahora),
-      porDia(inicioMesAnterior, inicioMes),
-      this.prisma.withTenantContext(
-        user.tenantId,
-        (tx) =>
-          tx.$queryRaw<{ h: number; total: string }[]>`
+    // Sentry SELLPOINT-API-7 (2026-11-25): las cuatro consultas van en fila
+    // dentro de UNA transacción, no en cuatro en paralelo: una carga del Panel
+    // pedía más conexiones de las que tiene el pool.
+    const { actual, anterior, horas, referencia } = await this.prisma.withTenantContext(
+      user.tenantId,
+      async (tx) => ({
+        actual: await porDia(tx, inicioMes, ahora),
+        anterior: await porDia(tx, inicioMesAnterior, inicioMes),
+        horas: await tx.$queryRaw<{ h: number; total: string }[]>`
           SELECT EXTRACT(HOUR FROM (s.created_at AT TIME ZONE ${zona}))::int AS h,
                  SUM(s.total)::text AS total
             FROM sales s
@@ -101,13 +100,9 @@ export class DashboardSeriesService {
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${inicioHoy} AND s.created_at < ${ahora}
            GROUP BY h`,
-      ),
-      // El divisor son los días que tuvieron al menos una venta completada:
-      // un día cerrado no baja el promedio. Sin ninguno, no vuelve ninguna fila.
-      this.prisma.withTenantContext(
-        user.tenantId,
-        (tx) =>
-          tx.$queryRaw<{ h: number; reference: string }[]>`
+        // El divisor son los días que tuvieron al menos una venta completada:
+        // un día cerrado no baja el promedio. Sin ninguno, no vuelve ninguna fila.
+        referencia: await tx.$queryRaw<{ h: number; reference: string }[]>`
           WITH ventas AS (
             SELECT (s.created_at AT TIME ZONE ${zona})::date AS d,
                    EXTRACT(HOUR FROM (s.created_at AT TIME ZONE ${zona}))::int AS h,
@@ -123,8 +118,8 @@ export class DashboardSeriesService {
                  ROUND(SUM(total) / (SELECT COUNT(DISTINCT d) FROM ventas), 2)::text AS reference
             FROM ventas
            GROUP BY h`,
-      ),
-    ]);
+      }),
+    );
 
     const mapaActual = new Map(actual.map((f) => [f.d, f.total]));
     const mapaAnterior = new Map(anterior.map((f) => [f.d, f.total]));

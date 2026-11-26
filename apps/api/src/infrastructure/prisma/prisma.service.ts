@@ -4,13 +4,35 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Env } from "../../config/env.schema";
 import { Prisma, PrismaClient } from "../../generated/prisma/client";
 
+/**
+ * Conexiones del pool del API cuando `DATABASE_POOL_MAX` no llega (Sentry
+ * SELLPOINT-API-7, 2026-11-25). El valor por omisión de `pg` es 10, y una sola
+ * carga del Panel pedía unas 16 a la vez. Postgres de producción admite 50
+ * (`max_connections` en `docker-compose.prod.yml`): 20 deja aire para
+ * migraciones, respaldos y psql. El sandbox admite 20 y usa 10.
+ */
+export const DEFAULT_POOL_MAX_CONNECTIONS = 20;
+
+/**
+ * Cuánto espera una transacción a que se libere una conexión antes de rendirse
+ * con «Unable to start a transaction in the given time». El valor por omisión
+ * de Prisma es 2 s, y la ráfaga del Panel lo rebasaba sin que nada estuviera
+ * roto: solo había fila.
+ */
+export const TRANSACTION_MAX_WAIT_MS = 5_000;
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor(configService: ConfigService<Env, true>) {
     super({
       adapter: new PrismaPg({
         connectionString: configService.get("DATABASE_URL", { infer: true }),
+        // Las pruebas arman un ConfigService con solo DATABASE_URL, sin el
+        // default del esquema: sin el respaldo, pg volvería a sus 10.
+        max:
+          configService.get("DATABASE_POOL_MAX", { infer: true }) ?? DEFAULT_POOL_MAX_CONNECTIONS,
       }),
+      transactionOptions: { maxWait: TRANSACTION_MAX_WAIT_MS },
     });
   }
 

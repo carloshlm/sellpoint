@@ -119,28 +119,43 @@ export class DashboardProductsService {
     });
     const ventana = resolvePeriodWindow(period, tenant?.timezone ?? "UTC", this.clock.now());
     const almacenes = scope.warehouseIds === "all" ? null : [...scope.warehouseIds];
-    const ranking = (consulta: Pick<ItemsRankingQuery, "from" | "to" | "order" | "limit">) =>
-      this.ranking.rank(user.tenantId, scope, { ...consulta, type: "all", offset: 0 });
+    // Sentry SELLPOINT-API-7 (2026-11-25): las cinco consultas van en fila
+    // dentro de UNA transacción. Con un `Promise.all` de cinco transacciones,
+    // una carga del Panel pedía cinco conexiones solo para esta sección y,
+    // junto con las demás, agotaba el pool: «Unable to start a transaction».
+    const { top, previos, ganan, pierden, sinCosto } = await this.prisma.withTenantContext(
+      user.tenantId,
+      async (tx) => {
+        const ranking = (consulta: Pick<ItemsRankingQuery, "from" | "to" | "order" | "limit">) =>
+          this.ranking.rank(user.tenantId, scope, { ...consulta, type: "all", offset: 0 }, tx);
 
-    // F4-TAX-20: el revenue y la utilidad del top van sobre la BASE (line_total
-    // menos el impuesto que viaja adentro): lo que el fisco se lleva no es
-    // ingreso del artículo.
-    const vendidos = (from: Date, to: Date) =>
-      ranking({ from, to, order: "revenue", limit: VENDIDOS_MAX });
+        // F4-TAX-20: el revenue y la utilidad del top van sobre la BASE
+        // (line_total menos el impuesto que viaja adentro): lo que el fisco se
+        // lleva no es ingreso del artículo.
+        const vendidos = (from: Date, to: Date) =>
+          ranking({ from, to, order: "revenue", limit: VENDIDOS_MAX });
 
-    const [top, previos, ganan, pierden, sinCosto] = await Promise.all([
-      vendidos(ventana.desde, ventana.hasta),
-      vendidos(ventana.desdeAnterior, ventana.hastaAnterior),
-      // «Mayor utilidad» y «bajo costo» salen del MISMO agregado, partido por el
-      // signo de la utilidad ya redondeada a centavos: así las dos listas no se
-      // contradicen, y lo que quedó justo en $0.00 no está en ninguna. El
-      // conteo de las pérdidas es de TODAS, aunque la lista traiga cinco.
-      ranking({ from: ventana.desde, to: ventana.hasta, order: "profit", limit: AVISOS_MAX }),
-      ranking({ from: ventana.desde, to: ventana.hasta, order: "loss", limit: AVISOS_MAX }),
-      this.prisma.withTenantContext(
-        user.tenantId,
-        (tx) =>
-          tx.$queryRaw<
+        return {
+          top: await vendidos(ventana.desde, ventana.hasta),
+          previos: await vendidos(ventana.desdeAnterior, ventana.hastaAnterior),
+          // «Mayor utilidad» y «bajo costo» salen del MISMO agregado, partido
+          // por el signo de la utilidad ya redondeada a centavos: así las dos
+          // listas no se contradicen, y lo que quedó justo en $0.00 no está en
+          // ninguna. El conteo de las pérdidas es de TODAS, aunque la lista
+          // traiga cinco.
+          ganan: await ranking({
+            from: ventana.desde,
+            to: ventana.hasta,
+            order: "profit",
+            limit: AVISOS_MAX,
+          }),
+          pierden: await ranking({
+            from: ventana.desde,
+            to: ventana.hasta,
+            order: "loss",
+            limit: AVISOS_MAX,
+          }),
+          sinCosto: await tx.$queryRaw<
             {
               total: number;
               item_id: string;
@@ -169,8 +184,9 @@ export class DashboardProductsService {
            GROUP BY COALESCE(i.product_id::text, i.service_id::text), i.kind, COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name)
            ORDER BY SUM(i.line_total - i.tax_amount) DESC, COALESCE(p.name, sv.name)
            LIMIT ${AVISOS_MAX}`,
-      ),
-    ]);
+        };
+      },
+    );
 
     const ventaPrevia = new Map(previos.rows.map((f) => [f.itemId, new Prisma.Decimal(f.revenue)]));
 
